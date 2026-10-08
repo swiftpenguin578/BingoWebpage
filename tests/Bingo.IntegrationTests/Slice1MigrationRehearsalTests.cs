@@ -22,7 +22,7 @@ public sealed class Slice1MigrationRehearsalTests : IAsyncLifetime
     private const string PreviousImmutableItemMigration = "20260831142836_AddEventQuarantine";
     private const string ImmutableItemMigration = "20260905221344_AddImmutableCatalogueItemIdentity";
     private static readonly JsonSerializerOptions MappingJsonOptions = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = true };
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
         .WithDatabase("bingo_slice1_migration_rehearsal")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
@@ -32,8 +32,8 @@ public sealed class Slice1MigrationRehearsalTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        await database.StartAsync();
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
+        await PostgreSqlReadiness.StartAsync(database);
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
@@ -182,16 +182,19 @@ public sealed class Slice1MigrationRehearsalTests : IAsyncLifetime
             clock.Set(persistedCutoff);
             await lifecycle.ApplyAsync(CancellationToken.None);
             migrated.ChangeTracker.Clear();
-            Assert.False((await migrated.Accounts.SingleAsync(item => item.Id == captainId)).Active);
-            Assert.False((await migrated.AccountEventAccesses.SingleAsync(item => item.Id == access.Id)).Enabled);
-            Assert.Single(await migrated.AuditEntries.Where(item => item.Action == "account.emergency_cutoff_disabled" && item.TargetId == captainId.ToString()).ToListAsync());
+            // Emergency authority is retired. The compatibility worker is a
+            // deliberate no-op: retained rows and historical actor references
+            // are not mutated or given fabricated disable audit entries.
+            Assert.True((await migrated.Accounts.SingleAsync(item => item.Id == captainId)).Active);
+            Assert.True((await migrated.AccountEventAccesses.SingleAsync(item => item.Id == access.Id)).Enabled);
+            Assert.Empty(await migrated.AuditEntries.Where(item => item.Action == "account.emergency_cutoff_disabled" && item.TargetId == captainId.ToString()).ToListAsync());
             await lifecycle.ApplyAsync(CancellationToken.None);
-            Assert.Single(await migrated.AuditEntries.Where(item => item.Action == "account.emergency_cutoff_disabled" && item.TargetId == captainId.ToString()).ToListAsync());
+            Assert.Empty(await migrated.AuditEntries.Where(item => item.Action == "account.emergency_cutoff_disabled" && item.TargetId == captainId.ToString()).ToListAsync());
             await Assert.ThrowsAsync<InvalidOperationException>(() => new AccountAdministrationService(migrated, new PasswordHasher<Account>(), clock).SetEmergencyEnabledAsync(adminId, captainId, true, CancellationToken.None));
             await lifecycle.ApplyAsync(CancellationToken.None);
             migrated.ChangeTracker.Clear();
-            Assert.False((await migrated.Accounts.SingleAsync(item => item.Id == captainId)).Active);
-            Assert.False((await migrated.AccountEventAccesses.SingleAsync(item => item.Id == access.Id)).Enabled);
+            Assert.True((await migrated.Accounts.SingleAsync(item => item.Id == captainId)).Active);
+            Assert.True((await migrated.AccountEventAccesses.SingleAsync(item => item.Id == access.Id)).Enabled);
         }
 
         await using (var clean = new ApplicationDbContext(options))

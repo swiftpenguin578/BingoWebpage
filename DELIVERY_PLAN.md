@@ -7,7 +7,1940 @@ owned solely by [`UI_PAGE_MATRIX.md`](UI_PAGE_MATRIX.md).
 state, blockers, limitations, current work, and immediate ownership. Global UI
 rules and implementation ownership are defined by [`UI_SYSTEM.md`](UI_SYSTEM.md).
 
+## Luck percentile and KC comparison — approved implementation, 2026-10-01
+
+**Status:** technically complete and independently reviewed **PASS** after the
+explicitly approved changed Sol 6.1/high recovery. All L0–L6 technical requirements
+and remaining named findings are resolved. Manual visual acceptance is deferred.
+Controlled test fixtures and migration source were used; real provider/user-database
+operations, packaging and deployment were not performed or authorized.
+
+**Source baseline:** inspected `codex/participants-functionality` in
+`/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`, including
+its reviewed committed Participants/Dashboard work. The 573d checkout is stale.
+The execution checkout is this same active worktree and branch; do not use stale
+573d or Claude's design-reference checkout. Preserve the committed Participants,
+Dashboard and documentation work. Recheck only changed or missing dependencies.
+
+### Assignment and ownership
+
+Planner: `UI Planner`, app chat `01a0ec9a-76e3-7252-9850-3f260c612e59`
+(host `local`). Recovery orchestrator: native `/root`, app chat
+`01a0f855-c75f-7a13-8202-6cea96ae60d1` (host `local`), separately authorized
+by the user after the prior `/root/luck_redesign` dispatch hit its native thread
+limit. Previous Luna implementation/remediation stopped with three review gaps.
+The user explicitly approved new implementer `/root/luck_sol_recovery`, exact
+`gpt-6.1-sol` / high, for one changed bounded recovery. The four-file correction
+and focused checks completed; same independent reviewer `/root/luck_independent_review`
+(Sol 6.1/high) returned PASS on the three findings/direct consequences. The other
+22 reviewed candidate files remain unchanged. Prior Luna is idle and no further
+worker/review layer or scope was added. Orchestrator retains its approved Sol 6.1/high
+setting and final scoped planner callback. Evidence is retained in `docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/luck/`
+(final manifest SHA-256 `c3ecfa73d424021eb6e6456e321157ad3c7d71ed9239ff24fbaf5373af4bf7be`; disposition `independent-review-pass.txt`).
+Manual visual acceptance is recorded in UI_PAGE_MATRIX.
+Follow DELIVERY_PLAN section 4.2.1; no extra coordinator or routine verifier.
+
+### Agreed outcome and boundaries
+
+- Luck becomes 0–100%: `100 * (P(X < received) + 0.5 * P(X = received))`.
+  Do not recenter expectation at 50 or replace the distribution with an expected-drop
+  ratio. Preserve frozen personal probabilities, conditional probabilities, reward
+  rolls, mutual exclusion, independent roll groups and numerical safety limits.
+- Stats keeps its existing Luck container, team/player views, comparison and search.
+  Default mode is **Luck %**; an in-container toggle selects **KC difference**.
+  No additional container, boss selector or EHB mode. KC totals deliberately do not
+  adjust for kill speed/difficulty. Tooltip: "KC totals don’t account for differences
+  in boss kill speed." This limitation is accepted, not a blocker.
+- Tile views expose one overall Luck result and each relevant boss/activity's own KC
+  and Luck; contributor rows must also use the matching activity result. Never repeat
+  the overall percentage as if it were each boss's percentage.
+- Both modes come from the same saved snapshot. Evidence approval/reversal does not
+  recalculate, clear or routinely warn about an existing result. Quiet **Last updated**
+  metadata is sufficient. Upstream delay and up to an hour of normal age are accepted.
+- Successful normal WOM fetches calculate Luck using the returned activity and current
+  approved evidence. Continue normal/manual refresh eligibility through final review;
+  stop ordinary refreshing once results are published. Attempt a final normal refresh
+  during publish/archive, respecting the existing hourly limit. Failure or a rate-limit
+  skip retains the prior result and does not block publication; report actual refresh
+  failure through the existing operation feedback. No separate Luck refresh mechanism.
+- Convert supported historical checkpoints once from their own retained inputs, never
+  by relabelling signed scores or mixing in newer evidence/rates. This is the agreed
+  bounded migration exception to fetch-only calculation.
+- No broad public or Admin visual redesign, altered drop-credit rules, new external
+  service, generic cache framework, or changes to official scores/winners/evidence.
+
+### Source findings and relevant owners
+
+1. `src/Bingo.Domain/Events/LuckScoreCalculator.cs` already builds bounded binomial
+   distributions and convolutions, computes a mid-rank, then normalizes around the
+   expected-count rank into -100..100. Replace the final normalization only.
+2. `src/Bingo.Infrastructure/Stats/PublicStatsService.Luck.cs` reads/rescores checkpoint
+   JSON, falls back to current evidence plus cached activity, and writes checkpoints.
+   Approval/reversal in `SubmissionService`, lifecycle/finalization and WOM sync call
+   `RefreshCheckpointAsync`. All non-fetch recalculation paths need removal, not just
+   evidence callbacks. Evidence revisions remain for other consumers/concurrency.
+3. `PublicStatsService.Tile.cs` retains tile-specific received totals and per-metric KC,
+   but its metric DTO lacks its own Luck result. Preserve tile-attributed evidence;
+   event-wide source counts must not leak into a selected tile's observed count.
+4. `EventCompetitionSynchronizationService` and `.MetricCache.cs` own normal hourly
+   fetches, leases, generation/source/assignment fencing and metric availability.
+   Manual eligibility, due processing, lease acquisition and lease finalization all
+   currently require Live. Extend the relevant gates consistently for final review.
+5. `EventStatsLuckCheckpoint` is one JSONB row per event with schema version 1, an 8 MiB
+   limit, evidence/batch/generation/fingerprints and calculation/provider times.
+   PostgreSQL currently constrains `schema_version = 1`; changing the version needs
+   an EF migration, designer and model snapshot. No second snapshot table is planned.
+6. `BoardPublicationQueries.Luck.cs` and `EventLuckOutcomeBasis` retain first-approved
+   event mechanics and first validated metric binding. Global catalogue edits do not
+   rewrite them. Existing tests/constraints protect this deliberate historical rule.
+7. `IPublicStatsService.cs`, Stats Razor/JSON, `stats-adapter.js`, `stats-page.js`, Stats
+   CSS and `_TileActivity.cshtml` consume Luck. `PublicBoardService.GetTileAsync` feeds
+   the tile/sidebar projection. Migrate these active consumers and shared previews;
+   no second transport endpoint is needed. Official placement data is a separate
+   owner; do not rewrite official history as part of derived Luck conversion.
+
+### Calculation and projection contract
+
+**Percentile:** remove expected-rank interpolation and signed scaling; return
+`100 * MidRank(distribution, received)` with a bounded numerical clamp. A deterministic
+distribution's only possible outcome has rank 50, but no-activity/missing-data UI
+states remain unavailable rather than displaying a fabricated 50. Impossible observations
+and excessive computation remain unavailable. Use at most one decimal consistently
+in percentage presentation; retain unrounded values for sorting/calculation.
+
+**KC difference:** calculate per character and boss/activity metric, then sum those
+balances for each player/team. For a component scope let `lambda` be the expected
+number of eligible item outcomes per kill: sum `rolls * effective personal probability`
+over deduplicated eligible outcomes, respecting the retained mechanics. Let `r` be
+the approved eligible outcome count and `k` the corresponding recorded KC:
+
+`KC difference = r / lambda - k`.
+
+This defines the comparison for the combined eligible drop set, consistent with the
+existing count-based Luck model. It does not assign a separate inverse-rarity reward
+to each item. Independent groups may yield multiple outcomes per kill; do not replace
+lambda with the probability of at least one drop. Subtract each character/activity's
+KC once, never once per item, roll group or duplicated tile placement. For multiple
+characters/rates calculate each balance first, then sum; never divide pooled drops
+by an unrelated average rate. Lambda zero/unsupported, missing activity or invalid
+inputs cannot yield a number. One drop at 90 KC with rate 1/100 gives +10; one at 120
+gives -20; two at 120 gives +80; zero at 120 gives -120. This is an event-total balance,
+not a measured dry streak since the last drop. Show signed KC with at most one decimal;
+normalize rounded negative zero. Overall sums count all kills equally, as agreed.
+
+**Results:** extend existing DTOs with KC difference and explicit activity breakdowns
+keyed by boss identity AND metric, each containing KC, received/expected counts, Luck,
+availability and estimate flags. Retain a distinct aggregate result at event/team/player
+and tile/team/contributor scopes. Store inputs needed for tile-specific activity counts
+and migration; do not rely on current evidence to reconstruct an old breakdown.
+All values in a displayed snapshot share batch/evidence/algorithm provenance.
+
+### Snapshot publication, retention and partial data
+
+- Use the existing successful synchronization finalization transaction and event lock.
+  After checking the lease, competition, generation, source set and assignments, capture
+  approved evidence and calculate/persist with that accepted activity batch. Preserve
+  atomic rollback, cancellation handling and stale-writer fencing.
+- Reads only project saved results; remove fresh-evidence/cached-KC fallback and routine
+  read-time rescoring. A failed fetch cannot overwrite a good checkpoint or its times.
+- A successful HTTP response may still be partial. Prefer retaining a prior compatible
+  complete snapshot as a whole over publishing a degraded replacement. Do not mix new
+  boss results with an old aggregate under one timestamp. Without a complete prior
+  snapshot, a successful batch may expose independently complete scopes while dependent
+  aggregates remain unavailable. Never discard an existing calculable scope merely
+  because a later partial response cannot calculate it; retain the prior whole snapshot.
+- Missing/unranked/estimated/zero activity keep honest distinct states. Missing required
+  activity blocks the affected aggregate, not independently complete scopes. Numerical
+  limits may block a percentile without blocking a sound KC balance from the same inputs.
+- Separate snapshot compatibility from ordinary age/evidence changes. Reversal is no
+  longer a presentation invalidator. Normal Live -> review -> archived transitions keep
+  saved Luck. Preserve privacy, public visibility and invalidation for genuinely different
+  competition/assignment/source identities; never label another roster's result as current.
+- If a candidate exceeds the payload bound, retain the previous snapshot or return
+  unavailable when none exists; record a diagnostic. No truncation or read-time calculation
+  escape hatch. No new tables solely to bypass the bound without measured need.
+- WOM success is not a claim that OSRS has caught up. Preserve upstream/fetch times;
+  do not fabricate a drop-time cutoff from submission/approval timestamps.
+
+### Final review and publish/archive boundary
+
+Reuse existing WOM scheduling/manual fetch and provider limits during AwaitingFinalReview.
+Keep website-owned competition dates, including manual-end/resume history, authoritative.
+The fetch must describe the correct event window, not post-event activity accidentally
+included by a provider schedule mismatch. Validate this at the existing integration boundary.
+
+Before committing publish/archive, attempt a normal refresh only when eligible under
+the hourly/retry/lease limits. Do not hold a database transaction open across HTTP. After
+the attempt, revalidate existing event/evidence/finalization concurrency tokens; a changed
+event must not be finalized using a stale reviewed state. If a fetch is skipped or fails,
+publication can proceed with the last snapshot and its real timestamp. Do not enqueue
+an unbounded post-archive refresh, bypass provider limits or make Luck a publication gate.
+Repeated archive/publish calls must not fetch twice. Existing authorized reopen/unfinalize
+flows re-enable refresh only when they actually return the event to an eligible phase.
+
+### Versioning, historical conversion and catalogue policy
+
+Use a version-2 checkpoint contract that unambiguously identifies percentile semantics
+and KC balances. Expand the DB constraint to support safe legacy reading/conversion;
+never flip version 1 to 2 without actually rebuilding supported results. New writes
+produce version 2. Update stale-writer guards so old versions cannot overwrite new ones.
+
+Provide a bounded, idempotent explicit conversion step for historical version-1 payloads.
+Only use their retained observations, received totals, rates and coherent attribution.
+Preserve original calculation/fetch/upstream times; record conversion/algorithm provenance
+separately. Convert whatever scopes have complete retained inputs; leave missing legacy
+tile/boss attribution unavailable. Do not guess from current publication/evidence. Malformed
+or incomplete legacy payloads remain safely unavailable with diagnostics. No public-read
+writes, mass provider fetch, changed evidence/placements or invented historical checkpoints.
+
+Global catalogue rate/mapping edits affect future event bases, not immutable past bases.
+Relevant changes to an event's eligible outcome set or legitimate first metric binding
+change its source fingerprint, invalidate incompatible presentation, and require a matching
+normal fetch. This is distinct from approval/reversal retention. No new mechanism for
+rewriting frozen event mechanics is included.
+
+### UI semantics and shared guidance
+
+Keep the existing public composition. Luck uses a fixed 0–100 scale; remove plus signs,
+negative tests and the zero-as-expected centre. KC difference uses signed values and a
+zero-centred scale appropriate to that mode. Sort and select extremes using the active
+mode's unrounded value; preserve search, pinning, team drill-down and unavailable rows.
+Use neutral snapshot age rather than routine stale/error wording. Preserve meaningful
+provider failure/estimate/missing information without exposing private diagnostics.
+
+One shared localized explanation should serve Stats and tile help: Luck compares approved
+drops with modeled outcomes at the same recorded activity and retained rates. Higher
+percentages mean luckier outcomes; expectation is not forced to the midpoint. KC mode
+explains the rate-equivalent balance and the agreed short kill-speed tooltip. No technical
+distribution terminology in ordinary UI. Single-boss tiles should not duplicate identical
+aggregate/boss rows unnecessarily. User supplies visual acceptance of the necessary changes.
+
+### Tickets, dependencies and focused proof
+
+| Ticket | Owned result | Acceptance/checks |
+| --- | --- | --- |
+| L0 — readiness/authority | Confirm changed source and exact final-review/finalization/migration wiring; promote these approved decisions into product/functional/data/UI authorities | One bounded readiness review; no reopening agreed product decisions or broad audit |
+| L1 — calculation/contracts | Percentile, KC balance, explicit activity results and reusable bounded distribution work | Deterministic independently enumerated PMFs; no/one/expected/lucky/unlucky counts; no recentering; deterministic/impossible/bounds; mutually exclusive, independent and conditional cases |
+| L2 — projections | Event/team/player and tile/contributor aggregate + boss results | Real catalogue DKS ring fixture: Prime Seers, Rex Berserker + Warrior, Supreme Archers; per-boss truth, aggregate not average, exact tile attribution; KC de-duplication across outcomes/rolls/placements and mixed rates |
+| L3 — snapshot/versioning | Fetch-only atomic publication, compatibility/retention, schema migration and retained-input conversion | Real PostgreSQL approval/reversal retained until fetch; success/failure/partial/no-prior; stale writers, source change in flight, rollback, schema constraint, idempotent legacy conversion and payload limits |
+| L4 — lifecycle refresh | Final-review eligibility and bounded final fetch attempt | Hourly/cooldown/lease gates, manual-end event window, concurrent evidence/finalization, failed/skipped final fetch, no duplicate fetch and no post-publication scheduled refresh |
+| L5 — presentation | Both Stats modes and correct boss/contributor display | Focused adapter/render tests: fixed percentile vs signed KC geometry, mode sorting/pinning, formatting/rounding, same timestamp, unavailable states, reduced motion and localization; user visual acceptance |
+| L6 — delivery reconciliation | Fresh independent stable-diff review, named remediation/recheck and recorded status | Scoped build/format/diff plus relevant existing suites; distinguish implemented, executed, reviewed and manually accepted; no packaging without authority |
+
+L0 precedes implementation. L1 establishes the shared contract. L2 and L3 may overlap
+only with disjoint source ownership and a stable agreed DTO; coordinate their shared
+Stats files rather than concurrent conflicting edits. L4 depends on L3's snapshot
+boundary. L5 uses the stable contract; L6 follows the complete candidate. Use existing
+workflow roles, an independent reviewer, and no extra coordinator/verifier chain.
+
+Use the cheapest meaningful level: calculator tests for math, projection tests for
+grouping and real PostgreSQL for persistence/concurrency. Timestamp fixtures must use
+deterministic UTC/microsecond precision and exercise non-microsecond round trips where
+fingerprints rely on storage. Retain current numerical work guards; reuse prepared
+components/distributions where safe rather than rebuilding a full tile per rendered row.
+Measure representative multi-account/multi-boss payload and calculation sizes before
+adding further caching. No property-only/framework tests or repeated full regression runs.
+
+### Execution disposition — reviewed technical completion, 2026-10-01
+
+L0 authority reconciliation, L1 math, L2 projections, L3 snapshot/version/conversion,
+L4 lifecycle/operation feedback and discriminating window proof, and L5 presentation/
+affected tests are implemented and executed at their relevant boundaries. L6 source,
+recorded evidence and stable identity review passed. Recovery PG 5/5, complete Node
+67 passed / 0 failed / 2 existing optional skips, Release compilation, scoped formatter
+and diff checks pass; prior cleared proof is retained. User manual visual acceptance
+was granted on 2026-10-02 after populated demo inspection and is recorded in
+UI_PAGE_MATRIX. Final evidence: `docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/luck/`,
+final manifest SHA-256 `c3ecfa73d424021eb6e6456e321157ad3c7d71ed9239ff24fbaf5373af4bf7be`; disposition `independent-review-pass.txt`. CURRENT_STATUS owns the next assignment.
+
+### Remaining risks and stop boundary
+
+No outstanding product decisions from this discussion. Readiness must validate the
+legacy data sufficient for each converted scope, the archive/provider window boundary,
+and existing catalogue independence assumptions. Raise a concrete unsupported mechanic
+or required scope expansion rather than silently broadening the probability engine.
+Player/team roster histories and rate changes must not accidentally change observation
+ownership. Percentiles remain a model of approved eligible drops, not all unseen gameplay.
+
+This section records the implemented Luck behavior and its retained historical
+boundaries. Older signed-score, reversal-invalidation, read-time-rescore and
+Live-only descriptions are historical source material; the active Luck contract
+and current implementation govern delivery.
+**Next permitted action:** see CURRENT_STATUS.md for the active assignment and
+stop boundary. This historical Luck closure does not dispatch later tickets.
+
+
+## Review preparation checkpoint — 2 October 2026
+
+Implementation/reference backup is pushed: `acf8ba9` (AU01–AU10 and planner docs),
+`be0014e` (references/evidence), `1e8d457` (unchanged CLAUDE.md only).
+Base main is `22af254c893bb51e7820d84fc4154ff9af3bcc90`.
+This is not a release or permission to restart implementation. AU11 onward stays
+stopped. Planner reconciled requirements and the 47 source-finding dispositions; the approved
+summary and complete finding map are in
+[the existing register](docs/references/admin-ui/FUNCTIONALITY_CHANGES.md#review-reconciliation-and-requirements-summary--2-october-2026).
+The user approved the clarified product changes. The final documentation checkpoint
+precedes a short whole-branch handoff, not a prescribed area-by-area review procedure.
+Claude chooses the review method and checks requirements/tickets as well as code.
+Distinguish defects, requirement mismatches and known unfinished tickets; name exact
+base/candidate commits. Scope includes the original simplification, not just AU work.
+No new independent code review or tests are claimed by this documentation pass.
+
+## Admin functionality queue — recorded 1 October 2026
+
+The user originally authorized the AU01–AU14 / RC01–RC04 sequence, then explicitly
+stopped after AU10. AU01–AU10 are committed and technically complete; no next-ticket
+implementation or dispatch is currently authorized. Reconciliation records later
+agreed outcomes and remaining technical scope for review. On a future explicit resume, execute one ticket at a time in
+the approved order. Recording a ticket or approving requirements is not a resume.
+Routing follows the current policy in `AGENTS.md` ("Active workflow and model
+defaults"). Do not skip unfinished tickets.
+This replaces the earlier queue-only authorization. Before each implementation,
+promote its approved behavior into the relevant existing authority sections.
+Use this section as the execution owner; the reference's
+`docs/references/admin-ui/FUNCTIONALITY_CHANGES.md` links here and maps pages.
+Do not create a competing general ticket inventory or automatically expand scope.
+
+Baseline: `codex/participants-functionality` in
+`/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`.
+Preserve all Participants, Dashboard and Luck work. Recheck only changed relevant
+sources at dispatch. AU tickets own the application; the separately authorized
+RC tickets below own bounded reference corrections. Claude owns visual design and
+canvas synchronization. No canvas/reference redesign, live provider calls, user-database
+mutation, staging, commit, push or deployment is authorized by this queue.
+
+### Queue and delivery state
+
+Luck, Participants and Dashboard backend work is complete and committed; remaining
+application tickets stay queued under the execution authorization above. AU01–AU10
+are technically complete with executed focused proof and independent review PASS.
+AU13 is separately complete through the F8 checkpoint below; AU11–AU12 and AU14–AU24
+retain the approved/proposed statuses in the table below and are not dispatched by
+this cleanup. Shared files/dependencies can inform sequence without merging tickets
+into a broad pass.
+
+| Order / ID | Application outcome | Depends on | Implementation | Executed proof | Independent review | UI integration / manual acceptance |
+| --- | --- | --- | --- | --- | --- | --- |
+| AU01 | Restore cannot produce two visible current events | Reject conflicting restore; reuse current-event boundary | Technically complete; committed at checkpoint 1e8d457; manifest cb8d95f5 | PASS 9/9 PostgreSQL/HTTP plus 3/3 quarantine regressions; Release build | PASS — fresh Astra/high; report 8b78c557; no findings | Deferred |
+| AU02 | Enforce signup-code length at the server boundary | Luck complete | Technically complete — /root/au02_implementer; committed at checkpoint 1e8d457; manifest 286f23b0; planner reconciled completion; prior callback failure retained | PASS 5/5 authenticated PostgreSQL; Release build 0 warnings/errors; scoped diff/leak PASS | PASS — fresh Astra/high /root/au02_reviewer; report 9c18fe67; no findings | Existing route; new UI/manual acceptance deferred |
+| AU03 | Duplicate-safe event creation and uncertain-outcome lookup | Luck complete | Technically complete — /root/au03_implementer; committed at checkpoint 1e8d457; manifest feafacaa; planner directly reconciled completion and all 22 hashes; callback rejection retained | PASS 13 distinct PostgreSQL/request cases + reset 1/1; final Release build; slug 6/6; architecture 2/2; scoped diff/leak/protected-source checks | PASS — fresh Astra/high /root/au03_reviewer; sole P2 reset finding resolved; report aa90ac4a | Existing route; new modal/UI/manual acceptance deferred |
+| AU04 | Events directory ordering, retained counts and attention projection | Dashboard backend available | Technically complete — /root/au04_implementer; committed at checkpoint 1e8d457; corrected manifest c59d2745 | PASS: 8 distinct PostgreSQL cases (7/8 + fixture-corrected 1/1); final Release solution build; expanded attention case 1/1 + affected Release compile; scoped diff/leak/protected checks | PASS — fresh Astra/high /root/au04_reviewer; sole P2 attention-filter omission resolved/rechecked; report 673b0641 | Layout/URL/control/participant bindings and manual acceptance deferred |
+| AU05 | Signup setup stale-edit protection and settings version responses | Existing signup services | Technically complete — /root/au05_implementer; committed at checkpoint 1e8d457; manifest 387426bb | PASS: 25 distinct PostgreSQL/HTTP cases across corrected runs; final Release build 0 warnings/errors; scoped diff/leak/protected checks | PASS — fresh Astra/high /root/au05_reviewer; no required findings; report cfb67191 | UI/per-card uncertainty binding and manual acceptance deferred |
+| AU06 | Duplicate-safe question/account-field creation | AU05 version contract | Technically complete — /root/au06_implementer; committed at checkpoint 1e8d457; manifest 54af691e | PASS: 12 distinct PostgreSQL/HTTP cases across corrected runs; final Release build 0 warnings/errors; scoped diff/leak/protected checks | PASS — fresh Astra/high /root/au06_reviewer; no required findings; report bcf9392b | Frontend draft/uncertainty binding, AU07 feedback and manual acceptance deferred |
+| AU07 | Explicit required-to-optional outcome when first response arrives | AU05/AU06 result contract | Technically complete — /root/au07_implementer; committed at checkpoint 1e8d457; manifest 93c76d18; callback rejected; planner reconciled directly | PASS: 22 distinct PostgreSQL/HTTP cases across corrected runs; final Release build 0 warnings/errors; scoped diff/leak/protected checks | PASS — fresh Astra/high /root/au07_reviewer; no required findings; report ca110d17 | Frontend uncertainty binding and manual acceptance deferred |
+| AU08 | Identity field-level conflict handling | Existing Identity concurrency/timezone rules | Technically complete — /root/au08_implementer; committed at checkpoint 1e8d457; manifest d74176f8 | PASS: 14 distinct PostgreSQL/HTTP cases across corrected runs; controlled timezone fixture; final Release build 0 warnings/errors; scoped diff/leak/protected checks | PASS — fresh Astra/high /root/au08_reviewer; no required findings; report 912763bd | Conflict-choice frontend integration, AU09 and manual acceptance deferred |
+| AU09 | Identity uncertain-save readback | AU08 result/field contract | Technically complete — /root/au09_implementer; committed at checkpoint 1e8d457; manifest a93e9584 | PASS: 7 distinct PG/HTTP cases across corrected fixture runs; readback/timezone and named multiline transport; Release build 0 warnings/errors; scoped checks | PASS — fresh Astra/high /root/au09_reviewer after single P2 named correction; report f5547bcd | Full ordinary-save/new-reference UI binding and manual acceptance deferred |
+| AU10 | Schedule instant preservation, field errors and uncertain readback | Existing versioned schedule save/read | Technically complete — /root/au10_implementer; committed at checkpoint 1e8d457; manifest e4592b79 | PASS: 12/12 PostgreSQL/HTTP; named Live check 1/1; shipped controlled HTTP transport; Release build 0 warnings/errors; scoped checks | PASS — fresh Astra/high /root/au10_reviewer; no required findings; report 24f0870c | Explicit user stop after AU10 report; no next-ticket work; full UI/manual acceptance deferred |
+| AU11 | Tile-local manual EHB override for every objective type | Existing calculation/approval/evidence boundaries | B2 implemented: `a628cda` | Focused PostgreSQL/calculator/build passed; au-b2/au11.md | Pending Claude | Controls/manual acceptance deferred |
+| AU12 | Credited EHB before score time in placement order | New events only; existing event rules retained; AU11 values reused | B2 implemented: `0f79ede` | Focused PostgreSQL/Up-Down/ranking/build passed; au-b2/au12.md | Pending Claude | Deferred |
+| AU13 | Board planning team-size estimate editable after draft finalization | Existing board statistics/settings boundary | Technically complete — F8 checkpoint `6d33ce6`; the post-finalization lock removed here originated in `525d5d1` (BR-2/BR-9) | Focused PostgreSQL 3/3, browser markup 1/1, diff check; evidence `docs/references/admin-ui/reviews/2026-10-03/f8-au13-checkpoint.md` | Accepted in the F1–F9 Claude source review; Claude did not rerun tests | Deferred |
+| AU14 | Teams: authoritative uncertain-action readback | Existing commands, immutable pick/team/member IDs and full intent | B5 backend implemented, remediation round 2 done, Claude recheck pending, binding pending `d3f2d88`; RC04/DRF binding pending | Focused PostgreSQL 7/7 PASS; docs/references/admin-ui/reviews/2026-10-04/au-b5/au14.md | Pending external Claude recheck | Deferred |
+
+| AU15 | WOM: remove typed FETCH confirmation | Existing refresh guards | Implemented by B1 Luna/max; local checkpoint awaiting Claude review; evidence `docs/references/admin-ui/reviews/2026-10-04/au-b1/AU15.md` | Browser markup 4/4; Release build 0 warnings/errors; current and Step0 baseline PostgreSQL/HTTP runs reach the route without `FETCH` and reproduce the unchanged schedule assertion failure (see evidence) | Pending — Claude commit-by-commit review | Deferred |
+| AU16 | Audit: restore approved hidden-event history and exact filters | Existing audit presenter/query and hidden-history authority | Implemented by B1 Luna/max; local checkpoint awaiting Claude review; evidence `docs/references/admin-ui/reviews/2026-10-04/au-b1/AU16.md` | PostgreSQL/DST/action-area coverage 2/2; authenticated C11 hidden-history coverage 2/2; EventQuarantine retention 1/1; existing structured paging 1/1; diff check PASS | Pending — Claude commit-by-commit review | Deferred |
+| AU17a | Review: current/released Playing assignments of current/former members of the submission’s own team | D11 option b; Informational excluded; retained identity mapped through results | B5 backend implemented, remediation round 2 done, Claude recheck pending, binding pending `ebd0ef2`; RC07 binding pending | Focused PostgreSQL 7/7 PASS; docs/references/admin-ui/reviews/2026-10-04/au-b5/au17a.md | Pending external Claude recheck | Deferred |
+| AU17 | Review: Contribution line and safe uncertain-save readback only | Shared approval allocation; refined BR-1; no per-account context | B5 backend implemented, remediation round 2 done, Claude recheck pending, binding pending `397d4c9`; RC07 binding pending | Focused PostgreSQL 16/16 PASS; docs/references/admin-ui/reviews/2026-10-04/au-b5/au17.md | Pending external Claude recheck | Deferred |
+| AU18 | Final Review: per-version final WOM outcome and reopen/version history only | Existing publish/reopen refusals unchanged; no current-event readiness row | B2 implemented | Focused PostgreSQL/history/localization/build passed; au-b2/au18.md | Pending Claude | Deferred |
+| AU19 | Board: tile-targeted approval issues, version comparison and authoritative readback | Existing leases/snapshots/calculators and late-evidence guards | B5 backend implemented, remediation round 2 done, Claude recheck pending, binding pending `992f6b1`; RC05 binding pending | Focused PostgreSQL 62/62 PASS; docs/references/admin-ui/reviews/2026-10-04/au-b5/au19.md | Pending external Claude recheck | Deferred |
+| AU20 | WOM: exact configured-window matching, structured outcomes and replacement/recovery | Existing WOM guards, operation state and schedule boundary | Approved; queued, not dispatched | Not run | Not run | Deferred |
+| AU21 | Catalogue: explicit shared-item adoption, rename and recovery scope | Existing catalogue/item mapping and version services | B4 remediation implemented by Luna/max in `c4c52a4`; external Claude review pending; evidence `docs/references/admin-ui/reviews/2026-10-04/au-b4/remediation/` | Focused PostgreSQL AU21 remediation 7/7; Release build and diff check passed | Pending — Claude commit-by-commit review | Current-page/new UI binding and manual acceptance deferred |
+| AU22 | Accounts: accurate projections and target-bound reset response | Existing account/reset/authorization services | Implemented by B1 Luna/max; local checkpoint awaiting Claude review; evidence `docs/references/admin-ui/reviews/2026-10-04/au-b1/AU22.md` | PostgreSQL AccountOverview 3/3; authenticated PostgreSQL/HTTP reset target/readback 1/1; Accounts BrowserTests 2/2; overlay Node fixture PASS; diff check PASS | Pending — Claude commit-by-commit review | Deferred |
+| AU23 | Catalogue: ordinary rate-text rolls and SuperAdmin advanced mechanics | Existing catalogue authorization, validation and audit; final-chance decision below | B4 backend in `00dfd40`, with D8 snapshot/deployment remediation in `c2b00b2`; external Claude review pending; evidence `docs/references/admin-ui/reviews/2026-10-04/au-b4/remediation/` | Focused PostgreSQL AU23 2/2; Cat01 mechanics 2/2; retired metadata 1/1; AU21 regression 2/2; D8 snapshot 1/1; Release build and diff check passed | Pending — Claude commit-by-commit review | Current-page/new UI binding and manual acceptance deferred |
+| CAT-1 | Catalogue: informational activity team size | Existing BossActivity persistence and Catalogue activity contract | B4 remediation implemented by Luna/max in `c2d2220`; external Claude review pending; evidence `docs/references/admin-ui/reviews/2026-10-04/au-b4/remediation/` | Focused PostgreSQL handler 3/3 including ordinary-Admin HTTP binding; migration rehearsal 1/1; D8 snapshot 1/1; Release build and diff check passed | Pending — Claude commit-by-commit review | Current-page/new UI binding and manual acceptance deferred |
+| AU24 | Accounts: typed ownership transfer destination confirmation | Existing ownership/version/session services | Implemented by B1 Luna/max; local checkpoint awaiting Claude review; evidence `docs/references/admin-ui/reviews/2026-10-04/au-b1/AU24.md` | Typed-confirmation PostgreSQL 1/1; existing transfer PostgreSQL coverage 9/9; Accounts BrowserTests 2/2; Release solution build 0 warnings/errors; Playwright Chromium fixture blocked at launch (see evidence); diff check PASS | Pending — Claude commit-by-commit review | Deferred |
+
+The original B5 gate failures and limited corrective rerun remain historical
+evidence in `docs/references/admin-ui/reviews/2026-10-04/au-b5/docs-register.md`.
+The accepted test-health batch resolved those cases and passed the user-executed
+whole suite (1,921/1,921) at `26e2434`, recorded in `CURRENT_STATUS.md`.
+B5 remediation focused evidence is under
+`docs/references/admin-ui/reviews/2026-10-04/au-b5-remediation/`; its unfiltered
+whole-suite gate must run on the final commit. No overall remediation pass or
+Claude recheck is claimed here. All UI binding remains pending.
+
+For each ticket retain owner/model, changed-source identity, exact check/evidence
+paths, unresolved limitations and next owner when work starts. Replace Queued with
+In progress / Blocked / Implemented as warranted; keep Executed and Reviewed
+separate. Record failures/skips/deferred acceptance honestly. Do not delete a
+completed ticket or label the page complete because its backend passed review.
+Applicable focused proof and one fresh independent review precede technical
+completion; reuse the same implementer/reviewer for named remediation/rechecks.
+Use AGENTS.md model/routing policy and explicit assignment overrides; do not infer
+a new override from an earlier ticket. Manual acceptance belongs to UI_PAGE_MATRIX.
+
+### UI integration and open-finding ownership — proposed D8 order (3 October 2026)
+
+This is a documentation-only ownership ledger. It does not dispatch a ticket or
+resume the stopped queue. The source anchor for every owner below is the
+[H5 cleanup handoff](docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/handoff.md#h5--ticket-ownership-for-open-findings-p-2-and-the-no-owner-findings).
+The D8 proposal keeps the remaining AU tickets first, then the page integrations,
+then the final candidate, R-3 rehearsal, and deploy. Every page integration must
+inventory its current handlers and routes and explicitly retain, redirect, or
+retire each old owner; no orphaned editor or compatibility route is left by
+inference. This applies the existing integration requirement at
+`docs/references/admin-ui/FUNCTIONALITY_CHANGES.md:571-583`.
+
+| Proposed place | Ticket | Owner boundary and acceptance |
+| --- | --- | --- |
+| A1 | AU11, AU12, AU14, AU15, AU16, **AU17a**, AU17, AU18, AU19, AU20, AU21, AU22, AU23, AU24, **CAT-1** | Proposed AU order; AU13 is complete through F8. AU17a is the separately approved full-pool correction. AU17/AU18 are approved with the narrowed Step 0 scopes; AU19 is approved. Only B1/B2 are dispatched by the current assignment. CAT-1 is the approved informational activity team-size move below. The active AU lane assignment below supersedes this earlier proposed AU order. |
+| B1 | **RC01 → RC02 → RC03 → RC04 → RC05 → RC06 → RC07 → RC08 → RC09 → RC10 → RC11** | Proposed reference-correction order, after their owning application contracts settle and before affected binding. RC01–RC04 are queued; RC05–RC11 remain proposed. This slot does not approve proposed scope or authorize editing frozen artifacts now. |
+| C1 | **P-1 — Participants integration**, including RL-1/P-7 and P-3 | **Done (U5):** reviewed (report 96), merged `42a7716e`, user accepted 8 October 2026. `01-participants.md` P-1/P-2: approved routes/new reference are unbound. Bind structured Add/Restore capacity outcomes (P-6/D2: old results omit effective cap/+1 outcome); retire or redirect obsolete Restore overloads. `14b-g3-g6-review.md` G3b-3: show manual-team members in lists/waiting positions. Execute P-3 and RL-1/P-7 below. Preserve drawer/history/dirty-state, authorization and selected-person-only capacity rules. Route/readback/error/navigation and page acceptance required. |
+| C2 | **DB-1 — Dashboard integration**, including DB-2/DB-3 and DB-6 | **Done (U2):** Dashboard accepted at `f63b5f2` (user visual acceptance 7 October 2026, `UI_PAGE_MATRIX.md`; merge SHA not recorded in 08-decisions). `02-dashboard.md` DB-1: GetAsync has no page. D7 requires **DB-2** (Confirmed participants removed from a pre-Live roster or never placed remain in WOM's sync fingerprint but disappear from Dashboard's expected set, making EHB Unavailable); align compatibility sets and prove a removed-but-Confirmed fixture. **DB-3**: one imported event makes mixed-history approved-submissions headline unknown; count platform submissions while excluding reconstructed imports, keep imported-only unavailable. **DB-4** separately owns missing provisional/import/tracking-start/latest-event metadata; **DB-5** separately owns phase-relevant next date. DB-7's equal-start cohort and Provisional definitions are documentation rules, not D7's two bugs. Execute DB-6; preserve event links/ended recap/unavailable states and route retirement. |
+| C3 | **EI-2 — Events and Identity integration**, including RL-1/EI-3 | **Done (U1/U2):** Identity accepted at `18a9669`, Events directory at `f63b5f2` (`UI_PAGE_MATRIX.md`; merge SHAs not recorded in 08-decisions). `04-events-identity.md` EI-2: new directory/Create/Identity reference and recovery controls are unbound. Bind duplicate-safe creation, field conflict choices, timezone and uncertain readback; render uncertainty without requiring DB recovery (RL-1/EI-3). Preserve stable routes and posted drafts; direct entry/reload/conflict/permission/page acceptance. |
+| C4 | **OS-1 — Signup setup / Schedule / Overview integration** | **Done (U3/U4):** Schedule and Signup setup accepted 7 October 2026 (whole suite on `69f9cf01`); Overview reviewed (report 91), merged `969d0351`, user accepted 8 October 2026. `05-overview-signup-schedule.md` OS-1: combined Signup controls and Schedule/Overview recovery are unbound. OS-3: remove dead Resume control; OS-5: capacity readback belongs to Signup setup. OS-4 observation: `BingoEvent.ConfigureSchedule` retains a dead capacity rule forbidding lowering after first public; reconcile the obsolete rule without reactivating it. Preserve Schedule's no-capacity/no-opening-toggle boundary; lifecycle/readback/navigation/page acceptance. |
+| C5 | **BR-10 — Board, Review and Final Review integration**, including RL-1/BR-4/BR-12 | **Done (U7/U8/U9/U11):** Board reviewed (report 95), merged `5ec88e93`; Review reviewed (report 97), merged `9c40ca0f`; Final review reviewed (report 101), merged `cc039faa`, parity round U11 (report 106) merged `0a92431b`; user accepted 8 October 2026. `06a-board-review-final.md` BR-10: bind existing calculators, leases, approved full-pool correction, review/current-state and finalization outcomes to the new references. **RC07** and BR-10 bind G1's structured blocking submission ID/upload time with a direct earlier-review link and queue/filter-preserving return. Retain history/authorization; execute RL-1 findings and structured error/readback/stale-route/page acceptance. |
+| C6 | **TD-6 — Teams/Draft integration**, including RL-1/TD-8 and X-6 observation | **Done (U6):** reviewed (report 99), merged `2d83651e`, user accepted 8 October 2026. `11-teams-draft.md` TD-6: bind the deferred Teams/Draft reference (`docs/references/admin-ui/README.md`, Teams/Draft binding notes), in-place draft/control/manual roster states and route recovery; retire/redirect old standalone editors without deleting history. TD-8 remains an observation unless these handlers are touched; then use the named concurrency checks below. X-6 remains an observation with mechanism undecided. |
+| C7 | **WA-5 — WOM / Catalogue / Accounts / Audit integration** | **Done (T1/T2/U9/U11):** Accounts and Audit (T1) and Catalogue (T2) accepted by the user 7 October 2026; WOM reviewed (report 101), merged `cc039faa` and `0a92431b`, user accepted 8 October 2026 (merge SHAs of T1/T2 not recorded in 08-decisions). `06b-wom-catalogue-accounts-audit.md` WA-5: AU15/AU20/AU23/AU24 and page bindings were missing; bind the settled contracts without another service/route family. Preserve provider guards, SuperAdmin checks, transient secrets and immutable audit. Catalogue follows the decided panel/activity fields below instead of the conflicting frozen reference. Scoped provider-free authorization/readback/error checks and individual page acceptance. |
+| C8 | **LKP-1 — Luck mixed-outcome proof** | **Done**: [C8 PostgreSQL proof](docs/references/admin-ui/reviews/2026-10-08/lkp-1-proof.md), 92 passed / 0 failed / 0 skipped; independent review passed (report 92, one wording note applied `7c73e3a9`); merged `7ea438f4`; accepted with the whole suite on `69f9cf01` (8 October 2026). No reuse of the already-fixed LK-1 finding ID. |
+| D1 | **FINAL-CANDIDATE — branch reconciliation** | **In progress (8 October 2026)**: U1–U11 and the notification-footer fix are merged (feature head `2dccc075`); last whole suite 2,244 passed / 0 failed / 0 skipped on `0a92431b` (one load flake passed on isolated rerun) and all-page conformance green; documents being reconciled on `claude/d1-docs`; remaining: final suite on the exact candidate SHA. No deployment permission. |
+| D2 | **R-3 — restored-backup rehearsal** | **User decision 8 October 2026: option (b), lighter local rehearsal** replaces the VM procedure for this release (08-decisions “R-3 scope”; [runbook subsection](docs/PRODUCTION_RUNBOOK.md)). Harness `scripts/rehearsal/local-rehearsal.sh` on `claude/local-rehearsal` (`13472767`, README `172b1d36`, synthetic dry run passed all 9 stages `983ad208`); first real run on `9c734a8f` passed stages 1–4 after the user cleared the AU20 blocker; in progress. Accepted coverage limits: no VM, Docker internal network only, no G4 Down/re-Up clone check, no real R2/WOM/restic/host wrapper/public TLS. To be rerun on the pushed candidate SHA after CI. Never use the production host wrapper as rehearsal. |
+| D3 | **DEPLOY — explicit release action** | **Pending explicit user approval.** Requires passing final candidate/rehearsal plus explicit production approval; the host copies of `deploy/host/bingo-deploy` and `bingo-verify-evidence` must be installed first (runbook release-readiness checklist). No deployment authority in this ledger. |
+
+#### UI integration batches (plan 42, approved 5 October 2026)
+
+[Plan 42](/Users/christopher/Documents/BingoWebpage/review-notes/42-ui-integration-plan.md)
+section 2 supersedes the historical C1–C7 slots above. Those slots retain their
+finding provenance, not an alternative execution order. D20 also supersedes B1's
+reference-edit sequence: RC01–RC11 findings are required page-binding items.
+
+| Batch | Pages / scope | Implementer model / reasoning |
+| --- | --- | --- |
+| U1 | Foundation + Identity (EI-2 Identity, AU08/AU09, RL-1/EI-3) | `gpt-6-astra` / high |
+| UR | UI review environment — after accepted U1, before U2 | `gpt-6.1-sol` / high |
+| U2 | Events directory + Create; Dashboard — brief67 items0–5 implemented, implementer gates passed 6 October 2026; awaiting Claude review/final-SHA whole .NET gate, then user visual acceptance | `gpt-6.1-sol` / high |
+| U3 | Schedule; Signup setup | `gpt-6-astra` / high |
+| U4 | Overview | `gpt-6-astra` / high |
+| U5 | Participants | `gpt-6-astra` / high |
+| U6 | Teams / Draft | `gpt-6-astra` / high |
+| U7 | Board | `gpt-6-astra` / high |
+| U8 | Review | `gpt-6-astra` / high |
+| U9 | Final Review; WOM | `gpt-6-astra` / high |
+| T1 (lane T) | Accounts; Audit | `gpt-6.1-sol` / high |
+| T2 (lane T) | Catalogue | `gpt-6.1-sol` / high |
+| U10 | Retirement sweep and page-matrix reconciliation | `gpt-6.1-sol` / high |
+| C8 | **LKP-1 — Luck mixed-outcome proof** | **Done**: [C8 PostgreSQL proof](docs/references/admin-ui/reviews/2026-10-08/lkp-1-proof.md), 92 passed / 0 failed / 0 skipped; independent review passed (report 92, one wording note applied `7c73e3a9`); merged `7ea438f4`; accepted with the whole suite on `69f9cf01` (8 October 2026). No reuse of the already-fixed LK-1 finding ID. |
+
+Main lane U1–U9 runs in order, with UR after accepted U1 and before U2.
+UI pass rule **8a**: the page's review scenarios must exist in the UR environment
+and be listed with working links/accounts for the user's check. Every later page
+brief adds its required scenarios here, including any new page states, as part of
+its own binding work; the legacy reset seed remains separate.
+Future-model assignments follow the user’s 5 October 2026
+[Implementer model change](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md#implementer-model-change-user-5-october-2026); historical Luna records remain unchanged. Lane T starts from accepted U1 in its own
+worktree/branch, runs T1 then T2, and merges back only after independent review;
+T1 must be merged before U8. Only lane T may add the contemplated Audit migration.
+U10 follows acceptance of every page. U10 part 1 (branch `claude/u10-retirement`, before U9 merges) removed the provably unused transitional CSS, `_AdminOverlayLayout`, dead scripts and server code; part 2 (branch `claude/u10-part2`, after U9) retired Events/Create and UiReferences to route stubs, removed `_AdminLayout`, the old shell and the transitional CSS only those pages used, and added the user's shell changes (sidebar logo link and collapsed account popout, white masthead logo, notification panel). The remaining public-page CSS cleanup is a separate later batch (U10-E2). C8 may run any time after U1 without UI edits.
+One implementer per batch, one commit per page/item, then Claude independent review;
+remediation returns to the same implementer. This ledger approves no later dispatch,
+rehearsal, push, merge to main or deployment. Brief43 authorized U1; brief67 now
+authorizes U2 items 0–5 only. U3 and later and lane T remain stopped.
+
+#### Active AU lanes — Step 0 assignment, 4 October 2026
+
+Authority: [the user's quoted message](docs/references/admin-ui/reviews/2026-10-04/au-step0/approval-record.md)
+and [the full assignment](docs/references/admin-ui/reviews/2026-10-04/au-step0/assignment.md).
+Step 0 is one documentation-only commit reported before implementation begins.
+
+| Lane | Tickets / model | Checkout and exclusive implementation ownership |
+| --- | --- | --- |
+| B1 | AU15 → AU16 → AU22 → AU24; gpt-5.6-luna / max | New worktree `/Users/christopher/.codex/worktrees/au-b1-small-fixes/BingoWebpage`, branch `codex/au-b1-small-fixes`, from Step 0. WOM Fetch page (RefreshAsync unchanged), Audit, Accounts/ownership services/projections, their tests/translations. No migrations, scoring, Board, finalization, catalogue, draft, lifecycle or WOM sync/management changes. |
+| B2 | AU11 → AU12 → narrowed AU18; gpt-6-astra / high | Existing participants-functionality worktree/branch from Step 0. Board/editor, tile/template EHB, estimates, contributions, standings, snapshots, Final Review and migrations; no B1-owned changes. |
+
+Each lane has one direct implementer and one commit per ticket, then stops for
+Claude's independent review. B1 merge-back is permitted only after Claude B1 PASS,
+locally into the feature branch, followed by B1 checks on the merged result.
+No push, main merge, B3–B5, RC/UI implementation or rehearsal work is started here.
+Product questions pause the affected ticket and go to `/root`; independent assigned
+work may continue. No planner polling or wait_threads; report before turn end.
+
+Planner ownership detail: B1 owns edits to existing C11FinalizedRosterIntegrationTests
+and EventQuarantineIntegrationTests required by AU16, plus translation files.
+B2 adds isolated test classes for its new behavior; if it needs a B1-owned file,
+report before editing. Lane-specific documentation/evidence is in `au-b1/` or
+`au-b2/` under `docs/references/admin-ui/reviews/2026-10-04/`. Shared authority
+changes are restricted to each lane's ticket sections; do not change the other
+lane's rows or global CURRENT_STATUS. Planner reconciles global state. This keeps
+parallel code/test ownership disjoint and bounds documentation merge resolution.
+
+#### Approved AU scope additions and status corrections
+
+| Ticket | Owned addition or acceptance boundary |
+| --- | --- |
+| AU13 | F8 at `6d33ce6` closes the editable post-finalization planning estimate. The lock removed by that change originated in `525d5d1` (BR-2/BR-9); keep the note in the AU13 evidence and do not reopen this ticket. |
+| AU15 | WA-6 (`06b-wom-catalogue-accounts-audit.md`): RefreshAsync lacks structured rejection reasons. Keep the generic cooldown wording. Structured reasons belong to AU20; do not imply that removing the typed FETCH confirmation removes server cooldown/retry guards. |
+| AU16 | WA-4/WA-7 (`06b-wom-catalogue-accounts-audit.md`): Audit wrongly hides hidden-event history, uses substring/instant filters, and two tests lock those violations in. The two tests must be inverted when AU16 runs; this is a named acceptance check, not a claim that it has run. |
+| AU17a | `06a-board-review-final.md` BR-9/BR-10 and D5: correction still filters to current Playing accounts/current members. D11 option b narrows the pool to current/released Playing assignments of current/former members of the submission’s own team; Informational accounts are excluded. Derive unambiguous participant identity and preserve it through readiness/results. Pending-only metadata correction still requires reason, preserves image/upload time, evidence locks and immutable approvals. Prove valid former assignments and invalid attribution without partial writes. B5 backend implemented, remediation round 2 done, Claude recheck pending, binding pending in `ebd0ef2`; independent Claude recheck and RC07 binding pending. |
+| AU17 | Approved, narrowed by Step 0 Decision 1: only the design’s Contribution line before approving (Approving adds 1 / Worth 3, but only 1 remains / Completes the objective / Nothing left to add), plus safe readback after an uncertain save. No per-account prior-approved count; nothing outside `Review.dc.html`. S9 adds the credited participant’s team-leave timestamp for RC07’s decided warning; active-account-since/switched-from content is dropped. G2 closed paused-window wording; full-pool correction stays AU17a. |
+| AU20 | WA-2/WA-6/WA-9 (`06b-wom-catalogue-accounts-audit.md`): actual-time matching would reject final-review fetches, current outcomes lack structured reasons, and linking can race a pending Create. The full approved requirements and focused checks are in **AU20 — configured-window and end synchronization** below; those requirements govern this ticket. |
+| AU21 | WA-3/WA-7 (`06b-wom-catalogue-accounts-audit.md`): drop edits silently rename/re-image shared items across activities. Make shared-item **rename**, adoption, image and metadata scope explicit; preserve independent item identity/version and dependency-safe deletion. |
+| AU22 | WA-1/WA-7 (`06b-wom-catalogue-accounts-audit.md`): reset consume-time authorization was missing; F4 completed consume-time re-authorization of both recipient and issuer under the existing lock; remaining work is projection/readback binding, not a new reset policy. |
+| AU23 | 4 October decision: rate text including `N x` is ordinary Admin input on add/edit/reactivation. Remove the “Changes to reward rolls require an operator” refusal. `3/1024` means one roll at 3/1024; `3 x 1/1024` means three rolls at 1/1024. New drops use `default` roll group. Real PostgreSQL authorization checks must allow ordinary rate-text roll changes and reject non-default advanced input; only SuperAdmin edits advanced roll groups. Final-chance/retired-parent and activity-context rules below supersede earlier advanced-field proposals. |
+| AU24 | WA-5 (`06b-wom-catalogue-accounts-audit.md`): approved typed ownership confirmation is not implemented. Require typed destination public-username confirmation and do not reuse the legacy `TransferOwnershipAsync(actorId, password, destinationUsername)` overload. |
+
+#### Review leftovers and proof-gap ownership
+
+| Ticket | One-line scope and acceptance |
+| --- | --- |
+| **RL-1 — routed review leftovers** | Coordination ledger, not an extra standalone implementation. Each subfinding runs at the named C slot below; DB-2/DB-3 belong only to DB-1. No blanket transaction design or new product rule is authorized. |
+| RL-1 / P-7 → P-1 (C1) | `01-participants.md` P-7 + D3: Restore makes a live WOM lookup and may permanently block a renamed/unknown withdrawn account. Use stored account data, like Admin Add; no WOM request. Prove retained reservation/eligibility/capacity and no-write failures with PostgreSQL/provider-free fixtures. |
+| RL-1 / EI-3 → EI-2 (C3) | `04-events-identity.md` EI-3: the uncertain catch path rolls back then re-reads DB, so a commit-time connection loss may throw again and produce 500. Render the posted draft/uncertain page **without a database read**, as Create does; tolerate failed rollback and add an injected lost-commit HTTP test. Never claim the save succeeded. |
+| RL-1 / BR-4 → BR-10 (C5) | `06a-board-review-final.md` BR-4: direct reject/reverse POSTs with a reason bypass client-only confirmation. Enforce the existing reason/confirmation requirement at the server and prove missing-confirmation no-write behavior. |
+| RL-1 / BR-12 → BR-10 (C5) | `06a-board-review-final.md` BR-12: omitted Review/reopen versions skip optimistic checks. Fail closed on missing/zero baseline and prove unchanged state/audit plus ordinary valid/stale behavior. |
+| RL-1 / TD-8 observation → TD-6 (C6) | `11-teams-draft.md` TD-8: Scramble's no-pick check can race Pick; RemoveDraftTeam can race AddMember, leaving membership on an inactive team. G3a did not close these races. If binding touches those handlers, resolve within the existing Serializable boundary and prove both interleavings; otherwise retain as observation, not silently close it. |
+| RL-1 / X-6 observation → TD-6 (C6) | `07-cross-cutting.md` X-6: the post-roster WOM-outcome audit is separate, its failure is swallowed, no-op outcomes write rows, and raw provider exception text can enter audit. The roster transaction itself is already atomic. Mechanism remains undecided; do not move a later provider outcome into an already-committed transaction or imply an approved fix. |
+| **P-3 — Participants proof gap** → P-1 (C1) | `01-participants.md` P-3: F04's Add-directly-to-Confirmed-when-full claim lacks executed proof. Exercise ordinary full outcome and explicit selected-person `+1`, exact cap, no other waiting promotion, repeat/no-write behavior and PostgreSQL persistence. |
+| **DB-6 — Dashboard proof gap** → DB-1 (C2) | `02-dashboard.md` DB-6: no executed assertions select the latest ended recap, its Provisional flags or latest additions; pending/rejected submissions are absent. Exercise all on real persisted projections and distinguish source inference from executed proof. |
+| **LKP-1 — Luck mixed-outcome proof** (C8) | **executed; independent review passed (report 92), merged `7ea438f4`, accepted 8 October 2026**: [C8 PostgreSQL evidence](docs/references/admin-ui/reviews/2026-10-08/lkp-1-proof.md), 92/0/0 scoped checks. Mixed supported/unsupported outcomes, compatible incomplete replacement, later complete replacement, retained whole compatible complete payload/freshness, explicit unavailable states and saved-only Stats/tile reads through publication/archive are executed. This is a new proof ID; original LK-1 is already fixed by F2. |
+
+#### AU20 — configured-window and end synchronization (remediated; worker-reported focused checks; external recheck pending)
+
+Source: `06b-wom-catalogue-accounts-audit.md` WA-2, WA-6, WA-9 and
+`decisions.md` “WA-2 (decided, extends AU20)” in the 4 October remediation evidence.
+The original actual-window tolerance would make exact final-review matching fail;
+the following is the approved replacement, not a request for a future rewrite.
+
+1. Compare WOM start/end exactly with the website's **configured** UTC start/end
+   at every stage, including Final Review. Actual instants still drive upload
+   cutoff, drop eligibility and the review window; never substitute them for this check.
+2. Early end and Resume always succeed locally within ordinary lifecycle rules;
+   WOM availability or a provider rejection never blocks the local action.
+3. Early end sets WOM end to the click instant rounded **up** to the next whole
+   minute (21:59:55 → 22:00:00), and persists the same configured end locally.
+   Actual end retains the precise click instant; no lead time is required.
+   Resume requires the Admin's validated replacement future end, using existing
+   schedule increments; store/use that end, never the resume-click time, with no
+   click-time rounding. The three former tolerance sites are shared linking/
+   replacement/fetch validation, Schedule save, and **Resume**.
+4. Retry temporary update failures with spaced backoff, never a fast loop. WOM
+   accepts edits ending in the past provided end is not before start; retries may
+   continue until official results publication. HTTP 400
+   `COMPETITION_START_DATE_AFTER_END_DATE` is a non-transient rejection.
+5. While WOM end is unmatched, run no fetch after actual end: that could count
+   post-end gains. After successful end update, normal fetches resume with the
+   correct window. If still unmatched at publication (prolonged outage, absent/
+   invalid verification code or non-transient rejection), mark the event
+   **“WOM end could not be updated”**, skip the final fetch and use the last fetch
+   before actual end as official WOM data. Luck freshness shows that fetch's age;
+   no invented fresh values or zeros. ID-only external links without a verification
+   code always take this fallback after early end.
+6. Preserve external deletion prohibition and existing cooldown, scheduled slot,
+   lease, operation and history guards. Provide structured eligibility/reason/
+   next-permitted-time/credential/operation outcomes; AU15 retains generic cooldown
+   wording. External replacement before/during Live and disconnection before first
+   Live follow approved option 1 regardless of stored/rejected code, exact configured
+   window and active/unresolved guards; never reuse the old code or delete externally.
+   WA-9: external linking also waits for Sending/Unknown website Create, so its late
+   completion cannot overwrite a newly saved link. Readback never performs a fetch
+   and old success does not prove a new operation.
+7. Accepted limit: WOM end values use each player's last snapshot inside the window;
+   precision depends on player updates. Users know to log out immediately before
+   the end. This limit is accepted, not a new compensation or attribution algorithm.
+
+Focused acceptance: deterministic sub-minute early end, minute-boundary end,
+validated future Resume, exact/timezone-equivalent configured windows through
+Final Review, non-microsecond input through real PostgreSQL precision, each old
+five-minute tolerance site, transient retry spacing and non-transient rejection,
+unmatched-end fetch suppression/success/fallback/publication, ID-only credentials,
+external delete refusal, Sending/Unknown Create-link race and late responses after
+replacement. Use controlled provider doubles, never live WOM. The early-end texts
+in DATA_MODEL, TECHNICAL_ARCHITECTURE and PRODUCT_REQUIREMENTS now describe the
+implemented behavior. Six scoped B3 checkpoints and their execution evidence are
+under `docs/references/admin-ui/reviews/2026-10-04/au-b3/`; external Claude review
+remains pending. No current-page display, RC/UI binding or release acceptance is
+implied by implementation checks.
+
+AU20 error classification is a **planner technical decision**, corrected by
+[remediation brief25](docs/references/admin-ui/reviews/2026-10-04/au-b3/remediation/supplied-brief.md)
+and superseding the initial item3 resolution: 5xx, timeouts, network failures,
+408 and 429 are temporary. Named 400, missing/invalid code, 401/403/404 and other
+validation rejections are permanent. For an end-only unknown write, a read of the
+unchanged old window proves not applied and permits spaced resend; the target
+window confirms success. Other unknown operations keep their existing protections.
+
+**User decision D6 (option a):** “publication stops the WOM end update for good,
+including after a reopen.” Reopened/republished results keep the same WOM basis;
+no retry restarts. Source: [08-decisions.md, B3 review decisions](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md),
+with the verbatim section in [supplied decisions](docs/references/admin-ui/reviews/2026-10-04/au-b3/remediation/supplied-decisions.md).
+
+
+#### Catalogue decisions — AU23, CAT-1 and WA-5 (4 October; B4 backend delivered, WA-5 binding pending)
+
+Source: 4 October user decisions in the durable remediation `decisions.md`,
+superseding earlier proposals in `06b-wom-catalogue-accounts-audit.md` WA-5 and
+Catalogue C7 / AU23 mapping.
+
+- **AU23 / final chance:** always enter the final chance for the specific item in
+  one's own name at the agreed team size; conditional raid-table chances must be
+  resolved before entry. Retire “Only after” from new input, editor and panel;
+  keep `conditional_on_parent`/`parent_probability` columns, existing records and
+  immutable snapshots/history. **No EHB parent-chance fix ticket.** The user queried
+  production on 4 October and reported zero conditional rows; this is operator
+  evidence, not our verification. Existing runtime differences for legacy conditional
+  records are not rewritten by this ticket; stop if the pre-change check finds any.
+  This pre-check is user-approved by the quoted Step 0 assignment; see [Step 0 approval provenance](docs/references/admin-ui/reviews/2026-10-04/au-step0/approval-record.md).
+- Rate text, including `N x`, is ordinary Admin add/edit/reactivation input. B4
+  removed the current refusal at `Catalogue/Index.cshtml.cs` while retaining
+  validation/concurrency/audit. `default` is the group
+  for every new drop, including on newly created activities. Existing production
+  groups (`barrows-equipment`, `purple table`, `doom-1-16-aggregate`,
+  `fortis-full-run-unique`; 56 active rows reported by the user) remain unchanged.
+  Roll groups are calculation inputs, SuperAdmin-only. The legacy probability-scope/
+  assumed-participant columns remain historical context after CAT-1 moves the
+  informational value to the activity; changed per-drop context input is refused
+  rather than rewritten. Parent fields are retired from new input, not opened to
+  either role. No separate roll-count input.
+- **CAT-1 — move informational agreed team size to activity (approved, A1 after
+  AU23; before WA-5):** one integer >=1, default 1, for the boss/activity, beside
+  efficient kills per hour. The rate and EHB use the same agreed efficient strategy;
+  this field is explanatory and never enters a calculation. Every Admin can edit it.
+  Move the context from per-drop `assumed_participants`/`probability_scope` without
+  changing existing approved/published snapshots or history. The user reported zero
+  non-default per-drop contexts on 4 October; re-query immediately before migration
+  for set values and conflicts within each activity. A new set/conflict requires a
+  user decision, never silent loss/coalescing. Required migration/designer/snapshot
+  travel together. Verify default, validation, Admin edit, no calculation effect,
+  retained groups/history and rollback shape with controlled PostgreSQL fixtures.
+- **WA-5 binding:** the “How the rate is counted” header displays the actual group
+  (`default`, `purple table`, etc.). Rows are chance per kill (including `N x`),
+  source, and note only if present. Bottom: “Roll group can only be changed by the
+  Super Admin.” SuperAdmin edits group in that panel; ordinary Admin sees it read-only.
+  Remove chance-per-roll, rolls-per-kill, whose-chance and Only-after rows, the
+  operator sentence, and the rate-roll refusal in frozen `Catalogue.dc.html:378`
+  and `:801` when binding. Put editable informational **Team size** next to **Kills
+  per hour** in Settings and Add activity, with the same fields/validation. This
+  deliberately supersedes those portions of the frozen reference. Do not edit that
+  artifact in this cleanup; RC10/WA-5 later implement the decision.
+
+Recorded observations have no separate ticket: X-5 is recorded here for the
+integration owners (PageModel mutations rely on the per-request cookie recheck and
+must not be treated as persisted authorization), while BR-11's 3 October reported production
+zero must be re-run with the corrected query; it is not release-pass evidence. These observations do not start
+implementation or widen any ticket.
+
+### AU01 — Restore exclusivity
+
+Source finding: Overview B1, `docs/references/admin-ui/reviews/2026-10-02/earlier-pages/overview-status-extract.md`.
+Starting owners: `EventQuarantineService`, `BingoEvent.Restore`, shared current-event
+boundary used by event Start/Resume. Hiding current A, starting B, then restoring A
+currently permits two visible current events.
+
+Target: when restoring would conflict with another visible current event, reject
+without changing hidden metadata; do not implicitly hide/end B. Reuse the existing
+shared boundary/lock and definition of current event. Preserve SuperAdmin authority,
+auditing, history and restoration of non-conflicting archived events. The user’s authorization to
+execute the recorded ticket adopts this rejection outcome; escalate only a concrete
+conflict with protected product behavior discovered during implementation.
+
+Proof: real PostgreSQL sequential reproduction and concurrent Restore versus
+Start/Resume, one successful non-conflicting restore, rejected state unchanged,
+and actual authorized transport recovery where affected. No global lifecycle audit.
+
+### AU02 — Signup-code server validation
+
+Source finding: Signup setup B1,
+`docs/references/admin-ui/reviews/2026-10-02/earlier-pages/signup-setup/review.md`.
+Starting owner: `Participants.OnPostSignupCodeAsync`; its StringLength(100)
+annotation is not enforced by the handler before hashing/persistence.
+
+Reject an overlong submitted code before mutation and return usable validation.
+Preserve enabled+blank retaining the existing hash, enable-without-hash requiring
+input, disable clearing the hash, authorization, phase restrictions and version
+checks. Do not reject unrelated form fields by blindly applying whole-page
+ModelState, expose the stored code or change hashing policy.
+
+Proof: actual authenticated POST boundary with 100/101-character input and the
+retain/clear cases; rejected input leaves hash/version/audit unchanged. Use
+controlled fixtures, never real codes in evidence.
+
+### AU03 — Event creation retries
+
+Starting owners: Admin Events `Create.cshtml.cs`, existing event creation service,
+Events E03 reference. Preserve name/timezone validation, private draft creation,
+permissions and existing atomic operation.
+
+Give one logical create request a durable authorized identity. Concurrent/repeated
+retries must create at most one event and return the same result. Support Check
+again after an uncertain response without guessing by name; same-name events
+remain legal. Define handling of the same key with different input and ensure
+another actor cannot obtain unauthorized outcome data. Choose the smallest
+persistence mechanism with a concrete need; include full migration artifacts if
+required. No generic operation-receipt framework.
+
+Proof: PostgreSQL duplicate/concurrent retries, lost-response readback, different
+payload/key and unauthorized lookup, actual request validation. UI stays deferred.
+
+### AU04 — Events directory data
+
+Starting owners: Admin Events `Index.cshtml.cs`, `SharedShellService`, completed
+Dashboard mappings. Implement approved directory read semantics: Live first,
+preparation by date with unscheduled last, past newest across phases; stable ties;
+retained participation for Live/past, nullable capacity and honest imported coverage.
+Attention displays failure priority followed by review work, plus other issue
+categories; ordinary setup is not an error/attention count. Preserve the shared
+inbox's existing units and Hidden/SuperAdmin boundary. The mock WOM failure is
+illustrative, not authorization for a new failure subsystem.
+
+Expose authoritative filters/sorts and query results needed for the reference;
+reuse existing reads/mappings rather than recalculate Dashboard independently.
+Proof: focused query/authorization tests for phases, null/ties, historical people,
+attention categories and hidden access. UI URL/navigation/table changes remain
+in the page integration pass.
+
+### AU05 — Signup setup versions and stale edits
+
+Implementation contract: non-destructive form mutations require `expectedFormVersion` under the event lock; existing forms forward it. Settings results separately retain submitted event baseline and authoritative current values/version (capacity, waiting enabled, code-required/present only). Opt-in JSON on existing capacity/code handlers preserves ordinary redirects; pending client state binding stays deferred. No new persistence or generic concurrency abstraction.
+
+Starting owners: `Questions.cshtml.cs`, signup mutation services/contracts,
+capacity/code handlers. Add explicit client-baseline checks to question/account
+add, custom edit, account rename, move and co-captain enable where currently absent.
+Reuse existing delete/disable question-version and impact-count checks.
+
+Settings saves return authoritative values/new event version while retaining
+separate capacity/code transactions. An unrelated card refresh must not erase the
+immutable baseline of another uncertain operation; support the required result
+contract, with actual client state binding deferred. Preserve FirstResponseAt locks,
+phase/role guards, targeted assignment release and queue promotion. Do not introduce
+whole-page atomic saving or rebuild already loaded answer/impact counts.
+
+Proof: stale sequential clients and controlled concurrent edits at real PostgreSQL
+boundaries; correct result versions, no rejected side effects, existing delete/
+disable impacts retained. Frontend cross-card uncertain recovery belongs to binding.
+
+### AU06 — Question/account-field add retries
+
+Starting owners: question/account add handlers/services. Depend on AU05's contract;
+reuse AU03's approach only if it fits without introducing an unnecessary framework.
+Return created question/field ID and reconcile retries by request identity, not
+label/type matching. Preserve drafts while a result remains ambiguous. Same labels
+from another admin must not stand in for this request. Retain protected primary/
+captain fields, first-response restrictions and separate system/account types.
+
+Proof: real PostgreSQL duplicate/concurrent/lost-response adds, same-label unrelated
+creation, actor ownership and changed-input retry handling. No new profile accounts:
+this ticket creates event form fields, not players' globally saved accounts.
+
+AU06 implementation contract (2 October 2026): one globally unique durable add ID
+is bound to actor/event, canonical requested values and original form baseline;
+changed-input/baseline or cross-owner reuse fails without revealing a prior result.
+Current authorization/visibility precedes replay; own committed replay bypasses
+new-write stale/lifecycle rejection, returns its exact field ID, and never repeats
+an audit/version change. Deleted/inactive outcomes are explicit and never recreated.
+Complexity: one operation entity/table/migration, one method on existing signup
+service, minimal hidden-field/JSON transport; no new service/page/policy/job or
+framework. Preserve Serializable event locking, existing normalization/protected
+fields and ordinary routes. Include reset/history compatibility. Frontend draft and
+uncertainty integration, AU07 feedback and manual UI acceptance remain deferred.
+
+### AU07 — First-response normalization feedback
+
+Current add silently makes a requested required question optional after the first
+response. Preserve that existing rule and no backfill, but return an explicit
+outcome plus the authoritative optional definition when normalization occurs.
+The reference already explains it; a rejection alternative would need a deliberate
+contract choice, not an incidental change during implementation.
+
+Proof: a first response arrives between rendering/editing and add; only an optional
+question persists, the result explains it, retries retain the same definition.
+Also verify ordinary pre-response required creation remains supported.
+
+AU07 response boundary: the ordinary null-to-first-accepted `FirstResponseAt`
+transition alone is response metadata and preserves the editable form version.
+Any simultaneous definition/settings mutation or explicit Version mark/advance
+still advances it. No stale-baseline bypass is permitted. The immutable first
+marker, required/type restrictions and all current guards are rechecked under the
+existing Serializable event lock. A required custom add after that boundary succeeds
+as optional with an explicit `CompletedAsOptional` outcome, explanation and original
+committed definition; there is no rejection or backfill. Exact replay/readback uses
+AU06 identity plus its uniquely linked immutable creation audit and verified original
+intent, preserving the normalization and definition after later edits. Missing or
+corrupt creation audit fails closed without returning a guessed definition or writing.
+Complexity: reuse AU06 operation identity and retained creation audit; no added
+persistence/service/route. Minimum existing JSON/form feedback only. Full frontend
+uncertainty binding and manual acceptance remain deferred.
+
+### AU08 — Identity conflicts
+
+Starting owners: existing Identity transport/service and timezone-review contract.
+Provide safe field-level comparison/merge for stale clients: preserve intended
+edits, retain another admin's untouched-field updates, and require resolution for
+conflicting edits. Keep schedule-only timezone conflicts separately stale and
+require a fresh review of their consequences. Do not change permanent slug ownership,
+50-code-point name limit, UTF-16 description/buy-in limits or existing phase locks.
+
+AU08 implementation contract: compare each canonical Name, Description,
+BuyInDescription and Timezone against the submitted original baseline and current
+persisted value. Untouched fields retain current values; intended changes apply
+when current still equals baseline or already equals intent. Different same-field
+changes block the entire save until explicitly resolved. Keep mine / Use current
+choices carry reviewed current values; a newer differing same-field value requires
+resolution again. Preserve original baselines and drafts on failure rather than
+silently advancing them. Current-version legacy requests may retain their existing
+path; stale requests without a complete baseline fail closed and require reload.
+The rendered form carries baseline and reviewed-value transport; full conflict-choice
+UI integration remains deferred.
+
+Timezone confirmation separately binds original/proposed zones and all current
+participant-facing timeline consequences at PostgreSQL microsecond precision.
+Changed schedule consequences return separately identified stale feedback and a
+fresh preview; confirmation is required again before any Identity field saves.
+Recompare inside the existing Serializable transaction; preserve atomic audit,
+phase/visibility/authorization guards and provider-conflict recovery. Reuse the
+existing event and Identity page owners with a small domain comparison value/result;
+no new service, table, route, policy, job, migration or receipt. AU09 is excluded.
+The existing generic route filter incorrectly used the pre-Live combined capability
+for Identity. Map only Identity to its existing ConfigureIdentity capability, so the
+approved Live/Final Review text-edit behavior is reachable through real HTTP while
+the existing permanent first-Live timezone lock remains authoritative.
+Valid Unicode/UTF-16-limit values must fit the existing atomic audit: retain truthful
+truncated text excerpts budgeted against serialized JSON storage, without schema
+changes. Existing timezone confirmation transport must retain the returned failed
+editor/drafts even when another Admin's change removes the need for a timezone
+preview. This adds no conflict-choice UI, readback or uncertainty workflow.
+
+Proof: disjoint and same-field concurrent edits, schedule-only conflict, stale
+resolution retry and unchanged values against PostgreSQL/actual transport as
+appropriate, including non-microsecond-aligned input crossing persistence before
+review. UI Use theirs interactions remain for integration.
+
+### AU09 — Identity readback
+
+Use existing authorized current-state reads to support Check again after an
+uncertain save. Compare the relevant full intended values and report whether the
+event now has them, without claiming this request saved them. No new Identity
+request receipts are required. Preserve editing drafts and truthful ambiguity on
+read failure; do not blindly resubmit the mutation. U1/A14 adds the versioned
+three-outcome binding described below.
+
+Proof: applied/lost-response, unapplied, another-admin matching/different update,
+authorization and read failure. UI wording is Up to date, not proof of Saved.
+
+AU09 dispatch contract: freeze the complete canonical Name, Description,
+BuyInDescription and Timezone expected tuple separately from the original edit
+intent/baseline. Use current takes exactly the explicitly reviewed value; untouched
+fields take the latest values actually observed and used at dispatch. Never derive
+expected values from a later read. U1/A14 now binds the authorized Identity read
+boundary to no-store JSON {eventId, values, version}: matching values with a moved
+version mean Up to date (no request attribution); moved version/different values
+enter field conflicts; unchanged version retains the draft and restores Save with
+"not applied" wording. Failed/unavailable reads preserve uncertainty, draft and
+frozen tuple. No blind POST retry, request receipt or inferred effective merge is
+introduced. The U1 shared shell/module binds ordinary saves, conflict choices,
+timezone review and Check again. Independent review and page visual acceptance
+remain pending; whole-suite execution remains the user/Claude final-SHA gate.
+
+### AU10 — Schedule preservation and integration gaps, source-reviewed
+
+Sol 6.1/high source comparison completed with changes required; evidence:
+`docs/references/admin-ui/reviews/2026-10-02/earlier-pages/schedule/review.md`. No execution or production
+fix is claimed. Preserve existing atomic serializable/versioned authorized save,
+audit, timezone/DST/five-minute rules, overlap/WOM checks and lifecycle exceptions.
+
+- Preserve each unchanged field's original UTC instant. Schedule.cshtml.cs currently
+  reparses editable fields through minute-only text, losing seconds/subseconds and
+  rejecting untouched valid instants displayed in a repeated DST hour. A fix must
+  preserve precision without accepting changed ambiguous/nonexistent local times.
+- Parsing already supplies field ModelState errors; lifecycle validation returns
+  one Error string. Add suitable field mappings there, retaining overlap as a form
+  error, rather than replacing all validation.
+- Reuse authorized reads for uncertain-save reconciliation against an immutable
+  submitted full schedule: exact instants, automatic-opening state, version and
+  current phase/editability. Preserve unknown outcomes after read failure; matching
+  state means Up to date, not proof this request saved it. No receipt system needed.
+
+Focused eventual proof: unrelated edit preserving exact seconds/microseconds and
+untouched ambiguous-history values; changed DST errors; applied/lost-response,
+unapplied, competing matching/different precise instants, authorization/read failure,
+stale schedule, per-field mapping and PostgreSQL precision. Use deterministic
+microsecond-aligned persisted expectations plus nonaligned input round trips.
+Picker binding, stay-on-Schedule, confirmation table and navigation remain UI work.
+The app already has one confirmation, not a confirmation ladder to remove.
+Reconcile stale FUNCTIONAL_CONTRACTS 4.4 with approved pre-Live start/end editing
+through draft and overdue repairs. Existing scheduler behaviour remains unchanged.
+600ms Saving is a proposed reference setting, not an exact approved constant.
+
+### AU11 — Tile-local EHB override for every objective type
+
+Approved by the user during Board planning on 1 October. Allow an optional manual
+TOTAL tile EHB override for catalogue/drop tiles as well as the existing entered
+estimate for manual/non-drop challenges. No override uses normal calculated EHB;
+manual challenges still require their entered estimate. Keep the calculated
+baseline available for comparison and resetting a calculated tile. This setting
+belongs to the event tile; do not change catalogue rates or other events.
+
+The effective value feeds existing board/line estimates, credited proportional
+partial progress, player contribution statistics and the EHB ranking input. A
+separate points model is deferred. Preserve probability/KC/Luck mechanics; changing
+an effort estimate must not modify actual drop rates or observed activity. Trace
+and validate existing allocation code before choosing the smallest override path.
+
+Preserve authorization, editing lease/version, validation and immutable approval
+snapshots. Competitive edits invalidate unpublished approval as today. Any submitted
+evidence continues to lock affected tile scoring, regardless of evidence status;
+no override can rewrite published evidence, archived values or official results.
+Starting owners: Board page model/editor data, TileTemplate/BoardTile, EhbCalculator,
+BoardEstimateService, approval snapshots and proportional contribution allocation.
+The accepted exception is recorded in PRODUCT_REQUIREMENTS sections 10–11,
+FUNCTIONAL_CONTRACTS 6.2 and DATA_MODEL; implementation is still pending. Do not revive reusable template workflows or catalogue overrides.
+
+Acceptance/proof: automatic fallback, set/change/reset on calculated tiles, required
+manual estimate, invalid values, multiple objectives and weighted/partial allocation
+with no double-counting, line/board/player totals, approval round trip, stale editor,
+submitted-evidence rejection and isolated event/catalogue/history preservation.
+Use executable boundary checks and PostgreSQL where persistence/concurrency matters.
+AU11 implemented in B2 using the existing tile-local persisted field; evidence:
+`docs/references/admin-ui/reviews/2026-10-04/au-b2/au11.md`.
+New editor controls and manual visual acceptance remain deferred; Claude independent review pending.
+
+AU11 remediation D1 adds `20261004093705_ClearLegacyDropTileEhbOverrides`:
+re-run and record the DropRequirements/non-null override count immediately before
+deployment. Up clears all matching template values and reports the count; Down is
+non-restorable. Frozen scoring snapshots are untouched. See the production runbook
+and `au-b2/remediation/03-a2.md` for controlled populated-database evidence.
+
+### AU12 — EHB before current-score completion time
+
+Approved placement direction: full-board finishers still lead and earlier full-
+board completion wins; otherwise compare completed lines (rows plus columns),
+completed tiles, highest credited EHB, then earliest current-score completion time.
+Preserve credited partial progress, exact shared ranks and existing rank numbering.
+User decision D3, 4 October (forwarded Claude-chat decisions): for the new rule only,
+compare credited EHB rounded to four decimals in both ordering and shared-rank
+equality. Legacy EHB comparison retains full precision.
+No separate points, discretionary tie-break, altered evidence timestamps or name/ID
+ordering used to split a genuine tie. Use one consistent ranking rule across public
+provisional standings and finalization; retain existing immutable official results.
+
+Starting owners: PublicProgressCalculator Rank/SameRank and its actual consumers,
+finalization/official snapshots, public standings/copy and existing rule authorities.
+User decision, 2 October: apply only to new events. Existing events retain the
+prior rule even without official results. Implement an explicit creation/rule
+boundary; do not infer it from today's date or retroactively re-rank existing events.
+Resolve the minimal persistence mechanism at readiness. No separate points infrastructure.
+
+Acceptance/proof: higher EHB beats earlier score time after equal lines/tiles;
+board completion, full-board finish time, lines and tiles retain precedence; equal
+EHB falls back to score time; exact ties/null times deterministic and truthful;
+partial progress still contributes; provisional/final placement parity; earlier
+immutable official versions and historical events unchanged. Preserve PostgreSQL
+microsecond timestamp precision at persisted ranking boundaries.
+B2 implementation uses immutable `events.placement_rule`, legacy 0 / new 1, per
+planner technical resolution on 4 October. Existing rows backfill to 0; ordinary
+creation explicitly selects 1 and historical imports retain 0. Evidence:
+`docs/references/admin-ui/reviews/2026-10-04/au-b2/au12.md`. Claude review pending.
+
+### AU13 — Retain editable planning team-size estimate
+
+Approved: keep expected players per team manually adjustable after draft
+finalization. Remove the per-actual-team EHB-per-player breakdown from the new UI;
+retain the overall planning statistics and the manually selected estimate rather
+than replacing it with finalized roster sizes. No additional explanatory label or
+warning was requested. Existing sensible field labels may remain.
+
+Starting owners: Board OnPostTeamSize, Board statistics projections and current
+expected-size storage. Remove only the draft-finalized restriction on this planning
+setting where applicable; preserve event/board authorization, terminal/history,
+editing and concurrency boundaries. Do not broaden all Board editing phases.
+Changing this estimate affects planning per-player/per-day values only, never team
+membership, draft distribution, competitive tile EHB, credited stats or ranking.
+Avoid adding a parallel estimate store if existing storage serves this purpose.
+
+Acceptance/proof: set/update before and after draft finalization; persistence and
+reloaded projections use the selected value; existing bounds/permission/version
+checks remain; finalized rosters, published competitive snapshots and scoring are
+unchanged. Include unequal actual team sizes to prove no silent actual-roster
+substitution. New UI binding and manual acceptance deferred; no code started.
+
+### AU14 — Teams uncertain-action reconciliation, recorded 2 October 2026
+
+The completed-reference comparison confirms existing in-place Pick/Undo/Scramble,
+control renewal, participant/search data, distribution and readiness services.
+Do not rebuild them. The remaining transport gap is safe authoritative readback
+for timed-out actions. At handoff choose the smallest contract retaining immutable
+pick/team identities and intended fields; current state must not be claimed as
+proof a particular request succeeded or as permission for blind retry. No generic
+receipt framework is authorized by this ticket. Preserve authorization, current
+controller, latest-pick rules, transaction/version checks and membership history.
+
+Focused proof must distinguish a reused pick number after Undo/re-pick, a competing
+admin picking to another team, a redraw yielding the same order, inclusion-only
+team edits and readback failures. Bind existing roster synchronization statuses;
+queued or failed WOM work must not be described as completed. Reconcile the
+HasUsableCaptain projection with existing command eligibility;
+no new lifecycle permission or algorithm is approved. B5 backend is implemented
+in `d3f2d88`: current-state readback retains full intended fields, immutable pick/team/
+membership identities and versions, plus existing roster synchronization outcomes.
+Failed reads remain unknown; a matching state never identifies a request or allows
+blind retry. AU14 is backend implemented, remediation round 2 done, Claude recheck pending, binding pending (RC04/DRF).
+Remediation adds roster PublishedAt and WOM operation CreatedAt and hardens
+failed reads; see `docs/references/admin-ui/reviews/2026-10-04/au-b5-remediation/`.
+Evidence: `docs/references/admin-ui/reviews/2026-10-04/au-b5/au14.md`.
+Evidence: `docs/references/admin-ui/reviews/2026-10-02/earlier-pages/teams-identity/teams-review.md`.
+
+### AU15 — WOM manual fetch without typed confirmation, 2 October 2026
+
+User approved replacing the typed FETCH challenge with a normal Fetch now action.
+Remove the challenge/confirmation wrapper in WiseOldMan.cshtml and the exact-word
+check in OnPostFetchCompetitionAsync; reuse RefreshAsync unchanged. Preserve Admin
+authorization, antiforgery, existing phase eligibility, one-hour last-success guard,
+normal schedule/retry due times and in-flight lease protection. Failure does not
+entitle the user to bypass those guards. No force refresh, manual update-all,
+provider-policy change or extra automatic fetch on page load. Reflect pending and
+cooldown outcomes honestly. Reference uses the normal action; binding any disabled
+state/next-available timing must reflect all authoritative guards, not only an hour
+from the last attempt. Do not broaden phase access in this correction.
+
+Focused proof: permitted authenticated POST without FETCH reaches the existing
+refresh service; cooldown/retry/in-flight rejection issues no provider request;
+unauthorized/antiforgery and phase restrictions remain intact. Use controlled
+provider fixtures, never live WOM or user databases. The B1 implementation is
+recorded in `docs/references/admin-ui/reviews/2026-10-04/au-b1/AU15.md`; its
+browser contract and Release build pass. Both the current and Step0 baseline
+PostgreSQL/HTTP fixture runs reach the route and reproduce the unchanged schedule
+assertion failure, so that gate remains unverified for this environment. One
+independent review of the stable change remains required; new-reference visual
+acceptance remains separate. The ticket is implemented and awaits Claude review.
+
+### Deferred UI binding and reference ownership
+
+The following remain implementation work when the new UI is connected, not more
+backend rewrites: Participants/Dashboard binding; Events modal/filter/history;
+Identity stay-on-page/conflict/readback; Overview composition/readiness/control
+and evidence-code recovery binding; Signup setup route/tabs combining existing
+separate handlers and retiring old capacity ownership. Reuse per-row answer/impact
+counts and rename the multiline Text label without adding a new field type.
+
+Teams / Draft has no newly agreed backend feature in this design pass. Track as
+UI integration: remove the standalone participant table and affiliation/image
+controls without deleting retained data; searchable roster assignment over existing
+participants, click-to-pick through the existing endpoint, compact active workspace
+and automatic compact sidebar. Preserve snake/Undo, admin control ownership,
+manual rosters and finalized corrections. No captain-operated shared draft, new
+Pause/Resume, CSV or new draft mechanics. Completion source comparison can raise
+concrete transport/data gaps; do not invent tickets speculatively.
+
+The shared saving/spinning state should retain a brief minimum display duration
+so fast requests do not flash. Use the approved prototype timing as a baseline,
+possibly slightly shorter during integration; no exact duration is locked. Actual
+success still requires confirmed completion, failures are truthful, and reduced
+motion is respected. Share the timing rule; do not copy mock request delays into
+backend work or change unrelated exit-animation timing.
+
+The user authorized Codex to make bounded reference behaviour/wording corrections
+on 1 October, reserving Claude usage for visual design and subsequent artifact
+synchronization. RC01/RC02 below supersede the earlier Claude correction prompts;
+do not send those stale prompts for duplicate implementation. Their source reviews
+are not application implementation or executed browser proof. Identity's named
+reference corrections have SOURCE PASS; application binding remains deferred. Track future page findings
+here under stable new AU identifiers,
+separating existing capability, approved backend gap, proposed product decision
+and UI binding. Toast Undo and general manual queue reordering remain deferred/
+unapproved; do not add them to implementation just because prototypes contain them.
+
+
+
+### Reference corrections — RC01–RC04 binding obligations (D20, 5 October 2026)
+
+D20 supersedes the earlier reference-edit queue. RC01–RC11 are **not** run as
+mock-up edits: frozen `docs/references/admin-ui/` design assets stay unchanged.
+Their findings are required items in the affected real-page bindings, with page
+review and user visual acceptance. No Claude canvas sync per RC. The historical
+finding details below define integration obligations, not permission to edit mocks.
+
+| ID | Scope | Binding owner | Review / acceptance |
+| --- | --- | --- | --- |
+| RC01 | Overview R1–R4 and AU20 Resume/early end | U4 / OS-1 | Page binding review and user visual check |
+| RC02 | Signup setup R1–R4 | U3 / OS-1 | Page binding review and user visual check |
+| RC03 | Schedule R1–R4 and direct picker consumers | U3 / OS-1 (Overview consumers U4) | Page binding review and user visual check |
+| RC04 | Teams uncertainty/team-save recovery and WOM outcomes | U6 / TD-6 | Page binding review and user visual check |
+
+**RC01:** correct public-link destination copy against actual Signups/Teams handlers;
+make evidence-code failure/stale/uncertain mocks truthful and reconcile before
+retry; suppress Restore after failed hidden-event reads; separate manual from
+scheduled opening eligibility. Correct cancelled-event Stats documentation without
+adding a new link. Preserve current lifecycle rules and approved At-a-glance spacing.
+Source evidence: `docs/references/admin-ui/reviews/2026-10-02/earlier-pages/overview-status-extract.md`.
+
+**RC01 AU20 addition (brief25 item6):** correct the Overview Resume dialog to always
+require the validated future replacement end, even if the retained end has not
+passed. Correct early-end reference behavior to preserve precise actual end and
+store configured end rounded up to a minute. Carry the required register row into
+OS-1's inventory; choose final copy before binding. The finding is required in U4; reference editing is not authorized (D20).
+
+**RC02:** compare the complete intended question definition including ordered
+choices; never resolve an uncertain add by another admin's same-label question;
+retain the uncertain settings request's own comparison baseline across other-card
+saves; protect unsaved inline renames when another rename/add starts; describe
+promotion as waiting-list order. Preserve separate card saves and reuse existing
+confirmation/recovery controls. Source evidence:
+`docs/references/admin-ui/reviews/2026-10-02/earlier-pages/signup-setup/review.md`.
+
+**RC03:** retain unchanged exact schedule instants and immutable full submitted
+values for readback (including opening flag); preserve retained overdue enabled
+opening validation exception; use shared DST-safe conversion in Overview reopen,
+resume and evidence-code consumers; constrain picker to short viewport height with
+reachable overflow/footer. Extend uncertain readback mock with read failure that
+retains uncertainty. Correct unconditional automatic-close README requirement and
+outdated claim of an existing confirmation ladder. Evidence/source lines:
+`docs/references/admin-ui/reviews/2026-10-02/earlier-pages/schedule/review.md`; 15 files stable, source-only.
+R4 permits necessary bounded shared CSS height/overflow changes, not redesign.
+Focused checks reproduce seconds/subsecond and repeated-hour preservation, exact
+readback conflicts/read failure, retained overdue opening, skipped/repeated local
+Overview dates, short viewport footer reachability and nested-dialog keyboard use.
+Related application precision defect is AU10, not a reference fix to claim as done.
+
+**RC04:** fix the three functional findings from the stable Teams reference review.
+Use immutable pick identity for Undo and its readback, with current membership
+checked; avoid attributing another admin's pick or a changed order to this request.
+A matching unchanged redraw cannot prove failure. Remove unjustified safe-retry
+claims. Existing-team readback must match its ID and every intended field including
+draft inclusion; new-team recovery must not identify creation by name alone.
+Roster success states must distinguish local republishing from actual WOM
+NotManaged/Unchanged/Pending/Sending/Retry/Failed/Conflict/Unknown results.
+Preserve approved composition, scramble motion and current interaction model.
+Reproduce the named timeout-without-save scenarios and readback failures, then
+reuse the same reviewer for the named recheck. Evidence:
+`docs/references/admin-ui/reviews/2026-10-02/earlier-pages/teams-identity/teams-review.md`.
+
+The review's fourth finding (forced `busyMinQuick=250`) is a pending presentation
+choice, not an automatic removal requirement. The user likes brief visible saving
+feedback and asked for slightly shorter draft feedback. Preserve it for now;
+reconcile prototype latency versus a production presentation minimum at integration.
+No new delay standard or removal is approved by the reviewer alone.
+
+Identity's named correction recheck returned SOURCE PASS on 2 October 2026; no
+remaining named reference defect. Twelve files were stable; no browser/runtime
+checks were executed by the reviewer. AU08/AU09 are technically complete;
+application UI binding remains pending. Evidence: `docs/references/admin-ui/reviews/2026-10-02/earlier-pages/teams-identity/identity-review.md`.
+
+For all: preserve approved layout, typography, colours, spacing, components and
+animation feel. Expect JavaScript/state, markup/copy and documentation changes;
+no cosmetic CSS redesign. A necessary directly related shared fix needs focused
+consumer checks, not a whole-site pass. Do not fold in AU01/AU02 backend fixes,
+new product choices or unrelated improvements. Run focused executable reference
+checks that reproduce the named failures/recovery paths and a scoped diff/style
+check. Independent reviewer rechecks named findings and direct consequences;
+user visual acceptance remains separate if any visual state materially changes.
+
+At completion record changed files, checks/evidence, reviewer outcome and exact
+file hashes. Mark repository corrected/reviewed and canvas awaiting sync separately.
+For this bounded sync the verified repository files are authoritative: Claude copies
+them to matching artboards and shared files without redesign or overwriting with
+older canvas content, then verifies parity. This is not blanket reassignment of
+visual design authority. Keep completed RC records; append future bounded reference
+correction tickets rather than spending Claude usage on behavioural bug fixes.
+
+### Approved and proposed application follow-ups — AU16–AU24 and CAT-1
+
+These scopes come from the seven completed source comparisons and later explicit
+user decisions, not a new audit. Accepting the requirements summary records the
+delivery target; implementation still needs a user resume. Reuse existing services
+and narrow projections; no generic receipt system, new persistence framework or
+cosmetic redesign is implied. Transport choices are resolved at ticket handoff.
+Keep visual binding separate when the existing backend already provides the data.
+This subsection records scope; delivery state follows each owning ticket. AU20 is
+implemented/remediated and awaits external recheck. AU14/AU17a/AU17/AU19 are backend implemented, remediation round 2 done, Claude recheck pending, binding pending; see their owning rows and remediation evidence.
+
+| ID | Bounded outcome and protected behavior | Focused acceptance / known decision boundary |
+| --- | --- | --- |
+| AU16 | Audit: restore already-required hidden-event history; authorized single-entry read/event choices; exact action vs area filters and timezone-aware calendar dates; preserve immutable redaction and hidden workspace restriction | Hidden event entry readable only under ordinary Audit permission; secrets excluded; specific vs prefix results; DST spring/fall days; unavailable entry/strict paging; use existing presenter and truthful historical fallbacks |
+| AU17a | B5 backend implemented, remediation round 2 done, Claude recheck pending, binding pending (RC07) | D11 Playing-only current/released assignments of current/former members of the submission’s own team; invalid attribution leaves no partial writes; retained identity survives readiness/results; image/upload/history unchanged. Evidence: `docs/references/admin-ui/reviews/2026-10-04/au-b5/au17a.md` |
+| AU17 | B5 backend implemented, remediation round 2 done, Claude recheck pending, binding pending (RC07): Contribution line plus safe current-state readback only | Correct adds/remaining/completes/nothing-left outcomes; readback must not attribute uncertain success to a request. No per-account prior-approved count or content outside `Review.dc.html`; S9’s credited-account team-leave warning is in scope, while active-account-since/switched-from content is dropped; full-pool work belongs to AU17a |
+| AU18 | B2 implemented, awaiting Claude review: final WOM refresh outcome on each published version, plus version/reopen history (who and when) | Successful, failed and distinct skipped outcomes retained in immutable publication inputs; no backfill. Evidence: `docs/references/admin-ui/reviews/2026-10-04/au-b2/au18.md`. No another-event-current readiness row; publish/reopen refusals and WOM cadence unchanged. AU12 owns ranking |
+| AU19 | B5 backend implemented, remediation round 2 done, Claude recheck pending, binding pending (RC05): structured Board issues, version comparison and authoritative current-state readback over full intent | Compare identity/name/description/artwork/objectives/EHB; late evidence retained; publish vs discard distinguished; no automatic replay. Reuse existing calculator/leases/snapshots. AU11–AU13 own scoring/planning changes |
+| AU20 | Approved configured-window/end synchronization and structured recovery | All numbered requirements and focused acceptance in **AU20 — configured-window and end synchronization** above are mandatory, including early end, Resume, fallback, WA-9 and accepted snapshot limit; implemented and remediated, external recheck pending |
+| AU21 | Catalogue: explicit shared-item adoption on add, source/item identities/versions and scoped CRUD/mapping/value recovery | Creation uncertainty cannot duplicate/crash; every intended field and shared image scope explicit; preserve independent drafts, item provenance/price invalidation, valid reactivation mechanics under AU23’s ordinary rate-text rule and dependency-safe deletion. No silent shared-item merge or automatic price adoption |
+| AU22 | Accounts: bind existing overlay/projections to accurate counts/detail and role/status/ownership readback; transient target-bound reset response | Late response cannot expose A's secret in B; no secret history/log/storage or secret readback; permission loss/session invalidation handled; status not changed by revoke; current-state matching not attributed to request. Reuse reset permission-under-lock rule, no implicit new reset expected-version policy; typed transfer is AU24 |
+| AU23 | Ordinary rate-text rolls; SuperAdmin advanced roll group; final-chance input and retirement of Only after | Mandatory Catalogue decisions above; real PostgreSQL role/validation/audit/stale checks, default new groups, existing groups and immutable snapshots preserved; no parent-EHB ticket |
+| CAT-1 | Informational agreed team size moves to boss/activity | Mandatory pre-migration set/conflict recheck, whole number >=1/default 1, ordinary Admin edit, no calculation effect, historical snapshots unchanged; see Catalogue decisions above |
+| AU24 | Ownership transfer: add approved typed destination public username alongside current owner's password | Reject missing/wrong/mismatched recipient text server-side; confirmation retains selected recipient/version; atomic sole owner, eligibility/session invalidation and secret privacy preserved. No new reason or typed confirmation on ordinary role changes |
+
+The earlier reports are evidence of source observations, not claims these gaps
+were implemented. The complete 47-finding map is in the functionality register;
+report links below preserve reproduction details. Existing server protection is
+not rebuilt just because the reference mock omitted it.
+
+### Bindings not shown in the design references
+
+Established by the user's 4 October instruction: “From now on, every ticket that adds
+functionality the references don't show adds its row.” Seeded from `review-notes/08-decisions.md`,
+“Known UI differences from the frozen design references”, with Catalogue decisions
+owned by the section linked below. This register includes missing bindings and
+intentional differences from a reference; it does not authorize implementation,
+reference edits or new displays on the current pages. All AU work targets the new UI.
+
+Every ticket that adds functionality the design references do not show must add or
+update its row here, including backend-only outputs awaiting binding. The UI
+integration plan must make every row a required item in the affected page's
+route/handler/binding inventory, resolve its open decisions before binding, and
+include it in binding review. Keep decisions in their existing owner and link them
+here; do not silently omit a row because the reference has no corresponding control.
+
+| What it is | Page and design reference | Source ticket/decision | Binding ticket | Open decisions |
+| --- | --- | --- | --- | --- |
+| Catalogue loading counts use the exact shared tab-count placeholders; loading summary has no row gap and reserves two phone lines / one wider line. Loaded summary geometry and every fixed word remain unchanged. Generic save timing checks declared POST counts and busy-wrapped save paths, excluding search debounce | Catalogue loading-header markup/row gap standardized under Q6/Q7; no loaded-reference difference | User/planner CI1–3, 7 October2026, 08-decisions “Catalogue integration boundary after the T2 merge” | U3/T2 integration correction | None; all five widths in both engines, Accounts save assertions retained |
+| Unknown stored event timezone IDs are retained; Schedule and Signup setup explicitly label UTC fallback dates and link to Identity. Schedule remains read-only until the timezone is supported. Any page initialization failure shows page recovery without a connection toast and releases shared navigation | Identity.cshtml:142 precedent; Schedule/Signup references do not show unsupported stored IDs or initialization failure | User 7 October 2026, 08-decisions “Bug, Schedule on an unknown-timezone event” | U3 post-batch item 3 | None; no stored instant, history or save-policy change |
+| Links targeting a different registered page use data-shell-link and shared navigation/skeletons. Same-page query/sort/drawer links retain their existing in-page handlers and tests; old-layout Overview remains a normal link | Schedule.dc.html:117; SignupSetup.dc.html:127; cross-page binding not shown in static references | User7 October2026 D resolution, 08-decisions | U3 second-look follow-up1 | None; generic assertion excludes only same-page targets |
+| Schedule and Signup visible timestamps use non-padded day, localized abbreviated month and fixed comma/HH:mm separators, including reason notes, comparisons, derived cutoff and first-response note. Confirmed counts use “N of M”; capacity number input keeps reference .ss-num sizing while only its column flexes | Restores Schedule date consistency; SignupSetup.dc.html first-response note at1388 shows day only, now full timestamp by user ruling | User second-look item5, 7 October2026, 08-decisions | U3 follow-up5 | None; EN/DA covered; transport values/precision unchanged |
+| Every shared read-only box shows the existing lock glyph in the date-picker calendar slot, with reserved right padding for wrapping. Field reason notes keep their text but lose the duplicate lock; “A code is set” keeps its list lock | Extends U3-Q13(a); ui/components.css .ro-value and field-lock notes differ intentionally | U3-Q14, user7 October2026, 08-decisions | U3 follow-up4 | None; applies fully readonly/past/imported and drawer values; app/reference CSS byte-identical |
+| Shared .ro-value uses the readonly date-picker box: control height, border/radius, surface-2 background, full-color text and no hover change; multiline values grow and .is-empty remains muted. App/reference shared CSS remain byte-identical | Intentional difference from ui/components.css:695–697; follows .dtp.is-readonly at:873 | U3-Q13(a), user7 October2026, 08-decisions; explicit shared/frozen CSS authorization | U3 second-look remediation F; Identity/Schedule/Signup setup/drawer | None; readonly states at allfive widths in both engines |
+| Signup setup capacity card places the input and unchanged waiting-list hint in the remaining-width left column, beside a top-aligned 210px count box with24px gap; narrow widths stack counts below the left column. Code card unchanged; page-family CSS only | Differs from SignupSetup.dc.html:171–185 capacity-card layout | U3-Q12(b), user7 October2026, 08-decisions “Signup setup early look” | U3 second-look remediation E | None; measure390/494/860/1280/1440 in both engines |
+| Signup setup maximum players is capped at10,000 in the domain and every service changing path, including Participants add-one-place overrides; page-only Range copies are removed | SignupSetup.dc.html:740 has no upper bound; this is an approved reference difference | A-SignupSetup-1 / U3-Q1(a), user7 October2026; brief80 item2 | U3 item2 / OS-1 | None; server boundary and clear error required |
+| Imported events without a SignupForm, including after reopening/finalizing, show stored Settings read-only and “No signup form was recorded for this imported event.” on the form tab, with Danish; Current explicitly reports absence, no historical data created | SignupSetup.dc.html:519–520 assumes standard form fields; absent historical-form state differs from reference | U3-Q11(a), user7 October2026, 08-decisions “U3-Q11”; review84 B-L1 absence guard | U3 item3 / OS-1 | None; D17 read-only access preserved |
+| Signup setup keeps only “Dates are on Schedule; opening and closing signups on Overview.” with both links and Danish translation; shared Q6 reservation unchanged | Differs from SignupSetup.dc.html:127 and:1551 | U3-Q9(a) / Q10; user7 October2026, 08-decisions “Summary reservation for every page” | U3 item3 / OS-1 | None; no page override |
+| Signup setup capacity, code, Current, adds and form operations classify session loss and retain entries; immutable card attempts, stable-ID readback and exact add receipt replay | SignupSetup.dc.html; reference labels do not prove an add | C-CMP-2 / AU05 / AU06; RC02 R1–R4; AU07 | U3 item3 / OS-1 | None; optional normalization retained |
+| Schedule exact-WOM-window refusal is shown on Event start and Event end without rounding the configured instants | Schedule.dc.html does not show these service refusals | AU20; brief80 item1 planner ruling | U3 item1 / OS-1 | Bound to existing field errors; exact precision unchanged; Schedule accepted by the user 7 October 2026 (U3, `UI_PAGE_MATRIX.md`) |
+| Schedule save POST and full-tuple Current GET classify login redirects and retain unsent local date/time entries; failed read remains Unknown, matching read is Up to date without attributing the earlier request | Schedule.dc.html recovery plus fetch-boundary behavior not shown | AU10 / C-CMP-2; brief80 item1 | U3 item1 / OS-1 | Focused browser and transport proof; Schedule accepted by the user 7 October 2026 (U3, `UI_PAGE_MATRIX.md`) |
+| Schedule shared picker retains exact unchanged instants, rejects ambiguous/skipped changed times, and fits short viewports; capacity is absent from the six-value readback | Schedule.dc.html; RC03 R1–R4; direct Overview consumers remain U4 | RC03 / OS-5 / brief80 | U3 item1 / OS-1 | Scoped browser, precision and transport proof; Schedule accepted by the user 7 October 2026 (U3, `UI_PAGE_MATRIX.md`) |
+| Schedule summary drops the event-stage sentence and uses one item: “Times are in ‹timezone›; change it on Identity. Open, close or start by hand on Overview.” Both destinations remain links; Danish is localized. Shared Q6 stays two lines ≤640px / one wider, with no Schedule override | Intentionally differs from Schedule.dc.html:117 and :875 | User 7 October2026, 08-decisions.md “Summary reservation for every page” | U3 item1 / OS-1 | None; measure wrapping at390/494/860/1280/1440 |
+| Count summaries retain their fixed words during loading and use the same number-sized skeleton markup as Events tab counts. Events shows “[bar] live” and “[bar] upcoming or in setup”; attention and no-attention content appears only after data arrives. Q6 height remains two phone lines / one wider. Identity and Dashboard keep empty data summaries | Events.dc.html loading summary is empty: this intentionally differs from the reference. Optional conformance declaration applies to every count-summary page | User decision 7 October 2026, 08-decisions.md “Count summaries load like the tab counts” | U3 item0 follow-up / later registered pages | None; no lane T edits |
+| Shared phase badge / dot palette intentionally differs from reference page maps: Setup neutral / grey (`tone-draft`, unchanged); Signups open success / green; Signups closed info / blue; Live accent / teal; Final review warning / amber; Finished done / violet; Archived and Cancelled outline / grey. R1 Final review dot takes warning foreground; R2 Setup retains `--dk-text-3`; R3 Dashboard Finalized uses done, Provisional stays warning, Imported · archived stays neutral (provenance); R4 `.dc.html` files/local grey maps remain unchanged, U3+ uses `AdminDesignPhasePresentation.For(EventState)` rather than copying them. Shape, size, position, labels and non-phase tones unchanged | Events, shared sidebar and Dashboard; `Events.dc.html` phase map and `Dashboard.dc.html` recap remain reference differences. Frozen-file byte identity is kept for both reference/app token and component CSS pairs | Q-C1(c), Q-C2(a), brief78, 7 October 2026. Starting values unchanged. Text contrast (badge on page / badge on card / page / card): blue light 5.9736 / 5.9736 / 6.4351 / 6.9676; blue dark 7.8471 / 7.2260 / 9.5633 / 8.9351; violet light 6.1804 / 6.1804 / 6.7025 / 7.2571; violet dark 7.5819 / 6.9858 / 9.1618 / 8.5599; all ≥4.5:1, translucent dark backgrounds alpha-composited over each host | Brief78 shared palette; U3 and all later new-layout phase bindings reuse helper. [Values and measured evidence](docs/references/admin-ui/reviews/2026-10-07/phase-colours/report.md) | None; direct planner commit check then light/dark Events and sidebar visual check pending |
+| Every new-layout loading header reserves two summary lines at the shared phone breakpoint (≤640px), one above it. Data summaries stay empty; count summaries use the fixed words and numeric placeholders declared by the 7 October count-summary decision. The loaded reference header keeps its real height; following content settles by the resulting height difference. No page exceptions | Differs from the reference loading-summary height: Identity.dc.html and other page loading headers | User U3-Q6(a), 7 October 2026 phone addendum to “Summary reservation for every page”; supersedes U3-Q5 all-width one-line rule | U3 item0 / shared page conformance; every later page | Bound for Identity, Dashboard and Events; loaded reference geometry retained |
+| Loaded page/cards and Events in-page results swap without load fades. Remove page-load fade-in markup and suppress the fade-in/results load markers plus loaded empty states, page notices and the static unsupported-timezone note in page-family CSS; fast loads are atomic, slow loads keep the shared skeleton. Menus, modals, drawers/scrims, new-event row flash, rows.swap-a/b sort and inline errors retain their interaction animations. Applies to every new-layout page now and later; future page-conformance checks carry this rule | components.css:452 (page fade-in), :337 (results fadeIn), :257/:264 (empty/notice fadeIn), :662 (static note); Dashboard.dc.html:156–346, Identity.dc.html:136. Intentional load-animation exception; frozen tokens/components remain unchanged | User “No load fades”, 08-decisions.md, 7 October2026; brief76 item5 addendum | U2 remediation round4 item5; future new-layout families | None; both engines inspect content animations at insertion/native frames, fast/slow page and Events-result loads; interaction rules remain active |
+| Skeleton text bars sit in typography-sized one-line rows in Dashboard, Events and Identity. Dashboard headline reserves the loaded one-line label/value/note total; reference bar sizes and visible gaps remain unchanged. The first body card aligns; the participation section moves only by real label/note wrapping, not an intrinsic skeleton-height shortfall. Non-text chart/recap/input/badge/meter blocks retain their reference geometry; fresh text reservations never use remembered data | Dashboard.dc.html:130–139; Events loading rows; Identity.dc.html:118–120; components.css:463–475 and corresponding text typography. Intentionally differs from reference skeleton row heights; frozen files unchanged | User Q-SK2(a), 08-decisions.md “Q-SK2”, 7 October2026; brief76 item4 correction | U2 remediation round4 item4 | None; first-card/participation-section body proof at390/494/860/1280/1440, Chromium/WebKit, exact independently measured text-wrap growth |
+| Every page stylesheet is family-scoped with a zero-specificity :where([data-page-family]) prefix; loaded page and fresh skeleton carry a declared fixed untranslated PageFamily key. Remembered skeletons retain stylesheet hrefs; destination CSS loads active at navigation start and is awaited before showing that family's skeleton or swapping its loaded region. If CSS is not ready at150ms the current page remains visible;400ms starts at actual skeleton display (inherited shown holds transfer unchanged). An unknown family uses the shared-only generic skeleton. Old styles stay until old content is gone, identical loaded href nodes stay in place; stale null-sheet links reload, errors use the existing full-load fallback. CSS wait belongs to total A16 timing; language uses the same readiness boundary without a skeleton | Dashboard/Events/Identity reference page rules retain their declarations and cascade; prefixes isolate application page ownership without changing appearance | 08-decisions.md “Brief 74 item 5b approach”; brief76 items1–2, 7 October2026 | U2 remediation round3 item5b / round4 items1–2 | None; page-selector guard, native-frame/exact-clock CSS-readiness, reload and cancellation proofs both engines; selector mapping in item5b-selector-bindings.json |
+| Shared loading timing: A16 navigation and asynchronous in-page updates keep current content visible for150ms, then show the reversible skeleton for at least400ms. Fast updates replace content atomically without loading UI. Full A16 navigation temporarily makes its region inert; in-page query controls stay interactive and retain typed input. Failure/dirty/address-bar rules unchanged. Dashboard server-order sort is synchronous and never reaches the threshold | Shared shell / all opted-in pages — references show loading immediately without these shared thresholds | User decision C; brief70 item6; brief72 item1 query-control preservation | U2 remediation item6 / round2 item1 | Values are single named settings beside busy minimums; exact fake-clock boundaries in Chromium/WebKit; tuning requires the user's visual check |
+| Events in-page query changes use shared results-only update: rows/empty state, pager, chips, attention banners and counts update from the server; chosen tab, Phase value, sort indicator and pager state paint immediately from the latest intent, persist on failure and retry that same intent; header, summary, tabs/counts, toolbar/search and table scroller retain their nodes. Summary/count values stay visible during loading and refresh in place. Skeleton affects results only after150ms for at least400ms. Focus/caret/selection/typed input and vertical/horizontal scroll retained; superseded reads aborted; URL replace and Create query unchanged | Events.dc.html:541–578; A16 per-page transition choice. Full navigation into Events uses the fixed count-summary words and numeric skeletons approved on 7 October | User visual checks round2/3; brief72 item1 and brief74 items1–4 | U2 remediation rounds2/3 / C-CMP-2 | None; exact fake-clock/identity/focus/scroll proof in Chromium/WebKit |
+| Linked-but-incompatible stored EHB remains unavailable (—), with localized “No compatible stored EHB coverage is available.” rather than claiming WOM was unlinked. HasLinkedCompetition describes an actual stored competition link independently of strict fingerprint/coverage compatibility | Dashboard.dc.html history EHB hint does not show incompatible stored coverage | DB-2/D-8; 71a F4/F6; brief72 item6 | U2 Dashboard / round2 item6 | None; linked/unlinked PostgreSQL round-trip proof; compatibility unchanged |
+| Unknown platform approval remains unavailable (—), with localized “Published board approval or a usable event interval is unavailable.” in headline, recap and history as applicable; unknown is not zero and is not imported reconstruction | Dashboard.dc.html assumes usable board approval and dates | DB-3/D-8; brief70 item3 retained states; 71a F4; brief72 item6 | U2 Dashboard | None; preserves existing approved unavailable-state binding |
+| Unknown actual lifecycle interval uses localized “A usable actual lifecycle interval is unavailable. Unknown is not zero.” for unique/total participation hints instead of a fabricated count or raw unavailable reason | Dashboard.dc.html assumes usable actual lifecycle intervals | DB-4/D-8; 71a F4; brief72 item6 | U2 Dashboard | None; existing unknown metric contract preserved |
+| Chart accessibility label represents unavailable participant measurements as unavailable, never as zero; no measured bar segments are invented | Dashboard.dc.html chart fixtures have measured participants | D-8/D-14; 71a F4; brief72 item6 | U2 Dashboard | None; same localized unavailable value as visible bar total |
+| Latest approved-submissions hint ends with localized “Figures are provisional and may still change.” for Live, instead of the ended Final review wording; Live has no actual ended date | Dashboard.dc.html approved-submissions hint only shows ended review history | D-8; accepted U2 Live wording; brief70 item3; 71a F4; brief72 item6 | U2 Dashboard | None; existing Live/Final review distinction retained |
+| Dashboard history sort reorders existing rows in place from all server-computed orders, retaining focus and scroll, and replaces the query URL. No page fetch, remembered measurements or skeleton; this synchronous update completes below the shared loading threshold. Other page transitions remain shell swaps | Dashboard.dc.html history sort; A16 transition choice is per page | Brief70 item3, 69a M3; page-local re-render of server data explicitly authorized | U2 remediation item3 | None; server owns null-last ordering and tie breaks; browser proves focus, scroll, no document request and replace semantics |
+| English/Danish changes without reload: highlight after the dirty guard, save through existing language POST, swap translated shell/page with no skeleton, retain sidebar/scroll/focus; theme-duration cross-fade (none for reduced motion), reload fallback | Shared Admin shell — language control absent from frozen references | 5 October U1 visual check, Language switch without reload; brief55 item0/2 | U1 shared shell | None; Keep editing retains draft and old language; server POST behavior unchanged |
+| Dashboard A16 loading header follows the reference layout with the shared U3-Q6 empty-summary reservation (two lines ≤640px, one wider) and a fresh card-sized .sk placeholder, desktop beside title and ≤860px full width below. Loaded header follows the reference exactly, with wrapping summary and data-sized card. Movement derives only from real summary height/card size, including bottom-aligned title, card position and following content; no fixed anchors or layout exception. Failure has no card/placeholder; never remembered data | Dashboard.dc.html:106–124 and :722 retain the real card during loading/failure; components.css:104 bottom-aligns header groups | User option(b), Q-H1 option(a), corrected by 08-decisions.md “Brief 72 item 5, Q-H1 geometry”, 7 October 2026 | U2 item2 / brief70 item3 / brief72 item5 | None; loaded and loading reference parity plus flow proof at390/861/1280/1440, normal/narrow fixtures, Chromium/WebKit; frozen reference unchanged |
+| Events A16 loading/failure keep query-bound tabs, toolbar and table headings. Loading uses same-size .sk count slots; the summary is empty with the shared U3-Q6 reservation (two lines ≤640px, one wider), no skeleton bar. On load it takes its real height; following content moves only by that height difference. Only the loading header has width/height reservations; loaded header follows the natural reference layout and flex wrapping, including attention. Failure clears counts and summary without placeholders and shows Try again. Every visit is fresh, no remembered counts | Events.dc.html:135–169, :223–234 and :993–1006 retain in-memory counts and query controls; first server visit has no counts; components.css:108 owns loaded summary wrapping | User loading/failure decision; brief70 item5 decision A; brief74 item5a; Q-SK1(a), 08-decisions “U2 remediation round3 recheck”, 7 October2026 | U2 item3 / EI-2; remediation rounds1/3/4 | None; reference geometry and exact summary-growth flow at390/640/860/861/1280, two count presentations, Chromium/WebKit; frozen references unchanged |
+| Remember the last accessible Admin event in a browser-session cookie containing only its ID; community pages retain its sidebar/navigation without an event breadcrumb; revalidate every render and clear on sign-out or loss of access | Shared Admin shell — prototype retains selected event in page state | User, 5 October 2026, Last event stays in the sidebar; brief60 item2 | U1 / future bound community pages | None; past events retained; old-layout composition unchanged |
+| Theme and EN/DA controls move into the hamburger navigation only at the existing max-width 860px mobile breakpoint; bell stays in topbar, wider layouts unchanged | Shared Admin shell — approved mobile placement difference, preserving readable event breadcrumb | User, 5 October 2026: “Move the light switch and language switch into the hamburger”; “This is obviously only on mobile widths.” | U1 round3 item7 | None; preserve theme/language transitions, dirty guards and keyboard access |
+| Narrow-screen toasts sit above the sticky save bar and never cover Save; desktop placement and finite lifetime follow the reference | Shared toast / Identity — intentional phone placement difference | 5 October U1 visual check Q5; brief55 item0/5 | U1 shared components | None |
+| Sidebar and account-menu header use the signed-in account's public username and role; menu header includes name and @handle · role; the logo slot holds the site's masthead SVG in white (U10 part 2 item 5, superseding the DK Legacy mark) | Shared shell — Identity.dc.html / Participants.dc.html use sample organization/account data | 5 October U1 visual check Q1/Q2; brief55 item0/3 | U1 shell | None; Administrator / Super admin localized from real account data |
+| AU19 approval bindings group per-position `board-incomplete` issues into the reference’s single “(N empty)” item, jumping to and highlighting the first empty position; `Working` is the publication projection during a correction | Board — [Board.dc.html](docs/references/admin-ui/Board.dc.html) | AU19, `08-decisions.md` “AU phase plan”; review36c F6/F8 and brief38 item6 | RC05 / BR-10 | Bound in U7 (brief 88); reviewed (report 95), fixes rechecked at `d7a9e272`; merged `5ec88e93`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`). The two open points are resolved: U7-Q1 (rate issues carry the drop names) and U7-Q2 (Publish returns every refusal together) |
+| Blocked approval/contribution state replaces any numerical approval claim; direct link to the earlier pending upload preserves queue/filter context | Review — [Review.dc.html](docs/references/admin-ui/Review.dc.html) does not show it | BR-1/G1 and B5 AU17; shared allocation returns structured blocking submission ID/upload time; `08-decisions.md` “Step 3 decisions” | RC07 / BR-10 | None; preserve the approved navigation and return context |
+| Cap-limited Contribution wording: an exhausted or partial drop/item cap can limit Add while the objective still has remaining work | Review — [Review.dc.html](docs/references/admin-ui/Review.dc.html), Contribution line | B5 review B2; brief35 item 3; shared approval allocation | RC07 | Backend numbers verified; wording remains a binding decision, no current-page display added |
+| Correction picker includes released Playing accounts/former team members, marked Released/Left team/Current; Informational never selectable | Review — [Review.dc.html](docs/references/admin-ui/Review.dc.html) shows a current-team account list without these markers | AU17a; D11 option b in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md#b5-brief-decisions); B5 `au17a.md` | RC07 / BR-10 | Scope decided; bind the markers and derived participant without independent participant editing |
+| Uncertain Teams recovery retains immutable pick/team/member IDs and all intended fields, including inclusion/image/role/account; same order or reusable pick number never proves a request. Failed/unavailable reads remain unknown | Teams — [TeamsDraft.dc.html](docs/references/admin-ui/TeamsDraft.dc.html) predicates use reusable numbers, partial fields and changed order | AU14; Teams source findings 1–2; B5 `au14.md` | RC04 / DRF | Bind current-state wording; unavailable new-team creation identity remains uncertain; no automatic replay or safe-retry claim **Bound in U6 (1a/1b): every Teams command keeps its intended ids/fields and verifies by the no-store readback (pick by participant, Undo by the shown latest pick id — the server refuses a stale id, draw by positions, control by controller, team/member/role by id); “A team named X now exists. It isn’t known whether this request created it.”; a failed read stays unknown with Check again; reviewed (report 99); merged `2d83651e`; user accepted 8 October 2026** |
+| Local roster publication (PublishedAt) is separate from existing last recorded WOM management/operation/local-queue outcomes; only operation CreatedAt >= roster PublishedAt establishes that the operation was created at or after the current roster publication; UpdatedAt cannot establish current-roster relevance (an older in-flight update can finish after republish); a merged pending update keeps its older CreatedAt and conservatively reads as older; queued/failed/unknown never means today’s roster is synchronized | Teams — [TeamsDraft.dc.html](docs/references/admin-ui/TeamsDraft.dc.html) claims WOM is updated after local republishing | AU14; Teams source finding 3; B5 `au14.md` | RC04 / DRF | Bind the existing outcome statuses honestly; no new provider operation or permission **Bound in U6 (1b): corrections and finalize show “Rosters republished.” only for a newer publication cycle than the page showed, then a separate Wise Old Man line (went through / waiting to be sent / failed / isn’t known / couldn’t be queued; nothing when the event has no managed group); no provider text; reviewed (report 99); merged `2d83651e`; user accepted 8 October 2026** |
+| Omit the “another event is current” readiness row despite the reference; retain server lifecycle/finalization guards | Final Review — [FinalReview.dc.html](docs/references/admin-ui/FinalReview.dc.html) shows the row | Narrowed AU18 / Step 0 decision; no additional current-event readiness UI authorized | RC08 / BR-10 | None; omission is decided |
+| Manual-team members in participant lists and waiting positions | Participants — compare with [Participants.dc.html](docs/references/admin-ui/Participants.dc.html) during binding | TD-2 option B; G3b-3 | P-1 | Verify the existing reference against the decided membership behavior during P-1 |
+| Authorized single-entry Audit read, including “This entry isn't available” | Audit — check [Audit.dc.html](docs/references/admin-ui/Audit.dc.html) | AU16; B1/B2 decision D4 | RC06 / WA-5 | Bound in T1 item 4: `?entry=` opens the drawer over the first page, read by id with the list’s visibility and filters; “This entry isn’t available” otherwise; user visual acceptance 7 October 2026 (T1, `UI_PAGE_MATRIX.md`) |
+| Audit event dropdown filter with hidden events marked | Audit — check [Audit.dc.html](docs/references/admin-ui/Audit.dc.html) | AU16; B1/B2 decision D4 | RC06 / WA-5 | Bound in T1 items 2/4: event menu ordered as on Events with state hints, hidden events marked “Hidden · state”, Discarded omitted (Q7); hidden-event entries listed with a Hidden pill (AU16 supersedes Audit.dc.html:390, :560); the menu scrolls when long; user visual acceptance 7 October 2026 (T1, `UI_PAGE_MATRIX.md`) |
+| Audit areas (S11, Q5 (a)): nine areas instead of the reference's seven. Accounts, Events, Signups, Participants, Teams, Draft, Board, Evidence, Catalogue; areas are prefix sets plus explicit key lists (event.signup_*/capacity_increased/signup_code_changed/signup_administration_updated → Signups; team.member_*/membership_role_changed and roster.finalized_* → Participants); evidence_code.* and historical_import.* sit in Events (planner to confirm). Query names follow the reference (event id, action, actor, type, from, to, page, entry); C-AUD-3 actor ignores case and a leading “@”; C-AUD-4 invalid or unknown link parts are dropped with a notice; Discarded events are omitted from the event menu (Q7) | Audit — Audit.dc.html:425 (seven AREAS), README :2023–2026 | S11/Q5, C-AUD-3/4, Q7 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) “T1 brief decisions” | T1 item 2 (lane T) | Area for evidence_code.*/historical_import.* not in Q5; user visual acceptance 7 October 2026 (T1, `UI_PAGE_MATRIX.md`) |
+| Audit page bindings beyond the reference: Automated pill and “System” actor derived from a null actor account; drawer context shows reopening explanations and plain recorded details; sensitive actions (code, password, credential) show no field changes, before or after values; record name from the entry’s before/after snapshot, otherwise the record type (C-AUD-5 display only, Q6); every recorded action key labelled in English and Danish with a completeness test (S12); change labels sentence-cased; record types Tile, Signup question, WOM competition added | Audit — Audit.dc.html:190–194, :746, :759; README :2190–2200 | S12, C-AUD-5/Q6 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | T1 items 3/4 (lane T) | Writer-side record names are a main-lane item (Q6); user visual acceptance 7 October 2026 (T1, `UI_PAGE_MATRIX.md`) |
+| Audit Changes table is human-readable (T1-8 (a), user): ids, versions, editing leases and concurrency markers (one named policy, `AuditPresenter.IsTechnicalField`) appear only in Technical details; rows that read the same before and after (including empty → empty) are omitted; decimals are rounded like the site's EHB values (“0.##”, current culture); ISO instants use the drawer's “When” format (Copenhagen, with UTC offset, English and Danish); the field count counts only the shown rows; when every change was technical-only the drawer says “Only technical fields changed. See Technical details.” instead of “No field changes were recorded…” (T1 review L1). Display only; the shared presenter also shapes Review Details history (`_AuditEntry`), which gains the same filtering and formatting | Audit — Audit.dc.html Changes section (sample entries have only readable fields); Review Details (U8) via the shared presenter | T1-8 (a) in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | T1 (lane T) | None; user visual acceptance 7 October 2026 (T1, `UI_PAGE_MATRIX.md`) |
+| Search fields avoid browser/password-manager username autofill (T1-9 (a), user): Accounts search reads “Search accounts”; the Audit actor field reads “Actor” / “Filter by actor” with the hint “Matches actors whose name contains what you type…”; Danish wording avoids “brugernavn”; both inputs keep autocomplete="off" and add data-1p-ignore, data-lpignore="true", data-bwignore and data-form-type="other"; no id or name contains “user” | Accounts — Accounts.dc.html “Search usernames”; Audit — Audit.dc.html “Actor username” / “Filter by actor username” | T1-9 (a) in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | T1 (lane T) | None; user visual acceptance 7 October 2026 (T1, `UI_PAGE_MATRIX.md`) |
+| Audit More filters panel protects unapplied edits (T1 review M2, decision B / A12): with edited fields, Escape, an outside click (which then does not act on what it hit) or the More filters button opens the shared discard confirmation; Keep editing keeps the panel and its values, Discard resets it to the applied filters; leaving the page uses the shared dirty guard. With no edits it closes at once. The panel also moves up when the space below the button is short (A4) | Audit — Audit.dc.html:668, :674, :793 close the panel and drop edits silently | Decision B / A12; “T1 review” in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | T1 (lane T) | None; awaiting recheck |
+| Audit header summary is only “Times in Copenhagen time (UTC±hh:mm)”: the page-describing sentence “Administrative history, newest first.” is dropped (loaded and loading; U3-Q10 planner ruling, the 390 px loading summary exceeded the two-line reservation). The loading header keeps this fixed text while loading; it is data-independent, so it is shown, not reserved (T1 review L2, applying “Count summaries load like the tab counts”). To be declared when Audit registers in the U3 page-conformance check | Audit — Audit.dc.html:129 (summary sentence; loading state not shown) | “T1 review” L2 and U3-Q10 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | T1 (lane T) | None |
+| WOM refresh outcome follows the reference's unsuccessful-only note; stored next eligible time remains data only | Final Review — [FinalReview.dc.html](docs/references/admin-ui/FinalReview.dc.html) does not display next eligible time | AU18; known UI differences recorded after B1/B2 review | RC08 / BR-10 | No additional next-eligible-time display approved |
+| Tile EHB override set/change/reset with calculated baseline; submit explicit change-override intent | Board — bind the control in [Board.dc.html](docs/references/admin-ui/Board.dc.html) to the reviewed backend contract | AU11 and its explicit-intent remediation | RC05 / BR-10 | None; verify the intent mapping during binding |
+| Catalogue rate entry and “How the rate is counted” panel follow the decided fields and permissions | Catalogue — intentional differences from [Catalogue.dc.html](docs/references/admin-ui/Catalogue.dc.html) | AU23 backend delivered in B4; [Catalogue decisions — AU23, CAT-1 and WA-5](#catalogue-decisions--au23-cat-1-and-wa-5-4-october-b4-backend-delivered-wa-5-binding-pending); `08-decisions.md` “Drop-rate mechanics” / “Catalogue layout” | RC10 / WA-5 | Bound in T2 (lane T, items 1–2); user visual acceptance 7 October 2026 (`UI_PAGE_MATRIX.md`; whole suite green on `69f9cf01`, 8 October 2026) |
+| Informational activity Team size in Settings and Add activity beside Kills per hour | Catalogue — intentional difference from [Catalogue.dc.html](docs/references/admin-ui/Catalogue.dc.html) | CAT-1 backend delivered in B4; [Catalogue decisions — AU23, CAT-1 and WA-5](#catalogue-decisions--au23-cat-1-and-wa-5-4-october-b4-backend-delivered-wa-5-binding-pending); `08-decisions.md` “Catalogue layout” | RC10 / WA-5 | Bound in T2 (lane T, items 1–2); user visual acceptance 7 October 2026 (`UI_PAGE_MATRIX.md`; whole suite green on `69f9cf01`, 8 October 2026) |
+| Structured confirmation naming every affected activity before a shared item rename or image change, including Add-drop adoption with a different normalized image; no per-activity split | Catalogue — the reference only shows a generic “also used by” indication and does not show the named-activity confirmation | AU21/D7 option (a) and D9 option (a); [08-decisions.md, B4 review decisions](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md#b4-catalogue-review-decisions); B4 remediation item 1 | RC10 / WA-5 | Bound in T2 (lane T, items 1–2); user visual acceptance 7 October 2026 (`UI_PAGE_MATRIX.md`; whole suite green on `69f9cf01`, 8 October 2026); the list travels in the JSON response (brief 82), TempData key removed |
+| WOM end-update status NotRequired/Pending/Succeeded/Rejected/CouldNotUpdate, target end and sanitized failure. A15: WOM shows Pending/Rejected/could-not-update with target end and corrects paused-fetch wording; Overview shows Needs attention in Final review for Pending/Rejected linking WOM; Final Review publish confirmation warns that the last fetch becomes official and retains the per-version note after publication. Publication is never blocked | WOM — Wom.dc.html; Overview — Overview.dc.html; Final Review — FinalReview.dc.html (existing component patterns) | WA-2 / AU20; Plan 42 A15 | WOM U9 / WA-5; Overview U4 / OS-1; Final Review U9 / BR-10 | None for A15 placement; other WOM fetch outcomes remain the U9 group-B question; Overview part Bound in U4 (brief 85); user early look passed 7 October 2026; reviewed (report 91), fixes rechecked at `a91b29ad`; merged `969d0351`; user accepted 8 October 2026 |
+| Structured fetch eligibility, AU18 skip reason and next permitted time; typed credential/current-operation identity, phase and next attempt | WOM — [Wom.dc.html](docs/references/admin-ui/Wom.dc.html); these backend outputs exceed the generic Fetch wording. Final Review retains its separate AU18 data-only next-time decision above | WA-6 / AU20; Step 4 D4 and B1/B2 D2 in [B3 source attribution](docs/references/admin-ui/reviews/2026-10-04/au-b3/item6-documentation.md); brief 23 items 1 and 6 | WA-5 / RC09, as settled in the UI integration plan | Decide which structured WOM outcomes are displayed and their binding before integration; keep current-page generic Fetch wording and no new Final Review next-time display |
+| Resume always requires a validated future replacement end, even when the retained configured end is future; early end stores the ceiling-minute configured end and precise actual end | Overview — [Overview.dc.html](docs/references/admin-ui/Overview.dc.html) currently conditionally asks for the replacement only after the retained end has passed | WA-2 corrected Resume rule; AU20 item2; [remediation brief](docs/references/admin-ui/reviews/2026-10-04/au-b3/remediation/supplied-brief.md) item6 / review24f R1 | RC01 / OS-1 | Bound in U4 (brief 85); user early look passed 7 October 2026; reviewed (report 91), fixes rechecked at `a91b29ad`; merged `969d0351`; user accepted 8 October 2026. Dialog text (Resume always asks for the new end; early end states the ceiling-minute end) accepted 8 October 2026 |
+| Cancelled/Finalized/Archived admin pages open read-only; each page binding removes its view redirect from EventMutationCapabilityPageFilter (baseline view redirect `:90-101`); all changes remain refused under D16 | All event admin pages — Identity, Schedule, Signup setup, WOM, Final Review, Participants references | D17 / D16 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | Each page integration inventory | Identity GET/Current bound in U1; remaining page removals stay with their assigned bindings |
+| Signup answers shows every custom question as question: answer, editable until draft start then read-only; drop Participant’s note and its row flag | Participants — Participants.dc.html | S1 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | P-1 | Decided future binding; no new field |
+| Start checklist and postponed automatic start, when another event is still current (Live or in Final review): “Publish the results of ‹other event› first”, linking to that event | Overview — Overview.dc.html | S2 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | OS-1 | Bound in U4 (brief 85); user early look passed 7 October 2026; reviewed (report 91), fixes rechecked at `a91b29ad`; merged `969d0351`; user accepted 8 October 2026; also in the Resume dialog (U4-Q4 (b)); legacy Finished reads “‹X› is still the current event. Contact the Super Admin to archive it.” (U4-Q5 (a)) |
+| Failed automatic signup opening attention: “Signups didn’t open automatically: ‹reason›”, styled like “Automatic start postponed”, with normal Open signups now and existing checks | Overview — Overview.dc.html | S3 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | OS-1 | Bound in U4 (brief 85); user early look passed 7 October 2026; reviewed (report 91), fixes rechecked at `a91b29ad`; merged `969d0351`; user accepted 8 October 2026; reason wording accepted 8 October 2026 |
+| “‹account› left ‹team› at ‹time›. Drops before that time count for the team; later ones don’t.” Drop active-account-since/switched-from content | Review — Review.dc.html | S9; remediation item3 supplies nullable credited participant team-leave time in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | RC07 | Backend read implemented; warning binding pending |
+| Deactivate confirmation names affected draft boards with an event Board link for each; approved/published snapshots stay unaffected | Catalogue — Catalogue.dc.html | S10 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | RC10 / WA-5 | Bound in T2 (lane T, items 1–2); user visual acceptance 7 October 2026 (`UI_PAGE_MATRIX.md`; whole suite green on `69f9cf01`, 8 October 2026); T2-Q3 (a) / T2-Q3b (a); wording approved by the user at the early look; T2-1 (a): for the Super Admin a hidden event links to Overview’s limited view (`/Admin/Events/Manage/{id}?hidden=true`, as A7), not its Board page; T2-2 (a) server refuses unconfirmed deactivation; T2-3 event selection as built |
+| Remove Move up/Move down in queue; manual queue reordering is not approved | Participants — Participants.dc.html | S13 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | P-1 | Decision closed; reference/binding change pending |
+| Reset panel: “The link stops working after 60 minutes, after one use, or if this account’s role, status or ownership changes.” | Accounts — Accounts.dc.html | C-ACC-1 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | AU22 / Accounts binding | Bound in T1 (lane T); user visual acceptance 7 October 2026 (T1, `UI_PAGE_MATRIX.md`) |
+| AU24 ownership-change confirmation includes typed username | Accounts — Accounts.dc.html | C-ACC-2 / AU24, [33c sweep](/Users/christopher/Documents/BingoWebpage/review-notes/33c-sweep-admin-tools.md#c-acc-2--plan-gap-au24s-typed-username-field-has-no-row-in-the-bindings-not-shown-register); brief35 item8 | AU24 / Accounts binding | Bound in T1 on the Transfer confirmation step (“Type the new owner’s username”, case ignored, server-checked), after recipient + password and the change table; user visual acceptance 7 October 2026 (T1, `UI_PAGE_MATRIX.md`) |
+| Accounts lost permission/session (C-CMP-2): today's sign-out is kept; every drawer action, reset link and transfer shows what wasn't sent (action, account, reason; never the password) before Sign in. The reference's in-place “You no longer have permission … Refresh” banner is superseded. A refusal while still signed in (e.g. an Admin target for an ordinary Admin) shows “That couldn’t be done.” with the server message | Accounts — Accounts.dc.html:658, :690, :727 | C-CMP-2 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md); brief 79 planner default | T1 (lane T) | None; wording binding-time, user visual acceptance 7 October 2026 (T1, `UI_PAGE_MATRIX.md`) |
+| Accounts RC11 corrections in the binding: uncertain outcomes gate further actions and “Check current status” reports only what the re-read proves (unchanged version = “It wasn’t changed.”; matching state = “The account shows this change now … may be yours or another administrator’s”; a disable with this admin and reason = “It went through.”) (A2); a stale disable keeps the typed reason for the next confirmation and typed reasons use the shared discard choice (A3); revoking a disabled Admin says it stays disabled (A5); the transfer confirmation keeps the selected recipient's version/role (A6); an unconfirmed transfer's “Check ownership” uses the readback sign-in notice when the session ended (T1-2, planner: sign-out is not proof of transfer) | Accounts — Accounts.dc.html:661, :668–673, :735–740, :623–625, :541, :838, :857–859, :710–724 | RC11 A2/A3/A5/A6 ([accounts-review.md](docs/references/admin-ui/reviews/2026-10-02/remaining-seven/accounts-review.md)) | T1 (lane T) | None for behaviour; wording binding-time, user visual acceptance 7 October 2026 (T1, `UI_PAGE_MATRIX.md`) |
+| Accounts retired routes: `/Admin/Accounts/Manage/{id}` redirects to `/Admin/Accounts?account={id}` (unknown or non-website accounts stay Not Found); `/Admin/Accounts/Transfer` redirects to `/Admin/Accounts`; query names follow the reference (`q`, `role`, `page`, `account`) with no legacy-name mapping (no inbound link outside these pages used the old names) | Accounts — README routing table :3108–3116 | Brief 79 planner defaults | T1 (lane T) | T1-1 (planner, 7 October 2026): `/Admin/Accounts/Create` stub kept (deleting it turns POST into 405 through app-wide status re-execution and breaks DraftStartReadinessIntegrationTests:124); the 42f §3.10 leftover check `test ! -e Create.cshtml` is intentionally not met; retirement may come in U10 |
+| Accounts directory Global role is always a pill: User `badge-neutral` (as the drawer header), Admin `badge-outline`, Super Admin `badge-accent`; Status keeps the reference (Active plain text, Disabled `badge-danger`) | Accounts — Accounts.dc.html:784, :791 (User as plain text) | T1-4 (b), user, “T1 Accounts early look” in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | T1 (lane T) | None; user visual acceptance 7 October 2026 (T1, `UI_PAGE_MATRIX.md`) |
+| Accounts header summary uses Events-style separate items with tabular numbers (`<b class="tnum">N</b> accounts`, `<b class="tnum">M</b> disabled` only, as on Events) instead of one plain “N accounts · M disabled” string; the scope text “Website accounts and their global access” is removed (user, T1-5 addition); the loading summary shows the fixed words with a number-sized `.sk` bar in place of each number (“[bar] accounts”, “[bar] disabled”, as the Events tab-count placeholders), replacing the empty line and the reference’s “Loading accounts” (Accounts.dc.html:797; user, “Count summaries load like the tab counts”); it reserves one line, two at phone width (U3-Q6) | Accounts — Accounts.dc.html:161, :797; pattern Events.dc.html:113–114 | T1-5 and its addition, user, “T1 Accounts early look” | T1 (lane T) | None; user visual acceptance 7 October 2026 (T1, `UI_PAGE_MATRIX.md`) |
+| Open/Reopen checklist includes every applicable server refusal with repair links (Discord configuration, usable code, valid questions, public-event overlap, future close); confirmation warns text answers are public when applicable, and the “reopening keeps existing signups” warning is dropped; Live WOM-sync-failed attention links WOM and says lifecycle actions aren’t affected | Overview — Overview.dc.html | A-Overview-3/6/7 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | OS-1 | Bound in U4 (brief 85); user early look passed 7 October 2026; reviewed (report 91), fixes rechecked at `a91b29ad`; merged `969d0351`; user accepted 8 October 2026; no Events-directory attention item; a blocked Reopen lists its rows under “Before you can reopen signups” |
+| Readiness includes any missing server blocker, including Submission cutoff required and Final-review cycle is missing, with server text | Final Review — FinalReview.dc.html | B-Final-1 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | RC08 / BR-10 | Decided future binding; preserve narrowed AU18 omission |
+| Create checklist retains its three rows and adds each further applicable server refusal | WOM — Wom.dc.html | C-WOM-2 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | RC09 / WA-5 | Decided future binding |
+| U4-Q1 (c): “Automatic start postponed” is a Needs-attention item in every pre-Live phase with the phase reason (“Open and close signups first.”, “Close signups first.”, or the remaining start requirements) | Overview — Overview.dc.html shows it only in Signups closed (`:1104-1107`) | U4-Q1 (c) in 08-decisions “U4 brief decisions” | U4 / OS-1 | Bound in U4 (brief 85); user early look passed 7 October 2026; reviewed (report 91), fixes rechecked at `a91b29ad`; merged `969d0351`; user accepted 8 October 2026 |
+| U4-Q2 (c): Overview’s Final review checklist shows the three reference rows (placements row from the server’s calculated-placements blocker) plus one “N more on Final review” row for the server’s other blockers | Overview — Overview.dc.html `:688-695` | U4-Q2 (c) | U4 / OS-1 | Bound in U4 (brief 85); user early look passed 7 October 2026; reviewed (report 91), fixes rechecked at `a91b29ad`; merged `969d0351`; user accepted 8 October 2026 |
+| U4-Q3 (c): the Super Admin’s limited hidden view opens on the plain event URL (legacy `?hidden=true` still accepted) and keeps the quarantine history list; only Restore can be posted; ordinary admins get Not Found | Overview — Overview.dc.html hidden view `:152-162` has no history list | U4-Q3 (c); C-CMP-1 | U4 / OS-1 | Bound in U4 (brief 85); user early look passed 7 October 2026; reviewed (report 91), fixes rechecked at `a91b29ad`; merged `969d0351`; user accepted 8 October 2026 |
+| U4-E2: Overview loading header shows the event name only (no phase badge, empty reserved summary line) while the page loads; badge and summary arrive with the page | Overview — Overview.dc.html keeps name, badge and summary during loading | Summary reservation (U3-Q5) | U4 / OS-1 | Bound in U4 (brief 85); user early look passed 7 October 2026; reviewed (report 91), fixes rechecked at `a91b29ad`; merged `969d0351`; user accepted 8 October 2026 |
+| U4-E1: an unknown or inaccessible event id on Overview returns the shared admin 404 page instead of an in-page “Event not found” card | Overview — Overview.dc.html shows an in-page “Event not found” card | Brief 85 planner default; Test #14 and ordinary-admin privacy for hidden events (U4-Q3) | U4 / OS-1 | Bound in U4 (brief 85); user early look passed 7 October 2026; reviewed (report 91), fixes rechecked at `a91b29ad`; merged `969d0351`; user accepted 8 October 2026 |
+| Stale lifecycle dialog names the latest recorded change as “‹audit action label› (‹actor›)” | Overview — Overview.dc.html prototype text (“@mia closed signups”) | README “Action states: Stale”; brief 85 technical choice | U4 / OS-1 | Bound in U4 (brief 85); user early look passed 7 October 2026; reviewed (report 91), fixes rechecked at `a91b29ad`; merged `969d0351`; user accepted 8 October 2026; wording confirmed at the early look 7 October 2026 |
+| Legacy Finished (Finalized) events show the last progression stage as “Finished” with the archived-style results panel; Hide is offered (server allows Finished) | Overview — Overview.dc.html has no Finished phase | README “Verified rules” (legacy Finished); D17 | U4 / OS-1 | Bound in U4 (brief 85); user early look passed 7 October 2026; reviewed (report 91), fixes rechecked at `a91b29ad`; merged `969d0351`; user accepted 8 October 2026 |
+| Overview lifecycle dialogs and evidence codes post through AdminFetch with JSON outcomes (applied/stale/invalid/refused) and a no-store `GET ?handler=Current` read; plain form posts keep the PRG fallback | Overview — Overview.dc.html | Brief 85 planner default “Transport”; 42c §1.5 item 14; C-CMP-2 | U4 / OS-1 | Bound in U4 (brief 85); user early look passed 7 October 2026; reviewed (report 91), fixes rechecked at `a91b29ad`; merged `969d0351`; user accepted 8 October 2026 |
+| The header blocker count and its readiness anchor are retired from the old Admin layout; Overview’s Needs attention and checklists own readiness | Old Admin layout (not in references) | Brief 85 “Retired”; 42c §1.3 | U4 / OS-1 | Bound in U4 (brief 85); user early look passed 7 October 2026; reviewed (report 91), fixes rechecked at `a91b29ad`; merged `969d0351`; user accepted 8 October 2026 |
+| Every bound fetch/JSON endpoint detects session loss (302/login HTML or enhanced navigation), keeps and shows unsaved input before sign-in, and distinguishes route refusal from an uncertain handler outcome | Events/Create, Overview, Identity, Schedule, Participants/detail, Signup setup, Board, Teams, Review, Catalogue, Accounts and shell notifications; form/fetch consumers WOM, Final Review, Audit and Transfer; respective frozen page references (42a §3.2) | C-CMP-2; B5 remediation item7 authentication correction; AU17a picker; plan42/brief43 | U1 shared helper and Identity; AU17a picker and B5 owners RC07 / BR-10 / RC04–DRF; each later owning U2–U9/T1–T2 binding | None; authentication stays unchanged; 302 is not an HTTP403 claim Teams / Draft bound in U6 (all Draft fetch paths through AdminFetch). |
+| Participant-list Paid/Unpaid `Payment` handler delegates to the existing service policy in every state except Discarded; list display remains unchanged | Participants — Participants.dc.html | S4 option (a) in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md); brief40 S4 | P-1 | **Server part done (brief40); bound in U5 (payment editable in every state except Discarded, review 96 M2); merged `42a7716e`; user accepted 8 October 2026** |
+| WOM `FetchCompetition` is available in Live and Awaiting Final Review, while WA-2 unmatched-end and all existing synchronization guards remain authoritative; development due stays Live-only | WOM — Wom.dc.html | S6 option (a) and WA-2 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md); brief40 S6 | WA-5 / RC09 | **Server part done (brief40); binding pending** |
+| Direct Teams roster setup allows a missing configured end before actual start and refuses only a configured past end, with action messages naming the start and end | Teams — TeamsDraft.dc.html | S8 option (a) in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md); brief40 S8 | RC04 / DRF | **Server part done (brief40); bound in U6 (refusals show the server message; readiness row U6-Q2); reviewed (report 99); merged `2d83651e`; user accepted 8 October 2026** |
+| Catalogue activity edits use the add form’s validation rules and messages before any write or audit | Catalogue — Catalogue.dc.html | brief40 F3; add/edit validation decision | RC10 / WA-5 | Bound in T2 (lane T, items 1–2); user visual acceptance 7 October 2026 (`UI_PAGE_MATRIX.md`; whole suite green on `69f9cf01`, 8 October 2026) |
+| Schedule refuses clearing `Signup close` while signups are open, while a different valid future close remains allowed | Schedule — Schedule.dc.html | brief40 F4; decided Part 3 F4 in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md) | OS-1 (U3) | Bound U3 item1; A-M1 fixes the missing Danish F4 resource: localized error on Signup closing, with Danish render/refusal coverage; scoped PostgreSQL coverage retained; Schedule accepted by the user 7 October 2026 (U3, `UI_PAGE_MATRIX.md`) |
+| B-Board-1: players per team is editable only before Live; read-only from Live, including corrections (clean refusal, no write; lock-icon read-only box) | Board — Board.dc.html | B-Board-1 | U7 / BR-10 | Bound in U7 (brief 88); reviewed (report 95), fixes rechecked at `d7a9e272`; merged `5ec88e93`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`); the HTTP 500 during a Live/AwaitingFinalReview correction reproduced before the fix |
+| B-Board-2: enforce correction reason ≤ 2,000, tile name ≤ 80 (new or changed names only, planner ruling 2) and weight 1–10,000 on the server, with matching client limits | Board — Board.dc.html | B-Board-2 | U7 / BR-10 | Bound in U7 (brief 88); reviewed (report 95), fixes rechecked at `d7a9e272`; merged `5ec88e93`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`) |
+| U7-Q3 (corrected): Preview opens the reference modal with its mode label, but its tile area is the plain background with “Not supported yet”; the legacy BoardPreview page (demonstration teams/progress) is retired and its route redirects to the Board | Board — Board.dc.html preview shows tiles (`:487-494`, `:1653`) | U7-Q3 (corrected) | U7 / BR-10 | Bound in U7 (brief 88); reviewed (report 95), fixes rechecked at `d7a9e272`; merged `5ec88e93`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`) |
+| D17: Board page, EditorData and Readback load read-only on Cancelled/Finalized/Archived; every POST keeps the D16 refusal; a terminal event without a board shows “No board recorded.” and never creates one | Board — Board.dc.html has no terminal or no-board state | D17, D16 | U7 / BR-10 | Bound in U7 (brief 88); reviewed (report 95), fixes rechecked at `d7a9e272`; merged `5ec88e93`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`) |
+| Board commands answer in place (JSON outcome + no-store readback) for page-module requests; non-script posts keep PRG | Board — Board.dc.html | README item 1; C-CMP-2 | U7 / BR-10 | Bound in U7 (brief 88); reviewed (report 95), fixes rechecked at `d7a9e272`; merged `5ec88e93`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`) |
+| “N tiles differ” uses the server count and names removed tiles (“N tiles differ from the published board, M of them removed.”) | Board — Board.dc.html counts working tiles only | Planner ruling 3 (brief 88) | U7 / BR-10 | Bound in U7 (brief 88); reviewed (report 95), fixes rechecked at `d7a9e272`; merged `5ec88e93`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`); wording accepted 8 October 2026 |
+| Take-over confirmation says the other administrator’s unsaved edits stay in their browser (not “lost”) | Board — Board.dc.html takeover text (“anything they haven’t saved is lost”) | RC05 B2 | U7 / BR-10 | Bound in U7 (brief 88); reviewed (report 95), fixes rechecked at `d7a9e272`; merged `5ec88e93`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`) |
+| Tile editor shows the server’s calculated baseline for the stored objectives and “Calculated when you save” after objective changes (no client EHB calculation); missing-rate notes come from catalogue data | Board — Board.dc.html recalculates live in the browser | RC05 B7 | U7 / BR-10 | Bound in U7 (brief 88); reviewed (report 95), fixes rechecked at `d7a9e272`; merged `5ec88e93`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`) |
+| Default tile name follows the server rule (boss names joined, or “New tile”), not the reference’s “a / b / c” suggestion | Board — Board.dc.html `suggestName` | Server behaviour unchanged (brief 88: no product change) | U7 / BR-10 | Bound in U7 (brief 88); reviewed (report 95), fixes rechecked at `d7a9e272`; merged `5ec88e93`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`) |
+| Retired: per-team workload panel and per-team EHB breakdown; ±25% line markers are advisory only | Old Board page (not in references) | Brief 88 “Retired”; AU13 | U7 / BR-10 | Bound in U7 (brief 88); reviewed (report 95), fixes rechecked at `d7a9e272`; merged `5ec88e93`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`) |
+| U7-E1 (c): the new Board layout has no presence list or live re-read (no SignalR on the design layout); while the admin holds the edit lease, page and drawer activity renews it over HTTP (`POST ?handler=RenewEditing`, at most once a minute, no version or audit change), and another admin’s change is caught on the next action as a stale refusal with the draft kept | Board — Board.dc.html shows no presence or live updates | U7-E1 (c), planner provisional ruling in 08-decisions “U7 early-look stop” (user to confirm; SignalR in the design layout, option b, stays open) | U7 / BR-10 | Bound in U7 (brief 88); reviewed (report 95), fixes rechecked at `d7a9e272`; merged `5ec88e93`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`) |
+| U7-E2 (a): at 390 px the loaded Board header actions (editing chip, Preview, primary action, More) wrap to a second row, so the header grows 42 px beyond the summary change (measured 22.4 px total vs −19.6 px summary change, Chromium and WebKit); page-specific conformance exemption `headerGrowth: { 390: 42 }` in `scripts/lib/admin-page-conformance-pages.cjs`, every other width keeps the generic check | Board — Board.dc.html hides its actions while loading, same shift | U7-E2 (a), planner provisional ruling in 08-decisions “U7 early-look stop” (page exceptions are the user’s call; user to confirm) | U7 / BR-10 | Registered in U7 (brief 88); reviewed (report 95); merged `5ec88e93`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`) |
+| After tile edits the description text reads “Written automatically … when you save” (the automatic text is recomputed by the server) | Board — Board.dc.html shows a static automatic-description text | Server-side automatic description (AU11); review U7 L1 | U7 / BR-10 | Bound in U7 (brief 88); reviewed (report 95), fixes rechecked at `d7a9e272`; merged `5ec88e93`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`) |
+| Drawer eyebrow reads “Working copy” while a published board is being corrected | Board — Board.dc.html has no correction state in the drawer | D19; review U7 L1 | U7 / BR-10 | Bound in U7 (brief 88); reviewed (report 95), fixes rechecked at `d7a9e272`; merged `5ec88e93`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`) |
+| Drawer shows “This tile isn’t on the board any more”, and the page shows “That tile isn’t on this board”, when a `?tile=` reference or an open tile no longer exists | Board — Board.dc.html has no such states | B4; review U7 L1 | U7 / BR-10 | Bound in U7 (brief 88); reviewed (report 95), fixes rechecked at `d7a9e272`; merged `5ec88e93`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`) |
+| Take-over confirmation omits the reference’s extra point and its “from X” title (“Take over editing?” with the other administrator’s name in the text only) | Board — Board.dc.html takeover dialog (title “…from X”, extra bullet) | RC05 B2 (the “lost” wording is a separate row above); review U7 L1 | U7 / BR-10 | Bound in U7 (brief 88); reviewed (report 95), fixes rechecked at `d7a9e272`; merged `5ec88e93`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`) |
+| U7-E3: the terminal read-only Board (Cancelled/Finalized/Archived) shows no working artwork; retained published artwork still shows | Board — Board.dc.html has no terminal state | D17; Board `TileImage` stays refused on terminal events; review U7 L1 | U7 / BR-10 | Bound in U7 (brief 88); reviewed (report 95), fixes rechecked at `d7a9e272`; merged `5ec88e93`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`) |
+| Approval and publication issue codes the reference has no wording for reuse the server’s issue text | Board — Board.dc.html lists only its demonstration issues | AU19 / U7-Q2; review U7 L1 | U7 / BR-10 | Bound in U7 (brief 88); reviewed (report 95), fixes rechecked at `d7a9e272`; merged `5ec88e93`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`) |
+| B-Review-2: refuse no-op correction with “Change at least one detail, or cancel.” | Review — Review.dc.html | B-Review-2 | U8 / BR-10 | None |
+| B-Final-2: Reopen requires expected version; RL-1/BR-12 must not bypass checks when missing | Review / Final Review — Review.dc.html / FinalReview.dc.html | B-Final-2; RL-1/BR-12; plan42 §5 | U8 Review / U9 Final Review | None for mandatory version; U9 reopen-with-another-current-event is group B |
+| A-SignupSetup-1: enforce player-cap maximum 10,000 in the service with a clear message | Signup setup — SignupSetup.dc.html | A-SignupSetup-1 | U3 / OS-1 | None |
+| A-Events-3: drop invalid link parts (filter/view/phase, including Hidden for an ordinary Admin) with a short notice; the reference silently drops invalid non-hidden parts | Events — Events.dc.html | A-Events-3; brief67 item0 | U2 / EI-2 | None for behavior; EN/DA wording proposed at binding and approved at visual acceptance |
+| Partial Needs-attention-unavailable banner in the reference banner style; event rows remain usable | Events — Events.dc.html shows whole-page failure, not partial attention failure | U2-5; brief67 item0/3 | U2 / EI-2 | None; retained partial state bound; user visual acceptance 7 October 2026 (U2, `UI_PAGE_MATRIX.md`) |
+| Live chart/history/statistics are provisional; recap selects only the latest ended event; Live row and provisional-count wording includes Live | Dashboard — Dashboard.dc.html models Final review provisional rows only; its stale sample metric definitions remain frozen | DB-4; D-8; brief67 item1/2 | U2 / DB-1 | Behavior decided; EN/DA wording proposed at binding and approved at visual acceptance |
+| Current label for Live; overdue preparation visibly overdue; unset capacity/date remain unknown rather than a fabricated limit or future date | Dashboard — Dashboard.dc.html card assumes Next event and a set future date/capacity | DB-5; D-9…D-11; brief67 item1/2 | U2 / DB-1 | Behavior decided; EN/DA wording proposed at binding and approved at visual acceptance |
+| All shared first-place winners appear in recap/history instead of one sample winner | Dashboard — Dashboard.dc.html shows one winner | D-12; approved Dashboard metric definitions; brief67 item2 | U2 / DB-1 | Behavior decided; EN/DA wording proposed at binding and approved at visual acceptance |
+| Signup opening failed attention label; Start postponed replaces the sample Start failed label | Events — Events.dc.html has no signup-opening-failure sample | AU04; E-8; brief67 item3 | U2 / EI-2 | Behavior decided; EN/DA wording proposed at binding and approved at visual acceptance |
+| CheckAgain or same-key retry 404 says the event was not found and may have been removed; fresh Create uses a new request key and retains typed values | Events/Create — Events.dc.html assumes not found means not created and permits same-key retry | AU03; E-14; brief67 §2/item4 | U2 / EI-2 | Recovery decided by brief67; EN/DA wording proposed at binding and approved at visual acceptance |
+| Every editable modal/drawer closes on outside click when clean; edited input uses the same shared discard/uncertain guard as Cancel/Escape. Pending saves refuse dismissal; confirmations never close on outside click. Create close removes create=1 by URL replace only, no navigation/skeleton/reload | Shared shell / Events/Create — Events.dc.html:317–319 requestCloseCreate; A12 refined | User decision B and bug2; brief70 item5 / E-16 | U2 remediation item5; shared shell once | None; both clean/dirty paths proven in Chromium/WebKit; URL close preserves other query state |
+| Unknown Create departure offers Check again / Leave anyway and warns that the event may already have been created; ordinary dirty input retains Keep editing / Discard | Events/Create — Events.dc.html:699–702, :949–950 claims values have not been saved even for an uncertain outcome | User U-A and accepted Identity I-3; planner ruling 6 October 2026, “U2 item 4: leaving the Create dialog after an uncertain create” | U2 item4 / E-16 | None; shared guard/confirmation, no automatic resend or undo claim |
+| A-Identity-1: 50-character name limit applies only when the name changes (intentional difference) | Identity — Identity.dc.html | A-Identity-1 | U1 / EI-2 | None |
+| C-WOM-3: locked Unknown origin safety state says “Unknown origin; contact an operator”; R-3 must confirm zero Unknown management rows after migration | WOM — Wom.dc.html | C-WOM-3 | U9 / WA-5 (R-3 separately authorized) | None |
+| S11: Audit adds Participants and Signups areas | Audit — Audit.dc.html | S11 | T1 / WA-5 | Group B: exact action-prefix mapping |
+| B-Participants-3: withdrawn participant — accounts and signup answers read-only (“Restore to edit”); payment and private note still editable (S4) | Participants — Participants.dc.html | B-Participants-3 | U5 / P-1 | None |
+| B-Participants-5: list search includes all account RSNs, username and Discord name; Add search includes username, Discord name or RSN; no recently-joined list | Participants — Participants.dc.html | B-Participants-5 | U5 / P-1 | None |
+| Saving an existing team preserves stored affiliation | Teams — TeamsDraft.dc.html; reference README:1679 | Plan42 §5; inventory42d | U6 / TD-6 | None |
+| S5 service path: retire list Withdraw→roster removal in SignupService.cs:1793-1803; lock Withdraw/Restore after draft starts; finalized roster removal belongs to Teams confirmation | Participants / Teams — Participants.dc.html / TeamsDraft.dc.html | S5; plan42 §5 | U5 / P-1 (Teams UI U6) | None |
+| Participants drawer failures (U5-Q3): a definite refusal shows the server’s reason and keeps the edits; a lost response re-reads the participant (no-store `GET ?handler=Current`) and says “We couldn’t confirm whether your changes were saved …” with the current details; Add and row actions never resubmit after a lost response. The reference’s “Couldn’t save. Your edits are still here.” / “Couldn’t {verb} {name}. Nothing was changed.” are replaced | Participants — Participants.dc.html:909, :441 | U5-Q3 (a) in [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md); 86-ui-rules 13 | U5 / P-1 | Bound in U5 (brief 87); reviewed (report 96), fixes rechecked at `05c4798b`; merged `42a7716e`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`) |
+| U5-E1: the drawer does not show the participant’s Discord display name (“Discord: Linked / Not linked”); the reference shows “name · linked”. Add search results still show the Discord name because B-Participants-5 searches it (the old detail page never showed it; a test pins it as private) | Participants — Participants.dc.html:1280, :1336 | U5-E1 (a), planner ruling 8 October 2026, provisional; user to confirm | U5 / P-1 | Bound in U5 (brief 87); reviewed (report 96), fixes rechecked at `05c4798b`; merged `42a7716e`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`) |
+| U5-E2: answers to deactivated (retired) signup questions stay readable in the drawer as read-only “question: answer” rows and are never part of a save; the reference has no such rows | Participants — Participants.dc.html:403-431 | U5-E2 (a), planner ruling 8 October 2026 | U5 / P-1 | Bound in U5 (brief 87); reviewed (report 96), fixes rechecked at `05c4798b`; merged `42a7716e`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`) |
+| U5-E4: with unsaved edits in the drawer, Withdraw… / Restore… first ask to discard (shared discard dialog); the reference opens the confirmation over the edits | Participants — Participants.dc.html:420-424, :886 | Decision B (edited layers); 86-ui-rules 11 | U5 / P-1 | Bound in U5 (brief 87); reviewed (report 96), fixes rechecked at `05c4798b`; merged `42a7716e`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`) |
+| U5-E5: synthetic reference data replaced by stored values: Source shows “Website signup / CSV import / Added by an admin” (no “Discord /signup command”, no “Added by admin (@name)”, which is not stored); no numeric “ID n” beside the website account | Participants — Participants.dc.html:653, :1277-1280, :1374 | Brief 87 “Synthetic reference data” | U5 / P-1 | Bound in U5 (brief 87); reviewed (report 96), fixes rechecked at `05c4798b`; merged `42a7716e`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`) |
+| U5-E6: the reference’s single “Alt account” field maps to the event’s Informational account slots: one slot keeps “Alt account”, several show one field each labelled by the slot’s question, none hides the section; typed RSNs are accepted as event-only accounts (hint “Not one of @user’s saved accounts. Used for this event only.”), never saved to the player | Participants — Participants.dc.html:395-402, :353 | F05/F06; U5-Q1 (a) | U5 / P-1 | Bound in U5 (brief 87); reviewed (report 96), fixes rechecked at `05c4798b`; merged `42a7716e`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`); wording accepted 8 October 2026 |
+| U5-E8: promotion appears in the toast (“X withdrawn · Y confirmed from the waiting list”, “… · Y confirmed” after Move to waiting list); the reference says “X withdrawn · Y confirmed” | Participants — Participants.dc.html:919, :950 | Brief 87 “Withdraw/promotion” | U5 / P-1 | Bound in U5 (brief 87); reviewed (report 96), fixes rechecked at `05c4798b`; merged `42a7716e`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`); wording accepted 8 October 2026 |
+| Participants fetch paths (row actions, Paid/Unpaid, drawer read and Save, Add search/pick/submit, list re-read) detect session loss (302/login HTML), keep the drawer draft and show what wasn’t sent (action, participant, accounts, payment) before Sign in | Participants — Participants.dc.html (no session-loss state) | C-CMP-2; 86-ui-rules 14 | U5 / P-1 | Bound in U5 (brief 87); reviewed (report 96), fixes rechecked at `05c4798b`; merged `42a7716e`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`) |
+| Participants Add leaves no history entry (`?add=1` is replaced, never pushed) and is never resubmitted; Back/Forward reopen the participant drawer per decision B; stale list data is re-read behind an open drawer without the shell’s discard prompt | Participants — Participants.dc.html (in-memory prototype) | FC “Required integration behavior” :582-606 | U5 / P-1 | Bound in U5 (brief 87); reviewed (report 96), fixes rechecked at `05c4798b`; merged `42a7716e`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`) |
+| Dead participant-dialog code in `wwwroot/js/event-manage.js` (Add/Edit dialogs, editor guard hooks) is no longer reachable from any page; removing it also touches `admin-confirmation-navigation.browser.js` (its “participant” owner) and the other pages that load the file | Participants — n/a (code) | U5-E3 (a): goes in U10 | U10 | Done in U10 item 2: `event-manage.js` and `admin-confirmation-navigation.browser.js` deleted (replaced by `admin-design-participants.browser.js`) |
+| S10 server read: supply draft boards using the activity/drop for deactivate confirmation with event Board links | Catalogue — Catalogue.dc.html | S10; plan42 §5 | T2 / WA-5 | Bound in T2 (lane T, items 1–2); user visual acceptance 7 October 2026 (`UI_PAGE_MATRIX.md`; whole suite green on `69f9cf01`, 8 October 2026) (`OnGetDeactivationImpact`); T2-Q3 (a), T2-Q3b (a) |
+| C-CAT-2 leftovers: category membership validation and drop-edit item-name length check | Catalogue — Catalogue.dc.html | C-CAT-2; plan42 §5 | T2 / WA-5 | Bound in T2 (lane T, items 1–2); user visual acceptance 7 October 2026 (`UI_PAGE_MATRIX.md`; whole suite green on `69f9cf01`, 8 October 2026); T2-Q4 (a) |
+| Catalogue S10 confirmation composition: the drop’s **Deactivate drop…** opens the same confirmation as the activity (the reference toggles a drop at once, `Catalogue.dc.html:836-840`); both read the S10 impact first (“Checking what uses it…”), list the affected draft boards with Board links, mark correction copies “(correction)”, the drop’s button reads “Deactivate drop…” because it now opens a confirmation (reference “Deactivate drop”, `:1116`), and replace the reference text that contradicts S10 (activity points `:1126`, toast `:925`, Availability row `:1067`). The server refuses a deactivation without `confirmed=true` and returns the impact instead (reactivation needs none) | Catalogue — Catalogue.dc.html | S10; brief 82 planner default (wording for the user’s early look) | T2 / WA-5 | Wording approved by the user (T2 early-look stop); T2 accepted 7 October 2026 |
+| Catalogue roll-group refusal says “Roll group can only be changed by the Super Admin.”; retired per-drop fields are refused with “These rate settings can’t be changed here. Your changes were not saved. Reload the editor.” (rules unchanged) | Catalogue — Catalogue.dc.html `:378`, `:801` | 42f §2.5 item 13; brief 82 | T2 / WA-5 | — |
+| Catalogue fetch endpoints (C-CMP-2): every save, suggest, validate, impact and deletion read goes through the shared fetch helper; a lost session (login redirect or HTML answer) shows what wasn’t saved and keeps the entries; an unknown outcome offers **Check current values** (readback), never a repeat. Script requests from an ordinary Admin to the Super Admin delete endpoints get a refusal outcome instead of a bare 403 | Catalogue — Catalogue.dc.html | C-CMP-2; brief 82 | T2 / WA-5 | — |
+| Catalogue header summary: separate count items with highlighted numbers (“**68** active activities”, “**425** drops”) plus the reference sentence, instead of one “68 active activities · 425 drops” string (`Catalogue.dc.html:176`, `:1005`); while loading the fixed words show with number-sized bars; one reserved line, two at phone width | Catalogue — Catalogue.dc.html | “Count summaries load like the tab counts”; U3-Q5/Q6; T1-5 pattern | T2 / WA-5 | — |
+| Catalogue loading: no load fades on loaded content; skeleton bars in rows as tall as the text line they stand for; drawer read shows the drawer skeleton after 150 ms (shared update helper) | Catalogue — Catalogue.dc.html `:207`, `:280` | “No load fades”; Q-SK2; decision C | T2 / WA-5 | — |
+| Catalogue thumbnails show the item’s or activity’s cached Wiki image (or an empty tile); the reference’s coloured initial tiles are prototype placeholders | Catalogue — Catalogue.dc.html `:506` | WA-5 binding (real data) | T2 / WA-5 | — |
+| Catalogue thumbnails show the whole sprite: `background-size:contain`, centred, 3px inset in the same 32px / 44px boxes, track background and inset border kept (family-scoped page CSS); the reference `.thumb` uses `center/cover` (`components.css:1328`), which crops or zooms OSRS sprites of different proportions. The loading header’s Add activity is a usable link from the first frame, as Events’ Create event | Catalogue — Catalogue.dc.html; ui/components.css | 08 “T2 Catalogue early look” (planner rulings on the user’s findings) | T2 / WA-5 | — |
+| Catalogue wording forced by case-insensitive resource keys: drop line value “untradeable, 0 gp” (reference “untradeable”), calculated EHB “Unavailable” (reference “Not available”); Team size hint “The group size the rates assume. It isn’t used in calculations.” (no reference text) | Catalogue — Catalogue.dc.html `:1079`, `:1095` | A5 Danish text; CAT-1 | T2 / WA-5 | Wording accepted with T2 (user, 7 October 2026) |
+| U8-Q1: Review times lead with UTC (the OSRS event plugin stamps UTC); the secondary time is the event's own timezone named by its city (`BingoEvent.Timezone`), in the queue's Uploaded column, the workspace facts and the header “Times in UTC, with {city} time below” | Review — [Review.dc.html](docs/references/admin-ui/Review.dc.html) `:476`, `:1141`, `:1188` lead with fixed Copenhagen time | User decision U8-Q1 (b), 7 October 2026; planner ruling 3 (queue included) | U8 | None; no Copenhagen string remains in Review |
+| Queue per-row check warnings (After end, Paused period, Same image, No screenshot, Left team) and drop/boss (“Manual objective” when none) from a bounded projection of existing data, one after-end boundary `ActualEndedAt ?? EventEndsAt` for queue and workspace | Review — Review.dc.html queue rows (R-R15, R-R12) | RC07 R-R15; README Review notes 3–4 | U8 | None; no new rule |
+| Wording replaced for truth or brevity (R-R19): “Active asset”, “Resolve submission”, “Correct metadata before approval”, “Ineligible final-review interval” become short labels; paused-period title “Check the in-game time: the event was paused.” (RC07 corrects `:1171`; the screenshot's game time is judged, not upload time); “Mark … as a duplicate” becomes “reject it with a reason”; the always-visible “No Captain note” is dropped (the note shows only when present) | Review — Review.dc.html `:1169-1172` | RC07 R-R12, R-R19 | U8 | None |
+| Closed-state texts per lifecycle (the reference has one sentence, `:1229`): Draft/Signups “Review starts when the event is Live.”; Finalized “{event} is finished, so review is read-only.”; Archived “{event} is archived, so review is read-only.”; Cancelled “{event} was cancelled, so review is read-only.”; queue summary “Finished/Archived/Cancelled · review is read-only”; terminal empty queue “No evidence was submitted in {event}.”; Approve/Reject/Correct/Reverse and the Contribution line hidden when review is closed (R-R5) | Review — Review.dc.html `:1229` | D16/D17; planner wording at the U8 early look | U8 | Wording proposed by the implementer; accepted 8 October 2026 (U8 proposed wordings in 94h) |
+| Cap-limited Contribution wording: Add < Weight with room left “Approving adds {Add}” + “Worth {W}, but the drop's limit allows only {Add} more.”; Add = 0 with work remaining “The drop's limit is reached” + “This drop can't add more to the objective ({used} of {target}). If the submission doesn't count, reject it with a reason.” | Review — Review.dc.html `:1178-1182` would state a false remaining count | AU17 cap-limited row above (`:1218`); R-R3 | U8 | Wording proposed by the implementer; accepted 8 October 2026 (U8 proposed wordings in 94h) |
+| B-Review-2 bound: a correction that changes none of tile, requirement, drop and credited character is refused server-side before any `ReviewAction` or audit write, with the reference text “Change at least one detail, or cancel.” (English and Danish), shown in the correction form | Review — Review.dc.html `:948` shows the text client-side only | B-Review-2 (row above) | U8 | None |
+| RL-1 / BR-4 bound: Reject and Reverse need an explicit `confirmed` flag on the server (refusal “Confirm this decision before it is saved. Nothing was changed.”, nothing written). Reverse keeps its confirmation dialog; the inline Reject reason panel's submit is the confirmation, so the old Reject confirmation dialog is gone | Review — Review.dc.html Reject is an inline required-reason panel with no dialog | RL-1 / BR-4; planner ruling 2 on brief 94 | U8 | None |
+| RL-1 / BR-12 bound: Approve, Reject, Reverse and Edit are refused before any write when the expected version is missing or zero (“This decision wasn't saved because the page didn't say which version you reviewed. Reload the submission and try again.”); player Withdraw/Correct are unchanged | Review — not shown | RL-1 / BR-12; planner ruling 1 on brief 94 | U8 | None; B-Final-2 stays U9's |
+| Hidden event or unknown submission is Not Found: the queue with a hidden/unknown `eventId` answers 404 (“This event isn't available”), no `eventId` shows “Choose an event”, Readback answers 404 for hidden events and unknown ids (the client treats any non-200 as unknown), Details 404 shows “This submission isn't available” with a way back | Review — Review.dc.html shows neither | C-CMP-1; planner ruling 4 on brief 94 | U8 | None |
+| Review viewer: the inline viewer (Fit, 100%, zoom level, keyboard/pointer, load-failure retry, Original opens `/Evidence/{assetId}`) is ported into `admin-review.js` with the gesture model of `public-evidence.js` instead of changing that dialog-bound file shared by Board, TeamBoard and Captain | Review — Review.dc.html viewer | U8-E1, planner ruling 8 October 2026 (`08-decisions.md` “U8 part 1”) | U8 | None; a later shared extraction is optional |
+| Correction objective picker labels options per objective, grouped by tile, under the field label “Objective” (the reference says “Tile”) | Review — Review.dc.html correction form | U8-E2; RC07 R7 | U8 | None |
+| The Decision card carries no box-shadow (the reference style block sets one on `.rv-side .decide`); page CSS cannot carry shadows (UI rule 20) | Review — Review.dc.html | U8-E3 | U8 | None; could move into a shared component later |
+| History lines use the stored audit presenter wording, not the reference's sample strings (“Approved · added 1”, “Approval reversed · removed 1”, “Details corrected: …”); approvals show the stored detail line (for example “Approved contribution: 1.”) as the reason line, which the reference shows none for | Review — Review.dc.html History | U8-E4, provisional | U8 | User's call: keep or hide the stored approval detail line |
+| Outcome and recovery wording is truthful to what is known: the result card reads “Approved” + “{N} added to {team}.” (the reference's toast “Approved · N added to team.”); after Check status the unchanged case reads “It wasn't saved. The submission is unchanged, so you can decide again.” (the reference's “Nothing changed, so you can decide again.” is used only for a definite server refusal, “Couldn't {action}.” + the server's reason); a changed record reads “We couldn't confirm your request, but the submission is now {status}.”; notices other than the uncertain one carry Dismiss | Review — Review.dc.html `:1052`, `:959`, `:1004` | RC07 R1/R2; UI rule 13 | U8 | None |
+| Blocked approval (G1) and AU17/AU17a/S9 bindings as built: blocked shows “Waiting for an earlier upload” with “Open the earlier upload ({UTC})” preserving queue search/status; Contribution via `SubmissionContributionNumbers`; reversed shows “Removed N”; S9 warning from `creditedParticipantLeftTeamAt` and refreshed after a credited-account correction; “active account since” dropped | Review — Review.dc.html `:1169-1184` | Rows `:1217`, `:1218`, `:1219`, `:1244` above | U8 | None |
+| Review decisions answer in place (JSON outcomes saved/refused/stale/blocked), the uncertain dialog never leaves on backdrop or Escape, Previous/Next follow the list the admin came from (order as at opening), the event window (actual start/end UTC, paused interval) is a workspace fact | Review — Review.dc.html | RC07 R1–R4, R-R16, R-R17; C-CMP-2 row above | U8 | None |
+| U6-Q1: the finalized-roster correction Add keeps the role choice (Participant / Captain / Co-captain, one publication); the reference forces Participant | Teams — TeamsDraft.dc.html `:1142`, `:1505`, `:1512` | U6-Q1 (a), user decision 7 Oct | U6 / 1a–1b | **Bound in U6; reviewed (report 99); merged `2d83651e`; user accepted 8 October 2026** |
+| U6-Q2: Teams readiness (setup and manual finalize) shows “Set the event end in Schedule” with a Schedule link when the configured end is missing or past; the Finalize rule is unchanged | Teams — TeamsDraft.dc.html (readiness `:166-179`) | U6-Q2 (a), user decision 7 Oct | U6 / 1a | **Bound in U6; reviewed (report 99); merged `2d83651e`; user accepted 8 October 2026** |
+| T-24: Teams on Awaiting final review and Cancelled/Finalized/Archived events: the same workspace with the final rosters read-only and a state banner (“Rosters are final.” / “This event is finished/cancelled/archived. Rosters are shown as they were.”), no edit controls; in Final review the role menu stays only while uploads are open | Teams — TeamsDraft.dc.html (no such state) | Brief 93 T-24, planner ruling 1 (8 Oct) | U6 / 1a, 1c | **Accepted by the user 8 October 2026** (T-24 composition ruling; alternative of reusing the Live “locked” layout not taken) |
+| Historical paused draft (Pause retired): read-only banner “Historical paused draft. Pausing was retired, so this draft is read-only and no roster changes are available.” | Teams — TeamsDraft.dc.html (no paused state) | Planner ruling 8 Oct (U6 part 1) | U6 / 1a | **Wording accepted by the user 8 October 2026** |
+| Teams loading: family skeleton (readiness card, Teams bar, three team cards, real text-line heights), summary empty while loading, fresh on every visit; loaded content swaps in one step (no `fade-in`) | Teams — TeamsDraft.dc.html `:146-149`, `:166`, `:191` | Rules 2–7 (86-ui-rules) | U6 / 1a, 1c | None |
+| Open Board (F1): finalizing stays on Teams; the header and the finalize toast offer “Open Board” only when the event has a board; otherwise the header button is inert with “No board yet. Create one on the Board page.” | Teams — TeamsDraft.dc.html `:1016`, `:1595` | F1; planner ruling 2 (8 Oct) | U6 / 0b, 1b | None |
+| Running draft control: chip says “Another admin has control” (the controller’s name only in the take-over confirmation, which has no “last action N min ago” because the lease renewal is not an action); banners for “Another admin took control of the draft.”, “Your control lapsed.” and a lost live connection while in control (“Live updates stopped. … Control lapses 5 minutes after its last renewal.”, Reload) | Teams — TeamsDraft.dc.html `:1414-1419`, `:1549`, `:879`, `:1205-1209` | Brief 93 (control lease, hub loss) | U6 / 1b | Lost-connection banner wording accepted by the user 8 October 2026 |
+| Running draft live updates: SignalR draftChanged re-reads the page state (not while a command or check is pending); control renewed every 120 s while held; sidebar auto-collapses while running and the admin’s own toggle is kept until the draft ends | Teams — TeamsDraft.dc.html `:1332`, `:1603-1608` | Brief 93 T-1..T-7 | U6 / 1b | None |
+| Undo names the latest pick it shows (`pickId`); the server refuses a different latest pick (“The latest pick changed. Nothing was undone; the current board is shown.”) | Teams — TeamsDraft.dc.html `:915-929` | AU14 (Undo by id) | U6 / 1b | None |
+| Turn strip/column pick number uses the scoped key `AdminDesign.Pick {0}` (Danish “Valg {0}”); the unscoped “Pick {0}” already means “choose” (“Vælg {0}”) | Teams — TeamsDraft.dc.html `:1405`, `:1371` | Rule 17 | U6 / 1b | None |
+| Teams conformance: geometry on the setup workspace; the in-place update probe is the running draft’s pool sort on a fixture seeded only for this page (`BINGO_PARITY_DRAFT`, runner `fixtureEnv`, `update.url`, reference opened on its no-teams event) | Teams — TeamsDraft.dc.html | Planner ruling 8 Oct (option a) | U6 / 1c | None |
+| Teams page state is embedded as `<template data-draft-state>` (a JSON `<script>` made every shell navigation to Teams a full page load: the shell accepts only page/shell scripts) | Teams — n/a | U6 1c finding | U6 / 1c | None |
+| Removing a populated team (S7): the dialog says “Its {0} members go back to having no team. Nothing about the players changes; they stay signed up.” (the reference words the removal differently); the server refuses a populated team without the confirmation intent with “{0} now has members. Nothing was removed; check the team before trying again.” (a state the reference does not have) | Teams — TeamsDraft.dc.html `:1551` | S7 / planner ruling (U6 review L4) | U6 / remediation | Both wordings accepted by the user 8 October 2026 |
+| U9-Q1: Reopen reads the other current event and disables the button with state-specific Live / Awaiting final review / legacy Finalized guidance plus fixed “Open event” link; no current-event publish-readiness row | Final Review — FinalReview.dc.html:711–713, :939–941 | Brief90, U9-Q1 / U4-L1; planner rulings 7 October 2026 | U9 0a / 1a / 1b | Bound in U9; reviewed (report 101); merged `cc039faa`; user accepted 8 October 2026 |
+| B-Final-2 / RL-1 / BR-12 Final Review part: missing, zero or stale expected version refuses Reopen with no transition or audit write; Publish and Reopen return structured state and retain legacy redirect compatibility | Final Review — FinalReview.dc.html | Brief90; B-Final-2, RL-1 / BR-12 | U9 0a / 1b; Review remains U8 | Bound; no Review mutation code changed |
+| B-Final-1 / AU18 / A15: readiness shows every applicable server blocker and uses domain SubmissionWindowOpen; only non-success per-version WOM notes, no next-eligible-time display; Pending/Rejected end update adds the last-pre-end-data warning to Publish, never a blocker | Final Review — FinalReview.dc.html:696, :930, :936 | Brief90; B-Final-1 / AU18 / A15 | U9 1a / 1b | Bound in U9; warning wording accepted 8 October 2026 (handoff wordings) |
+| RC08 / A2 / C-CMP-2: event-scoped pending intent and reason survive reload; lost-response readback reports current state without attributing it; version query supports Back/Forward, invalid-drop and unavailable-version states; shared ranks are computed before the top-three slice | Final Review — FinalReview.dc.html | Brief90; RC08 F1–F6 / A2 / C-CMP-2 | U9 1b | Bound in U9 with shared Admin layers/fetch/update/busy; reviewed (report 101); merged `cc039faa`; user accepted 8 October 2026 |
+| U9-Q2 / WA-6 / RC09: detailed Fetch skip reason and eligible time, lease-in-progress state, typed current operation and credential, last confirmed update from LastAppliedAt | WOM — Wom.dc.html | Brief90 final planner rulings; AU20 / WA-5 | U9 0b / 2a / 2b | Bound in U9; reviewed (report 101); merged `cc039faa`; user accepted 8 October 2026 |
+| A15 / U9-Q2: unmatched end occupies the existing prioritized issue and Updates card; exact target and only a stored matching end-update operation retry; fetch paused, publishing available, no restart after publication/reopen | WOM — Wom.dc.html existing components | Brief90 final planner rulings; WA-2 / AU20 | U9 2a / 2b | Bound in U9; wording from docs/evidence/u9-handoff.md accepted 8 October 2026; no computed end-update retry |
+| AU20 / C-WOM-2 / C-WOM-3 / WA-9: exact UTC window, service-owned replacement/disconnect/Create/credential/delete eligibility, three Create rows plus further concrete refusals, Unknown origin locked | WOM — Wom.dc.html | Brief90; 08-decisions; retired tolerance/capability wording | U9 0b / 2a / 2b | Bound; no external delete/code reuse/conflict recovery; string matching retained for preview refusals |
+| RC09 W1–W6 / C-CMP-2: event-scoped drafts/pending state, clear submitted code, shared guarded dialogs, honest no-store readback, old fetch time never proof, unknown never Up to date; persisted Retry shown as queued | WOM — Wom.dc.html | Brief90; RC09 / WA-9 / C-CMP-2 | U9 2b | Bound; synthetic PostgreSQL/browser scenarios, no provider calls on GET |
+| WOM Cancelled/Finalized read-only text, generic queued “latest details,” and handler-only development make-due | WOM — Wom.dc.html | Brief90 final planner rulings; D16/D17 | U9 2a / 2b | Wording accepted 8 October 2026; no visible make-due control or invented payload |
+| Sidebar top row: the logo is its own link to the public front page `/` (full page load, no `data-shell-link`) beside the account button, which alone carries the hover highlight; collapsed, the logo stays and opens the account popout (the name/role button is hidden). The brand box holds the site's high-detail masthead SVG coloured white | Shared shell — every `*.dc.html` reference puts the house-icon logo inside the account button (`#user-btn`), which opens the account menu in both states | `08-decisions.md` “U10 part 2 additions” (U10-Q1, U10-Q2 a) and U10-E1 (user, 8 October 2026) | U10 part 2 items 4–5 (`claude/u10-part2`) | None; accessible names “Go to the public site” (expanded link) and “name · role” (collapsed button), Danish entries present |
+| Topbar notification panel: header “Notifications” with the unread count, the newest unread personal notifications (unread dot) and unresolved Admin actions (no dot) merged newest first, at most 8 rows of title, one detail line and relative time, whole row a menu item; empty state; footer “All notifications” and “Mark all as read” through the existing `/notifications` handler (personal notifications only; it leaves Admin for the Notifications page) | Shared shell — the references show only a bell button with no popout | `08-decisions.md` “U10 part 2 additions” (U10-Q3 b) | U10 part 2 item 6 (`claude/u10-part2`) | Bound in U10 part 2 (merged `1eec9731`); user accepted 8 October 2026 (bell count rule U10 L3 (b); “Mark all as read” alignment fixed, merged `2dccc075`). The inbox projection lists only unread personal notifications (newest six), so every personal row carries the dot; the separate “Admin actions overview” link was dropped for the single footer |
+
+These sweep rows are future binding obligations, not implemented UI claims.
+The five brief40 server fixes are complete with binding pending. F1 belongs to Teams binding.
+
+### Proposed reference corrections — RC05–RC11 now required binding findings (D20)
+
+The former proposal is carried into U7 (RC05), T1 (RC06/RC11), U8 (RC07),
+U9 (RC08/RC09) and T2 (RC10). Implement and check each finding in its page
+binding; frozen references remain unchanged and no per-RC canvas sync runs.
+
+| ID | Page and exact findings | Required correction boundary |
+| --- | --- | --- |
+| RC05 | Board B1–B7 | Full-intent uncertainty/draft retention; takeover/version safety; late evidence; routes; decimals; faithful weighted EHB/short-event fixtures |
+| RC06 | Audit A1–A4 | Hidden-history exception, exact action, DST date bound, reachable filter panel; strict page query normalization |
+| RC07 | Review R1–R8 | Honest action/actor/reason recovery; explicit uncertain leave; dirty/stale protection; real reversal allocation; correct route/account/objective context and completed-manual guard |
+| RC08 | Final Review F1–F6 | Honest readback, captured pending context/reason, version-link retry, complete shared-rank metadata, correct stale state, modal scroll lock |
+| RC09 | WOM W1–W6 plus approved exact-window change | Exact UTC start/end matching and wording (remove five-minute allowance); coordinate affected Schedule reference validation. Credential capability, captured event responses, actual fetch freshness, protected unsent drafts, unresolved status and scroll lock; preserve submitted-secret clearing |
+| RC10 | Catalogue C1–C8 | Safe full-intent creation/edit recovery; independent drafts; pending identity; fixed baselines; mapping/price invalidation; explicit shared-image scope; reactivation and direct routes |
+| RC11 | Accounts A1–A8 | Target-bound transient reset secret, truthful readback, protected drafts, route/focus recovery, retained disabled status, captured transfer version, normalized search and modal scroll lock |
+
+These extend the recorded correction queue without changing any completed ticket.
+RC07/UI integration must bind the same structured approval-block data produced by
+the Review service and preserve the queue's search/status context when opening
+the earlier review and returning to the queue.
+Catalogue ordinary rate-text rolls, retired parent input, activity team-size context
+and advanced roll-group controls follow the 4 October AU23/CAT-1/WA-5 decisions;
+typed ownership confirmation follows AU24, not the superseded report questions. No blanket removal of
+reference functionality to match the old app. Full-pool evidence correction follows the later approved decision. WOM external
+link option 1 is now approved after investigation; AU20 aligns the application with
+the artifact, preserving active/unresolved-operation and date/lifecycle guards.
+
+Common acceptance: reproduce the named normal/failure/stale/uncertain/navigation
+paths with controlled fixtures, verify directly affected shared consumers and
+reduced motion, retain approved layout and motion feel, then one independent source
+review/named recheck. Do not replace production scoring/security with mock logic.
+Record implementation, executed checks, independent review and visual acceptance
+separately. No reference edits or per-RC canvas sync (D20).
+Use [Board/Audit](docs/references/admin-ui/reviews/2026-10-02/remaining-seven/board-audit-review.md),
+[Review/Final Review](docs/references/admin-ui/reviews/2026-10-02/remaining-seven/review-finalreview-review.md),
+[WOM/Catalogue](docs/references/admin-ui/reviews/2026-10-02/remaining-seven/wom-catalogue-review.md)
+and [Accounts](docs/references/admin-ui/reviews/2026-10-02/remaining-seven/accounts-review.md).
+
+## Dashboard backend pass — approved, 2026-10-01
+
+**Status:** backend technically complete, focused proof recorded and independent
+Sol 6.1/high R1–R5 recheck PASS on 1 October. UI integration remains deferred.
+Approved reference requirements are D01–D10 in
+`/Users/christopher/Documents/BingoWebpage/docs/references/admin-ui/FUNCTIONALITY_CHANGES.md`.
+This plan defines backend preparation; it does not apply the reference UI.
+Earlier Dashboard exclusions belong to their earlier passes and do not exclude
+this explicitly requested planning pass.
+
+**Baseline:** the completed, independently reviewed Participants candidate in
+`/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`,
+branch `codex/participants-functionality`, including its committed Participants changes.
+Do not start from the stale 573d checkout or the design-reference checkout.
+Confirm checkout/ownership at dispatch; do not commit, copy away or replace
+Participants work merely to establish a Dashboard branch.
+
+### Outcome and boundary
+
+Provide one authorized, read-only application result for the community Dashboard:
+historical totals, latest-event additions, participation breakdown, latest recap,
+sortable event history, current/upcoming card and community account figures.
+All related figures must derive from the same eligible events and people sets.
+Return stable event IDs and typed dates, values and availability/provisional
+metadata so later UI binding can supply real Overview links and honest states.
+
+Statistics/chart/history include Live, AwaitingFinalReview, Finalized and Archived;
+exclude hidden/quarantined, cancelled and discarded events throughout. Live and
+AwaitingFinalReview are labelled **Provisional** only in those statistics (no
+extra Live badge required). The latest-event recap is ended-only: final review,
+finalized or archived. Current/upcoming card may show the actual Live phase.
+Website account figures remain a separate community population. Headline label
+is Events; later UI binding can indicate current/provisional counts.
+
+This pass does not replace Admin Index markup or its existing callers, introduce
+a transport endpoint, change routing, install the canvas runtime, implement
+animations, edit Claude's reference, or perform manual visual acceptance.
+Read failures must remain failures rather than fabricated zero results; the later
+UI binds loading, retry, localization and navigation to this boundary.
+
+### Approved definitions — 2026-10-01
+
+User decisions supersede the earlier ended-only population:
+
+1. Retain disabled website accounts in registered totals and historical unique/
+   returning people; emergency credentials are excluded. Login counts use the
+   same website population and stored LastLoginAt. Disabling access must not
+   erase participation. Unlinked people count once per event but never become
+   invented website identities; expose unlinked coverage separately where needed.
+2. Select the compact card deterministically: Live first, then the earliest
+   scheduled future/preparation event, then an unscheduled setup fallback.
+   Multiple Live events choose latest actual start; remaining ties use stable ID.
+   Do not change lifecycle state or silently make overdue schedules look future.
+3. Latest ended recap uses actual end descending, then actual start and stable ID.
+   Latest contribution/chart chronology uses actual start; ongoing history sorts
+   before ended history by default, then latest actual start, while ended history
+   uses actual end descending. These deterministic display ties are technical
+   ordering, never competitive tiebreaks. Returning classification uses strictly earlier
+   actual start (equal starts share a cohort, not an arbitrary ID advantage).
+   New accounts means CreatedAt after the latest actual end through one request
+   clock; without an ended event use the last 30 days. Missing authoritative
+   dates remain unavailable instead of borrowing unrelated creation dates.
+
+Existing requirements remain: count qualifying historical team participation once
+per person per event, preserve pre-Live departure exclusion (Live eligibility ends at the shared request clock), imported history is
+unlinked, approved submissions exclude reconstructed import contributions, and
+zero differs from unavailable. Current official placement snapshots own winners;
+provisional/reopened review cannot borrow an old official winner. Preserve shared
+first place rather than inventing a winner tiebreak. EHB means stored period gain
+with account coverage, never signup EHB and never a Dashboard-triggered WOM fetch.
+
+### Readiness and source mapping
+
+One bounded independent Sol 6.1/high read-only readiness review resolves actual
+source mappings. The orchestrator records technical resolutions; the implementer
+reconciles affected DATA_MODEL/source mapping under the approved behavior already
+recorded in PRODUCT_REQUIREMENTS and FUNCTIONAL_CONTRACTS. Readiness is not an
+implementation review or permission to change product scope.
+Reuse D01–D10 and this inspection; no repeat whole-project audit.
+
+Known sources: Account has WebsiteAccount/EmergencyCaptain, CreatedAt, LastLoginAt
+and disabled state; EventParticipant.AccountId is nullable; TeamMembership retains
+JoinedAt/LeftAt; BingoEvent retains actual lifecycle dates; finalization snapshots
+have explicit active/unfinalized versions and placement snapshots. Historical
+import constructs CsvImport participants without AccountId and membership starting
+at the historical event start. These facts are source evidence, not production
+data inspection.
+
+Readiness must settle:
+- Membership interval eligibility, distinct participant/account handling,
+  unlinked platform records and any historical import special cases. Account
+  transfers and multiple game accounts must not inflate people.
+- Approved submission eligibility/source exclusions, active finalization and
+  frozen board denominator, ties and retained names after current data changes.
+- EHB mapping: CachedEventCompetitionActivityProjection reads persisted data,
+  but its current-roster calculations must not be assumed to represent departed
+  historical participants. Identify compatible stored/frozen coverage; expose
+  unavailable data instead of rebuilding or fetching it. If a required historical
+  source does not exist, report the exact limitation before adding persistence.
+- One consistent read snapshot and request clock, enabled Admin authorization,
+  hidden-event exclusion and supported event destinations.
+- Actual enum/date fallbacks and proposed card/cohort edge cases. Surface any
+  product contradiction rather than deciding it inside query implementation.
+
+### Execution slices and journey coverage
+
+Owner for each backend slice: one implementer under one orchestrator, sequentially.
+Readiness and final independent review are separate roles. Independent review uses
+Sol 6.1/high per user preference; exact dispatch identities/models are recorded
+at dispatch. Implementation uses gpt-5.6-luna/max. Orchestrator gpt-6.1-sol/high is explicitly user-approved for this assignment
+(1 October substitution for unavailable gpt-5.6-terra/medium). No routine
+extra verifier. Planner /root; app task 01a0ec9a-76e3-7252-9850-3f260c612e59.
+Orchestrator must own waits, wake each next worker, and report completion/blockers
+to /root through collaboration; do not rely on an app-thread callback.
+
+Companion assignment, user-authorized 1 October: perform a read-only functional
+completion comparison of the finished Events reference against this application's
+actual capabilities. This is not browser inspection or Events implementation.
+A Sol 6.1/high reviewer reads Events.dc.html, shared behavior and README in
+the Documents reference folder and maps E01–E04 to actual application sources.
+Return concrete supported/gap/intentional-prototype distinctions, small behavior
+deviations, source locations, and proposed register updates to /root through this
+orchestrator. Protect Claude's files. No production edits, new tests, browser
+inspection or broad UI redesign for this comparison. Root owns final product
+decisions and the shared functionality-register reconciliation. This read-only
+assignment may overlap Dashboard readiness within available slots.
+
+
+| Slice / entry | Action and result | Proof and later reachable step |
+| --- | --- | --- |
+| B1, enabled Admin opening Dashboard, no/imported/mixed Live and ended history | Read eligible history, shared people sets, headline totals, latest additions and chart cohorts; no persisted mutation | Real PostgreSQL fixtures: zero vs unavailable, multi-account/team moves, departed membership, hidden/cancelled/discarded exclusion, linked/unlinked counts and equal-start cohorts; later chart/history open real event |
+| B2, same read with provisional/official/reopened history | Add recap, current official winner(s), frozen board completion and optional covered EHB; produce six stable null-last history sorts | Persisted finalization/reopen and retained snapshot fixtures, approved vs reconstructed/reversed submissions, partial/missing/measured-zero EHB, board ratio/ties; later recap/history link Overview |
+| B2, current/upcoming and community data | Select card, phase/relevant date and signup counts; website total/new/logged-in counts using one clock | Multiple Live/scheduled/unscheduled candidates, no candidates, disabled/emergency accounts, null logins, zero denominator and precise timestamp boundaries; later card opens selected event |
+| Cross-cutting, unauthorized/disabled actor or failed read | Reject unauthorized access and propagate recoverable read failure; repeated reads do not write or synchronize | Exercise real authorization/application and PostgreSQL boundary, deterministic fixtures, cancellation/failure with no fake successful zeros, consistency under relevant concurrent change; later UI handles retry/lost access |
+
+Use existing fixture conventions and controlled databases, never user-owned data.
+Timestamp tests use explicit UTC microsecond-aligned instants and non-aligned input
+with PostgreSQL round-trip proof wherever comparison/normalization is affected.
+Do not prove historical correctness solely with in-memory grouping tests.
+
+### Complexity budget and completion
+
+Budget: one focused application read contract/result family and Infrastructure
+query implementation if no existing appropriate boundary can own these global
+statistics; ordinary DI registration and focused tests. No new tables, migrations,
+background jobs, external API calls, analytics framework, cache infrastructure,
+policies, UI pages or HTTP routes. Reuse existing authorization and authoritative
+snapshot/cache semantics without invoking write-capable lifecycle/sync operations.
+Avoid per-row lookup growth; inspect query shape with the focused integration proof.
+
+Complete B1 first as an executable checkpoint, then B2 and focused checks. Run
+applicable build/format/diff checks once on the stable candidate and one fresh
+Sol 6.1/high independent review; named findings return to the same implementer
+and reviewer. No broad browser suite or unrelated backend regression expansion.
+
+Completion requires implemented result contract, passing relevant executable
+proof, independent review, reconciled authorities and a concise UI-binding
+handoff identifying source/coverage limitations. Update D01–D09 separately with
+actual implemented/executed/reviewed evidence; do not mark D10 integrated.
+Record commands/results and deferred manual journeys in existing status/checklist
+owners. Stop before UI binding, manual acceptance, packaging, push or deployment.
+
+### Completion and UI-binding handoff — 2026-10-01
+
+B1 and B2 are implemented in the six Dashboard-owned source/test files listed
+in `CURRENT_STATUS.md`. The application contract is
+`IAdminDashboardService` (with the compatibility alias
+`ICommunityDashboardService`); Infrastructure registers both interfaces and
+performs one no-tracking, repeatable-read projection. The result carries stable
+event IDs, typed UTC dates, measured/unavailable values, EHB coverage and
+provisional flags. The later Admin Dashboard UI can bind event links from
+`OverviewPath` (`/Admin/Events/Manage/{id}`), the current card, recap, chart and
+history without adding a route or changing the existing Admin Index callers.
+
+Recorded worker execution evidence is retained under
+`docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/dashboard/`:
+
+- Application Release build: `dotnet build tests/Bingo.Application.Tests/Bingo.Application.Tests.csproj --configuration Release --no-restore`, passed with 0 warnings/errors.
+- Ordering proof: `dashboard-ordering-fixed4.trx`, **2/2 passed**, from the focused `DashboardHistoryOrderingTests` run. All six history fields use null-last ordering in both directions and stable EventId ties.
+- Integration Release build: `dotnet build tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --no-restore`, passed with 0 warnings/errors.
+- Recorded PostgreSQL proof: `dashboard-b2-post-ordering.trx`, **7/7 passed**, from the focused `AdminDashboardIntegrationTests` run. It includes deterministic UTC fixtures, a non-microsecond input persisted through PostgreSQL, authorization/transaction/cancellation failure behavior, and no-write checks. The source TRX was omitted from the durable H1 copy; its metadata and disposition are retained there.
+
+D01–D09 below are implemented, executed at applicable backend boundaries and
+independently source-reviewed. UI acceptance remains separate:
+
+- **D01 — implemented/executed/reviewed:** enabled Admin read boundary, event ownership,
+  valid membership intervals, linked/unlinked identity, disabled-account
+  retention, emergency exclusion and hidden/cancelled/discarded filtering.
+- **D02 — implemented/executed/reviewed:** headline statistics and availability metadata,
+  including zero versus unavailable and provisional Live/final-review states.
+- **D03 — implemented/executed/reviewed:** latest additions/community population with one
+  request clock, strict stored dates, disabled-account retention and emergency
+  exclusion.
+- **D04 — implemented/executed/reviewed:** actual-start chronology and equal-start cohort
+  handling for contribution/chart/history population.
+- **D05 — implemented/executed/reviewed:** ended-only recap, active official placements,
+  retained snapshot names, shared winners, published frozen-board denominator and
+  reopened/provisional winner suppression.
+- **D06 — implemented/executed/reviewed:** compatible stored EHB bulk coverage with
+  complete, partial, measured-zero and unavailable states; no historical per-row
+  provider fetch or signup EHB substitution.
+- **D07 — implemented/executed/reviewed:** six typed null-last history sorts with stable
+  EventId ties; UI query-string/back/reload binding remains deferred.
+- **D08 — implemented/executed/reviewed:** deterministic Live/scheduled/unscheduled card
+  selection, overdue metadata, nullable capacity and stable ties without lifecycle
+  writes.
+- **D09 — implemented/executed/reviewed:** website-account total/new/logged-in figures
+  using the captured request clock and precise stored date boundaries.
+- **D10 — not integrated:** no Dashboard UI, route, transport endpoint, browser
+  walkthrough or manual visual acceptance is claimed.
+
+Known source limitations are intentional: imported-only approved-submission
+coverage remains unavailable; missing or incompatible historical EHB remains
+unavailable unless compatible stored generation/fingerprint coverage exists;
+measured zero remains distinct from unavailable. Read failures and provider
+exceptions propagate. No tables, migrations, jobs, cache, provider fetch,
+lifecycle write or new policy was added. Independent reviewer
+`/root/dashboard_backend/independent_review` (`gpt-6.1-sol` / high) passed the
+final named R1–R5 recheck. It inspected source and recorded evidence without
+rerunning tests. The backend pass is technically complete; UI integration and
+manual acceptance remain deferred.
+
+### Named review remediation handoff — 2026-10-01
+
+The fresh independent review by `/root/dashboard_backend/independent_review`
+(Sol 6.1/high) returned **CHANGES REQUIRED** with R1–R5. The same implementer
+applied only those named corrections and focused proofs. The same reviewer
+completed the final named recheck with **PASS**, resolving R1–R5 and their direct
+consequences without a repeated broad review.
+
+Recorded named-remediation evidence is retained under
+`docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/dashboard/`:
+
+- `dashboard-remediation-r2-r3-r1-r5.trx` — **8/9 passed** in real PostgreSQL.
+  The only failure is class initialization with `28P01 password authentication
+  failed for user "postgres"` before the query-shape test body; the other eight
+  cases pass, including the new interior Live departure, missing/inverted
+  ended-boundary availability, independent login boundary, weighted published
+  drop plus importless AdminCreated roster, and reopened winner suppression.
+- `dashboard-remediation-r5-queryshape-retry.trx` — **1/1 passed** when the
+  initialization-only failure was isolated. It covers the fixed query shape,
+  no tracked writes, read-failure propagation and repeatable-read boundary.
+- `dashboard-remediation-r3-original-login-boundary.trx` — **1/1 passed** for
+  the affected original cohort fixture, including the four-account independent
+  login-window expectation.
+- `dashboard-remediation-ordering.trx` — **2/2 passed**. The six history
+  fields, including EventDate, sort null-last in both directions with stable
+  EventId ties.
+- The earlier `dashboard-remediation-r1-r5-fixturefixed.trx` (9/9) was reported
+  historically but was not retained in the durable copy; it is not durable proof
+  of the latest source identity. Release builds and the prior Dashboard 7/7/non-microsecond
+  PostgreSQL evidence remain retained, and the latest test command rebuilt the
+  affected integration project successfully.
+
+The R2 contract now distinguishes an eligible ended-state event from a usable
+actual ended boundary: missing or inverted dates make Community
+`NewWebsiteAccounts` unavailable with `Since=null`; the 30-day creation
+fallback is reserved for genuinely absent ended-state events. R1, R2, R3, R4
+and R5 are implemented with the named focused evidence above, while the
+independent review is **PASS** after the same reviewer verified the stable
+source identity and recorded proof. Final disposition is recorded in
+`docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/dashboard/dashboard-review-final.meta`.
+The Dashboard PASS covers the earlier source hashes `846aed4b65b5ac3f1a853dda275a6e6269cdb97453600eaeb82e4fd99bc5d55f` (service) and `871051bc2e148237ab7d9927de2c56cb44b3e1d06ca3fb47afccdca4ccc70f99` (interface). The later change is AU04’s `GetEventParticipationAsync`; AU04’s independent review covers that change.
+No broad suite,
+UI/reference work, manual acceptance, packaging, commit, push, merge or
+deployment is authorized by this handoff.
+
+## Participants backend pass — approved 2026-09-30
+
+**Outcome:** implement the agreed Participants service/domain/persistence behavior
+before applying the new UI. Preserve existing UI/forms and public self-signup.
+Manual interaction/visual testing and new frontend controls/routes are deferred by
+explicit user instruction; executable backend checks are not deferred.
+
+**Checkout:** `/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage`,
+branch `codex/participants-functionality`, starting at
+`993c90e9835d1f2d74fc9c03ed4d8f6306a7e37c` from clean `admin-simplification`.
+The older `573d` planner checkout and Documents reference checkout are not the
+implementation baseline. Claude owns the reference export/tokens/components;
+workers do not edit those files.
+
+**Roles:** planner `/root`, app task `01a0ec9a-76e3-7252-9850-3f260c612e59`;
+collaboration orchestrator `/root/participants_backend`, Sol `gpt-6.1-sol` / `high`
+(explicit user substitution for unavailable Terra); implementer/remediator
+`gpt-5.6-luna` / `max`; independent reviews `gpt-6.1-sol` / `high` (user override).
+Use the lean workflow in section 4.2.1. No extra coordinator or verifier.
+
+### Execution and ownership
+
+1. Run one bounded independent read-only readiness review of this complete slice
+   under section 4.1. Reuse the completed reference functional audit; do not redo a
+   whole-site audit. Identify account/primary/question mapping, missing stored EHB,
+   service/old-caller compatibility, concurrency and directly affected projections.
+   Resolve ordinary implementation choices in this plan; escalate only genuine
+   product decisions with evidence and a recommendation. No implementation before
+   named readiness blockers are resolved.
+2. One implementer owns the connected service changes below sequentially; the same
+   SignupService is shared, so do not split concurrent writers by feature name.
+   Deliver an early working behavior/checkpoint and proceed through authorized
+   scope without waiting for a new approval per operation.
+3. Once implementation and focused checks are stable, use one fresh independent
+   reviewer. Route defects to the same implementer and named rechecks to the same
+   reviewer. Reuse passing evidence and do not launch a broad extra verification.
+4. Consolidate CURRENT_STATUS and the integration handoff in this plan: service
+   entry points/request/result shapes, commands/results, unresolved limitations,
+   migrations if any and future UI binding. Stop before commit/push/deploy, reference
+   edits, app restart, user-data mutation or manual acceptance.
+
+### Readiness decisions — 2026-09-30
+
+The bounded Sol 6.1/high readiness review by
+`/root/participants_backend/readiness` found no unresolved product blocker or
+schema requirement. Implementation uses the existing `PrimaryRegularAccount`
+question plus matching `SignupAnswer` as primary authority. Swap/map question
+associations for selected Playing accounts while retaining each assignment's
+character identity, EHB and provenance. `AdminPrimaryCharacters` and the pre-Live
+planned-account fallback must use the same authority for Admin-created records.
+
+Preserve full-question `CreateAdminParticipantAsync` and
+`CorrectAdminParticipantAsync` callers; expose distinct saved-link Add and
+account-only correction/primary-switch boundaries. Saved-link Add rejects missing
+stored EHB with actionable saved-profile feedback and requires unambiguous active
+protected-primary/Playing-slot configuration. It does not use WOM or default EHB
+to zero. Existing shared global links remain allowed.
+
+New/changed transactions recheck the active Admin under the existing account lock
+before the event lock. Queue order/positions use the existing
+`WaitingListedAt ?? SignedUpAt` promotion authority consistently. Move captures the
+pre-existing next eligible signup waiter before appending the mover, preserves
+reservations, and ends current membership/role authority with history. Focused
+PostgreSQL proof includes the real draft-start transaction boundary, not solely a
+pre-set draft-lock fixture. No new UI binding or migration is selected.
+
+### Journey coverage and proof
+
+All new roster operations use an enabled Admin in an accessible event
+Draft/SignupOpen/SignupClosed before team-draft start. Tests call the real application
+boundary with controlled fixtures; these service capabilities are for later binding
+from Participants table/Add/edit. Existing route callers remain protected.
+
+| Slice | Action and persisted outcome | Boundary checks / next read |
+| --- | --- | --- |
+| P1 (F01/F02/F03) | Confirm selected waiter, with explicit +1 capacity only when full; move Confirmed to queue end and promote another; normal/override restore | PostgreSQL atomic capacity/status/order, no extra promotion, no immediate re-promotion, full/no-waiter/open-place rejection, restored sequence/reservation conflict, ended membership authority/history; persisted Participants/draft projections |
+| P2 (F04) | Add saved accounts without questions/WOM, selected primary, initial payment, normal/override placement | Active owner/link validation, slot limits, duplicate within participant/event, missing EHB/configuration handling, false captain, absent custom answers, no provider or saved-link writes, all-or-nothing failure, existing Add caller compatibility |
+| P3 (F05/F06) | Switch primary; add/remove/correct event accounts within configured slots without global mutation | A/B switch preserves identities and per-account EHB, at least one/exactly one primary, draft/name reads agree, shared links allowed, event conflicts rejected, saved names/links/order/EHB unchanged, correction preserves status/order/non-account answers |
+| Cross-cutting | Authorization, stale/repeated/concurrent requests and draft-start races | Existing PostgreSQL fixture boundaries, expected versions/current actor checks, no writes/audit success on rejected request, no double capacity increase, unchanged ordinary promotion/private payment-note/finalized-roster behavior |
+
+### Protected scope and complexity budget
+
+Reuse `ISignupService`, `SignupService`, EventParticipant/assignment/question/answer
+entities, EventParticipantAuthorityQueries and existing integration fixtures.
+Preserve privacy, current actor authority, notifications, audit, locks, PostgreSQL
+uniqueness, immutable competitive evidence, existing Live/finalized workflows and
+stored numeric precision. Fixtures use deterministic microsecond-aligned UTC times
+with affected precision/round-trip cases where relevant.
+
+No new tables, services, dependencies, policies, jobs or speculative API framework
+are budgeted. New request/result types and methods on existing boundaries are
+allowed where needed. Production UI, client routing/history, CSS, animation,
+reference runtime and manual test execution are out of scope. Do not add temporary
+UI to exercise backend methods. Existing HTTP binding changes only if needed to
+keep current callers safe/compatible, then test the affected real pipeline; new
+frontend transport binding can wait. No Undo or general manual queue reorder.
+
+Use scoped build/formatter/diff checks and discriminating Domain/Application and
+real PostgreSQL tests for changed behavior. Add tests where existing checks cannot
+detect the changed risk. Do not rerun the whole solution or broad browser suite
+without a concrete reason. Environment failures are reported with the exact
+unverified boundary; no tests on the user's database or external WOM calls.
+
+**Completion:** all three slices implemented and independently source-reviewed,
+focused checks passed or explicitly reported blocked, contract/data docs reconciled,
+existing UI compatible, and a useful binding handoff recorded. This is technical
+backend completion only. Future manual journeys are in MANUAL_TEST_CHECKLIST.md;
+page approval remains in UI_PAGE_MATRIX.md.
+
+### Completion and UI-binding handoff — 2026-09-30
+
+**Technically complete.** Same-worker implementation and named remediation are
+finished. Independent Sol 6.1/high reviewer
+`/root/participants_backend/independent_review` accepted the stable source and
+required executed proof, with no remaining findings or proof gaps. The reviewer
+verified source, logs/TRX and command/assembly identity rather than rerunning the
+checks. Manual acceptance and new UI binding remain deferred; page approval is
+unchanged. No schema/migration, new service/dependency or temporary UI/HTTP endpoint
+was introduced. Existing full-question Admin Add/correction and public signup
+callers remain compatible.
+
+Changed implementation files: `ISignupService`; Domain `EventParticipant` and
+`EventParticipantCharacter`; Infrastructure `SignupService`,
+`EventParticipantAuthorityQueries`, `ParticipantLiveService` and
+`EventSignupLifecycleService`; Web Admin Participants and public Confirmation /
+Signups read models; integration `Slice4ParticipantLifecycleIntegrationTests` and
+`DraftOperationsIntegrationTests`. The six planner-authored documents remain
+preserved; the complete checkout/status is in `CURRENT_STATUS.md`.
+
+| Service entry point | Request binding | Authoritative result |
+| --- | --- | --- |
+| `ConfirmWaitingParticipantAsync` | `ConfirmWaitingParticipantRequest`: event, participant, actor; explicit `ExpandCapacityWhenFull`; expected event/response versions | `ParticipantQueueMutationResult`: success/error, participant/status/position, promoted participant, effective cap, changed |
+| `MoveConfirmedParticipantToWaitingAsync` | `MoveConfirmedParticipantToWaitingRequest`: event, participant, actor; expected event/response versions | Same queue result |
+| `RestoreAdminParticipantAsync` | `AdminParticipantRestoreRequest`: event, participant, actor; explicit expansion; expected event/response versions; existing WOM validation token where applicable | `ParticipantLifecycleResult`: success/error, status/position, changed, existing validation token |
+| `AddSavedParticipantAsync` | `AddSavedParticipantRequest`: event, owner, actor; `PlayingCharacterIds`, `PrimaryCharacterId`; payment defaults Unpaid; explicit expansion; expected event version | `AdminParticipantResult`: success/error, participant/status/position, existing validation token shape |
+| `SwitchAdminPrimaryAsync` | `SwitchAdminPrimaryRequest`: event, participant, next character, actor; expected current character and response version | `EventAccountMutationResult`: success/error, participant/primary character, Playing/total account counts, changed |
+| `AddEventParticipantAccountAsync` | `AddEventParticipantAccountRequest`: event, participant, character, role, EHB, actor; optional question and expected response version | Same account result |
+| `RemoveEventParticipantAccountAsync` | `RemoveEventParticipantAccountRequest`: event, participant, assignment, actor; expected response version | Same account result |
+| `CorrectEventParticipantAccountAsync` | `CorrectEventParticipantAccountRequest`: event, participant, assignment, replacement character/EHB, actor; expected response version | Same account result |
+
+Requests use authenticated actor identity; the service canonicalizes actor name and
+rechecks enabled Admin authority inside the transaction. Saved Add uses character
+IDs resolved through the owner's active saved links, not link-record IDs or
+client-supplied saved EHB. Missing stored EHB rejects with saved-profile feedback;
+Add does not call WOM. Supply observed versions/current primary to detect stale
+intent and show the returned error/changed state. Capacity expansion requires the
+future UI's explicit full-capacity confirmation; it only confirms/restores/adds the
+selected participant. Move requires full capacity and another eligible waiter.
+
+Primary authority remains the protected `PrimaryRegularAccount` question plus its
+answer. Account correction releases the old assignment and appends the replacement,
+retaining old identity/EHB/provenance and auditing the actual change. Saved global
+names/links/order/EHB remain unaffected. Successful account changes notify the
+linked owner using the existing privacy-safe event; promotion recipients include
+enabled Admins. Failed and repeated no-change requests do not duplicate success
+notifications/audit. PostgreSQL persistence is authoritative; refresh affected
+participant/draft projections after success. Add and restore retain legacy result
+shapes, so refresh event capacity/count/status rather than inferring capacity from
+an error string. Waiting reads use `WaitingListedAt ?? SignedUpAt` consistently.
+
+Saved final evidence is retained in the repository at
+`docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/participants/`:
+
+- Release Web build: `web-build-after-test-fixes.log`, 0 warnings/errors.
+- Focused PostgreSQL seven-case run: `remediation-focused-final.log`, 7/7
+  passed, covering selected/parallel confirmation, move, saved-account journey,
+  restore rollback/retry and saved-Add negative/custom-answer boundaries. Later
+  named cases supersede the initial draft/primary proof in that run.
+- Real draft-start conflict/recovery: `draft-interleaving-controlled-proof`, 1/1.
+  The controlled event-reader barrier is inside the real Serializable
+  `DraftModel.OnPostStart` route; committed selected-capacity/account changes force
+  a handled snapshot conflict and a successful real-route retry.
+- Secondary-primary/stale projection proof: `primary-projection-proof-final`, 1/1;
+  final same case `primary-invalid-current-slot-proof-final`, 1/1, additionally
+  targets an existing Playing assignment whose question is inactive, and proves
+  unchanged primary/assignments/answers/version/audit/notifications after a later
+  same-context note save.
+- Same-character EHB release-and-append/retry proof:
+  `ehb-correction-proof-parsed`, 1/1, against PostgreSQL's partial unique key with
+  deterministic microsecond-precise WOM provenance and unchanged global profile.
+
+The durable copy retains the named compact `.log` and `.meta` command/exit
+records; raw `.trx` artifacts were omitted. Original commands use
+`dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --no-restore
+--configuration Release --filter FullyQualifiedName~<case> --logger trx`, with
+exact filters in the corresponding metadata:
+`DraftStartInterleavesWithSelectedCapacityAndAccountMutationAtTheRealBoundary`,
+`SavedAddAndEventOnlyAccountMutationsPreserveGlobalLinksAndPrimaryMapping`, and
+`SameCharacterEhbCorrectionAppendsHistoryAndRepeatIsNoOp`. These freshly build the
+Release test assembly; no stale `--no-build` assumption or full-suite claim applies.
+Do not sum overlapping rechecks as unique test coverage.
+
+Scoped formatter used `dotnet format Bingo.slnx --no-restore --verify-no-changes
+--verbosity minimal --include <the twelve changed source/test paths>`; exact paths
+and exit 0 are in `format-scoped-final-exact.meta`, independently checked by the
+reviewer. Later changed-test formatting exit 0 is worker-reported with quiet
+`format-slice4-invalid-slot.log`. `git diff --check` passed independently for
+orchestrator and reviewer; saved exit metadata is `diff-check-final.meta`.
+Earlier broader terminal-only worker counts are distinguished in CURRENT_STATUS,
+not repeated as fresh candidate evidence. Earlier failed logs remain retained.
+
+Bounded build diagnosis identified generated-output write denial (MSB3371) in the
+checkout outside default writable roots; narrow authorized escalation recovered
+build/test execution. No active environment blocker remains. All four named source
+findings (assignment history, owner notifications, Admin promotion recipients,
+rejection-safe tracked state) and their required targeted proof are accepted.
+Temporary trace/debug tests and hardcoded diagnostic paths were removed from source.
+
+Orchestrator reports completion to planner `/root` through internal collaboration /
+final delivery. The previously rejected app-thread callback is not retried. Stop
+here: future redesigned Participants UI integration/confirmations and manual
+journeys need their own assignment; no packaging, reference edits, broad-suite
+rerun, user-data mutation or app restart is authorized by this completion.
+
+## Admin simplification — approved 2026-09-26
+
+This completed baseline is part of the whole branch review, not excluded by later
+AU work. Original ticket definitions and decisions are preserved byte-for-byte in
+[the original plan snapshot](docs/references/admin-ui/reviews/2026-10-02/simplification/original-plan.md).
+It is provenance, not current routing, dispatch authority or permission to restore
+retired behaviour. The current product/contracts/data/UI documents and refinements
+below govern the review target. Original exclusions applied to that pass only;
+Dashboard, Luck and the new Admin reference work were authorized separately later.
+
+Baseline implementation commit: `993c90e9835d1f2d74fc9c03ed4d8f6306a7e37c`.
+[Baseline verification excerpts](docs/references/admin-ui/reviews/2026-10-02/simplification/baseline-status.md)
+preserve the September 28 user-run 1,555/1,555 result and September 29 independent
+correction PASS. The later correction reran named failures/build only, not the whole
+suite. These are historical results, not a fresh whole-branch verification pass.
+Deployment, production cleanup and current runtime state are not inferred from them.
+
+| Original tickets | Agreed simplification outcome retained | Later refinements / delivery distinction |
+| --- | --- | --- |
+| PRE-01 | Baseline/retained-data investigation, no guessed production migration | Historical evidence; no current production access implied |
+| ADM-01, ADM-02 | Honest outcomes, useful sanitized Audit, shared confirmations | New shared Admin reference supersedes visual composition; AU16 server-side hidden-history/query correction is approved and queued; RC fixes pending |
+| SEC-01 | Retire emergency authority, preserve actors/history | No reactivation through later UI |
+| CAT-01 | Simplify Catalogue; retain SuperAdmin roll-group editing in the per-drop rate panel; retire separate roll-group/import surfaces | AU21/AU23 backend delivered in B4 remediation; the decided rate panel permits SuperAdmin editing and is read-only for other roles |
+| EVT-01 | Name/timezone creation, permanent slug, atomic defaults, Identity ownership | AU03/AU08/AU09 complete; new UI binding pending |
+| ACC-01 | Existing-account support/security; no user creation/merge or emergency controls | AU22/AU24 pending; typed ownership confirmation is an existing requirement gap |
+| EVD-01 | Real team-role submission authority, immediate participant account switch | AU17a/D11 retained Playing correction backend implemented, remediation round 2 done, Claude recheck pending, binding pending (RC07); no roster changes |
+| LIF-01 | Timestamp-led scheduling, phase-aware manual controls, +30m early-end grace | AU01/AU10 complete; RC01/RC03 and reference binding pending |
+| TEM-01 | Existing website accounts, IncludedInDraft; retire accountless/CSV/owner-transfer | New team reference omits affiliation/image controls; old data preserved |
+| EVD-02 | Ordinary later attempts, binary review, reasoned correction/reversal | AU17 backend implemented, remediation round 2 done, Claude recheck pending, binding pending (RC07); preserve original evidence and separate approval |
+| SGN-01 | Mutable pre-draft questions, optional-after-first-response, protected first Playing | AU05–AU07 complete; RC02/UI binding pending |
+| DRF-01 | 2+ team draft, 0/1 manual roster; no pause/finalized reopen; cancel only zero picks | AU14 backend implemented, remediation round 2 done, Claude recheck pending, binding pending (RC04); click-pick, compact board and stay-on-Teams UI accepted |
+| SGN-02 | Admission code, always-enabled waiting, capacity rules and normal promotion | F01–F04 add explicit selected-person +1 exceptions; backend complete |
+| BRD-01 | Board leases/snapshots, approval/publication and evidence locks | AU11 manual total EHB override, AU13 estimate; AU19 backend implemented, remediation round 2 done, Claude recheck pending, binding pending (RC05) |
+| PAR-01 | Pre-draft correction, withdrawal/restore, payment/notes | F01–F06 backend complete; new UI binding pending |
+| RES-01 | Mandatory gates, exact ties, immutable publication directly to Archived | AU12 new-events-only ranking and AU18/RC08 pending |
+| ROS-01 | Separate finalized pre-first-Live Add/Remove; permanently fixed Live roster | Later reference retains Live role changes, not membership changes |
+| BNR-01 | Retire event banners with guarded cleanup/history policy | Baseline migration/code present; production disposal not claimed |
+| WOM-01 | Website-owned dates; provenance separate from credentials; external never deleted | AU15 normal Fetch and AU20 exact UTC windows/code-bearing detach implemented; AU20 recheck pending |
+| ACT-01 | Actions derived from current pending reviews/scheduled failures | AU04 directory data complete; no vacancy/follow-up/missing-Captain revival |
+| BRD-02 | Lightweight Board reads, targeted estimate freshness | AU19 projections backend implemented, remediation round 2 done, Claude recheck pending, binding pending (RC05); calculator and approved snapshots preserved |
+| WOM-02 | Dedicated WOM operations, Overview summary/link | AU20 implemented/remediated, recheck pending; RC09 pending; no user-scheduled creation, normal Create starts now |
+| VER-01 | Integrated proof and bounded remediation | Historical evidence linked above; reviewer evaluates entire base-to-candidate diff |
+
+Current routing is in AGENTS.md, not the original wave/coordinator/model prose.
+All later unfinished AU/RC scopes remain listed in this plan. No implementation
+resumes during documentation reconciliation or review preparation.
+
 ## Drop announcements and NEW tracking — approved behaviour, 2026-09-12
+
+Historical delivery context: completed-pass instructions/model assignments below
+do not authorize new work or override current product/contracts/UI authorities.
+Current stop boundaries and routing are above and in AGENTS.md.
 
 Status: implementation authorized by the user after the single independent readiness
 review and resolution of its named lifecycle decision. Execute the three bounded
@@ -400,6 +2333,10 @@ DA-01..09 are recorded in MANUAL_TEST_CHECKLIST but are not yet runnable accepta
 
 ## 1. Documentation consolidation
 
+Historical delivery context: completed-pass instructions/model assignments below
+do not authorize new work or override current product/contracts/UI authorities.
+Current stop boundaries and routing are above and in AGENTS.md.
+
 1. **UI authority pass — complete:** `UI_SYSTEM.md` holds active global UI
    rules and exact implementation ownership; `UI_PAGE_MATRIX.md` holds active
    page families, protected composition, exceptions, approvals, and gates. The
@@ -467,6 +2404,10 @@ DA-01..09 are recorded in MANUAL_TEST_CHECKLIST but are not yet runnable accepta
    and production launch are recorded below.
 
 ## 2. Launch and UI order
+
+Historical delivery context: completed-pass instructions/model assignments below
+do not authorize new work or override current product/contracts/UI authorities.
+Current stop boundaries and routing are above and in AGENTS.md.
 
 The user approved a complete Public UI identity replacement on 2026-08-22.
 The public Board ecosystem's accepted behavior remains protected, except for
@@ -1092,12 +3033,40 @@ not change the recorded production launch.
 
 ## 3. Production readiness and release gates
 
-Production is live from PR #5 at source SHA
+Historical launch evidence (2026-09-01, not a current deployed-image check):
+production launched from PR #5 at source SHA
 `1f893133edc26455c41535807633225fdee36292` with immutable image digest
 `sha256:5de9882be6cd63e170b6d68fc1b869ea134e9b67f3bfab6a1b7eb042ed4c1a20`.
-CI, deployment, and focused production smoke passed. The remaining operational
+CI, deployment, and focused production smoke passed for that launch. See the
+[release-readiness gate](#release-readiness-gate-3-october-2026) for the current
+PRE-01 evidence, release checks, and verification limits. The remaining operational
 stage is the production Admin test event; it has not run. Launch-critical
 release work takes precedence over deferred UI polish.
+
+### Release-readiness gate (3 October 2026)
+
+This is the current PRE-01 release gate. The records below preserve sanitized
+user/operator evidence from 3 October; the agent did not access production or
+run these queries. Before a release, the operator records the candidate SHA,
+exact deployed migration history, and the check timestamp, then runs every
+read-only check with separately authorized operator access and preserves the
+baseline on an isolated restored copy. Mutating migration/conversion/Down checks
+require the approved isolated procedure; never infer live database authority.
+Aggregate counts do not establish the migration baseline.
+
+| Check | Query or required step | Recorded evidence / current status | If the result differs |
+| --- | --- | --- | --- |
+| Banner cleanup (X-1/F1) | Verification only: exact migration history, zero `event_banner_assets`, zero `event_banner_cleanups`, zero events referencing `banner_asset_id` before retirement; if already retired, verify history and absent schema. See [runbook checklist](docs/PRODUCTION_RUNBOOK.md#release-readiness-checklist--3-october-2026). | One-time targeted cleanup/object deletion reported complete by the user on 3 October; not agent-verified. | Stop on unexpected rows/schema; seek an operator decision. Do not repeat deletion or contact object storage from rehearsal. |
+| Luck v1 conversion (LK-2/R-1) | Exact candidate `--convert-luck-checkpoints` stage after `--migrate`, before preflight/web, under approved isolated harness; require exit 0 and `Could not convert=0`. | R-1 remains blocking; a passing final-candidate restored-data conversion is not established. | Preserve v1 rows/failure reason; stop before preflight/web. No newer provider-data shortcut. |
+| All retained completion corrections (BR-7) | `SELECT COUNT(*) FROM team_completion_corrections;` No global cycle-time parameter. | User's earlier 3 October zero is not a verified result for this corrected all-rows query; re-run required. | Any row stops release for investigation; readiness/ranking ignore retained corrections. Do not rewrite history/snapshots. |
+| Published board without active finalized roster publication (BR-11) | `SELECT COUNT(*) FROM boards b WHERE b.state = 'Published'   AND NOT EXISTS (     SELECT 1     FROM draft_publication_cycles c     JOIN draft_sessions d ON d.id = c.draft_session_id     WHERE d.event_id = b.event_id       AND d.state = 'Finalized'       AND c.superseded_at IS NULL       AND EXISTS (         SELECT 1 FROM draft_publication_rosters r         WHERE r.draft_publication_cycle_id = c.id       )   );` | The user's earlier 3 October zero must be re-run with this corrected query; not a verified pass. | Any result stops release. Reconcile the existing publication lifecycle; event boolean alone is insufficient. |
+| Future-effective account switches | At recorded check time, `SELECT COUNT(*) FROM event_participant_character_swaps WHERE effective_at_utc > :check_time_utc;`; inspect timestamps/attribution privately. | Unknown/unverified. | Stop for deterministic operator decision preserving submitted attribution/history; no silent cancellation/backdating. |
+| G4 `20261003184632_AllowCancelledDraftRestart` | Before migration on restored baseline: count `draft_sessions WHERE state = 'Setup' AND first_pick_recorded_at IS NOT NULL`; after, same eligible set/count must have `requires_fresh_order = true`, ineligible rows retain default false. Separately verify Down removes column/history entry without draft/first-pick loss and re-Up backfills again. | Count and Down/Up unexecuted. If already applied in backup, report that instead of claiming a fresh backfill. | Stop on mismatch; use separate disposable clone and approved predecessor/tooling. No production downgrade. |
+| R-3 final-candidate rehearsal | **Procedure and coverage limits approved by the user on 4 October 2026 after Claude’s review, as recorded in the planner decisions; attribution corrected by the quoted Step 0 user assignment.** See [Step 0 approval provenance](docs/references/admin-ui/reviews/2026-10-04/au-step0/approval-record.md). Follow the [isolated runbook procedure](docs/PRODUCTION_RUNBOOK.md#r-3-isolated-rehearsal-procedure--approved-4-october-2026): disposable VM/restored DB, denied external access, local WOM/HTTPS S3 fixtures, exact candidate restore/history → migrate → Luck conversion → preflight → web/health. Never host `bingo-deploy` as rehearsal. | Tooling not built/tested; R3 unexecuted; release blocked. Accepted limits: no production wrapper, real provider/restic/GHCR integration, public DNS/TLS or production-key recovery verification. Approval is documentation-only; Claude source recheck accepted with Step 0 attribution corrections. | Obtain separate tooling/backup-transfer/execution authority. Preserve R-1 failure blocking and every final-candidate check. Stop on any failure; no deployment until R3 passes and production deployment is separately approved. |
+
+The gate is complete only when each release-time query/step has a recorded
+candidate identity and passing result. The runbook owns the operator sequence;
+this section owns the release decision and the explicit stop conditions.
 
 Keep the complete infrastructure and operational checklist through release,
 including optional but prudent safety items. Evaluate each item when its
@@ -1141,11 +3110,12 @@ make container-internal `/health/ready` gate PostgreSQL, configured R2 bucket
 reachability, and timely heartbeats from both existing hosted workers; keep Wise
 Old Man non-blocking; add explicit migration and read-only production-preflight
 commands without normal-startup migration; and initialize non-root ownership of
-the writable data-protection and catalogue-cache volumes. Clean setup runs
-migrate, catalogue snapshot, owner bootstrap, preflight, then web/Caddy. Retained
-data runs the legacy Slice 1 preflight only when crossing that boundary, then
-migrate, production preflight, and replacement; never apply the catalogue
-snapshot to retained data.
+the writable data-protection and catalogue-cache volumes. Clean setup restores
+the reviewed database backup after migration, then runs owner bootstrap,
+preflight, and web/Caddy. Retained data runs the legacy Slice 1 preflight only
+when crossing that boundary, then migrate, production preflight, and replacement.
+The catalogue snapshot loader is reserved for CI, Development, and manual-test
+data and is never applied by production deployment.
 
 The Pass 2 complexity budget is zero tables, schema migrations, product routes,
 policies, jobs, NuGet dependencies, CI/deployment/provider work, or generalized
@@ -1573,21 +3543,11 @@ cannot silently revise the baseline or settle an unresolved product decision.
 #### 4.2.1 Lean execution and planner handoff
 
 The current roles, models and routing are owned by
-[AGENTS.md](AGENTS.md#active-workflow-and-model-defaults--2026-09-24): planner defines
-the work; Terra/medium orchestrator manages it; Luna/max implements and checks;
-one independent Sol/high reviewer reviews the stable correction. Explicit user
-model overrides are assignment-scoped. Historical model/workflow assignments
-elsewhere do not override this current policy.
-
-The planner hands off and ends its turn. The orchestrator owns the entire authorized
-implementation/review/remediation sequence and may use `wait_threads` for worker
-tasks or `wait_agent` for collaboration workers. It handles a completed worker's
-next action without waiting for planner permission again. Wake idle workers with
-`followup_task` (collaboration) or `send_message_to_thread` (standalone task); a
-queued `send_message` alone does not resume an idle worker. Report completion,
-genuine blockers or consequential questions to the planner, not every routine
-handoff. No additional verifier or management layer is implied. Separate visible
-tasks require an explicit user request.
+[AGENTS.md](AGENTS.md#active-workflow-and-model-defaults--2026-10-05): the Claude
+planner chat defines the work, writes the brief and reviews each batch independently;
+the Codex planner chat named in the brief dispatches one implementer per batch with
+the model the brief names. No orchestrator, Codex reviewer or verifier is used unless
+a brief assigns one. Historical assignments elsewhere do not override this policy.
 
 This is the reusable coordination procedure. Read it before dispatching work or
 resuming as planner; apply the assigned pass's gates without creating extra stages.
@@ -1605,41 +3565,47 @@ resuming as planner; apply the assigned pass's gates without creating extra stag
    no extra approval round. Name the existing implementation to reuse; do not add
    a preliminary reviewer by default. Report additional discoveries separately
    unless they directly block the agreed fixes.
-3. The orchestrator dispatches the implementer with the approved scope and exact
-   model. The implementer completes a connected change and runs its checks. After
-   one focused lookup, consequential uncertainty goes to the orchestrator with
-   evidence and a recommendation. Continue independent authorized work if useful.
-4. The orchestrator resolves ordinary execution/routing questions; the planner
-   resolves consequential scope/product decisions with the user when necessary.
-   The orchestrator may wait on workers, checks stalls and interrupted work, and
-   wakes the next owner promptly. Repeated reading without progress calls for a
-   narrower next step, not another open-ended continuation.
-5. The orchestrator dispatches one independent reviewer after the diff is stable,
-   routes findings to the same implementer and named rechecks to the same reviewer.
-   It sends the planner the final evidence and acceptance status at the assigned
-   boundary. Honor explicit user review waivers; do not claim skipped checks passed.
-   For Admin popups, applicable review is source-only and visual acceptance is the
-   user's. Stop when the authorized assignment is complete.
-6. Before delivery back to the planner, the orchestrator consolidates the active `CURRENT_STATUS.md` entry with
-   the checkout/branch, assigned pass, completed work/checks and evidence locations,
-   unresolved findings, active worker ownership (if any), acceptance state and exact
-   next permitted action. Link this procedure; do not copy it into the handoff or
-   rely on chat history. Preserve approval authority in `UI_PAGE_MATRIX.md`.
+3. The dispatcher starts the implementer with the approved brief and exact model.
+   The implementer completes a connected change and runs its checks. After one
+   focused lookup, consequential uncertainty goes to the dispatcher with evidence and
+   a recommendation; product and scope questions go on to the planner and the user.
+   Continue independent authorized work if useful.
+4. The dispatcher resolves ordinary execution questions and checks stalls and
+   interrupted work. Repeated reading without progress calls for a narrower next
+   step, not another open-ended continuation.
+5. The implementer commits each item, runs the affected .NET tests, full JS runner,
+   Chromium/WebKit checks, required Release build and scoped design/diff checks,
+   and stops at the brief's boundary with its report. Only the planner runs the
+   whole .NET suite once on the final SHA, in the background as soon as that report
+   arrives: the batch gate requires zero failures and zero skipped tests before
+   acceptance (08-decisions.md, Q-S1, user decision, 7 October 2026). Gate failures
+   return as remediation. The planner reviews the stable batch independently;
+   findings return as a remediation brief to the same
+   implementer, followed by a named recheck. Honor explicit user review waivers; do
+   not claim skipped checks passed. For Admin popups, applicable review is source-only
+   and visual acceptance is the user's.
+6. At the stop boundary the implementer consolidates the active `CURRENT_STATUS.md`
+   entry with the checkout/branch, assigned pass, completed work/checks and durable
+   repository evidence locations (not only temporary paths), unresolved findings,
+   acceptance state and exact next permitted action. Link this procedure; do not
+   copy it into the handoff or rely on chat history. Preserve approval authority in
+   `UI_PAGE_MATRIX.md`.
 
 Use this compact worker brief; include only relevant facts and authority sections:
 
 ```text
 Role and approved model/reasoning:
-Exact originating planner and orchestrator IDs; callback/wake route:
+Planner and dispatcher chat IDs; worker identity if known:
 Checkout / branch:
 Observed problems and expected results (agreed fix list):
 Starting files/helper and established evidence:
 Protected behavior / non-goals / relevant authority sections:
-Required focused checks and completion boundary:
+Required checks, batch gate and stop boundary:
 Escalation: after one focused lookup, send consequential uncertainty to the
-orchestrator with evidence and a recommendation; it involves the planner if needed.
-Continue independent assigned work; name and wake the next owner at handoff.
-Return: changed files, checks/results, unresolved findings and next needed action.
+dispatcher with evidence and a recommendation; product and scope questions go to
+the planner and the user.
+Return: commit SHAs, changed files, checks/results, unresolved findings and next
+permitted action.
 ```
 
 ### 4.3 Verification at affected boundaries
@@ -1906,7 +3872,7 @@ effects can still be used, and every accepted mutation is atomic with history.
 
 - Preserve and regression-check the existing reachable Live Wise Old Man
   competition replacement rather than reimplementing it. It must reference an
-  existing competition whose boundaries match within five minutes, cannot clear
+  existing competition whose boundaries match exactly as UTC instants, cannot clear
   the link, cannot synchronize the schedule, invalidates the prior displayed
   cache only after success, and leaves state unchanged on failure. Change it
   only if focused proof exposes a concrete contract gap.

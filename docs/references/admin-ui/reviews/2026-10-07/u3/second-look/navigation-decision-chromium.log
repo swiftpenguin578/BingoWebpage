@@ -1,0 +1,83 @@
+{
+  "engine": "chromium",
+  "checks": [
+    "audit registered-target links",
+    "signupsetup registered-target links",
+    "schedule registered-target links",
+    "identity registered-target links",
+    "events registered-target links",
+    "schedule summary click retains document and shows destination skeleton; Overview stays old-layout",
+    "signupsetup summary click retains document and shows destination skeleton; Overview stays old-layout"
+  ],
+  "failures": [
+    {
+      "family": "accounts",
+      "message": "same-origin links to registered pages use shell navigation\n+ actual - expected\n\n+ [\n+   {\n+     href: '/Admin/Accounts?account=56e056c4-6bf7-490c-b310-79e64957fe2b',\n+     text: 'parity-admin'\n+   }\n+ ]\n- []\n"
+    },
+    {
+      "family": "dashboard",
+      "message": "same-origin links to registered pages use shell navigation\n+ actual - expected\n\n+ [\n+   {\n+     href: '/Admin?sort=EventDate&direction=asc',\n+     text: 'Event'\n+   },\n+   {\n+     href: '/Admin?sort=Players&direction=desc',\n+     text: 'Players'\n+   },\n+   {\n+     href: '/Admin?sort=ApprovedSubmissions&direction=desc',\n+     text: 'Approved submissions'\n+   },\n+   {\n+     href: '/Admin?sort=WinnerBoard&direction=desc',\n+     text: 'Winner’s board'\n+   },\n+   {\n+     href: '/Admin?sort=Ehb&direction=desc',\n+     text: 'EHB gained'\n+   },\n+   {\n+     href: '/Admin?sort=Winner&direction=asc',\n+     text: 'Winner'\n+   }\n+ ]\n- []\n"
+    }
+  ]
+}
+AssertionError [ERR_ASSERTION]: all registered-page link assertions
++ actual - expected
+
++ [
++   {
++     family: 'accounts',
++     message: 'same-origin links to registered pages use shell navigation\n' +
++       '+ actual - expected\n' +
++       '\n' +
++       '+ [\n' +
++       '+   {\n' +
++       "+     href: '/Admin/Accounts?account=56e056c4-6bf7-490c-b310-79e64957fe2b',\n" +
++       "+     text: 'parity-admin'\n" +
++       '+   }\n' +
++       '+ ]\n' +
++       '- []\n'
++   },
++   {
++     family: 'dashboard',
++     message: 'same-origin links to registered pages use shell navigation\n' +
++       '+ actual - expected\n' +
++       '\n' +
++       '+ [\n' +
++       '+   {\n' +
++       "+     href: '/Admin?sort=EventDate&direction=asc',\n" +
++       "+     text: 'Event'\n" +
++       '+   },\n' +
++       '+   {\n' +
++       "+     href: '/Admin?sort=Players&direction=desc',\n" +
++       "+     text: 'Players'\n" +
++       '+   },\n' +
++       '+   {\n' +
++       "+     href: '/Admin?sort=ApprovedSubmissions&direction=desc',\n" +
++       "+     text: 'Approved submissions'\n" +
++       '+   },\n' +
++       '+   {\n' +
++       "+     href: '/Admin?sort=WinnerBoard&direction=desc',\n" +
++       "+     text: 'Winner’s board'\n" +
++       '+   },\n' +
++       '+   {\n' +
++       "+     href: '/Admin?sort=Ehb&direction=desc',\n" +
++       "+     text: 'EHB gained'\n" +
++       '+   },\n' +
++       '+   {\n' +
++       "+     href: '/Admin?sort=Winner&direction=asc',\n" +
++       "+     text: 'Winner'\n" +
++       '+   }\n' +
++       '+ ]\n' +
++       '- []\n'
++   }
++ ]
+- []
+
+    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/tests/Bingo.BrowserTests/admin-design-summary-navigation.browser.js:7:69 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: [Array],
+  expected: [],
+  operator: 'deepStrictEqual',
+  diff: 'simple'
+}

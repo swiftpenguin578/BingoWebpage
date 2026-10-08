@@ -1,0 +1,1641 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Teams / Draft · DK Legacy Admin</title>
+<script src="./vendor/react.js"></script>
+<script src="./vendor/react-dom.js"></script>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="ui/tokens.css">
+<link rel="stylesheet" href="ui/components.css">
+<script src="ui/behavior.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+/* Teams / Draft page only. Shared tokens, components and behaviour: ui/tokens.css, ui/components.css, ui/behavior.js */
+.td-head-acts{display:flex;gap:8px;flex:none}
+.td-ready{margin-bottom:var(--dk-space-5)}
+.td-ready-main{display:flex;align-items:flex-start;gap:14px 32px;flex-wrap:wrap;padding:14px 18px}
+.td-ready-text{flex:1 1 320px;min-width:0}
+.td-ready-title{margin:0;font-size:var(--dk-fs-control);font-weight:600}
+.td-ready-title:focus{outline:none}
+.td-ready-sizes{margin:4px 0 0;font-size:var(--dk-fs-control-sm);color:var(--dk-text-2);line-height:1.5}
+.td-checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px;flex:1 1 300px;min-width:0}
+.td-check{display:flex;align-items:center;gap:9px;min-height:20px;font-size:var(--dk-fs-control-sm);color:var(--dk-text)}
+.td-check .check-mark{margin-top:0;flex:none}
+.td-check.is-done{color:var(--dk-text-2)}
+.td-check.is-done .check-mark{background:var(--dk-accent);border-color:var(--dk-accent)}
+.td-check .grow{flex:1;min-width:0}
+.td-check.is-info{color:var(--dk-text-2)}
+.td-check.is-info .check-mark{border-style:dashed}
+.td-bar{display:flex;align-items:center;gap:10px;margin:0 0 10px}
+.td-section-title{margin:0;font-size:var(--dk-fs-control);font-weight:600;display:flex;align-items:center;gap:8px}
+.td-count{font-size:var(--dk-fs-small);color:var(--dk-text-3);font-weight:500;font-variant-numeric:tabular-nums}
+/* active draft: compact and full height; the pool scrolls inside when a large event doesn't fit */
+.page.is-live{max-width:none;height:100%;box-sizing:border-box;display:flex;flex-direction:column;padding:12px 16px}
+.page.is-live.has-proto{padding-bottom:52px}
+.page.is-live .page-banner{margin-bottom:10px}
+.td-live{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px}
+.td-live .pool{flex:1 1 auto;min-height:180px}
+.td-live .pool-grid{flex:1;min-height:0}
+.td-search{width:220px}
+.td-manual-note{margin:0;font-size:var(--dk-fs-small);color:var(--dk-text-3)}
+.sk-block{padding:16px 18px}
+.td-roles{display:flex;flex-direction:column;gap:8px}
+.td-note{margin:0;font-size:var(--dk-fs-small);color:var(--dk-text-2);line-height:1.5}
+.td-src{margin-bottom:10px;display:flex}
+.td-src .seg-opt{flex:1;justify-content:center}
+@media (max-width:860px){.page.is-live{height:auto;min-height:100%}.td-live .pool{min-height:0}}
+@media (max-width:640px){.td-search{width:100%;order:5}.td-head-acts .btn{flex:1}.page-head:has(.td-head-acts){flex-wrap:wrap}}
+
+/* Prototype-only: simulated browser bar (same as the Events artboard; not part of the product UI) */
+.proto-bar{position:fixed;left:12px;bottom:12px;z-index:calc(var(--dk-z-toast) - 1);display:flex;align-items:center;gap:1px;max-width:min(620px,calc(100vw - 24px));padding:3px 12px 3px 3px;border-radius:var(--dk-radius-pill);background:var(--dk-surface-raised);border:1px dashed var(--dk-border-strong);box-shadow:var(--dk-shadow-sm);font-size:var(--dk-fs-meta);color:var(--dk-text-3)}
+.proto-bar .icon-btn{width:26px;height:26px;border-radius:50%}
+.proto-bar .icon-btn .ic{width:14px;height:14px}
+.proto-tag{margin:0 8px 0 4px;font-size:var(--dk-fs-caption);letter-spacing:.02em;white-space:nowrap}
+.proto-url{font-family:var(--dk-font-mono);font-size:var(--dk-fs-meta);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--dk-text-2);min-width:0}
+@media (min-width:1200px){.page .card.form-card{margin-bottom:40px}}
+@media (max-width:640px){.proto-bar{display:none}.form-bar .btn-primary{flex:1}}
+</style>
+</helmet>
+<div class="app dk-theme {{themeClass}}" id="app">
+
+<aside class="side {{sideCls}}" id="sidebar" aria-label="Administration" onKeyDown="{{sideKey}}">
+  <div class="side-top">
+    <button class="account-btn" id="user-btn" aria-haspopup="menu" aria-expanded="{{userMenuOpen}}" title="{{sideTip}}" onClick="{{openUserMenu}}">
+      <span class="logo" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 12.5V5.2L8 2.5l5 2.7v7.3"/><path d="M6 12.5V8.5h4v4"/></svg></span>
+      <span class="brand-text"><span class="brand-name">Iron Pact<svg class="ic" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg></span><span class="brand-sub">Administrator</span></span>
+    </button>
+    <button class="icon-btn collapse-btn" aria-label="{{collapseLabel}}" title="{{collapseLabel}}" aria-expanded="{{sideOpen}}" onClick="{{toggleSide}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M6 2.5v11"/><path class="{{collapseArrowCls}}" d="M10.6 6.2 8.8 8l1.8 1.8"/></svg></button>
+  </div>
+
+  <nav class="nav" aria-label="Administration">
+    <div class="nav-label">Administration</div>
+    <button class="nav-item {{nav.dashboard.cls}}" aria-current="{{nav.dashboard.current}}" title="{{nav.dashboard.tip}}" onClick="{{nav.dashboard.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 12a5.5 5.5 0 1 1 11 0"/><path d="M8 12l2.6-3.4"/><path d="M8 12h.01"/></svg><span class="nav-text">Dashboard</span><span class="nav-count">{{nav.dashboard.count}}</span></button>
+    <button class="nav-item {{nav.events.cls}}" aria-current="{{nav.events.current}}" title="{{nav.events.tip}}" onClick="{{nav.events.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg><span class="nav-text">Events</span><span class="nav-count">{{nav.events.count}}</span></button>
+    <button class="nav-item {{nav.catalogue.cls}}" aria-current="{{nav.catalogue.current}}" title="{{nav.catalogue.tip}}" onClick="{{nav.catalogue.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2.5 2.5 5.5 8 8.5l5.5-3z"/><path d="M2.5 8.2 8 11.2l5.5-3M2.5 10.8 8 13.8l5.5-3"/></svg><span class="nav-text">Catalogue</span><span class="nav-count">{{nav.catalogue.count}}</span></button>
+    <button class="nav-item {{nav.accounts.cls}}" aria-current="{{nav.accounts.current}}" title="{{nav.accounts.tip}}" onClick="{{nav.accounts.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="3" y="2.5" width="10" height="11" rx="1.5"/><circle cx="8" cy="7" r="1.8"/><path d="M5.3 11.5c.5-1.3 1.5-2 2.7-2s2.2.7 2.7 2"/></svg><span class="nav-text">Accounts</span><span class="nav-count">{{nav.accounts.count}}</span></button>
+    <button class="nav-item {{nav.audit.cls}}" aria-current="{{nav.audit.current}}" title="{{nav.audit.tip}}" onClick="{{nav.audit.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M4 2.5h8v11H4z"/><path d="M6 5.5h4M6 8h4M6 10.5h2.5"/></svg><span class="nav-text">Audit</span><span class="nav-count">{{nav.audit.count}}</span></button>
+  </nav>
+
+  <div class="side-rule" aria-hidden="true"></div>
+
+  <nav class="nav" aria-label="Event">
+    <button class="event-switch" id="event-switch" aria-haspopup="menu" aria-expanded="{{eventMenuOpen}}" title="{{evTip}}" onClick="{{openEventMenu}}">
+      <svg class="ic ev-ic" viewBox="0 0 16 16"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg>
+      <div class="ev-text" style="flex: 1; min-width: 0">
+        <div class="ev-lbl">Event</div>
+        <div class="ev-name">{{ev.name}}</div>
+        <div class="ev-meta"><span class="dot {{ev.toneCls}}"></span><span class="ev-meta-text" title="{{ev.stage}} · {{ev.when}}">{{ev.stage}} · {{ev.when}}</span></div>
+      </div>
+      <svg class="ic ev-chev" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg>
+    </button>
+    <div style="height: 8px"></div>
+    <button class="nav-item {{nav.overview.cls}}" aria-current="{{nav.overview.current}}" title="{{nav.overview.tip}}" onClick="{{nav.overview.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="9" y="2.5" width="4.5" height="4.5" rx="1"/><rect x="2.5" y="9" width="4.5" height="4.5" rx="1"/><rect x="9" y="9" width="4.5" height="4.5" rx="1"/></svg><span class="nav-text">Overview</span><span class="nav-count">{{nav.overview.count}}</span></button>
+    <button class="nav-item {{nav.identity.cls}}" aria-current="{{nav.identity.current}}" title="{{nav.identity.tip}}" onClick="{{nav.identity.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M3.5 14V2.5M3.5 3h8l-1.5 3 1.5 3h-8"/></svg><span class="nav-text">Identity</span><span class="nav-count">{{nav.identity.count}}</span></button>
+    <button class="nav-item {{nav.schedule.cls}}" aria-current="{{nav.schedule.current}}" title="{{nav.schedule.tip}}" onClick="{{nav.schedule.go}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.5"/><path d="M8 5v3l2 1.5"/></svg><span class="nav-text">Schedule</span><span class="nav-count">{{nav.schedule.count}}</span></button>
+    <button class="nav-item {{nav.participants.cls}}" aria-current="{{nav.participants.current}}" title="{{nav.participants.tip}}" onClick="{{nav.participants.go}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="6" cy="5.8" r="2.4"/><path d="M1.8 13.3c.5-2.4 2.2-3.5 4.2-3.5s3.7 1.1 4.2 3.5"/><path d="M10.6 3.7a2.3 2.3 0 0 1 0 4.3M11.9 10.1c1.2.5 2 1.5 2.3 3.2"/></svg><span class="nav-text">Participants</span><span class="nav-count">{{nav.participants.count}}</span></button>
+    <button class="nav-item {{nav.signup.cls}}" aria-current="{{nav.signup.current}}" title="{{nav.signup.tip}}" onClick="{{nav.signup.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="3.5" y="3" width="9" height="11" rx="1.5"/><path d="M6 3V2h4v1M6 7h4M6 9.5h4M6 12h2"/></svg><span class="nav-text">Signup setup</span><span class="nav-count">{{nav.signup.count}}</span></button>
+    <button class="nav-item {{nav.teams.cls}}" aria-current="{{nav.teams.current}}" title="{{nav.teams.tip}}" onClick="{{nav.teams.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="6" y="2" width="4" height="3" rx=".8"/><rect x="2" y="11" width="4" height="3" rx=".8"/><rect x="10" y="11" width="4" height="3" rx=".8"/><path d="M8 5v3M4 11V8h8v3"/></svg><span class="nav-text">Teams / Draft</span><span class="nav-count">{{nav.teams.count}}</span></button>
+    <button class="nav-item {{nav.board.cls}}" aria-current="{{nav.board.current}}" title="{{nav.board.tip}}" onClick="{{nav.board.go}}"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="2.5" width="11" height="11" rx="1.5"/><path d="M6.2 2.5v11M9.8 2.5v11M2.5 6.2h11M2.5 9.8h11"/></svg><span class="nav-text">Board</span><span class="nav-count">{{nav.board.count}}</span></button>
+    <button class="nav-item {{nav.wom.cls}}" aria-current="{{nav.wom.current}}" title="{{nav.wom.tip}}" onClick="{{nav.wom.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 13.5h11"/><path d="M4 11l3-3.5 2.2 2L12.5 5"/></svg><span class="nav-text">WOM</span><span class="nav-count">{{nav.wom.count}}</span></button>
+    <button class="nav-item {{nav.review.cls}}" aria-current="{{nav.review.current}}" title="{{nav.review.tip}}" onClick="{{nav.review.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 9 4.3 3.5h7.4L13.5 9v4.5h-11z"/><path d="M2.5 9h3l.8 1.5h3.4l.8-1.5h3"/></svg><span class="nav-text">Review</span><span class="nav-count">{{nav.review.count}}</span></button>
+    <button class="nav-item {{nav.final.cls}}" aria-current="{{nav.final.current}}" title="{{nav.final.tip}}" onClick="{{nav.final.go}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 4l1 1 2-2M2.5 9l1 1 2-2"/><path d="M7.5 4.5h6M7.5 9.5h6M7.5 13h6"/></svg><span class="nav-text">Final review</span><span class="nav-count">{{nav.final.count}}</span></button>
+  </nav>
+</aside>
+
+<div class="nav-scrim {{navScrimCls}}" onClick="{{closeMobileNav}}"></div>
+<div class="main">
+  <header class="topbar">
+    <button class="icon-btn menu-toggle" id="menu-toggle" aria-label="Open navigation" aria-controls="sidebar" aria-expanded="{{mobileNav}}" onClick="{{openMobileNav}}"><svg class="ic" viewBox="0 0 16 16"><path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11"/></svg></button>
+    <div class="crumbs">
+      <button class="crumb-btn" onClick="{{crumbEvents}}">Events</button>
+      <sc-if value="{{crumb.hasEvent}}" hint-placeholder-val="{{true}}"><span class="crumb-sep">/</span><span class="crumb-mid">{{crumb.event}}</span></sc-if>
+      <span class="crumb-sep">/</span>
+      <span class="crumb-cur">{{crumb.page}}</span>
+    </div>
+    <div class="spacer"></div>
+    <div class="theme-seg" role="radiogroup" aria-label="Theme">
+      <label class="theme-opt {{lightCls}}" title="Light theme"><input class="sr" type="radio" name="theme" checked="{{isLight}}" onChange="{{setLight}}"><span class="sr">Light theme</span><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.8"/><path d="M8 1.8v1.4M8 12.8v1.4M1.8 8h1.4M12.8 8h1.4M3.6 3.6l1 1M11.4 11.4l1 1M3.6 12.4l1-1M11.4 4.6l1-1"/></svg></label>
+      <label class="theme-opt {{darkCls}}" title="Dark theme"><input class="sr" type="radio" name="theme" checked="{{isDark}}" onChange="{{setDark}}"><span class="sr">Dark theme</span><svg class="ic" viewBox="0 0 16 16"><path d="M13 9.6A5.4 5.4 0 0 1 6.4 3 5.4 5.4 0 1 0 13 9.6z"/></svg></label>
+    </div>
+  </header>
+
+  <div class="scroller {{scrollCls}}" id="scroller">
+
+    <sc-if value="{{isPage}}" hint-placeholder-val="{{true}}">
+    <div class="page {{pageCls}}">
+
+      <sc-if value="{{showHead}}" hint-placeholder-val="{{true}}">
+        <div class="page-head">
+          <div style="min-width: 0">
+            <h1 class="h1" id="page-h1" tabindex="-1">Teams / Draft</h1>
+            <p class="summary"><span>{{summary}}</span></p>
+          </div>
+          <sc-if value="{{head.hasAction}}" hint-placeholder-val="{{false}}"><div class="td-head-acts"><button class="btn {{head.cls}}" id="head-action" onClick="{{head.run}}" aria-disabled="{{head.inert}}" aria-describedby="{{head.describedBy}}" title="{{head.title}}">{{head.label}}</button></div></sc-if>
+        </div>
+      </sc-if>
+      <sc-if value="{{isRunning}}" hint-placeholder-val="{{false}}"><h1 class="sr" id="page-h1" tabindex="-1">Teams / Draft · {{evName}}</h1></sc-if>
+
+      <sc-if value="{{loading}}" hint-placeholder-val="{{false}}">
+        <div class="tcards" aria-busy="true" aria-label="Loading teams">
+          <sc-for list="{{skCards}}" as="sk" hint-placeholder-count="3"><div class="tcard"><div class="sk-block"><div class="sk" style="width: 40%"></div><div class="sk" style="width: 70%; margin-top: 16px"></div><div class="sk" style="width: 60%; margin-top: 12px"></div><div class="sk" style="width: 66%; margin-top: 12px"></div></div></div></sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{loadError}}" hint-placeholder-val="{{false}}">
+        <div class="card">
+          <div class="empty is-error">
+            <div class="empty-ic"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg></div>
+            <div class="empty-title">Couldn’t load the teams</div>
+            <div class="empty-text">Check your connection and try again. Nothing was changed.</div>
+            <button class="btn" id="retry-btn" onClick="{{retry}}">Try again</button>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{banner.show}}" hint-placeholder-val="{{false}}">
+        <div class="banner {{banner.cls}} page-banner" role="alert" id="td-banner" tabindex="-1"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 11h.01"/></svg><span class="grow"><b>{{banner.title}}</b> {{banner.text}}</span><sc-if value="{{banner.hasAction}}" hint-placeholder-val="{{false}}"><button class="banner-btn" id="td-banner-act" onClick="{{banner.run}}" disabled="{{banner.busy}}">{{banner.action}}</button></sc-if></div>
+      </sc-if>
+
+      <!-- ============ Setup / manual rosters ============ -->
+      <sc-if value="{{showSetup}}" hint-placeholder-val="{{true}}">
+        <section class="card td-ready fade-in" aria-labelledby="ready-title">
+          <div class="td-ready-main">
+            <div class="td-ready-text">
+              <h2 class="td-ready-title" id="ready-title" tabindex="-1">{{ready.title}}</h2>
+              <p class="td-ready-sizes">{{ready.sizes}}</p>
+            </div>
+            <ul class="td-checks" id="ready-checks" aria-label="{{ready.checksLabel}}">
+              <sc-for list="{{ready.checks}}" as="c" hint-placeholder-count="3">
+                <li class="td-check {{c.cls}}"><span class="check-mark" aria-hidden="true"><sc-if value="{{c.done}}" hint-placeholder-val="{{true}}"><svg class="ic" viewBox="0 0 16 16"><path d="M3.8 8.4 6.6 11.2 12.2 5"/></svg></sc-if></span><span class="grow">{{c.label}}<span class="sr">{{c.sr}}</span></span><sc-if value="{{c.hasLink}}" hint-placeholder-val="{{false}}"><button class="text-btn" onClick="{{c.go}}">{{c.linkLabel}}</button></sc-if></li>
+              </sc-for>
+            </ul>
+          </div>
+        </section>
+
+        <div class="td-bar">
+          <h2 class="td-section-title" id="teams-title">Teams <span class="td-count">{{teamsCount}}</span></h2>
+          <span class="spacer"></span>
+          <sc-if value="{{canAddTeam}}" hint-placeholder-val="{{true}}"><button class="btn btn-sm" id="add-team" onClick="{{addTeam}}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9"/></svg>Add team</button></sc-if>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{showCards}}" hint-placeholder-val="{{true}}">
+        <sc-if value="{{noTeams}}" hint-placeholder-val="{{false}}">
+          <div class="card"><div class="empty"><div class="empty-ic"><svg class="ic" viewBox="0 0 16 16"><circle cx="6" cy="5.8" r="2.4"/><path d="M1.8 13.3c.5-2.4 2.2-3.5 4.2-3.5s3.7 1.1 4.2 3.5"/><path d="M10.6 3.7a2.3 2.3 0 0 1 0 4.3M11.9 10.1c1.2.5 2 1.5 2.3 3.2"/></svg></div><div class="empty-title">No teams yet</div><div class="empty-text">Add a team for each captain. Teams in the website draft are filled by the draft; manual-roster teams are assembled here.</div><button class="btn btn-primary" id="empty-add-team" onClick="{{addTeam}}">Add team</button></div></div>
+        </sc-if>
+        <div class="tcards fade-in" aria-labelledby="teams-title">
+          <sc-for list="{{cards}}" as="t" hint-placeholder-count="3">
+            <section class="tcard" id="{{t.cardId}}" aria-labelledby="{{t.nameId}}">
+              <div class="tcard-head">
+                <div class="grow">
+                  <h3 class="tcard-name" id="{{t.nameId}}">{{t.name}}</h3>
+                  <div class="tcard-sub"><span class="badge {{t.badgeCls}}">{{t.badge}}</span><span>{{t.sizeText}}</span><sc-if value="{{t.hasEhb}}" hint-placeholder-val="{{true}}"><span>{{t.ehbText}}</span></sc-if></div>
+                </div>
+                <sc-if value="{{t.hasMenu}}" hint-placeholder-val="{{true}}"><button class="icon-btn" id="{{t.menuId}}" aria-label="Actions for {{t.name}}" aria-haspopup="menu" aria-expanded="{{t.menuOpen}}" onClick="{{t.openMenu}}" disabled="{{t.actDisabled}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="3.5" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="12.5" cy="8" r="1"/></svg></button></sc-if>
+              </div>
+              <sc-if value="{{t.hasWarn}}" hint-placeholder-val="{{false}}"><div class="tcard-warn"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2.5 14 13H2z"/><path d="M8 6.5v3M8 11.2h.01"/></svg>{{t.warn}}</div></sc-if>
+              <sc-if value="{{t.empty}}" hint-placeholder-val="{{false}}"><div class="tcard-empty">{{t.emptyText}}</div></sc-if>
+              <ul class="tcard-list" aria-label="Members of {{t.name}}">
+                <sc-for list="{{t.members}}" as="m" hint-placeholder-count="4">
+                  <li class="tmem {{m.cls}}" id="{{m.rowId}}">
+                    <sc-if value="{{m.hasRole}}" hint-placeholder-val="{{false}}"><span class="role-badge {{m.roleCls}}" title="{{m.roleLabel}}"><span aria-hidden="true">{{m.roleShort}}</span><span class="sr">{{m.roleLabel}}</span></span></sc-if>
+                    <span class="tmem-name">{{m.name}}</span>
+                    <sc-if value="{{m.hasTag}}" hint-placeholder-val="{{false}}"><span class="tmem-tag" title="{{m.tagTitle}}">{{m.tag}}</span></sc-if>
+                    <span class="tmem-ehb">{{m.ehb}}</span>
+                    <sc-if value="{{m.hasMenu}}" hint-placeholder-val="{{true}}"><button class="icon-btn" id="{{m.menuId}}" aria-label="Actions for {{m.name}}" aria-haspopup="menu" aria-expanded="{{m.menuOpen}}" onClick="{{m.openMenu}}" disabled="{{m.actDisabled}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="3.5" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="12.5" cy="8" r="1"/></svg></button></sc-if>
+                  </li>
+                </sc-for>
+              </ul>
+              <sc-if value="{{t.hasFoot}}" hint-placeholder-val="{{true}}">
+                <div class="tcard-foot">
+                  <sc-if value="{{t.canCaptain}}" hint-placeholder-val="{{false}}"><button class="btn btn-sm" id="{{t.captainBtnId}}" onClick="{{t.assignCaptain}}" disabled="{{t.actDisabled}}">Assign captain</button></sc-if>
+                  <sc-if value="{{t.canAdd}}" hint-placeholder-val="{{true}}"><button class="btn btn-sm btn-quiet" id="{{t.addBtnId}}" onClick="{{t.addMember}}" disabled="{{t.actDisabled}}"><svg class="ic" viewBox="0 0 16 16"><path d="M8 3.5v9M3.5 8h9"/></svg>{{t.addLabel}}</button></sc-if>
+                </div>
+              </sc-if>
+            </section>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <!-- ============ Running draft (compact, streamable) ============ -->
+      <sc-if value="{{isRunning}}" hint-placeholder-val="{{false}}">
+        <div class="td-live fade-in">
+          <div class="turn {{turn.cls}}" role="region" aria-label="Draft status">
+            <div class="turn-pick"><b>{{turn.pickLabel}}</b><span>{{turn.pickSub}}</span></div>
+            <sc-if value="{{turn.hasTeam}}" hint-placeholder-val="{{true}}">
+              <div class="turn-now" aria-live="polite"><span class="dot" aria-hidden="true"></span><span class="sr">Picking now: </span><span class="turn-team">{{turn.team}}</span></div>
+              <div class="turn-next grow"><sc-if value="{{turn.hasNext}}" hint-placeholder-val="{{true}}">then <b>{{turn.next}}</b></sc-if></div>
+            </sc-if>
+            <sc-if value="{{turn.hasMsg}}" hint-placeholder-val="{{false}}"><div class="turn-msg grow" aria-live="polite">{{turn.msg}}</div></sc-if>
+            <div class="turn-acts">
+              <sc-if value="{{turn.hasUndo}}" hint-placeholder-val="{{true}}"><button class="btn btn-sm {{turn.undoBusyCls}}" id="undo-btn" onClick="{{turn.undo}}" disabled="{{turn.undoDisabled}}" title="{{turn.undoTitle}}"><sc-if value="{{turn.undoBusy}}" hint-placeholder-val="{{false}}"><span class="spin"></span></sc-if><sc-if value="{{turn.undoIdle}}" hint-placeholder-val="{{true}}"><svg class="ic" viewBox="0 0 16 16"><path d="M4 6.5h5.5a3 3 0 0 1 0 6H7"/><path d="M6.5 4 4 6.5 6.5 9"/></svg></sc-if>{{turn.undoLabel}}</button></sc-if>
+              <sc-if value="{{turn.hasPrimary}}" hint-placeholder-val="{{false}}"><button class="btn btn-sm btn-primary {{turn.primaryBusyCls}}" id="turn-primary" onClick="{{turn.primary}}" disabled="{{turn.primaryDisabled}}"><sc-if value="{{turn.primaryBusy}}" hint-placeholder-val="{{false}}"><span class="spin"></span></sc-if>{{turn.primaryLabel}}</button></sc-if>
+              <span class="ctl {{ctl.cls}}" role="status"><span class="dot" aria-hidden="true"></span>{{ctl.text}}<sc-if value="{{ctl.hasAction}}" hint-placeholder-val="{{true}}"><button class="text-btn" id="ctl-btn" onClick="{{ctl.run}}" disabled="{{ctl.busy}}">{{ctl.action}}</button></sc-if></span>
+              <button class="icon-btn" id="draft-more" aria-label="More draft actions" aria-haspopup="menu" aria-expanded="{{moreOpen}}" onClick="{{openMore}}"><svg class="ic" viewBox="0 0 16 16"><circle cx="3.5" cy="8" r="1"/><circle cx="8" cy="8" r="1"/><circle cx="12.5" cy="8" r="1"/></svg></button>
+            </div>
+          </div>
+
+          <div class="dboard {{board.cls}}" style="--team-count: {{board.count}}" aria-label="Teams" aria-busy="{{board.busy}}">
+            <sc-for list="{{board.teams}}" as="bt" hint-placeholder-count="4">
+              <section class="dteam {{bt.cls}}" id="{{bt.id}}" style="--i: {{bt.i}}" aria-labelledby="{{bt.nameId}}">
+                <div class="dteam-head">
+                  <span class="dteam-ord" title="Draft order">{{bt.ord}}</span>
+                  <h2 class="dteam-name" id="{{bt.nameId}}">{{bt.name}}</h2>
+                  <div class="dteam-meta"><b>{{bt.size}}</b><span>{{bt.ehb}}</span></div>
+                </div>
+                <ol class="dteam-list" aria-label="{{bt.name}} roster">
+                  <sc-for list="{{bt.members}}" as="dm" hint-placeholder-count="5">
+                    <li class="dmem {{dm.cls}}"><span class="dmem-tag" title="{{dm.tagTitle}}">{{dm.tag}}</span><sc-if value="{{dm.hasRole}}" hint-placeholder-val="{{false}}"><span class="role-badge {{dm.roleCls}}" title="{{dm.roleLabel}}"><span aria-hidden="true">{{dm.roleShort}}</span><span class="sr">{{dm.roleLabel}}</span></span></sc-if><span class="dmem-name">{{dm.name}}</span><sc-if value="{{dm.pending}}" hint-placeholder-val="{{false}}"><span class="spin" aria-hidden="true"></span></sc-if><span class="dmem-ehb">{{dm.ehb}}</span></li>
+                  </sc-for>
+                </ol>
+              </section>
+            </sc-for>
+          </div>
+
+          <section class="pool {{pool.cls}}" aria-labelledby="pool-title">
+            <div class="pool-head">
+              <h2 class="pool-title" id="pool-title">Available players</h2>
+              <span class="pool-count">{{pool.countText}}</span>
+              <span class="spacer"></span>
+              <div class="search td-search"><svg class="ic" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/></svg><input class="input" id="pool-search" value="{{pool.q}}" onChange="{{pool.onQ}}" onKeyDown="{{pool.searchKey}}" placeholder="Find a player" aria-label="Find a player" autocomplete="off"></div>
+              <div class="seg" role="radiogroup" aria-label="Sort players">
+                <label class="seg-opt {{pool.sortEhbCls}}"><input class="sr" type="radio" name="pool-sort" checked="{{pool.sortEhb}}" onChange="{{pool.byEhb}}">EHB</label>
+                <label class="seg-opt {{pool.sortNameCls}}"><input class="sr" type="radio" name="pool-sort" checked="{{pool.sortName}}" onChange="{{pool.byName}}">Name</label>
+              </div>
+            </div>
+            <sc-if value="{{pool.empty}}" hint-placeholder-val="{{false}}"><div class="pool-empty">{{pool.emptyText}}</div></sc-if>
+            <div class="pool-grid" id="pool-grid" role="group" aria-label="{{pool.gridLabel}}" aria-describedby="pool-help" onKeyDown="{{pool.gridKey}}">
+              <sc-for list="{{pool.chips}}" as="pc" hint-placeholder-count="12">
+                <button class="pchip {{pc.cls}}" id="{{pc.id}}" type="button" tabindex="{{pc.ti}}" aria-disabled="{{pc.inert}}" aria-label="{{pc.aria}}" onClick="{{pc.pick}}"><span class="pchip-name">{{pc.name}}</span><sc-if value="{{pc.pending}}" hint-placeholder-val="{{false}}"><span class="spin" aria-hidden="true"></span></sc-if><span class="pchip-ehb">{{pc.ehb}}</span></button>
+              </sc-for>
+            </div>
+            <p class="sr" id="pool-help">{{pool.help}}</p>
+          </section>
+          <sc-if value="{{hasManualNote}}" hint-placeholder-val="{{false}}"><p class="td-manual-note">{{manualNote}}</p></sc-if>
+          <p class="sr" aria-live="polite">{{live}}</p>
+        </div>
+      </sc-if>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{isOther}}" hint-placeholder-val="{{false}}">
+      <div class="page">
+        <div class="page-head"><div><h1 class="h1" id="page-h1" tabindex="-1">{{otherTitle}}</h1><p class="summary"><span>{{otherScope}}</span></p></div></div>
+        <div class="card">
+          <div class="empty ph-card">
+            <div class="empty-ic"><svg class="ic" viewBox="0 0 16 16"><rect x="2.5" y="3" width="11" height="10" rx="2"/><path d="M2.5 6h11"/></svg></div>
+            <div class="empty-title">{{otherTitle}} isn’t part of this artboard</div>
+            <div class="empty-text">{{otherText}}</div>
+            <button class="btn" onClick="{{backToPage}}"><svg class="ic" viewBox="0 0 16 16"><path d="M10 4 6 8l4 4"/></svg>Back</button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+</div>
+
+<!-- menus -->
+<sc-if value="{{menu.show}}" hint-placeholder-val="{{false}}">
+  <div class="catcher" onClick="{{menu.close}}"></div>
+  <div class="menu {{menu.cls}}" id="menu" role="menu" aria-label="{{menu.label}}" style="left: {{menu.x}}px; top: {{menu.y}}px; width: {{menu.w}}px" onKeyDown="{{menu.onKey}}">
+    <sc-for list="{{menu.items}}" as="it" hint-placeholder-count="4">
+      <sc-if value="{{it.isHeader}}" hint-placeholder-val="{{false}}"><div class="menu-head" role="presentation"><b>{{it.label}}</b>{{it.hint}}</div></sc-if>
+      <sc-if value="{{it.isSep}}" hint-placeholder-val="{{false}}"><div class="menu-sep" role="separator"></div></sc-if>
+      <sc-if value="{{it.isItem}}" hint-placeholder-val="{{true}}">
+        <button class="menu-item {{it.cls}}" role="{{it.role}}" aria-checked="{{it.checked}}" disabled="{{it.disabled}}" title="{{it.title}}" onClick="{{it.run}}">
+          <span class="grow">{{it.label}}</span>
+          <span class="menu-hint">{{it.hint}}</span>
+          <sc-if value="{{it.showCheck}}" hint-placeholder-val="{{false}}"><svg class="ic menu-check" viewBox="0 0 16 16"><path d="M3.8 8.4 6.6 11.2 12.2 5"/></svg></sc-if>
+        </button>
+      </sc-if>
+    </sc-for>
+  </div>
+</sc-if>
+
+<!-- participant selector (assign captain, add member, roster correction): a drawer so the team stays in view -->
+<sc-if value="{{ps.show}}" hint-placeholder-val="{{false}}">
+  <div class="scrim {{ps.closingCls}}" id="ps-scrim" onClick="{{ps.requestClose}}"></div>
+  <div class="drawer {{ps.closingCls}} {{ps.behindCls}}" id="ps" role="dialog" aria-modal="true" aria-labelledby="ps-title" aria-busy="{{ps.busy}}" onKeyDown="{{ps.onKey}}">
+    <div class="dr-head">
+      <div class="grow">
+        <div class="eyebrow">{{ps.eyebrow}}</div>
+        <h2 class="dr-title" id="ps-title">{{ps.title}}</h2>
+      </div>
+      <button class="icon-btn" id="ps-close" aria-label="Close" onClick="{{ps.requestClose}}" disabled="{{ps.busy}}"><svg class="ic" viewBox="0 0 16 16"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button>
+    </div>
+    <div class="dr-body">
+      <sc-if value="{{ps.hasBanner}}" hint-placeholder-val="{{false}}">
+        <div class="dr-banners"><div class="banner {{ps.bannerCls}}" role="alert" id="ps-banner" tabindex="-1"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 11h.01"/></svg><span class="grow"><b>{{ps.bannerTitle}}</b> {{ps.bannerText}}</span></div></div>
+      </sc-if>
+      <sc-if value="{{ps.hasTeamPick}}" hint-placeholder-val="{{false}}">
+        <section class="sec">
+          <div class="field">
+            <label class="lbl" for="ps-team">Team</label>
+            <div class="select-wrap"><select class="select select-field" id="ps-team" onChange="{{ps.onTeam}}" disabled="{{ps.busy}}" aria-describedby="ps-team-hint"><sc-for list="{{ps.teamOptions}}" as="o" hint-placeholder-count="4"><option value="{{o.id}}" selected="{{o.on}}">{{o.label}}</option></sc-for></select><svg class="ic" viewBox="0 0 16 16"><path d="M4.5 6.5 8 10l3.5-3.5"/></svg></div>
+            <div class="field-hint" id="ps-team-hint">Preassigning is possible until the first pick. It counts toward the team’s size and can change whose turn comes next.</div>
+          </div>
+        </section>
+      </sc-if>
+      <section class="sec" aria-labelledby="ps-who-lbl">
+        <div class="sec-head"><h3 class="sec-title" id="ps-who-lbl">{{ps.whoLabel}}</h3><sc-if value="{{ps.hasAside}}" hint-placeholder-val="{{false}}"><span class="sec-aside">{{ps.aside}}</span></sc-if></div>
+        <sc-if value="{{ps.hasSources}}" hint-placeholder-val="{{false}}">
+          <div class="seg td-src" role="radiogroup" aria-label="Who to add">
+            <label class="seg-opt {{ps.srcPartCls}}"><input class="sr" type="radio" name="ps-src" checked="{{ps.srcPart}}" onChange="{{ps.useParts}}" disabled="{{ps.busy}}">Signed-up players</label>
+            <label class="seg-opt {{ps.srcAccCls}}"><input class="sr" type="radio" name="ps-src" checked="{{ps.srcAcc}}" onChange="{{ps.useAccounts}}" disabled="{{ps.busy}}">Other website accounts</label>
+          </div>
+        </sc-if>
+        <sc-if value="{{ps.noPick}}" hint-placeholder-val="{{true}}">
+          <div class="search" style="width: 100%">
+            <svg class="ic" viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 13.5 13.5"/></svg>
+            <input class="input {{ps.qCls}}" id="ps-search" type="search" value="{{ps.q}}" onChange="{{ps.onQ}}" onKeyDown="{{ps.onQKey}}" placeholder="{{ps.placeholder}}" aria-label="{{ps.placeholder}}" aria-describedby="ps-err" aria-invalid="{{ps.qInvalid}}" autocomplete="off">
+          </div>
+          <sc-if value="{{ps.hasErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="ps-err"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{ps.err}}</div></sc-if>
+          <div class="results" id="ps-results" onKeyDown="{{ps.onListKey}}">
+            <div class="res-label">{{ps.resultsLabel}}</div>
+            <sc-for list="{{ps.results}}" as="u" hint-placeholder-count="6">
+              <button class="res" id="{{u.id}}" disabled="{{u.disabled}}" onClick="{{u.pick}}">
+                <span class="grow"><span class="res-name" style="display: block">{{u.name}}</span><span class="res-sub" style="display: block">{{u.sub}}</span></span>
+                <sc-if value="{{u.vol}}" hint-placeholder-val="{{false}}"><span class="pill">Captain volunteer</span></sc-if>
+                <sc-if value="{{u.hasNote}}" hint-placeholder-val="{{false}}"><span class="res-note">{{u.note}}</span></sc-if>
+              </button>
+            </sc-for>
+            <sc-if value="{{ps.noResults}}" hint-placeholder-val="{{false}}"><div class="res-empty">{{ps.noResultsText}}</div></sc-if>
+          </div>
+        </sc-if>
+        <sc-if value="{{ps.hasPick}}" hint-placeholder-val="{{false}}">
+          <div class="picked" id="ps-picked" tabindex="-1">
+            <span class="grow"><span class="res-name" style="display: block">{{ps.pick.name}}</span><span class="res-sub" style="display: block">{{ps.pick.sub}}</span></span>
+            <sc-if value="{{ps.pick.vol}}" hint-placeholder-val="{{false}}"><span class="pill">Captain volunteer</span></sc-if>
+            <button class="btn btn-sm" id="ps-change" onClick="{{ps.change}}" disabled="{{ps.busy}}">Change</button>
+          </div>
+        </sc-if>
+      </section>
+      <sc-if value="{{ps.hasRoles}}" hint-placeholder-val="{{false}}">
+        <section class="sec" aria-labelledby="ps-role-lbl">
+          <div class="sec-head"><h3 class="sec-title" id="ps-role-lbl">Role on {{ps.teamName}}</h3></div>
+          <div class="td-roles" role="radiogroup" aria-labelledby="ps-role-lbl" aria-describedby="ps-role-hint">
+            <sc-for list="{{ps.roles}}" as="r" hint-placeholder-count="3">
+              <label class="choice {{r.cls}}"><input type="radio" name="ps-role" checked="{{r.on}}" onChange="{{r.pick}}" disabled="{{ps.busy}}"><span><span class="choice-title" style="display: block">{{r.label}}</span><span class="choice-sub" style="display: block">{{r.sub}}</span></span></label>
+            </sc-for>
+          </div>
+          <div class="field-hint" id="ps-role-hint">Volunteering to captain doesn’t give anyone a role. Choose one here.</div>
+        </section>
+      </sc-if>
+      <sc-if value="{{ps.hasNote}}" hint-placeholder-val="{{false}}">
+        <section class="sec"><p class="td-note">{{ps.note}}</p></section>
+      </sc-if>
+    </div>
+    <div class="dr-foot">
+      <div class="spacer"></div>
+      <button class="btn" id="ps-cancel" onClick="{{ps.requestClose}}" disabled="{{ps.busy}}">Cancel</button>
+      <button class="btn btn-primary {{ps.busyCls}}" id="ps-save" onClick="{{ps.save}}" disabled="{{ps.busy}}" style="min-width: 128px"><sc-if value="{{ps.busy}}" hint-placeholder-val="{{false}}"><span class="spin"></span></sc-if>{{ps.saveLabel}}</button>
+    </div>
+  </div>
+</sc-if>
+
+<!-- team form: name and whether the team takes part in the website draft -->
+<sc-if value="{{tf.show}}" hint-placeholder-val="{{false}}">
+  <div class="m-scrim {{tf.closingCls}}" id="tf-scrim" onClick="{{tf.requestClose}}"></div>
+  <div class="m-wrap">
+    <div class="modal modal-form {{tf.closingCls}} {{tf.behindCls}}" id="tf" tabindex="-1" role="dialog" aria-modal="true" aria-labelledby="tf-title" aria-busy="{{tf.busy}}" onKeyDown="{{tf.onKey}}">
+      <div class="mf-head"><h2 class="m-title" id="tf-title">{{tf.title}}</h2></div>
+      <div class="mf-body">
+        <sc-if value="{{tf.hasBanner}}" hint-placeholder-val="{{false}}"><div class="banner {{tf.bannerCls}}" role="alert" id="tf-banner" tabindex="-1"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 4.8v3.6M8 11h.01"/></svg><span class="grow"><b>{{tf.bannerTitle}}</b> {{tf.bannerText}}</span></div></sc-if>
+        <div class="field">
+          <div class="lbl-row"><label class="lbl" for="tf-name">Team name</label><sc-if value="{{tf.showCount}}" hint-placeholder-val="{{false}}"><span class="field-count {{tf.countCls}}" aria-live="polite">{{tf.count}}</span></sc-if></div>
+          <input class="input {{tf.nameCls}}" id="tf-name" value="{{tf.name}}" onChange="{{tf.onName}}" onKeyDown="{{tf.nameKey}}" disabled="{{tf.busy}}" autocomplete="off" aria-required="true" aria-invalid="{{tf.nameInvalid}}" aria-describedby="{{tf.nameDescribedBy}}" placeholder="e.g. Team Torva">
+          <sc-if value="{{tf.hasErr}}" hint-placeholder-val="{{false}}"><div class="field-err" id="tf-name-err"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg>{{tf.err}}</div></sc-if>
+          <div class="field-hint" id="tf-name-hint">Up to 30 characters. Players see it on the team pages.</div>
+        </div>
+        <sc-if value="{{tf.showIncl}}" hint-placeholder-val="{{true}}">
+          <div class="field">
+            <label class="check-row {{tf.inclCls}}"><input type="checkbox" id="tf-incl" checked="{{tf.incl}}" onChange="{{tf.onIncl}}" disabled="{{tf.inclDisabled}}" aria-describedby="tf-incl-hint"><span><span class="choice-title" style="display: block">Takes part in the website draft</span><span class="choice-sub" style="display: block" id="tf-incl-hint">{{tf.inclHint}}</span></span></label>
+          </div>
+        </sc-if>
+      </div>
+      <div class="mf-foot">
+        <button class="btn" id="tf-cancel" onClick="{{tf.requestClose}}" disabled="{{tf.busy}}">Cancel</button>
+        <button class="btn btn-primary {{tf.busyCls}}" id="tf-save" onClick="{{tf.save}}" disabled="{{tf.busy}}"><sc-if value="{{tf.busy}}" hint-placeholder-val="{{false}}"><span class="spin"></span></sc-if>{{tf.saveLabel}}</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- confirmations: start, cancel, finalize, take over, remove member, remove team -->
+<sc-if value="{{cx.show}}" hint-placeholder-val="{{false}}">
+  <div class="m-scrim {{cx.closingCls}}" id="cx-scrim" onClick="{{cx.dismiss}}"></div>
+  <div class="m-wrap">
+    <div class="modal {{cx.wideCls}} {{cx.closingCls}} {{cx.behindCls}}" id="cx" tabindex="-1" role="alertdialog" aria-modal="true" aria-labelledby="cx-title" aria-describedby="cx-desc" aria-busy="{{cx.busy}}" onKeyDown="{{cx.onKey}}">
+      <h2 class="m-title" id="cx-title">{{cx.title}}</h2>
+      <div id="cx-desc">
+        <p class="m-body">{{cx.body}}</p>
+        <sc-if value="{{cx.hasPoints}}" hint-placeholder-val="{{false}}">
+          <ul class="m-points">
+            <sc-for list="{{cx.points}}" as="pt" hint-placeholder-count="3"><li>{{pt}}</li></sc-for>
+          </ul>
+        </sc-if>
+        <sc-if value="{{cx.hasBlock}}" hint-placeholder-val="{{false}}"><div class="banner is-warning m-banner"><svg class="ic" viewBox="0 0 16 16"><path d="M8 2.5 14 13H2z"/><path d="M8 6.5v3M8 11.2h.01"/></svg><span class="grow">{{cx.block}}</span></div></sc-if>
+        <sc-if value="{{cx.hasErr}}" hint-placeholder-val="{{false}}"><div class="banner is-error m-banner" role="alert"><svg class="ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg><span class="grow">{{cx.err}}</span></div></sc-if>
+      </div>
+      <div class="m-actions">
+        <button class="btn" id="cx-cancel" onClick="{{cx.dismiss}}" disabled="{{cx.busy}}">{{cx.cancelLabel}}</button>
+        <sc-if value="{{cx.hasConfirm}}" hint-placeholder-val="{{true}}"><button class="btn {{cx.confirmCls}} {{cx.busyCls}}" id="cx-confirm" onClick="{{cx.confirm}}" disabled="{{cx.busy}}"><sc-if value="{{cx.busy}}" hint-placeholder-val="{{false}}"><span class="spin"></span></sc-if>{{cx.confirmLabel}}</button></sc-if>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- shared discard / uncertain-leave confirmation -->
+<sc-if value="{{md.show}}" hint-placeholder-val="{{false}}">
+  <div class="m-scrim {{md.stackCls}} {{md.closingCls}}" id="confirm-scrim" onClick="{{md.dismiss}}"></div>
+  <div class="m-wrap">
+    <div class="modal {{md.closingCls}}" id="modal" tabindex="-1" role="alertdialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-desc" onKeyDown="{{md.onKey}}">
+      <h2 class="m-title" id="modal-title">{{md.title}}</h2>
+      <p class="m-body" id="modal-desc">{{md.body}}</p>
+      <div class="m-actions">
+        <button class="btn {{md.secondaryCls}}" id="modal-cancel" onClick="{{md.secondary}}">{{md.secondaryLabel}}</button>
+        <button class="btn {{md.primaryCls}}" id="modal-confirm" onClick="{{md.primary}}">{{md.primaryLabel}}</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- prototype only: simulated browser (URL and history) -->
+<sc-if value="{{pb.show}}" hint-placeholder-val="{{true}}">
+  <div class="proto-bar" role="group" aria-label="Simulated browser, prototype only">
+    <button class="icon-btn" aria-label="Back" title="Back" disabled="{{pb.noBack}}" onClick="{{pb.back}}"><svg class="ic" viewBox="0 0 16 16"><path d="M13 8H3.5M7.5 4 3.5 8l4 4"/></svg></button>
+    <button class="icon-btn" aria-label="Forward" title="Forward" disabled="{{pb.noFwd}}" onClick="{{pb.fwd}}"><svg class="ic" viewBox="0 0 16 16"><path d="M3 8h9.5M8.5 4l4 4-4 4"/></svg></button>
+    <button class="icon-btn" aria-label="Reload" title="Reload" onClick="{{pb.reload}}"><svg class="ic" viewBox="0 0 16 16"><path d="M13 8a5 5 0 1 1-1.5-3.6"/><path d="M13 2.8v2.8h-2.8"/></svg></button>
+    <span class="proto-tag">Prototype URL</span>
+    <span class="proto-url" title="{{pb.url}}">{{pb.url}}</span>
+  </div>
+</sc-if>
+
+<div class="toasts" aria-live="polite" aria-atomic="false">
+  <sc-for list="{{toasts}}" as="t" hint-placeholder-count="0">
+    <div class="toast {{t.cls}}" role="status" data-toast="{{t.id}}">
+      <sc-if value="{{t.isError}}" hint-placeholder-val="{{false}}"><svg class="ic t-ic" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6"/><path d="M8 5v3.5M8 11h.01"/></svg></sc-if>
+      <sc-if value="{{t.isOk}}" hint-placeholder-val="{{true}}"><svg class="ic t-ic" viewBox="0 0 16 16"><path d="M3.8 8.4 6.6 11.2 12.2 5"/></svg></sc-if>
+      <span class="grow">{{t.text}}</span>
+      <sc-if value="{{t.hasAction}}" hint-placeholder-val="{{false}}"><button class="toast-act" onClick="{{t.act}}">{{t.actionLabel}}</button></sc-if>
+      <button class="toast-x" aria-label="Dismiss notification" onClick="{{t.close}}"><svg class="ic" viewBox="0 0 16 16" style="width: 14px; height: 14px"><path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/></svg></button>
+    </div>
+  </sc-for>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+// DK Legacy Admin — Teams / Draft (reference prototype). Synthetic data; "today" is 2 Jun 2027, 10:00 in Copenhagen.
+// Verified against the current implementation (participants-functionality: Admin/Events/Draft and its page model,
+// Bingo.Application/Teams/SnakeDraftOrder, DraftRosterDistribution, TeamCaptainAuthorityService, PRODUCT_REQUIREMENTS
+// simplification TEM-01/DRF-01):
+// - Inclusion: IncludedInDraft alone decides whether a team is drafted. Included players = confirmed participants who
+//   aren't on a manual-roster (excluded) team. Preassigned members of drafted teams count toward their team's size.
+// - Sizes are derived (no team-count or target-size setting): smaller = players / teams, the remainder get one more.
+// - Snake turns: SnakeDraftOrder.GetNextEligibleTurn is ported as is (replay active picks, then skip a team that is
+//   larger than the smallest roster or already at the larger size).
+// - Setup → Running → Finalized with two or more drafted teams. Start needs closed signups, a Captain on every drafted
+//   team and valid sizes; it takes control. Drawing the order is a separate step, allowed until the first pick ever
+//   recorded (FirstPickRecordedAt). Picks need control and a drawn order; Undo removes the latest active pick only.
+//   Cancel needs zero active picks and never undoes them. Finalize publishes rosters and draft results only.
+// - 0–1 drafted teams: manual rosters, finalized directly (every team needs a member), no picks are recorded.
+// - After finalizing and before the first Live: corrections by Add (Participant role; a signed-up player or another
+//   website account with a playing account and EHB) and Remove, each republishing the rosters; role changes also
+//   republish. Moving members is retired after finalizing. First Live locks membership.
+// - Control: one admin at a time, a 5-minute lease (DraftControlLease.Duration) renewed by actions and by the open page
+//   (AdminCollaborationHub.RenewDraftControl); take over needs confirmation; release. Board changes arrive live (WatchDraft). Pause/Resume, Reopen and CSV import are retired and not shown.
+// The browser is simulated (prototype URL bar). DKAdmin.mock stands in for request latency.
+const TODAY = Date.UTC(2027, 5, 2, 8, 0);
+const M = 60000;
+const LEASE_MIN = 5; // DraftControlLease.Duration
+const OTHER_ADMIN = 'Mia Kowalski';
+const PHASES = {
+  draft: { label: 'Setup', tone: 'tone-draft' }, signupopen: { label: 'Signups open', tone: 'tone-open' }, signupclosed: { label: 'Signups closed', tone: 'tone-draft' },
+  live: { label: 'Live', tone: 'tone-live' }
+};
+const OUTCOMES = { ok: 'Succeeds', fail: 'Fails, nothing changed', timeoutSaved: 'Times out · went through', timeoutNot: 'Times out · didn’t go through', conflict: 'Another admin acts first' };
+const NAV = [['dashboard', 'Dashboard'], ['events', 'Events'], ['catalogue', 'Catalogue'], ['accounts', 'Accounts'], ['audit', 'Audit'],
+  ['overview', 'Overview'], ['identity', 'Identity'], ['schedule', 'Schedule'], ['participants', 'Participants'], ['signup', 'Signup setup'], ['teams', 'Teams / Draft'], ['board', 'Board'], ['wom', 'WOM'], ['review', 'Review'], ['final', 'Final review']];
+const TITLES = {}; NAV.forEach(([k, l]) => { TITLES[k] = l; });
+const EVENT_PAGES = ['overview', 'identity', 'schedule', 'participants', 'signup', 'teams', 'board', 'wom', 'review', 'final'];
+const DRAFT_KINDS = { pick: 1, undo: 1, draw: 1, finalize: 1, cancel: 1, release: 1, control: 1, takeover: 1 };
+const ROLE = { P: 'Participant', C: 'Captain', CC: 'Co-captain' };
+const clone = o => JSON.parse(JSON.stringify(o));
+const num = n => Math.round(n).toLocaleString('en-GB');
+const fmtDay = ms => new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Copenhagen', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(ms));
+
+/* ---------------- synthetic players ---------------- */
+const NA = ['Iron', 'Rune', 'Torva', 'Lunar', 'Mossy', 'Void', 'Zammy', 'Sara', 'Arma', 'Bandos', 'Ghost', 'Dusk', 'Ember', 'Frost', 'Gilded', 'Hollow', 'Karil', 'Moon', 'Nox', 'Onyx'];
+const NB = ['Ash', 'Bo', 'Cora', 'Dex', 'Eli', 'Fay', 'Gus', 'Hal', 'Ivy', 'Jax', 'Kai', 'Lyra', 'Mo', 'Nora', 'Pip', 'Quinn', 'Rory', 'Sky', 'Tess', 'Wes'];
+function rsn(i) { i = i % 400; const a = NA[i % 20], b = NB[(i + Math.floor(i / 20) * 3) % 20]; return i % 9 === 4 ? a + '_' + b : a + ' ' + b; }
+function rng(seed) { let s = seed * 9301 + 49297; return () => { s = (s * 1103515245 + 12345) % 2147483648; return s / 2147483648; }; }
+function people(slug, seed, n) {
+  const r = rng(seed); const out = [];
+  for (let i = 0; i < n; i++) out.push({ id: slug + '-p' + i, name: rsn(seed * 17 + i), ehb: Math.round(70 + Math.pow(r(), 1.5) * 1450), vol: r() < 0.17 });
+  return out;
+}
+let MID = 1;
+const mem = (pid, role, src, pick) => ({ id: 'm' + (MID++), pid, role: role || 'P', src: src || 'pre', pick: pick || null, v: 1 });
+
+/* ---------------- draft rules (ported) ---------------- */
+const teamOf = (e, pid) => e.teams.find(t => t.members.some(m => m.pid === pid)) || null;
+const drafted = e => e.teams.filter(t => t.included);
+const includedParts = e => e.parts.filter(p => { const t = teamOf(e, p.id); return !t || t.included; });
+const available = e => includedParts(e).filter(p => !teamOf(e, p.id));
+const activePicks = e => e.picks.filter(p => !p.undone);
+function derive(inc, n) { if (n < 2) return null; const smaller = Math.floor(inc / n), largerCount = inc % n; return { inc, n, smaller, largerCount, larger: smaller + (largerCount ? 1 : 0) }; }
+function dist(e) { return derive(includedParts(e).length, drafted(e).length); }
+function sizesOf(e) { const s = {}; drafted(e).forEach(t => { s[t.id] = t.members.length; }); return s; }
+// DraftRosterDistribution.ValidateCurrentRosters
+function blockers(e) {
+  const d = dist(e); if (!d) return [];
+  const out = []; const ts = drafted(e);
+  ts.forEach(t => { if (t.members.length > d.larger) out.push({ team: t, text: t.name + ' has ' + t.members.length + ' preassigned members, more than the final size of ' + d.larger + '.' }); });
+  const sum = ts.reduce((a, t) => a + t.members.length, 0);
+  if (sum > d.inc) out.push({ text: 'More players are preassigned than there are players.' });
+  const forced = ts.filter(t => t.members.length > d.smaller).length;
+  if (!out.length && forced > d.largerCount) out.push({ text: forced + ' teams have more than ' + d.smaller + ' preassigned members, but only ' + d.largerCount + ' can finish with ' + d.larger + '.' });
+  return out;
+}
+// SnakeDraftOrder.GetTurn
+function getTurn(c, order) { const n = order.length, r = Math.floor(c / n), p = c % n; return { pickNo: c + 1, round: r + 1, teamId: order[r % 2 === 0 ? p : n - p - 1] }; }
+// SnakeDraftOrder.GetNextEligibleTurn
+function nextTurnFor(pickTeams, order, sizes, d, valid) {
+  const sum = Object.keys(sizes).reduce((a, k) => a + sizes[k], 0);
+  if (sum >= d.inc || !valid) return null;
+  let logical = 0;
+  pickTeams.forEach(id => { while (getTurn(logical, order).teamId !== id) logical++; logical++; });
+  const smallest = Math.min.apply(null, order.map(id => sizes[id] || 0));
+  let guard = 0;
+  while (guard++ < order.length * (d.inc + 1)) {
+    const t = getTurn(logical++, order); const size = sizes[t.teamId] || 0;
+    if (size > smallest || size >= d.larger) continue;
+    return Object.assign({}, t, { pickNo: pickTeams.length + 1 });
+  }
+  return null;
+}
+function nextTurn(e) {
+  if (!e.order) return null; const d = dist(e); if (!d) return null;
+  return nextTurnFor(activePicks(e).map(p => p.teamId), e.order, sizesOf(e), d, !blockers(e).length);
+}
+// SnakeDraftOrder.ProjectFinalRosterSizes, keeping the upcoming turns (the turn strip's total and next team).
+function projection(e) {
+  const d = dist(e); const sizes = sizesOf(e); const out = { sizes: Object.assign({}, sizes), turns: [] };
+  if (!d || !e.order) { if (d) drafted(e).forEach(t => { out.sizes[t.id] = Math.max(t.members.length, d.smaller); }); return out; }
+  const picks = activePicks(e).map(p => p.teamId); const valid = !blockers(e).length; let g = 0;
+  while (g++ < 2000) { const t = nextTurnFor(picks, e.order, out.sizes, d, valid); if (!t) break; out.sizes[t.teamId]++; picks.push(t.teamId); out.turns.push(t); }
+  return out;
+}
+const complete = e => e.draft === 'running' && !!e.order && available(e).length === 0;
+
+/* ---------------- samples ---------------- */
+function team(slug, i, name, included) { return { id: slug + '-t' + i, name, included: included !== false, members: [], v: 1 }; }
+function simulate(e, k) { // the sample's earlier picks, made by the same rules (highest EHB still available)
+  for (let i = 0; i < k; i++) {
+    const t = nextTurn(e); if (!t) break;
+    const p = available(e).sort((a, b) => b.ehb - a.ehb)[i % 3] || available(e)[0]; if (!p) break;
+    e.picks.push({ n: activePicks(e).length + 1, teamId: t.teamId, pid: p.id, undone: false, round: t.round });
+    e.teams.find(x => x.id === t.teamId).members.push(mem(p.id, 'P', 'pick', activePicks(e).length));
+    e.everPicked = true;
+  }
+}
+function captains(e, ps, list) { list.forEach(([ti, pi, role]) => { e.teams[ti].members.push(mem(ps[pi].id, role || 'C')); if (!role || role === 'C') ps[pi].vol = true; }); }
+function mkEvent(o) {
+  const e = Object.assign({ tz: 'Europe/Copenhagen', version: 1, draft: 'setup', order: null, picks: [], everPicked: false, control: { who: null, at: null }, published: null, accounts: [], liveSince: null }, o);
+  return e;
+}
+function buildWorld() {
+  MID = 1; const W = {};
+  // Raids Week: mid-draft, the default view. Four drafted teams, one manual-roster staff team.
+  let s = 'raids-week-2027'; let ps = people(s, 3, 46);
+  let e = mkEvent({ slug: s, name: 'Raids Week 2027', phase: 'signupclosed', when: 'draft running', parts: ps,
+    teams: [team(s, 1, 'Team Torva'), team(s, 2, 'Team Masori'), team(s, 3, 'Team Virtus'), team(s, 4, 'Team Ancestral'), team(s, 5, 'Event staff', false)] });
+  captains(e, ps, [[0, 0], [1, 1], [1, 2, 'CC'], [2, 3], [3, 4], [4, 44, 'C'], [4, 45, 'P']]);
+  e.draft = 'running'; e.order = [s + '-t3', s + '-t1', s + '-t4', s + '-t2']; e.control = { who: 'me', at: TODAY - 1 * M };
+  simulate(e, 13); W[s] = e;
+  // Solstice: a large summer event (8 × 12).
+  s = 'solstice-mega-bingo'; ps = people(s, 11, 96);
+  const sol = ['Team Abyss', 'Team Bloodmoon', 'Team Crystal', 'Team Dragonfire', 'Team Eclipse', 'Team Frostfang', 'Team Gilded', 'Team Hallowed'];
+  e = mkEvent({ slug: s, name: 'Solstice Mega Bingo', phase: 'signupclosed', when: 'draft running', parts: ps, teams: sol.map((n, i) => team(s, i + 1, n)) });
+  captains(e, ps, sol.map((n, i) => [i, i]));
+  e.draft = 'running'; e.order = [5, 2, 7, 0, 4, 1, 6, 3].map(i => s + '-t' + (i + 1)); e.control = { who: 'me', at: TODAY - 2 * M };
+  simulate(e, 22); W[s] = e;
+  // Nordic Night: a typical-size draft just started (5 × 50), order not drawn yet.
+  s = 'nordic-night-bingo'; ps = people(s, 23, 50);
+  const nn = ['Team Fjord', 'Team Aurora', 'Team Rune', 'Team Glacier', 'Team Ember'];
+  e = mkEvent({ slug: s, name: 'Nordic Night Bingo', phase: 'signupclosed', when: 'draft running', parts: ps, teams: nn.map((n, i) => team(s, i + 1, n)) });
+  captains(e, ps, nn.map((n, i) => [i, i * 3])); e.draft = 'running'; e.control = { who: 'me', at: TODAY }; W[s] = e;
+  // Clan Cup: setup, one drafted team still without a captain.
+  s = 'clan-cup-pvm-week'; ps = people(s, 5, 40);
+  e = mkEvent({ slug: s, name: 'Clan Cup: PvM Week', phase: 'signupclosed', when: 'starts 14 Jun', parts: ps,
+    teams: [team(s, 1, 'Iron Wolves'), team(s, 2, 'Blood Ravens'), team(s, 3, 'Crystal Owls'), team(s, 4, 'Ember Foxes')] });
+  captains(e, ps, [[0, 0], [0, 5, 'CC'], [1, 1], [2, 2]]); ps[7].vol = true; ps[12].vol = true; W[s] = e;
+  // Autumn: signups still open, so Start is blocked.
+  s = 'autumn-bingo-2027'; ps = people(s, 7, 31);
+  e = mkEvent({ slug: s, name: 'Autumn Bingo 2027', phase: 'signupopen', when: 'closes 15 Jun', parts: ps,
+    teams: [team(s, 1, 'Team Amber'), team(s, 2, 'Team Rust'), team(s, 3, 'Team Harvest')] });
+  captains(e, ps, [[0, 0], [1, 1], [2, 2]]); W[s] = e;
+  // Clan vs Clan: two manual-roster teams; finalized directly without a draft.
+  s = 'clan-vs-clan-showdown'; ps = people(s, 9, 24);
+  e = mkEvent({ slug: s, name: 'Clan vs Clan Showdown', phase: 'signupclosed', when: 'starts 12 Jun', parts: ps,
+    teams: [team(s, 1, 'Iron Pact', false), team(s, 2, 'Lunar Order', false)] });
+  for (let i = 0; i < 20; i++) e.teams[i % 2].members.push(mem(ps[i].id, i < 2 ? 'C' : 'P', 'add'));
+  W[s] = e;
+  // Boss Rush: finalized and published, corrections allowed before the first Live.
+  s = 'boss-rush-weekend'; ps = people(s, 13, 30);
+  e = mkEvent({ slug: s, name: 'Boss Rush Weekend', phase: 'signupclosed', when: 'start postponed', parts: ps,
+    teams: [team(s, 1, 'Team Vorkath'), team(s, 2, 'Team Zulrah'), team(s, 3, 'Team Hydra')],
+    accounts: [{ id: s + '-a1', name: 'Lunar Lyra', ehb: 455 }, { id: s + '-a2', name: 'Frost Wes', ehb: 902 }, { id: s + '-a3', name: 'Nox Quinn', ehb: 214 }] });
+  captains(e, ps, [[0, 0], [1, 1], [2, 2]]);
+  e.order = [s + '-t2', s + '-t3', s + '-t1']; simulate(e, 27);
+  e.draft = 'finalized'; e.published = { at: Date.UTC(2027, 4, 27, 17, 40), cycle: 2 };
+  // a late signup added as a correction after publishing
+  ps.push({ id: s + '-p30', name: rsn(13 * 17 + 30), ehb: 388, vol: false }); e.teams[1].members.push(mem(s + '-p30', 'P', 'correction'));
+  W[s] = e;
+  // Midsummer: Live, rosters locked.
+  s = 'midsummer-skilling-sprint'; ps = people(s, 17, 36);
+  e = mkEvent({ slug: s, name: 'Midsummer Skilling Sprint', phase: 'live', when: 'ends 6 Jun', parts: ps,
+    teams: [team(s, 1, 'Team Lumbridge'), team(s, 2, 'Team Falador'), team(s, 3, 'Team Varrock'), team(s, 4, 'Team Ardougne')] });
+  captains(e, ps, [[0, 0], [1, 1], [2, 2], [3, 3], [3, 4, 'CC']]);
+  e.order = [s + '-t4', s + '-t1', s + '-t3', s + '-t2']; simulate(e, 31);
+  e.draft = 'finalized'; e.published = { at: Date.UTC(2027, 4, 26, 18, 10), cycle: 1 }; e.liveSince = Date.UTC(2027, 4, 28, 16, 0);
+  W[s] = e;
+  // Community: no teams yet.
+  s = 'community-mini-bingo'; ps = people(s, 19, 12);
+  W[s] = mkEvent({ slug: s, name: 'Community Mini Bingo', phase: 'signupopen', when: 'closes 20 Jun', parts: ps, teams: [] });
+  return W;
+}
+const ORDER = ['raids-week-2027', 'nordic-night-bingo', 'solstice-mega-bingo', 'clan-cup-pvm-week', 'autumn-bingo-2027', 'clan-vs-clan-showdown', 'boss-rush-weekend', 'midsummer-skilling-sprint', 'community-mini-bingo'];
+
+class Component extends DCLogic {
+  constructor(...args) {
+    super(...args);
+    this.timers = [];
+    this.world = buildWorld();
+    this.draws = 0;
+    this.hist = { entries: [{ url: '/admin/events/raids-week-2027/teams', scroll: 0 }], idx: 0 };
+    let dark = false;
+    try { dark = window.matchMedia('(prefers-color-scheme: dark)').matches; } catch (e) {}
+    this.state = {
+      theme: dark ? 'dark' : 'light', route: 'teams', slug: 'raids-week-2027', otherKey: null,
+      loading: false, loadError: false, failNext: false, outcome: 'ok', showBar: true,
+      snap: clone(this.world['raids-week-2027']), pending: null, unsure: null, checking: false, notice: null,
+      fresh: null, swap: 'a', settling: false, q: '', sort: 'ehb', poolFocus: null, live: '',
+      menu: null, cx: null, tf: null, ps: null, modal: null, layerErr: null, toasts: [],
+      sideOpen: true, sideOverride: null, mobileNav: false, vw: 1440, histRev: 0
+    };
+  }
+  componentDidMount() {
+    this.onResize = () => { const vw = window.innerWidth; if (vw !== this.state.vw) this.setState(s => ({ vw, mobileNav: vw > 860 ? false : s.mobileNav })); };
+    window.addEventListener('resize', this.onResize); this.onResize();
+    // "/" jumps to the player search while drafting (not while typing or with a layer open).
+    this.onKey = e => {
+      if (e.key !== '/' || e.ctrlKey || e.metaKey || e.altKey) return;
+      const t = e.target; if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      const S = this.state; if (!this.isRunning() || S.menu || S.cx || S.tf || S.ps || S.modal) return;
+      e.preventDefault(); const el = document.getElementById('pool-search'); if (el) el.focus();
+    };
+    document.addEventListener('keydown', this.onKey);
+  }
+  componentWillUnmount() { this.timers.forEach(clearTimeout); window.removeEventListener('resize', this.onResize); document.removeEventListener('keydown', this.onKey); }
+  later(fn, ms) { const t = setTimeout(() => { this.timers = this.timers.filter(x => x !== t); fn(); }, ms); this.timers.push(t); return t; }
+  isMobile() { return this.state.vw <= 860; }
+  toast(o) { DKAdmin.toast(this, o); }
+
+  /* ---------------- data ---------------- */
+  ev() { return this.world[this.state.slug]; }
+  view() { return this.state.snap; }
+  refresh(extra, cb) { this.setState(Object.assign({ snap: clone(this.ev()) }, extra || {}), cb); }
+  // Refresh from the server; when the confirmed draw order differs from what's on screen, the columns travel to it
+  // (DKAdmin.reorder). Picks stay unavailable until they've settled (state.settling).
+  refreshShown(extra, cb) {
+    const prev = this.state.snap; const next = this.ev();
+    const moved = this.isRunning() && next.draft === 'running' && !!next.order && (prev.order || []).join() !== next.order.join();
+    if (!moved) { this.refresh(extra, cb); return; }
+    const before = DKAdmin.reorder.measure('.dteam');
+    this.refresh(Object.assign({}, extra, { settling: true }), () => DKAdmin.reorder.play(this, before, '.dteam', () => this.setState({ settling: false }, cb)));
+  }
+  isRunning() { const v = this.state.snap; return this.state.route === 'teams' && !this.state.loading && !this.state.loadError && !!v && v.draft === 'running'; }
+  stage(v) { v = v || this.view(); return v.draft === 'running' ? 'running' : v.draft === 'finalized' ? (v.phase === 'live' ? 'locked' : 'final') : 'setup'; }
+  canCorrect(v) { v = v || this.view(); return v.draft === 'finalized' && v.phase === 'signupclosed'; } // CanCorrectFinalizedRoster (never Live, before the end)
+  manual(v) { return drafted(v || this.view()).length < 2; }
+  busy() { const S = this.state; return !!S.pending || S.checking; }
+  blocked() { return this.busy() || !!this.state.unsure || this.state.settling; }
+  drawing() { const S = this.state; return !!(S.pending && S.pending.kind === 'draw') || S.settling; }
+  inControl(v) { v = v || this.view(); return v.control.who === 'me'; }
+  pname(v, pid) { const p = v.parts.find(x => x.id === pid) || v.accounts.find(x => x.id === pid); return p ? p.name : 'Player'; }
+  tname(v, id) { const t = v.teams.find(x => x.id === id); return t ? t.name : 'Team'; }
+
+  /* ---------------- URL (simulated browser) ---------------- */
+  cur() { return this.hist.entries[this.hist.idx]; }
+  bumpHist() { this.setState(s => ({ histRev: s.histRev + 1 })); }
+  push(url) { this.hist.entries = this.hist.entries.slice(0, this.hist.idx + 1).concat([{ url, scroll: 0 }]); this.hist.idx++; this.bumpHist(); }
+  parse(url) {
+    let m = url.match(/^\/admin\/events\/([a-z0-9-]+)\/([a-z]+)$/);
+    if (m) return { route: m[2] === 'teams' ? 'teams' : 'other', slug: m[1], key: m[2] };
+    if (url === '/admin/events') return { route: 'other', key: 'events', slug: this.state.slug };
+    m = url.match(/^\/admin\/([a-z]+)$/);
+    return { route: 'other', key: m ? m[1] : 'dashboard', slug: this.state.slug };
+  }
+  applyEntry(how) {
+    const r = this.parse(this.cur().url);
+    const base = { menu: null, modal: null, cx: null, tf: null, ps: null, layerErr: null, mobileNav: false, sideOverride: null };
+    if (r.route === 'teams') {
+      const same = how === 'pop' && r.slug === this.state.slug && this.state.route === 'teams' && !this.state.loadError;
+      this.setState(Object.assign(base, { route: 'teams', slug: r.slug, otherKey: null }), () => { if (!same) this.load(); });
+    } else {
+      this.setState(Object.assign(base, { route: 'other', slug: r.slug || this.state.slug, otherKey: r.key }), () => { const el = document.getElementById('scroller'); if (el) el.scrollTop = 0; DKAdmin.focusSoon('page-h1'); });
+    }
+  }
+  anyLayer() { const S = this.state; return S.cx || S.tf || S.ps || S.modal; }
+  leave(go) {
+    if (this.state.route === 'teams') {
+      if (this.busy()) { this.toast({ text: 'Wait for the current change to finish.' }); return; }
+      if (this.state.unsure) { this.openDiscard(go, 'uncertain'); return; }
+    }
+    go();
+  }
+  // Back/Forward while a layer is open closes it first (asking before discarding a typed name or a chosen player).
+  popLayer() {
+    const S = this.state;
+    if (S.modal) return true;
+    if (S.cx) { this.closeCx(); return true; }
+    if (S.tf) { this.requestCloseTf(); return true; }
+    if (S.ps) { this.requestClosePs(); return true; }
+    if (S.menu) { this.closeMenu(false); return true; }
+    return false;
+  }
+  back() { if (this.hist.idx === 0 || this.popLayer()) return; this.leave(() => { this.hist.idx--; this.bumpHist(); this.applyEntry('pop'); }); }
+  forward() { if (this.hist.idx >= this.hist.entries.length - 1 || this.popLayer()) return; this.leave(() => { this.hist.idx++; this.bumpHist(); this.applyEntry('pop'); }); }
+  reload() { if (this.popLayer()) return; this.leave(() => this.applyEntry('load')); }
+  directVisit(url) { this.leave(() => { this.hist = { entries: [{ url, scroll: 0 }], idx: 0 }; this.bumpHist(); this.applyEntry('load'); }); }
+  goNav(k) {
+    this.closeMobileNav(false);
+    const url = k === 'events' ? '/admin/events' : EVENT_PAGES.indexOf(k) >= 0 ? '/admin/events/' + this.state.slug + '/' + k : '/admin/' + k;
+    if (url === this.cur().url) return;
+    this.leave(() => { this.push(url); this.applyEntry('push'); });
+  }
+  switchEvent(slug) { const url = '/admin/events/' + slug + '/teams'; if (url === this.cur().url) return; this.leave(() => { this.push(url); this.applyEntry('push'); }); }
+  backToPage() {
+    const prev = this.hist.entries[this.hist.idx - 1];
+    if (prev && this.parse(prev.url).route === 'teams') this.back();
+    else { this.push('/admin/events/' + this.state.slug + '/teams'); this.applyEntry('push'); }
+  }
+
+  /* ---------------- load ---------------- */
+  load() {
+    const willFail = this.state.failNext;
+    this.setState({ loading: true, loadError: false, failNext: false, pending: null, unsure: null, checking: false, notice: null, fresh: null, q: '', poolFocus: null, live: '' });
+    DKAdmin.mock.request(this, () => {
+      if (willFail) { this.setState({ loading: false, loadError: true }, () => DKAdmin.focusSoon('retry-btn')); return; }
+      this.refresh({ loading: false }, () => { const el = document.getElementById('scroller'); if (el) el.scrollTop = 0; });
+    });
+  }
+
+  /* ---------------- requests ----------------
+     One runner for every change. outcome (prototype menu) decides what the "server" does. Confirmed changes refresh
+     the view from the server; failures change nothing; uncertain outcomes keep the old view and block repeat actions
+     until a readback (Check again) says what happened. */
+  run(o) {
+    const outcome = this.state.outcome; const started = Date.now();
+    const layer = o.layer || null;
+    const patch = { outcome: 'ok', pending: Object.assign({ kind: o.kind }, o.pending || {}), layerErr: null, notice: null };
+    if (layer && this.state[layer]) patch[layer] = Object.assign({}, this.state[layer], { busy: true });
+    this.setState(patch);
+    DKAdmin.mock.request(this, () => {
+      const srv = this.ev(); let res;
+      if (outcome === 'fail') res = { status: 'failed' };
+      else if (outcome === 'conflict') { this.conflictFor(o, srv); res = { status: 'conflict' }; }
+      else if (outcome === 'timeoutNot') res = { status: 'uncertain' };
+      else {
+        const r = o.apply(srv);
+        if (!r.ok) res = { status: 'rejected', msg: r.msg };
+        else { srv.version++; res = { status: outcome === 'timeoutSaved' ? 'uncertain' : 'ok', r }; }
+      }
+      const done = () => this.settleRun(o, res);
+      // presentation timing, separate from the (simulated) request: dialogs keep the standard saving minimum,
+      // draft actions a short one; the draw keeps its shuffle visible for --dk-dur-shuffle-min.
+      if (o.settle) DKAdmin.settle(this, started, done);
+      else if (o.minMs != null) DKAdmin.settle(this, started, done, o.minMs);
+      else done();
+    }, o.quick || o.minMs != null ? DKAdmin.mock.quickLatency : undefined);
+  }
+  settleRun(o, res) {
+    const layer = o.layer || null;
+    const closeLayer = fn => {
+      if (!layer || !this.state[layer]) { fn(); return; }
+      const sel = layer === 'ps' ? '#ps, #ps-scrim' : '#' + layer + ', #' + layer + '-scrim';
+      this.setState(s => ({ [layer]: Object.assign({}, s[layer], { busy: false }) }), () => DKAdmin.closeLayer(this, layer, sel, fn));
+    };
+    const keepLayer = (err, focusId) => {
+      this.setState(s => { const p = { pending: null, layerErr: err }; if (layer && s[layer]) p[layer] = Object.assign({}, s[layer], { busy: false }); return p; }, () => DKAdmin.focusSoon(focusId));
+    };
+    if (res.status === 'ok') {
+      closeLayer(() => this.refreshShown({ pending: null }, () => { if (o.onOk) o.onOk(res.r || {}); }));
+      return;
+    }
+    if (res.status === 'uncertain') {
+      closeLayer(() => this.setState({ pending: null, unsure: { what: o.what, verify: o.verify, okText: o.okText, notText: o.notText } }, () => DKAdmin.focusSoon('td-banner')));
+      return;
+    }
+    if (res.status === 'conflict' && DRAFT_KINDS[o.kind]) {
+      closeLayer(() => this.refresh({ pending: null, notice: this.lostNotice() }, () => DKAdmin.focusSoon('td-banner')));
+      return;
+    }
+    const err = res.status === 'failed'
+      ? { cls: 'is-error', title: 'Couldn’t ' + o.what + '.', text: 'Nothing changed. Try again.' }
+      : res.status === 'conflict'
+        ? { cls: 'is-warning', title: 'Another admin changed this team first.', text: 'The latest roster is shown. Check it, then try again.' }
+        : { cls: 'is-error', title: 'Couldn’t ' + o.what + '.', text: res.msg };
+    if (res.status !== 'failed') this.refresh();
+    if (layer && this.state[layer]) { keepLayer(err, layer + '-banner'); return; }
+    this.setState({ pending: null });
+    this.toast({ text: err.title + ' ' + err.text, tone: 'error' });
+  }
+  // "Another admin acts first": in a draft, they take control; elsewhere, they change the same team.
+  conflictFor(o, srv) {
+    if (DRAFT_KINDS[o.kind]) { srv.control = { who: 'other', at: TODAY }; srv.version++; return; }
+    const t = srv.teams.find(x => x.id === (o.teamId || '')) || srv.teams.find(x => x.included) || srv.teams[0]; if (!t) return;
+    const free = srv.parts.find(p => !teamOf(srv, p.id) && (!t.included || (srv.draft === 'setup' && !srv.everPicked) || srv.draft === 'finalized'));
+    if (free && srv.phase !== 'live') { t.members.push(mem(free.id, 'P', srv.draft === 'finalized' ? 'correction' : 'pre')); if (srv.published && srv.draft === 'finalized') srv.published.cycle++; }
+    t.v++; srv.version++;
+  }
+  lostNotice() { return { kind: 'lost', cls: 'is-warning', title: 'Another admin took control of the draft.', text: 'Your picks won’t go through until you take control back.', action: 'Take over…', run: () => this.openTakeover() }; }
+  check() {
+    const u = this.state.unsure; if (!u || this.state.checking) return;
+    this.setState({ checking: true });
+    DKAdmin.mock.request(this, () => {
+      const srv = this.ev(); const happened = u.verify(srv);
+      this.refreshShown({ checking: false, unsure: null, notice: happened ? null : { cls: 'is-info', title: u.notText, text: 'Nothing changed, so it’s safe to try again.' } }, () => {
+        if (happened) { this.toast({ text: u.okText }); this.markFresh(); }
+        DKAdmin.focusSoon(happened ? (this.isRunning() ? 'pool-search' : 'page-h1') : 'td-banner');
+      });
+    });
+  }
+  markFresh() {
+    const v = this.view(); const last = activePicks(v).slice(-1)[0];
+    this.setState(s => ({ fresh: last ? last.pid : null, swap: s.swap === 'a' ? 'b' : 'a' }));
+  }
+
+  /* ---------------- draft actions ---------------- */
+  pick(pid) {
+    const v = this.view(); const t = nextTurn(v);
+    if (this.blocked() || !t || !this.inControl(v) || !available(v).some(p => p.id === pid)) return;
+    const name = this.pname(v, pid); const team = this.tname(v, t.teamId);
+    // roving focus moves to the neighbour when the picked chip leaves the pool
+    const chips = this.poolList(v); const i = chips.findIndex(p => p.id === pid); const next = chips[i + 1] || chips[i - 1];
+    const inGrid = document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('pchip');
+    this.run({ kind: 'pick', quick: true, minMs: DKAdmin.motion.busyMinQuick, what: 'draft ' + name, pending: { pid, teamId: t.teamId, pickNo: t.pickNo },
+      apply: srv => {
+        if (srv.draft !== 'running') return { ok: false, msg: 'The draft isn’t running any more.' };
+        if (srv.control.who !== 'me') return { ok: false, msg: 'You don’t have control of the draft.' };
+        const turn = nextTurn(srv); if (!turn || turn.teamId !== t.teamId) return { ok: false, msg: 'The turn changed. The latest board is shown.' };
+        if (teamOf(srv, pid)) return { ok: false, msg: name + ' is already on a team.' };
+        const n = activePicks(srv).length + 1;
+        srv.picks.push({ n, teamId: turn.teamId, pid, undone: false, round: turn.round });
+        srv.teams.find(x => x.id === turn.teamId).members.push(mem(pid, 'P', 'pick', n));
+        srv.everPicked = true; srv.control.at = TODAY;
+        return { ok: true };
+      },
+      verify: srv => srv.picks.some(p => p.pid === pid && !p.undone),
+      okText: name + ' is on ' + team + '. The pick went through.', notText: name + ' wasn’t drafted.',
+      onOk: () => {
+        this.markFresh(); this.setState({ live: 'Pick ' + t.pickNo + ': ' + name + ' to ' + team + '.', poolFocus: next ? next.id : null });
+        if (inGrid && next) DKAdmin.focusSoon('pc-' + next.id, { preventScroll: true });
+      } });
+  }
+  undo() {
+    const v = this.view(); const last = activePicks(v).slice(-1)[0];
+    if (this.blocked() || !last || !this.inControl(v)) return;
+    const name = this.pname(v, last.pid); const team = this.tname(v, last.teamId);
+    this.run({ kind: 'undo', minMs: DKAdmin.motion.busyMinQuick, what: 'undo pick ' + last.n,
+      apply: srv => {
+        if (srv.control.who !== 'me') return { ok: false, msg: 'You don’t have control of the draft.' };
+        const l = activePicks(srv).slice(-1)[0]; if (!l || l.n !== last.n) return { ok: false, msg: 'The latest pick changed. The current board is shown.' };
+        l.undone = true; const t = srv.teams.find(x => x.id === l.teamId); t.members = t.members.filter(m => m.pid !== l.pid); srv.control.at = TODAY;
+        return { ok: true };
+      },
+      verify: srv => srv.picks.some(p => p.n === last.n && p.pid === last.pid && p.undone),
+      okText: 'Pick ' + last.n + ' undone. ' + name + ' is back in the pool.', notText: 'Pick ' + last.n + ' wasn’t undone.',
+      onOk: () => { this.setState(s => ({ fresh: null, swap: s.swap === 'a' ? 'b' : 'a', live: 'Pick ' + last.n + ' undone: ' + name + ' left ' + team + '.' })); DKAdmin.focusSoon('undo-btn'); } });
+  }
+  draw() {
+    const v = this.view(); if (this.blocked() || !this.inControl(v) || v.everPicked) return;
+    const redraw = !!v.order;
+    this.run({ kind: 'draw', minMs: DKAdmin.tokenMs('--dk-dur-shuffle-min'), what: redraw ? 'redraw the order' : 'draw the order',
+      apply: srv => {
+        if (srv.control.who !== 'me') return { ok: false, msg: 'You don’t have control of the draft.' };
+        if (srv.everPicked) return { ok: false, msg: 'The team order can’t change after the first pick.' };
+        const ids = drafted(srv).map(t => t.id); const r = rng(++this.draws + 40); const prev = (srv.order || []).join();
+        let out = ids.slice(), g = 0;
+        do { out = ids.slice(); for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; } } while (out.join() === prev && g++ < 6);
+        srv.order = out; srv.control.at = TODAY; return { ok: true };
+      },
+      verify: srv => !!srv.order && (!redraw || srv.order.join() !== v.order.join()),
+      okText: 'The team order is drawn.', notText: 'The order wasn’t drawn.',
+      onOk: () => { const nv = this.view(); this.setState(s => ({ swap: s.swap === 'a' ? 'b' : 'a', live: 'Order drawn: ' + nv.order.map(id => this.tname(nv, id)).join(', ') + '.' })); this.toast({ text: redraw ? 'Order redrawn. ' + this.tname(nv, nextTurn(nv).teamId) + ' picks first.' : 'Order drawn. ' + this.tname(nv, nextTurn(nv).teamId) + ' picks first.' }); DKAdmin.focusSoon('pool-search'); } });
+  }
+  takeControl(force) {
+    if (this.blocked()) return;
+    this.run({ kind: force ? 'takeover' : 'control', minMs: force ? undefined : DKAdmin.motion.busyMinQuick, settle: force, what: force ? 'take over the draft' : 'take control', layer: force ? 'cx' : null,
+      apply: srv => {
+        if (srv.draft !== 'running') return { ok: false, msg: 'The draft isn’t running any more.' };
+        if (srv.control.who === 'other' && !force) return { ok: false, msg: 'Another admin took control just now.' };
+        srv.control = { who: 'me', at: TODAY }; return { ok: true };
+      },
+      verify: srv => srv.control.who === 'me', okText: 'You have control of the draft.', notText: 'You don’t have control.',
+      onOk: () => { this.toast({ text: 'You have control of the draft.' }); DKAdmin.focusSoon('pool-search'); } });
+  }
+  release() {
+    if (this.blocked() || !this.inControl()) return;
+    this.run({ kind: 'release', minMs: DKAdmin.motion.busyMinQuick, what: 'release control',
+      apply: srv => { if (srv.control.who === 'me') srv.control = { who: null, at: null }; return { ok: true }; },
+      verify: srv => srv.control.who !== 'me', okText: 'Control released.', notText: 'You still have control.',
+      onOk: () => { this.toast({ text: 'Control released. Any admin can take it.' }); DKAdmin.focusSoon('ctl-btn'); } });
+  }
+
+  /* ---------------- lifecycle actions (confirmed) ---------------- */
+  openCx(kind, extra) {
+    if (this.blocked()) return;
+    const act = document.activeElement; this.cxReturn = act && act !== document.body ? act : null;
+    this.setState({ cx: Object.assign({ kind, closing: false, busy: false }, extra || {}), layerErr: null, menu: null }, () => DKAdmin.focusSoon(this.cxBlocked() ? 'cx-cancel' : 'cx-confirm'));
+  }
+  cxBlocked() { const c = this.state.cx; return !!c && c.kind === 'cancel' && activePicks(this.view()).length > 0; }
+  closeCx() { const c = this.state.cx; if (!c || c.busy || this.state.modal) return; DKAdmin.closeLayer(this, 'cx', '#cx, #cx-scrim', () => { this.setState({ layerErr: null }); DKAdmin.restoreFocus(this.cxReturn, this.isRunning() ? 'draft-more' : 'page-h1'); }); }
+  openTakeover() { this.openCx('takeover'); }
+  confirmCx() {
+    const c = this.state.cx; if (!c || c.busy || this.cxBlocked()) return;
+    const v = this.view();
+    if (c.kind === 'takeover') { this.takeControl(true); return; }
+    if (c.kind === 'start') {
+      this.run({ kind: 'start', what: 'start the draft', layer: 'cx', settle: true,
+        apply: srv => {
+          if (srv.phase !== 'signupclosed') return { ok: false, msg: 'Signups must be closed first.' };
+          const r = this.readiness(srv); if (!r.ok) return { ok: false, msg: 'Something changed: ' + r.firstIssue };
+          srv.draft = 'running'; srv.control = { who: 'me', at: TODAY }; if (!srv.everPicked) srv.order = null; return { ok: true };
+        },
+        verify: srv => srv.draft === 'running', okText: 'The draft is running.', notText: 'The draft didn’t start.',
+        onOk: () => { this.toast({ text: 'Draft started. Draw the team order when captains are ready.' }); DKAdmin.focusSoon('turn-primary'); } });
+      return;
+    }
+    if (c.kind === 'cancel') {
+      this.run({ kind: 'cancel', what: 'cancel the draft', layer: 'cx', settle: true,
+        apply: srv => {
+          if (srv.draft !== 'running') return { ok: false, msg: 'The draft isn’t running.' };
+          const n = activePicks(srv).length; if (n) return { ok: false, msg: 'Undo the latest active pick before cancelling the draft. ' + n + ' active pick' + (n === 1 ? '' : 's') + ' remain.' };
+          srv.draft = 'setup'; srv.control = { who: null, at: null }; if (!srv.everPicked) srv.order = null; return { ok: true };
+        },
+        verify: srv => srv.draft === 'setup', okText: 'The draft was cancelled.', notText: 'The draft is still running.',
+        onOk: () => { this.setState({ sideOverride: null }); this.toast({ text: 'Draft cancelled. Teams are back in setup.' }); DKAdmin.focusSoon('page-h1'); } });
+      return;
+    }
+    if (c.kind === 'finalize') {
+      const man = this.manual(v);
+      this.run({ kind: 'finalize', what: man ? 'finalize the rosters' : 'finalize the draft', layer: 'cx', settle: true,
+        apply: srv => {
+          if (srv.phase !== 'signupclosed') return { ok: false, msg: 'Signups must be closed first.' };
+          if (man) {
+            if (drafted(srv).length >= 2) return { ok: false, msg: 'Two or more teams are now in the website draft. Run the draft instead.' };
+            const empty = srv.teams.find(t => !t.members.length); if (empty) return { ok: false, msg: empty.name + ' has no members.' };
+          } else {
+            if (srv.draft !== 'running') return { ok: false, msg: 'The draft isn’t running.' };
+            if (srv.control.who !== 'me') return { ok: false, msg: 'You don’t have control of the draft.' };
+            if (!complete(srv)) return { ok: false, msg: available(srv).length + ' players still need a team.' };
+          }
+          srv.draft = 'finalized'; srv.control = { who: null, at: null }; srv.published = { at: TODAY, cycle: 1 }; return { ok: true };
+        },
+        verify: srv => srv.draft === 'finalized', okText: 'The rosters are published.', notText: 'Nothing was published.',
+        onOk: () => { this.setState({ sideOverride: null, fresh: null }); this.toast({ text: man ? 'Rosters published.' : 'Rosters and draft results published.', action: { label: 'Open Board', run: () => this.goNav('board') } }); DKAdmin.focusSoon('page-h1'); } });
+      return;
+    }
+    if (c.kind === 'removeMember') {
+      const corr = this.canCorrect(v);
+      this.run({ kind: 'remove', what: 'remove ' + c.name, layer: 'cx', settle: true, teamId: c.teamId,
+        apply: srv => {
+          const t = srv.teams.find(x => x.id === c.teamId); const m = t && t.members.find(x => x.id === c.mid);
+          if (!m) return { ok: false, msg: c.name + ' is no longer on this team.' };
+          t.members = t.members.filter(x => x.id !== c.mid); t.v++; if (corr) srv.published.cycle++; return { ok: true };
+        },
+        verify: srv => !srv.teams.some(t => t.members.some(m => m.id === c.mid)),
+        okText: c.name + ' was removed.', notText: c.name + ' is still on the team.',
+        onOk: () => { this.toast({ text: corr ? c.name + ' removed. Rosters republished; the Wise Old Man group is updated.' : c.name + ' removed from ' + c.teamName + '.' }); DKAdmin.focusSoon(c.teamId + '-add'); } });
+      return;
+    }
+    if (c.kind === 'removeTeam') {
+      this.run({ kind: 'removeTeam', what: 'remove ' + c.teamName, layer: 'cx', settle: true, teamId: c.teamId,
+        apply: srv => { if (srv.draft !== 'setup') return { ok: false, msg: 'Teams can only be removed in setup.' }; srv.teams = srv.teams.filter(t => t.id !== c.teamId); return { ok: true }; },
+        verify: srv => !srv.teams.some(t => t.id === c.teamId), okText: c.teamName + ' was removed.', notText: c.teamName + ' wasn’t removed.',
+        onOk: () => { this.toast({ text: c.teamName + ' removed.' }); DKAdmin.focusSoon('add-team'); } });
+    }
+  }
+
+  /* ---------------- readiness ---------------- */
+  readiness(v) {
+    const man = this.manual(v); const checks = [];
+    const closed = v.phase === 'signupclosed';
+    checks.push({ done: closed, label: closed ? 'Signups are closed' : 'Close signups first', link: closed ? null : { label: 'Overview', go: () => this.goNav('overview') } });
+    if (man) {
+      const empty = v.teams.filter(t => !t.members.length);
+      const unplaced = v.parts.filter(p => !teamOf(v, p.id)).length;
+      if (unplaced && v.teams.length) checks.push({ info: true, label: unplaced + (unplaced === 1 ? ' confirmed player isn’t' : ' confirmed players aren’t') + ' on a team. They won’t be on a published roster; this doesn’t block finalizing.' });
+      checks.push({ done: v.teams.length > 0 && !empty.length, label: !v.teams.length ? 'Add at least one team' : empty.length ? (empty.length === 1 ? empty[0].name + ' needs a member' : empty.length + ' teams need a member') : 'Every team has a member',
+        link: empty.length ? { label: 'Add', go: () => this.openPs('member', empty[0].id) } : null });
+    } else {
+      const noCap = drafted(v).filter(t => !t.members.some(m => m.role === 'C'));
+      checks.push({ done: !noCap.length, label: !noCap.length ? 'Every drafted team has a captain' : noCap.length === 1 ? noCap[0].name + ' needs a captain' : noCap.length + ' drafted teams need a captain',
+        link: noCap.length ? { label: 'Assign', go: () => this.openPs('captain', noCap[0].id) } : null });
+      const b = blockers(v);
+      checks.push({ done: !b.length, label: b.length ? b[0].text : 'Team sizes work out' });
+    }
+    const first = checks.find(c => !c.done && !c.info);
+    return { ok: !first, checks, firstIssue: first ? first.label : '' };
+  }
+  sizeSummary(v) {
+    const inc = includedParts(v).length; const d = dist(v);
+    const manualTeams = v.teams.filter(t => !t.included); const onManual = manualTeams.reduce((a, t) => a + t.members.length, 0);
+    if (!d) {
+      const placed = v.parts.filter(p => teamOf(v, p.id)).length; const left = v.parts.length - placed;
+      return v.parts.length + ' confirmed players · ' + placed + ' on teams' + (left ? ' · ' + left + ' not on a team yet' : '') + (drafted(v).length === 1 ? '. A website draft needs at least two drafted teams.' : '.');
+    }
+    const shape = d.largerCount ? d.largerCount + ' of ' + d.larger + ' and ' + (d.n - d.largerCount) + ' of ' + d.smaller : d.n + ' teams of ' + d.smaller;
+    return inc + ' players across ' + d.n + ' drafted teams: ' + shape + '.' + (manualTeams.length ? ' ' + (manualTeams.length === 1 ? '1 manual-roster team' : manualTeams.length + ' manual-roster teams') + ' (' + onManual + (onManual === 1 ? ' player' : ' players') + ') ' + (manualTeams.length === 1 ? 'isn’t' : 'aren’t') + ' drafted.' : '');
+  }
+
+  /* ---------------- team form ---------------- */
+  openTf(teamId) {
+    if (this.blocked()) return;
+    const v = this.view(); const t = teamId ? v.teams.find(x => x.id === teamId) : null;
+    const act = document.activeElement; this.tfReturn = act && act !== document.body ? act : null;
+    this.setState({ tf: { teamId: teamId || null, name: t ? t.name : '', incl: t ? t.included : true, base: t ? { name: t.name, incl: t.included } : { name: '', incl: true }, showErr: false, closing: false, busy: false }, layerErr: null, menu: null }, () => DKAdmin.focusSoon('tf-name'));
+  }
+  tfDirty() { const f = this.state.tf; return !!f && (f.name.trim() !== f.base.name || f.incl !== f.base.incl); }
+  tfError() {
+    const f = this.state.tf; const n = f.name.trim(); if (!n) return 'Enter a team name.';
+    if (n.length > 30) return 'Use 30 characters or fewer.';
+    if (this.view().teams.some(t => t.id !== f.teamId && t.name.toLowerCase() === n.toLowerCase())) return 'Another team already has this name.';
+    return '';
+  }
+  requestCloseTf() { const f = this.state.tf; if (!f || f.busy || this.state.modal) return; if (this.tfDirty()) { this.openDiscard(() => this.closeTf(), 'discard', 'team'); return; } this.closeTf(); }
+  closeTf() { DKAdmin.closeLayer(this, 'tf', '#tf, #tf-scrim', () => { this.setState({ layerErr: null }); DKAdmin.restoreFocus(this.tfReturn, 'add-team'); }); }
+  saveTf() {
+    const f = this.state.tf; if (!f || f.busy) return;
+    if (f.teamId && !this.tfDirty()) { this.closeTf(); return; }
+    const err = this.tfError(); if (err) { this.setState({ tf: Object.assign({}, f, { showErr: true }) }, () => DKAdmin.focusSoon('tf-name')); return; }
+    const name = f.name.trim(); const incl = f.incl; const id = f.teamId;
+    this.run({ kind: 'team', what: id ? 'save ' + name : 'add ' + name, layer: 'tf', settle: true, teamId: id,
+      apply: srv => {
+        if (srv.teams.some(t => t.id !== id && t.name.toLowerCase() === name.toLowerCase())) return { ok: false, msg: 'Another team already has this name.' };
+        if (id) {
+          const t = srv.teams.find(x => x.id === id); if (!t) return { ok: false, msg: 'This team was removed.' };
+          if (incl !== t.included && srv.draft !== 'setup') return { ok: false, msg: 'Whether a team is drafted can only change in setup.' };
+          t.name = name; t.included = incl; t.v++;
+        } else {
+          if (srv.draft === 'running') return { ok: false, msg: 'Teams can’t be added while the draft runs.' };
+          srv.teams.push({ id: srv.slug + '-t' + (srv.teams.length + 10 + this.draws++), name, included: incl, members: [], v: 1 });
+        }
+        return { ok: true };
+      },
+      verify: srv => srv.teams.some(t => t.name === name), okText: name + ' is saved.', notText: name + ' wasn’t saved.',
+      onOk: () => { this.toast({ text: id ? name + ' saved.' : name + ' added.' }); const nt = this.view().teams.find(t => t.name === name); DKAdmin.focusSoon(nt ? nt.id + '-menu' : 'add-team'); } });
+  }
+
+  /* ---------------- participant selector ---------------- */
+  openPs(mode, teamId, opts) {
+    if (this.blocked()) return;
+    const act = document.activeElement; this.psReturn = act && act !== document.body ? act : null;
+    this.setState({ ps: { mode, teamId, pickTeam: !!(opts && opts.pickTeam), q: '', src: 'part', pick: null, role: mode === 'captain' ? 'C' : 'P', showErr: false, closing: false, busy: false }, layerErr: null, menu: null }, () => DKAdmin.focusSoon('ps-search'));
+  }
+  requestClosePs() { const p = this.state.ps; if (!p || p.busy || this.state.modal) return; if (p.pick) { this.openDiscard(() => this.closePs(), 'discard', 'player'); return; } this.closePs(); }
+  closePs() { DKAdmin.closeLayer(this, 'ps', '#ps, #ps-scrim', () => { this.setState({ layerErr: null }); DKAdmin.restoreFocus(this.psReturn, 'page-h1'); }); }
+  psResults() {
+    const p = this.state.ps; const v = this.view(); const q = p.q.trim().toLowerCase();
+    if (p.src === 'acc') {
+      return v.accounts.filter(a => !v.parts.some(x => x.id === a.id) && (!q || a.name.toLowerCase().indexOf(q) >= 0))
+        .map(a => ({ p: a, acc: true, disabled: false, note: '', sub: 'Not signed up · playing account ' + a.name + ' · ' + num(a.ehb) + ' EHB' }));
+    }
+    const t = v.teams.find(x => x.id === p.teamId);
+    let list = v.parts.filter(x => !q || x.name.toLowerCase().indexOf(q) >= 0).map(x => {
+      const on = teamOf(v, x.id); const here = on && on.id === p.teamId;
+      // a new member can only join here in setup (and, for a drafted team, before the first pick); otherwise a
+      // Captain must already be on the team (corrections add Participants only; Live locks membership)
+      const canJoin = p.mode !== 'captain' || (this.stage(v) === 'setup' && (!t.included || !v.everPicked));
+      const disabled = (!!on && !(here && p.mode === 'captain')) || (!on && !canJoin);
+      const cur = here ? on.members.find(m => m.pid === x.id) : null;
+      return { p: x, disabled: disabled || (cur && cur.role === 'C'), note: here ? (cur && cur.role !== 'P' ? ROLE[cur.role] + ' of this team' : 'On this team') : on ? 'On ' + on.name : !canJoin ? 'Not on this team' : '', sub: 'Primary account · ' + num(x.ehb) + ' EHB' };
+    });
+    list.sort((a, b) => (a.disabled - b.disabled) || (p.mode === 'captain' ? (b.p.vol - a.p.vol) : 0) || a.p.name.localeCompare(b.p.name));
+    return t ? list : [];
+  }
+  pickPs(item) { const p = this.state.ps; this.setState({ ps: Object.assign({}, p, { pick: { id: item.p.id, name: item.p.name, ehb: item.p.ehb, vol: !!item.p.vol, acc: !!item.acc, sub: item.sub }, showErr: false }) }, () => DKAdmin.focusSoon('ps-save')); }
+  savePs() {
+    const p = this.state.ps; if (!p || p.busy) return;
+    if (!p.pick) { this.setState({ ps: Object.assign({}, p, { showErr: true }) }, () => DKAdmin.focusSoon('ps-search')); return; }
+    const v = this.view(); const t = v.teams.find(x => x.id === p.teamId); const pk = p.pick; const corr = p.mode === 'correction';
+    const role = corr ? 'P' : p.role; const existing = t.members.find(m => m.pid === pk.id);
+    this.run({ kind: 'member', what: existing ? 'make ' + pk.name + ' ' + ROLE[role].toLowerCase() : 'add ' + pk.name, layer: 'ps', settle: true, teamId: t.id,
+      apply: srv => {
+        const st = srv.teams.find(x => x.id === t.id); if (!st) return { ok: false, msg: 'This team was removed.' };
+        const ex = st.members.find(m => m.pid === pk.id);
+        if (ex) { if (ex.role === role) return { ok: false, msg: 'That member already has this role.' }; ex.role = role; ex.v++; st.v++; if (this.canCorrect(srv)) srv.published.cycle++; return { ok: true }; }
+        if (teamOf(srv, pk.id)) return { ok: false, msg: pk.name + ' is already on a team.' };
+        if (corr) {
+          if (!this.canCorrect(srv)) return { ok: false, msg: 'Roster corrections close when the event first goes Live.' };
+          if (pk.acc) srv.parts.push({ id: pk.id, name: pk.name, ehb: pk.ehb, vol: false });
+          st.members.push(mem(pk.id, 'P', 'correction')); st.v++; srv.published.cycle++; return { ok: true };
+        }
+        if (st.included && (srv.everPicked || srv.draft === 'finalized')) return { ok: false, msg: 'Drafted teams can’t take preassigned members after the first pick.' };
+        st.members.push(mem(pk.id, role, 'pre')); st.v++; return { ok: true };
+      },
+      verify: srv => srv.teams.some(x => x.id === t.id && x.members.some(m => m.pid === pk.id && m.role === role)),
+      okText: pk.name + ' is on ' + t.name + '.', notText: pk.name + ' wasn’t added.',
+      onOk: () => {
+        const text = existing ? pk.name + ' is now ' + ROLE[role].toLowerCase() + ' of ' + t.name + '.' : corr ? pk.name + ' added to ' + t.name + '. Rosters republished; the Wise Old Man group is updated.' : pk.name + ' added to ' + t.name + (role !== 'P' ? ' as ' + ROLE[role].toLowerCase() : '') + '.';
+        this.toast({ text }); this.setState({ fresh: pk.id }); DKAdmin.focusSoon(t.id + '-add');
+      } });
+  }
+
+  /* ---------------- member and team actions ---------------- */
+  changeRole(teamId, mid, role) {
+    const v = this.view(); const t = v.teams.find(x => x.id === teamId); const m = t.members.find(x => x.id === mid); const name = this.pname(v, m.pid);
+    const corr = this.canCorrect(v);
+    this.run({ kind: 'role', what: 'change ' + name + '’s role', teamId,
+      apply: srv => { const st = srv.teams.find(x => x.id === teamId); const sm = st && st.members.find(x => x.id === mid); if (!sm) return { ok: false, msg: 'That current team membership no longer exists.' }; if (sm.role === role) return { ok: false, msg: 'That member already has this role.' }; sm.role = role; sm.v++; if (corr) srv.published.cycle++; return { ok: true }; },
+      verify: srv => srv.teams.some(st => st.members.some(sm => sm.id === mid && sm.role === role)),
+      okText: name + ' is now ' + ROLE[role].toLowerCase() + '.', notText: name + '’s role didn’t change.',
+      onOk: () => { this.toast({ text: name + ' is now ' + ROLE[role].toLowerCase() + ' of ' + t.name + '.' + (corr ? ' Rosters republished.' : '') }); DKAdmin.focusSoon(mid + '-menu'); } });
+  }
+  removeMember(teamId, mid) {
+    const v = this.view(); const t = v.teams.find(x => x.id === teamId); const m = t.members.find(x => x.id === mid); const name = this.pname(v, m.pid);
+    if (this.canCorrect(v)) { this.openCx('removeMember', { teamId, mid, name, teamName: t.name, role: m.role, src: m.src, size: t.members.length }); return; }
+    this.run({ kind: 'remove', what: 'remove ' + name, teamId,
+      apply: srv => { const st = srv.teams.find(x => x.id === teamId); if (!st || !st.members.some(x => x.id === mid)) return { ok: false, msg: name + ' is no longer on this team.' }; st.members = st.members.filter(x => x.id !== mid); st.v++; return { ok: true }; },
+      verify: srv => !srv.teams.some(st => st.members.some(sm => sm.id === mid)), okText: name + ' was removed.', notText: name + ' is still on the team.',
+      onOk: () => { this.toast({ text: name + ' removed from ' + t.name + '.' }); DKAdmin.focusSoon(teamId + '-add'); } });
+  }
+  moveMember(teamId, mid, toId) {
+    const v = this.view(); const t = v.teams.find(x => x.id === teamId); const m = t.members.find(x => x.id === mid); const name = this.pname(v, m.pid); const to = this.tname(v, toId);
+    this.run({ kind: 'move', what: 'move ' + name, teamId,
+      apply: srv => {
+        const a = srv.teams.find(x => x.id === teamId), b = srv.teams.find(x => x.id === toId);
+        if (!a || !b || a.included || b.included) return { ok: false, msg: 'Members can only move between manual-roster teams.' };
+        const sm = a.members.find(x => x.id === mid); if (!sm) return { ok: false, msg: name + ' is no longer on this team.' };
+        a.members = a.members.filter(x => x.id !== mid); b.members.push(Object.assign({}, sm, { id: 'm' + (MID++) })); a.v++; b.v++; return { ok: true };
+      },
+      verify: srv => srv.teams.some(st => st.id === toId && st.members.some(sm => sm.pid === m.pid)), okText: name + ' is on ' + to + '.', notText: name + ' didn’t move.',
+      onOk: () => { this.toast({ text: name + ' moved to ' + to + '.' }); this.setState({ fresh: m.pid }); DKAdmin.focusSoon(toId + '-menu'); } });
+  }
+
+  /* ---------------- prototype: other admins and the lease ---------------- */
+  otherAdmin(kind) {
+    const srv = this.ev();
+    if (kind === 'takeControl') {
+      if (srv.draft !== 'running') { this.toast({ text: 'Prototype: there’s no running draft on this event.' }); return; }
+      const mine = srv.control.who === 'me'; srv.control = { who: 'other', at: TODAY }; srv.version++;
+      this.refresh({ notice: mine ? this.lostNotice() : null }); if (!mine) this.toast({ text: 'Prototype: another admin took control.' });
+      return;
+    }
+    if (kind === 'lapse') {
+      if (srv.draft !== 'running' || srv.control.who !== 'me') { this.toast({ text: 'Prototype: you don’t hold the draft lease here.' }); return; }
+      srv.control = { who: null, at: null }; srv.version++;
+      this.refresh({ notice: { kind: 'lapsed', cls: 'is-warning', title: 'Your control lapsed.', text: 'Control is released when this page can’t renew it for ' + LEASE_MIN + ' minutes, for example after a lost connection. Take control to keep picking.', action: 'Take control', run: () => this.takeControl(false) } });
+      return;
+    }
+    if (kind === 'pick') {
+      if (srv.draft !== 'running' || srv.control.who !== 'other') { this.toast({ text: 'Prototype: first let another admin take control.' }); return; }
+      const t = nextTurn(srv); const p = available(srv).sort((a, b) => b.ehb - a.ehb)[0];
+      if (!t || !p) { this.toast({ text: 'Prototype: no turn left to pick.' }); return; }
+      const n = activePicks(srv).length + 1;
+      srv.picks.push({ n, teamId: t.teamId, pid: p.id, undone: false, round: t.round }); srv.teams.find(x => x.id === t.teamId).members.push(mem(p.id, 'P', 'pick', n)); srv.everPicked = true; srv.version++;
+      if (this.state.unsure || this.busy()) return; // the live update arrives with the next readback
+      this.refresh({ live: 'Pick ' + n + ': ' + p.name + ' to ' + this.tname(srv, t.teamId) + '.' }, () => this.markFresh());
+      return;
+    }
+    if (kind === 'team') {
+      const t = srv.teams.find(x => x.included) || srv.teams[0];
+      if (!t || srv.draft === 'running' || srv.phase === 'live') { this.toast({ text: 'Prototype: teams can’t be edited in this state.' }); return; }
+      const p = (srv.draft === 'setup' && t.included ? available(srv) : srv.parts.filter(x => !teamOf(srv, x.id)))[0];
+      if (!p) { this.toast({ text: 'Prototype: no free player to add.' }); return; }
+      t.members.push(mem(p.id, 'P', srv.draft === 'finalized' ? 'correction' : 'pre')); t.v++; srv.version++;
+      if (srv.published && srv.draft === 'finalized') srv.published.cycle++;
+      if (this.state.unsure || this.busy()) return;
+      this.refresh({ fresh: p.id }); this.toast({ text: 'Another admin added ' + p.name + ' to ' + t.name + '.' });
+    }
+  }
+
+  /* ---------------- discard / uncertain-leave ---------------- */
+  openDiscard(go, kind, what) {
+    this.discardThen = go;
+    const act = document.activeElement; this.modalReturn = act && act !== document.body ? act : null;
+    this.setState({ modal: { closing: false, kind: kind || 'discard', what: what || '' }, menu: null }, () => DKAdmin.focusSoon(kind === 'uncertain' ? 'modal-confirm' : 'modal-cancel'));
+  }
+  keepEditing() { DKAdmin.closeLayer(this, 'modal', '#modal, #confirm-scrim', () => DKAdmin.restoreFocus(this.modalReturn, 'page-h1')); }
+  confirmDiscard() {
+    const go = this.discardThen; this.discardThen = null; const kind = this.state.modal && this.state.modal.kind;
+    DKAdmin.closeLayer(this, 'modal', '#modal, #confirm-scrim', () => { if (kind === 'uncertain') this.setState({ unsure: null }, () => { if (go) go(); }); else if (go) go(); });
+  }
+  checkInstead() { this.discardThen = null; DKAdmin.closeLayer(this, 'modal', '#modal, #confirm-scrim', () => this.check()); }
+
+  /* ---------------- menus ---------------- */
+  menuItems(m) {
+    const S = this.state; const v = this.view();
+    if (m.kind === 'event') {
+      const items = [{ type: 'header', label: 'Switch event', hint: 'Opens its Teams / Draft' }];
+      ORDER.forEach(slug => { const e = this.world[slug]; items.push({ label: e.name, hint: PHASES[e.phase].label, check: S.slug === slug, action: () => this.switchEvent(slug) }); });
+      items.push({ type: 'sep' }); items.push({ label: 'All events', action: () => this.goNav('events') });
+      return items;
+    }
+    if (m.kind === 'more') {
+      const n = activePicks(v).length; const done = complete(v); const me = this.inControl(v);
+      return [
+        { label: v.order ? 'Redraw order' : 'Draw order', disabled: !me || v.everPicked, hint: v.everPicked ? 'Fixed after the first pick' : !me ? 'Needs control' : '', action: () => this.draw() },
+        // AddMember to a drafted team: only before the first pick ever recorded (Setup or Running) and before the event starts
+        { label: 'Preassign a player…', disabled: v.everPicked, hint: v.everPicked ? 'Closed after the first pick' : '', action: () => { const t = nextTurn(v); this.openPs('member', t ? t.teamId : drafted(v)[0].id, { pickTeam: true }); } },
+        { type: 'sep' },
+        { label: 'Finalize draft…', disabled: !done || !me, hint: !done ? available(v).length + ' players left' : !me ? 'Needs control' : '', action: () => this.openCx('finalize') },
+        { label: 'Cancel draft…', danger: true, hint: n ? n + ' active pick' + (n === 1 ? '' : 's') : '', action: () => this.openCx('cancel') }
+      ];
+    }
+    if (m.kind === 'team') {
+      const t = v.teams.find(x => x.id === m.id); if (!t) return [];
+      const st = this.stage(v);
+      const items = [];
+      if (st !== 'locked') items.push({ label: st === 'setup' ? 'Edit team…' : 'Rename team…', action: () => this.openTf(t.id) });
+      // Several Captains are allowed (the application has no one-Captain limit).
+      items.push({ label: 'Add captain…', action: () => this.openPs('captain', t.id) });
+      if (st === 'setup') { items.push({ type: 'sep' }); items.push({ label: 'Remove team…', danger: true, action: () => this.openCx('removeTeam', { teamId: t.id, teamName: t.name, size: t.members.length }) }); }
+      return items;
+    }
+    if (m.kind === 'member') {
+      const t = v.teams.find(x => x.id === m.teamId); const mm = t && t.members.find(x => x.id === m.id); if (!mm) return [];
+      const items = [{ type: 'header', label: this.pname(v, mm.pid), hint: ROLE[mm.role] + ' · ' + t.name }];
+      ['C', 'CC', 'P'].filter(r => r !== mm.role).forEach(r => items.push({ label: r === 'P' ? 'Make participant' : 'Make ' + ROLE[r].toLowerCase(), action: () => this.changeRole(t.id, mm.id, r) }));
+      if (this.stage(v) === 'setup' && !t.included) v.teams.filter(o => o.id !== t.id && !o.included).forEach(o => items.push({ label: 'Move to ' + o.name, action: () => this.moveMember(t.id, mm.id, o.id) }));
+      // While Live, membership is locked but Captain/Co-captain roles can still change (a separate permission).
+      if (this.stage(v) !== 'locked') { items.push({ type: 'sep' }); items.push({ label: this.canCorrect(v) ? 'Remove from team…' : 'Remove from team', danger: true, action: () => this.removeMember(t.id, mm.id) }); }
+      return items;
+    }
+    return [
+      { type: 'header', label: 'Nils Andersen', hint: '@nils · Administrator of Iron Pact' },
+      { type: 'sep' },
+      { type: 'header', label: 'Next change', hint: 'Prototype · resets after use' },
+      ...Object.keys(OUTCOMES).map(k => ({ label: OUTCOMES[k], check: S.outcome === k, action: () => this.setState({ outcome: k }) })),
+      { type: 'sep' },
+      { type: 'header', label: 'Other admins', hint: 'Prototype' },
+      { label: 'Another admin takes control', action: () => this.otherAdmin('takeControl') },
+      { label: 'Controlling admin makes a pick', action: () => this.otherAdmin('pick') },
+      { label: 'My control lapses', action: () => this.otherAdmin('lapse') },
+      { label: 'Another admin edits a team', action: () => this.otherAdmin('team') },
+      { type: 'sep' },
+      { type: 'header', label: 'Loading and browser', hint: 'Prototype' },
+      { label: 'Fail next load', checkbox: true, checked: S.failNext, action: () => { const on = !this.state.failNext; this.setState({ failNext: on }); this.toast({ text: on ? 'The next load will fail. Reload to try it.' : 'Simulated failure turned off.' }); } },
+      { label: 'Open this page directly', action: () => this.directVisit('/admin/events/' + this.state.slug + '/teams') },
+      { label: 'Show browser bar', checkbox: true, checked: S.showBar, action: () => this.setState(s => ({ showBar: !s.showBar })) }
+    ];
+  }
+  openMenu(kind, e, extra) {
+    const m = this.state.menu; const key = kind + ':' + ((extra && extra.id) || '');
+    if (m && !m.closing && m.key === key) { this.closeMenu(true); return; }
+    if (kind !== 'event' && kind !== 'user' && this.blocked()) return;
+    this.menuReturn = e.currentTarget;
+    const r = e.currentTarget.getBoundingClientRect();
+    const spec = Object.assign({ kind, key }, extra || {});
+    let place;
+    if (kind === 'event') place = DKAdmin.placeMenu(r, { width: Math.max(r.width, 256), align: !this.sideOpenNow() && !this.isMobile() ? 'side' : 'start' });
+    else if (kind === 'user') place = DKAdmin.placeMenu(r, { width: 256, align: 'start' });
+    else place = DKAdmin.placeMenu(r, { width: 236, align: 'end', height: DKAdmin.menuHeight(this.menuItems(spec)) });
+    this.setState({ menu: Object.assign(spec, place) }, () => DKAdmin.focusFirstMenuItem('menu'));
+  }
+  closeMenu(restore) { if (DKAdmin.closeLayer(this, 'menu', '#menu') && restore) DKAdmin.restoreFocus(this.menuReturn); }
+  vmMenu() {
+    const m = this.state.menu;
+    if (!m) return { show: false, items: [], x: 0, y: 0, w: 236 };
+    const items = this.menuItems(m).map(it => {
+      if (it.type === 'sep') return { isSep: true };
+      if (it.type === 'header') return { isHeader: true, label: it.label, hint: it.hint };
+      return { isItem: true, label: it.label, hint: it.hint || '', disabled: !!it.disabled, cls: it.danger ? 'is-danger' : '', title: undefined,
+        role: it.checkbox ? 'menuitemcheckbox' : (it.check !== undefined ? 'menuitemradio' : 'menuitem'),
+        checked: it.checkbox ? !!it.checked : (it.check !== undefined ? !!it.check : undefined), showCheck: !!(it.checked || it.check),
+        run: () => { const ret = this.menuReturn; this.closeMenu(false); DKAdmin.restoreFocus(ret); it.action(); } };
+    });
+    const labels = { event: 'Events', user: 'Account', more: 'Draft actions', team: 'Team actions', member: 'Member actions' };
+    return { show: true, items, x: m.x, y: m.y, w: m.w, cls: (m.up ? 'is-up' : '') + (m.closing ? ' is-closing' : ''), label: labels[m.kind],
+      close: () => this.closeMenu(true), onKey: e => DKAdmin.menuKeydown(e, 'menu', () => this.closeMenu(true)) };
+  }
+  sideOpenNow() { const S = this.state; if (this.isMobile()) return S.sideOpen; return this.isRunning() ? (S.sideOverride != null ? S.sideOverride : false) : S.sideOpen; }
+  openMobileNav(e) { this.navReturn = e && e.currentTarget; this.setState({ mobileNav: true, menu: null }, () => DKAdmin.focusSoon('user-btn', { preventScroll: true })); }
+  closeMobileNav(restore) { if (!this.state.mobileNav) return; this.setState({ mobileNav: false }, () => { if (restore !== false) DKAdmin.restoreFocus(this.navReturn, 'menu-toggle'); }); }
+
+  /* ---------------- pool ---------------- */
+  poolList(v) {
+    const q = this.state.q.trim().toLowerCase();
+    const list = available(v).filter(p => !q || p.name.toLowerCase().indexOf(q) >= 0);
+    return list.sort(this.state.sort === 'name' ? (a, b) => a.name.localeCompare(b.name) : (a, b) => (b.ehb - a.ehb) || a.name.localeCompare(b.name));
+  }
+  gridKey(e) {
+    const keys = ['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 'Home', 'End'];
+    if (keys.indexOf(e.key) < 0) return;
+    const grid = document.getElementById('pool-grid'); if (!grid) return;
+    const chips = Array.prototype.slice.call(grid.querySelectorAll('.pchip')); const i = chips.indexOf(document.activeElement); if (i < 0) return;
+    const cols = Math.max(1, getComputedStyle(grid).gridTemplateColumns.split(' ').filter(Boolean).length);
+    let j = i;
+    if (e.key === 'ArrowRight') j = i + 1; else if (e.key === 'ArrowLeft') j = i - 1; else if (e.key === 'ArrowDown') j = i + cols; else if (e.key === 'ArrowUp') j = i - cols;
+    else if (e.key === 'Home') j = 0; else if (e.key === 'End') j = chips.length - 1;
+    if (j < 0 || j >= chips.length) { if (e.key === 'ArrowUp' && j < 0) { e.preventDefault(); const s = document.getElementById('pool-search'); if (s) s.focus(); } return; }
+    e.preventDefault(); const id = chips[j].id; this.setState({ poolFocus: id.replace(/^pc-/, '') }, () => { const el = document.getElementById(id); if (el) { el.focus({ preventScroll: true }); el.scrollIntoView({ block: 'nearest' }); } });
+  }
+  searchKey(e) {
+    const v = this.view();
+    if (e.key === 'Escape' && this.state.q) { e.preventDefault(); this.setState({ q: '' }); return; }
+    if (e.key === 'Enter') { const list = this.poolList(v); if (list.length === 1) { e.preventDefault(); this.pick(list[0].id); this.setState({ q: '' }); } return; }
+    if (e.key === 'ArrowDown') { const first = document.querySelector('#pool-grid .pchip'); if (first) { e.preventDefault(); first.focus(); } }
+  }
+
+  /* ---------------- view models ---------------- */
+  vmBoard(v) {
+    const S = this.state; const turn = nextTurn(v); const proj = projection(v); const pend = S.pending && S.pending.kind === 'pick' ? S.pending : null;
+    const pickOf = {}; activePicks(v).forEach(p => { pickOf[p.pid] = p.n; });
+    const shuffling = !!(S.pending && S.pending.kind === 'draw'); const drawing = this.drawing();
+    const ids = v.order || drafted(v).map(t => t.id);
+    const teams = ids.map((id, i) => {
+      const t = v.teams.find(x => x.id === id); const rank = { C: 0, CC: 1, P: 2 };
+      const pre = t.members.filter(m => m.src !== 'pick').sort((a, b) => rank[a.role] - rank[b.role]);
+      const picks = t.members.filter(m => m.src === 'pick').sort((a, b) => a.pick - b.pick);
+      const members = pre.concat(picks).map(m => {
+        const p = v.parts.find(x => x.id === m.pid);
+        return { cls: m.pid === S.fresh ? 'is-new' : '', tag: m.src === 'pick' ? '#' + m.pick : 'Pre', tagTitle: m.src === 'pick' ? 'Pick ' + m.pick : 'Preassigned before the draft', hasRole: m.role !== 'P', roleCls: m.role === 'CC' ? 'is-co' : '', roleShort: m.role === 'C' ? 'C' : 'CC', roleLabel: ROLE[m.role], name: p.name, pending: false, ehb: num(p.ehb) };
+      });
+      if (pend && pend.teamId === id) { const p = v.parts.find(x => x.id === pend.pid); members.push({ cls: 'is-pending', tag: '#' + pend.pickNo, tagTitle: 'Pick ' + pend.pickNo + ', saving', hasRole: false, name: p.name, pending: true, ehb: num(p.ehb) }); }
+      const ehb = t.members.reduce((a, m) => a + (v.parts.find(x => x.id === m.pid) || { ehb: 0 }).ehb, 0);
+      const fin = proj.sizes[id] || t.members.length;
+      return { id: 'bt-' + id, nameId: 'bt-' + id + '-name', i, cls: turn && turn.teamId === id && !drawing ? 'is-turn' : '', ord: v.order && !shuffling ? String(i + 1) : '–', name: t.name,
+        size: t.members.length + (pend && pend.teamId === id ? 1 : 0) + ' / ' + fin, ehb: num(ehb) + ' EHB', members };
+    });
+    return { count: Math.max(teams.length, 1), teams, cls: shuffling ? 'is-shuffling' : S.settling ? 'is-reordering' : '', busy: drawing ? 'true' : 'false' };
+  }
+  vmTurn(v) {
+    const S = this.state; const t = nextTurn(v); const me = this.inControl(v); const n = activePicks(v).length; const last = activePicks(v).slice(-1)[0];
+    const proj = projection(v); const total = n + proj.turns.length;
+    const pend = S.pending; const blocked = this.blocked();
+    const out = { cls: 'is-swap-' + S.swap, hasTeam: false, team: '', hasNext: false, next: '', hasMsg: false, msg: '', hasPrimary: false, primaryLabel: '', primaryBusy: false, primaryBusyCls: '', primaryDisabled: false, primary: () => {} };
+    if (this.drawing()) {
+      out.pickLabel = 'Drawing order'; out.pickSub = drafted(v).length + ' teams';
+      out.hasMsg = true; out.msg = S.settling ? 'Moving the teams into the drawn order…' : 'Shuffling the teams…';
+      out.hasPrimary = me && !v.everPicked; out.primaryLabel = 'Drawing…'; out.primaryBusy = true; out.primaryDisabled = true;
+    } else if (!v.order) {
+      out.pickLabel = 'Order not drawn'; out.pickSub = drafted(v).length + ' teams · ' + available(v).length + ' players';
+      out.hasMsg = true; out.msg = me ? 'Draw the team order when captains are ready. You can redraw it until the first pick.' : 'Waiting for the admin with control to draw the team order.';
+      out.hasPrimary = me; out.primaryLabel = pend && pend.kind === 'draw' ? 'Drawing…' : 'Draw order'; out.primaryBusy = !!(pend && pend.kind === 'draw'); out.primaryDisabled = blocked; out.primary = () => this.draw();
+    } else if (complete(v)) {
+      out.pickLabel = n + ' picks'; out.pickSub = 'Draft complete';
+      out.hasMsg = true; out.msg = 'Every player is on a team. Check the rosters, then finalize to publish them.';
+      out.hasPrimary = me; out.primaryLabel = 'Finalize…'; out.primaryDisabled = blocked; out.primary = () => this.openCx('finalize');
+    } else if (!t) {
+      out.pickLabel = 'Pick ' + (n + 1); out.pickSub = 'Can’t continue';
+      out.hasMsg = true; out.msg = blockers(v).length ? blockers(v)[0].text + ' Undo picks back to zero, cancel the draft and fix the team in setup.' : 'No team can take the next pick.';
+    } else {
+      out.pickLabel = 'Pick ' + t.pickNo + ' of ' + total; out.pickSub = 'Round ' + t.round;
+      out.hasTeam = true; out.team = this.tname(v, t.teamId);
+      const nx = proj.turns[1]; if (nx) { out.hasNext = true; out.next = nx.teamId === t.teamId ? this.tname(v, nx.teamId) + ' again' : this.tname(v, nx.teamId); }
+    }
+    out.primaryBusyCls = out.primaryBusy ? 'is-busy' : '';
+    const undoing = !!(pend && pend.kind === 'undo');
+    Object.assign(out, { hasUndo: !!v.order, undoBusy: undoing, undoIdle: !undoing, undoBusyCls: undoing ? 'is-busy' : '', undoDisabled: !last || !me || blocked,
+      undoLabel: undoing ? 'Undoing…' : last ? 'Undo #' + last.n : 'Undo', undoTitle: last ? 'Undo pick ' + last.n + ': ' + this.pname(v, last.pid) + ' to ' + this.tname(v, last.teamId) : 'No picks to undo', undo: () => this.undo() });
+    return out;
+  }
+  vmCtl(v) {
+    const who = v.control.who; const busy = this.blocked();
+    if (who === 'me') return { cls: '', text: 'You have control', hasAction: true, action: 'Release', busy: this.blocked(), run: () => this.release() };
+    if (who === 'other') return { cls: 'is-other', text: 'Another admin has control', hasAction: true, action: 'Take over…', busy, run: () => this.openTakeover() };
+    return { cls: 'is-none', text: 'No one has control', hasAction: true, action: 'Take control', busy, run: () => this.takeControl(false) };
+  }
+  vmPool(v) {
+    const S = this.state; const list = this.poolList(v); const turn = nextTurn(v); const me = this.inControl(v);
+    const pend = S.pending && S.pending.kind === 'pick' ? S.pending : null;
+    const can = !!turn && me && !this.blocked();
+    let reason = '';
+    if (this.drawing()) reason = 'Picking opens once the drawn order has settled.';
+    else if (!v.order) reason = 'Draw the team order to start picking.';
+    else if (!me) reason = v.control.who === 'other' ? 'Another admin is picking. Take over to pick from here.' : 'Take control to pick.';
+    else if (S.unsure) reason = 'Check the last change before picking again.';
+    const focusId = list.some(p => p.id === S.poolFocus) ? S.poolFocus : (list[0] && list[0].id);
+    const team = turn ? this.tname(v, turn.teamId) : '';
+    const all = available(v).length;
+    return {
+      cls: can ? '' : 'is-inert',
+      countText: all === list.length ? all + ' left' : list.length + ' of ' + all,
+      q: S.q, onQ: e => this.setState({ q: e.target.value }), searchKey: e => this.searchKey(e),
+      sortEhb: S.sort === 'ehb', sortName: S.sort === 'name', sortEhbCls: S.sort === 'ehb' ? 'is-on' : '', sortNameCls: S.sort === 'name' ? 'is-on' : '',
+      byEhb: () => this.setState({ sort: 'ehb' }), byName: () => this.setState({ sort: 'name' }),
+      empty: !list.length, emptyText: all ? 'No available player matches “' + S.q.trim() + '”.' : 'Everyone has been drafted.',
+      gridLabel: can ? 'Available players. Choosing one drafts them to ' + team + ' straight away.' : 'Available players. ' + (reason || 'Picking is paused.'),
+      help: (reason ? reason + ' ' : '') + 'Arrow keys move between players; Enter drafts the focused player. Press / to search; Enter in the search drafts a single match.',
+      gridKey: e => this.gridKey(e),
+      chips: list.map(p => ({ id: 'pc-' + p.id, cls: pend && pend.pid === p.id ? 'is-pending' : '', ti: p.id === focusId ? '0' : '-1', inert: can ? 'false' : 'true',
+        aria: p.name + ', ' + num(p.ehb) + ' EHB' + (can ? '. Draft to ' + team : ''), name: p.name, pending: !!(pend && pend.pid === p.id), ehb: num(p.ehb), pick: () => { if (can) this.pick(p.id); } }))
+    };
+  }
+  vmCards(v) {
+    const S = this.state; const st = this.stage(v); const d = dist(v); const b = blockers(v); const ro = this.blocked();
+    const corr = this.canCorrect(v);
+    const ordered = st === 'setup' || !v.order ? v.teams.filter(t => t.included).concat(v.teams.filter(t => !t.included)) : v.order.map(id => v.teams.find(t => t.id === id)).filter(Boolean).concat(v.teams.filter(t => v.order.indexOf(t.id) < 0));
+    const rank = { C: 0, CC: 1, P: 2 };
+    const finalRange = d ? (d.largerCount ? d.smaller + '–' + d.larger : String(d.smaller)) : '';
+    return ordered.map(t => {
+      const hasCap = t.members.some(m => m.role === 'C');
+      const over = d && t.included && t.members.length > d.larger;
+      let warn = '';
+      if (st === 'setup' && t.included && !this.manual(v) && !hasCap) warn = 'Needs a captain before the draft can start.';
+      else if (st === 'setup' && over) warn = 'More preassigned members than the final size (' + d.larger + ').';
+      else if (st === 'setup' && this.manual(v) && !t.members.length) warn = 'Needs at least one member before rosters can be finalized.';
+      const members = t.members.slice().sort((a, b2) => (rank[a.role] - rank[b2.role]) || ((a.pick || 999) - (b2.pick || 999))).map(m => {
+        const p = v.parts.find(x => x.id === m.pid);
+        const tag = st === 'setup' ? '' : m.src === 'pick' ? '#' + m.pick : m.src === 'correction' ? 'Added' : t.included ? 'Pre' : '';
+        return { cls: m.pid === S.fresh ? 'is-new' : '', rowId: m.id, hasRole: m.role !== 'P', roleCls: m.role === 'CC' ? 'is-co' : '', roleShort: m.role === 'C' ? 'C' : 'CC', roleLabel: ROLE[m.role], name: p.name,
+          hasTag: !!tag, tag, tagTitle: m.src === 'pick' ? 'Drafted with pick ' + m.pick : m.src === 'correction' ? 'Added as a correction after the rosters were published' : 'Preassigned before the draft',
+          ehb: num(p.ehb), hasMenu: st === 'setup' || corr || st === 'locked', menuId: m.id + '-menu', menuOpen: !!(S.menu && S.menu.kind === 'member' && S.menu.id === m.id), actDisabled: ro,
+          openMenu: e => this.openMenu('member', e, { id: m.id, teamId: t.id }) };
+      });
+      const ehb = t.members.reduce((a, m) => a + (v.parts.find(x => x.id === m.pid) || { ehb: 0 }).ehb, 0);
+      const canAddHere = st === 'setup' ? (!t.included || !v.everPicked) : corr;
+      let sizeText = t.members.length + (t.members.length === 1 ? ' member' : ' members');
+      if (st === 'setup' && t.included && d && !this.manual(v)) sizeText = t.members.length + ' preassigned · final size ' + finalRange;
+      return { cardId: 'card-' + t.id, nameId: t.id + '-name', name: t.name, badge: t.included ? (this.manual(v) && st === 'setup' ? 'Drafted (needs 2 teams)' : 'Website draft') : 'Manual roster', badgeCls: 'badge-neutral',
+        sizeText, hasEhb: t.members.length > 0, ehbText: num(ehb) + ' EHB',
+        hasMenu: st === 'setup' || corr || st === 'locked', menuId: t.id + '-menu', menuOpen: !!(S.menu && S.menu.kind === 'team' && S.menu.id === t.id), actDisabled: ro, openMenu: e => this.openMenu('team', e, { id: t.id }),
+        hasWarn: !!warn, warn, empty: !t.members.length, emptyText: st === 'setup' && t.included && !this.manual(v) ? 'No one preassigned yet. Assign a captain; everyone else joins through the draft.' : 'No members yet.',
+        members, hasFoot: (st === 'setup' || corr) && (canAddHere || (st === 'setup' && !hasCap)),
+        canCaptain: st === 'setup' && !hasCap && (!t.included || !v.everPicked || t.members.length > 0), captainBtnId: t.id + '-captain', assignCaptain: () => this.openPs('captain', t.id),
+        canAdd: canAddHere, addBtnId: t.id + '-add', addLabel: st === 'setup' ? (t.included && !this.manual(v) ? 'Preassign player' : 'Add member') : 'Add member', addMember: () => this.openPs(corr ? 'correction' : 'member', t.id) };
+    });
+  }
+  vmPs() {
+    const p = this.state.ps; if (!p) return { show: false, results: [], roles: [], pick: {} };
+    const S = this.state; const v = this.view(); const t = v.teams.find(x => x.id === p.teamId) || { name: '' };
+    const corr = p.mode === 'correction'; const busy = !!p.busy;
+    const res = p.pick ? [] : this.psResults();
+    const shown = res.slice(0, 40);
+    const err = S.layerErr && S.ps ? S.layerErr : null;
+    const title = p.pickTeam ? 'Preassign a player' : p.mode === 'captain' ? 'Add captain' : corr ? 'Add to the published roster' : 'Add to ' + t.name;
+    const roles = [['P', 'Participant', 'A regular member.'], ['C', 'Captain', 'Leads the team and calls draft picks.'], ['CC', 'Co-captain', 'Helps the captain; a separate role.']];
+    return { show: true, closingCls: p.closing ? 'is-closing' : '', behindCls: S.modal && !S.modal.closing ? 'is-behind' : '', busy, busyCls: busy ? 'is-busy' : '',
+      eyebrow: p.pickTeam ? 'Before the first pick' : t.name, title, whoLabel: corr ? 'Who to add' : 'Player', hasAside: p.mode === 'captain', aside: 'Volunteers first',
+      hasSources: corr && v.accounts.length > 0, srcPart: p.src === 'part', srcAcc: p.src === 'acc', srcPartCls: p.src === 'part' ? 'is-on' : '', srcAccCls: p.src === 'acc' ? 'is-on' : '',
+      useParts: () => this.setState({ ps: Object.assign({}, p, { src: 'part', pick: null }) }), useAccounts: () => this.setState({ ps: Object.assign({}, p, { src: 'acc', pick: null }) }),
+      noPick: !p.pick, hasPick: !!p.pick, pick: p.pick || {}, change: () => this.setState({ ps: Object.assign({}, p, { pick: null }) }, () => DKAdmin.focusSoon('ps-search')),
+      q: p.q, onQ: e => this.setState({ ps: Object.assign({}, this.state.ps, { q: e.target.value }) }),
+      onQKey: e => {
+        if (e.key === 'ArrowDown') { DKAdmin.listKeydown(e, 'ps-results', '.res:not(:disabled)', 'ps-search'); return; }
+        if (e.key === 'Enter') { const ok = this.psResults().filter(r => !r.disabled); if (ok.length === 1) { e.preventDefault(); this.pickPs(ok[0]); } }
+      },
+      onListKey: e => DKAdmin.listKeydown(e, 'ps-results', '.res:not(:disabled)', 'ps-search'),
+      placeholder: p.src === 'acc' ? 'Search website accounts' : 'Search players by account name',
+      qCls: p.showErr ? 'is-invalid' : '', qInvalid: p.showErr ? 'true' : 'false', hasErr: !!p.showErr, err: p.mode === 'captain' ? 'Choose who will captain ' + t.name + '.' : 'Choose a player to add.',
+      resultsLabel: p.mode !== 'captain' && res.length && res.every(r => r.disabled) ? 'Everyone here is already on a team' : (res.length > shown.length ? 'Showing ' + shown.length + ' of ' + res.length : res.length + (res.length === 1 ? ' match' : ' matches')) + (p.src === 'acc' ? ' · not signed up for this event' : ''),
+      results: shown.map((r, i) => ({ id: 'ps-r' + i, name: r.p.name, sub: r.sub, vol: !!r.p.vol && p.mode !== 'correction', hasNote: !!r.note, note: r.note, disabled: !!r.disabled || busy, pick: () => this.pickPs(r) })),
+      noResults: !shown.length, noResultsText: p.q.trim() ? 'No players match “' + p.q.trim() + '”.' : 'No players to choose from.',
+      hasRoles: p.mode === 'member', teamName: t.name,
+      hasTeamPick: !!p.pickTeam, teamOptions: drafted(v).map(x => ({ id: x.id, label: x.name + ' · ' + x.members.length + (x.members.length === 1 ? ' member' : ' members'), on: x.id === p.teamId })),
+      onTeam: e => this.setState({ ps: Object.assign({}, this.state.ps, { teamId: e.target.value, pick: null }) }),
+      roles: roles.map(([k, label, sub]) => ({ label, sub, on: p.role === k, cls: p.role === k ? 'is-on' : '', pick: () => this.setState({ ps: Object.assign({}, this.state.ps, { role: k }) }) })),
+      hasNote: corr || p.mode === 'captain',
+      note: corr ? (p.src === 'acc' ? 'They join as a confirmed participant with this playing account and EHB, and as a Participant on ' + t.name + '. Saving republishes the rosters; original picks stay in the draft history.' : 'They join ' + t.name + ' as a Participant. Saving republishes the rosters; original picks stay in the draft history. Corrections close when the event first goes Live.')
+        : this.stage(v) === 'locked' ? 'Membership is locked while the event is Live, so choose a current member of ' + t.name + '. A team can have more than one Captain.'
+          : this.stage(v) === 'final' ? 'Choose a current member of ' + t.name + '; corrections add new members as Participants only. A team can have more than one Captain.'
+          : (t.included ? 'Captains call the picks during the draft.' : 'Captain of a manual-roster team.') + ' A team can have more than one Captain, and Co-captain is a separate role in the member’s menu.',
+      hasBanner: !!err, bannerCls: err ? err.cls : '', bannerTitle: err ? err.title : '', bannerText: err ? err.text : '',
+      saveLabel: busy ? 'Saving…' : p.mode === 'captain' ? (p.pick && t.members && t.members.some(m => m.pid === p.pick.id) ? 'Make captain' : 'Add as captain') : corr ? 'Add and republish' : 'Add to team',
+      save: () => this.savePs(), requestClose: () => this.requestClosePs(),
+      onKey: e => { if (this.state.modal) return; if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); this.requestClosePs(); } else DKAdmin.trapTab(e, 'ps'); } };
+  }
+  vmTf() {
+    const f = this.state.tf; if (!f) return { show: false };
+    const S = this.state; const v = this.view(); const busy = !!f.busy; const err = f.showErr ? this.tfError() : ''; const len = f.name.trim().length;
+    const le = S.layerErr && S.tf ? S.layerErr : null; const setup = this.stage(v) === 'setup';
+    return { show: true, closingCls: f.closing ? 'is-closing' : '', behindCls: S.modal && !S.modal.closing ? 'is-behind' : '', busy, busyCls: busy ? 'is-busy' : '',
+      title: f.teamId ? (setup ? 'Edit team' : 'Rename team') : 'Add team',
+      hasBanner: !!le, bannerCls: le ? le.cls : '', bannerTitle: le ? le.title : '', bannerText: le ? le.text : '',
+      name: f.name, onName: e => this.setState({ tf: Object.assign({}, this.state.tf, { name: e.target.value }) }), nameKey: e => { if (e.key === 'Enter') { e.preventDefault(); this.saveTf(); } },
+      nameCls: err ? 'is-invalid' : '', nameInvalid: err ? 'true' : 'false', nameDescribedBy: (err ? 'tf-name-err ' : '') + 'tf-name-hint', hasErr: !!err, err,
+      showCount: len > 22, count: len + ' / 30', countCls: len > 30 ? 'is-over' : '',
+      showIncl: setup, incl: f.incl, inclCls: f.incl ? 'is-on' : '', inclDisabled: busy, onIncl: e => this.setState({ tf: Object.assign({}, this.state.tf, { incl: e.target.checked }) }),
+      inclHint: f.incl ? 'Filled by the snake draft. Needs a captain before the draft starts.' : 'Not drafted: you assemble this roster by hand, and its members aren’t in the draft pool.',
+      saveLabel: busy ? 'Saving…' : f.teamId ? 'Save' : 'Add team', save: () => this.saveTf(), requestClose: () => this.requestCloseTf(),
+      onKey: e => { if (this.state.modal) return; if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); this.requestCloseTf(); } else DKAdmin.trapTab(e, 'tf'); } };
+  }
+  vmCx() {
+    const c = this.state.cx; if (!c) return { show: false, points: [] };
+    const S = this.state; const v = this.view(); const busy = !!c.busy; const err = S.layerErr && S.cx ? S.layerErr : null;
+    const n = activePicks(v).length; const d = dist(v); const unplacedN = v.parts.filter(p => !teamOf(v, p.id)).length;
+    let o = {};
+    if (c.kind === 'start') o = { title: 'Start the draft?', body: drafted(v).length + ' teams and ' + includedParts(v).length + ' players are in the draft. You’ll take control, then draw the team order as a separate step.', points: [
+      'Team sizes: ' + (d.largerCount ? d.largerCount + ' of ' + d.larger + ' and ' + (d.n - d.largerCount) + ' of ' + d.smaller : d.n + ' teams of ' + d.smaller) + '.',
+      'Drafted teams can’t be added, removed or switched out of the draft while it runs.',
+      'You can cancel and return to setup whenever no picks are active.'], confirmLabel: 'Start draft', confirmCls: 'btn-primary' };
+    else if (c.kind === 'cancel') o = n
+      ? { title: 'Undo picks before cancelling', body: 'The draft still has ' + n + ' active pick' + (n === 1 ? '' : 's') + '. Cancelling never removes picks for you.', block: 'Use Undo to remove picks one at a time, latest first. When none are left, you can cancel and return to setup.', hasConfirm: false, cancelLabel: 'Close' }
+      : { title: 'Cancel the draft?', body: 'The draft returns to setup. Teams, captains and preassigned members stay as they are.', points: [v.everPicked ? 'The drawn order is kept, because a first pick was made.' : 'The drawn order is cleared; you’ll draw again after restarting.', 'Control is released.'], confirmLabel: 'Cancel draft', confirmCls: 'btn-danger', cancelLabel: 'Keep drafting' };
+    else if (c.kind === 'finalize') o = this.manual(v)
+      ? { title: 'Finalize the rosters?', body: 'This publishes ' + v.teams.length + ' team roster' + (v.teams.length === 1 ? '' : 's') + ' to players. No draft is run and no picks are recorded.', points: (unplacedN ? [unplacedN + (unplacedN === 1 ? ' confirmed player isn’t' : ' confirmed players aren’t') + ' on a team and won’t appear on a published roster. You can add them afterwards as corrections, until the first Live.'] : []).concat(['The board isn’t published and the event doesn’t start.', 'Until the event first goes Live, you can still add or remove individual members; each change republishes the rosters.', 'Rosters can’t return to setup.']), confirmLabel: 'Finalize and publish', confirmCls: 'btn-primary', wide: true }
+      : { title: 'Finalize the draft?', body: 'This publishes the rosters and the draft results (' + n + ' picks) to players.', points: ['The board isn’t published and the event doesn’t start.', 'Until the event first goes Live, you can add or remove individual members; each change republishes the rosters and the original picks stay in the history.', 'The draft can’t be reopened.'], confirmLabel: 'Finalize and publish', confirmCls: 'btn-primary', wide: true };
+    else if (c.kind === 'takeover') o = { title: 'Take over from ' + OTHER_ADMIN + '?', body: OTHER_ADMIN + ' has control of this draft (last action ' + (v.control.at ? Math.max(1, Math.round((TODAY - v.control.at) / M)) + ' min ago' : 'just now') + '). Taking over stops their picks from going through.', points: ['Only take over if they’ve stopped or asked you to.', 'Their control lapses on its own ' + LEASE_MIN + ' minutes after their page stops renewing it.'], confirmLabel: 'Take over', confirmCls: 'btn-primary' };
+    else if (c.kind === 'removeMember') o = { title: 'Remove ' + c.name + ' from ' + c.teamName + '?', body: 'The rosters are republished without them. ' + c.teamName + ' will have ' + (c.size - 1) + ' member' + (c.size - 1 === 1 ? '' : 's') + '.', points: [c.src === 'pick' ? 'Their original pick stays in the draft history.' : 'The publication history keeps a record of this change.', 'To put them on another team, add them there afterwards.'].concat(c.role === 'C' ? [c.teamName + ' will have no captain until you assign one.'] : []), confirmLabel: 'Remove and republish', confirmCls: 'btn-danger' };
+    else if (c.kind === 'removeTeam') o = { title: 'Remove ' + c.teamName + '?', body: c.size ? 'Its ' + c.size + ' member' + (c.size === 1 ? '' : 's') + ' go back to having no team. Nothing about the players themselves changes.' : 'It has no members.', confirmLabel: 'Remove team', confirmCls: 'btn-danger' };
+    const hasConfirm = o.hasConfirm !== false;
+    return { show: true, closingCls: c.closing ? 'is-closing' : '', behindCls: S.modal && !S.modal.closing ? 'is-behind' : '', wideCls: o.wide ? 'is-wide' : '', busy, busyCls: busy ? 'is-busy' : '',
+      title: o.title, body: o.body, hasPoints: !!(o.points && o.points.length), points: o.points || [], hasBlock: !!o.block, block: o.block || '',
+      hasErr: !!err, err: err ? err.title + ' ' + err.text : '',
+      hasConfirm, confirmLabel: busy ? (c.kind === 'finalize' ? 'Publishing…' : c.kind === 'start' ? 'Starting…' : 'Working…') : o.confirmLabel, confirmCls: o.confirmCls || 'btn-primary', cancelLabel: o.cancelLabel || 'Cancel',
+      dismiss: () => this.closeCx(), confirm: () => this.confirmCx(),
+      onKey: e => { if (this.state.modal) return; if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); this.closeCx(); } else DKAdmin.trapTab(e, 'cx'); } };
+  }
+  vmModal() {
+    const m = this.state.modal; if (!m) return { show: false };
+    const unsure = m.kind === 'uncertain'; const S = this.state;
+    return { show: true, closingCls: m.closing ? 'is-closing' : '', stackCls: S.cx || S.tf || S.ps ? 'is-stacked' : '',
+      title: unsure ? 'Leave before checking?' : m.what === 'team' ? 'Discard this team?' : 'Discard your choice?',
+      body: unsure ? 'We couldn’t confirm your last change, and it may already have gone through. Check again to find out, or leave now and check when you come back.' : m.what === 'team' ? 'The team details you entered haven’t been saved.' : 'The player you chose hasn’t been added.',
+      secondaryLabel: unsure ? 'Leave anyway' : 'Keep editing', secondaryCls: unsure ? 'btn-outline-danger' : '',
+      primaryLabel: unsure ? 'Check again' : 'Discard', primaryCls: unsure ? 'btn-primary' : 'btn-danger',
+      secondary: () => (unsure ? this.confirmDiscard() : this.keepEditing()), primary: () => (unsure ? this.checkInstead() : this.confirmDiscard()),
+      dismiss: () => this.keepEditing(),
+      onKey: e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); this.keepEditing(); } else DKAdmin.trapTab(e, 'modal'); } };
+  }
+  vmBanner(v, st) {
+    const S = this.state;
+    if (S.unsure || S.checking) return { show: true, cls: 'is-warning', title: S.checking ? 'Checking…' : 'We couldn’t confirm whether this went through: ' + S.unsure.what + '.', text: 'Check before trying again, so nothing happens twice.', hasAction: !S.checking, action: 'Check again', busy: S.checking, run: () => this.check() };
+    if (S.notice) return { show: true, cls: S.notice.cls, title: S.notice.title, text: S.notice.text, hasAction: !!S.notice.action, action: S.notice.action || '', busy: this.busy(), run: S.notice.run || (() => {}) };
+    if (st === 'final') return { show: true, cls: 'is-info', title: 'Rosters published ' + fmtDay(v.published.at) + '.', text: 'Until ' + v.name + ' first goes Live, you can add or remove members and change roles. Each change republishes the rosters' + (v.picks.length ? '; original picks stay in the draft history.' : '.'), hasAction: false };
+    if (st === 'locked') return { show: true, cls: 'is-info', title: 'Rosters are locked.', text: v.name + ' went Live ' + fmtDay(v.liveSince) + ', so members can no longer be added or removed. Captain and Co-captain roles can still change.', hasAction: false };
+    return { show: false };
+  }
+
+  renderVals() {
+    const S = this.state; const e = this.ev(); const v = S.snap;
+    const ready = S.route === 'teams' && !S.loading && !S.loadError && !!v;
+    const st = ready ? this.stage(v) : 'setup'; const running = ready && st === 'running';
+    const sideOpen = this.sideOpenNow();
+    const navKey = S.route === 'teams' ? 'teams' : S.otherKey;
+    const nav = {}; NAV.forEach(([k, label]) => { nav[k] = { cls: navKey === k ? 'is-current' : '', current: navKey === k ? 'page' : undefined, tip: (sideOpen || this.isMobile()) ? undefined : label, count: '', go: () => this.goNav(k) }; });
+    const man = ready && this.manual(v);
+    const rd = ready && st === 'setup' ? this.readiness(v) : { ok: false, checks: [] };
+    let head = { hasAction: false };
+    if (ready && st === 'setup' && v.teams.length) {
+      if (man) head = { hasAction: true, label: 'Finalize rosters…', cls: 'btn-primary', inert: rd.ok && !this.blocked() ? 'false' : 'true', title: rd.ok ? undefined : 'Finish the steps above first', describedBy: 'ready-checks', run: () => { if (rd.ok) this.openCx('finalize'); else DKAdmin.focusSoon('ready-title'); } };
+      else head = { hasAction: true, label: 'Start draft…', cls: 'btn-primary', inert: rd.ok && !this.blocked() ? 'false' : 'true', title: rd.ok ? undefined : 'Finish the steps above first', describedBy: 'ready-checks', run: () => { if (rd.ok) this.openCx('start'); else DKAdmin.focusSoon('ready-title'); } };
+    }
+    if (ready && (st === 'final' || st === 'locked')) head = { hasAction: true, label: 'Open Board', cls: '', inert: 'false', run: () => this.goNav('board') };
+    let summary = '';
+    if (ready) summary = st === 'setup' ? (!v.teams.length ? 'Add a team for each captain to get started.' : man ? 'Assemble each roster by hand, then finalize to publish them.' : 'Prepare teams and captains, then run the snake draft.') : st === 'final' ? 'Published rosters for ' + v.name + '.' : st === 'locked' ? 'Rosters for ' + v.name + '.' : '';
+    const banner = ready ? this.vmBanner(v, st) : { show: false };
+    const manualTeams = ready ? v.teams.filter(t => !t.included) : [];
+    return {
+      themeClass: S.theme === 'dark' ? 'theme-dark' : 'theme-light', isLight: S.theme === 'light', isDark: S.theme === 'dark', lightCls: S.theme === 'light' ? 'is-on' : '', darkCls: S.theme === 'dark' ? 'is-on' : '',
+      setLight: () => this.setState({ theme: 'light' }), setDark: () => this.setState({ theme: 'dark' }),
+      nav, sideCls: (sideOpen ? '' : 'is-collapsed') + (S.mobileNav ? ' is-mobile-open' : ''), sideOpen: this.isMobile() ? S.mobileNav : sideOpen,
+      sideTip: (sideOpen || this.isMobile()) ? undefined : 'Iron Pact · Administrator', mobileNav: S.mobileNav, navScrimCls: S.mobileNav ? 'is-on' : '',
+      openMobileNav: x => this.openMobileNav(x), closeMobileNav: () => this.closeMobileNav(),
+      sideKey: x => { if (!this.state.mobileNav || this.state.menu) return; if (x.key === 'Escape') { x.preventDefault(); this.closeMobileNav(); } else DKAdmin.trapTab(x, 'sidebar'); },
+      collapseLabel: this.isMobile() ? 'Close navigation' : (sideOpen ? 'Collapse sidebar' : 'Expand sidebar'), collapseArrowCls: (sideOpen || this.isMobile()) ? '' : 'is-flip',
+      toggleSide: () => { if (this.isMobile()) { this.closeMobileNav(); return; } if (this.isRunning()) this.setState({ sideOverride: !sideOpen, menu: null }); else this.setState(s => ({ sideOpen: !s.sideOpen, menu: null })); },
+      ev: { name: e.name, stage: PHASES[e.phase].label, when: e.when, toneCls: PHASES[e.phase].tone },
+      evTip: (sideOpen || this.isMobile()) ? undefined : 'Switch event',
+      eventMenuOpen: !!(S.menu && S.menu.kind === 'event'), userMenuOpen: !!(S.menu && S.menu.kind === 'user'),
+      openEventMenu: x => this.openMenu('event', x), openUserMenu: x => this.openMenu('user', x),
+      scrollCls: S.mobileNav || S.cx || S.tf || S.ps || S.modal ? 'is-locked' : '',
+      crumb: { hasEvent: S.otherKey !== 'events' && ['dashboard', 'catalogue', 'accounts', 'audit'].indexOf(S.otherKey) < 0, event: e.name, page: S.route === 'teams' ? 'Teams / Draft' : (TITLES[S.otherKey] || '') },
+      crumbEvents: () => this.goNav('events'),
+      isPage: S.route === 'teams', isOther: S.route === 'other',
+      otherTitle: TITLES[S.otherKey] || '', otherScope: ['events', 'dashboard', 'catalogue', 'accounts', 'audit'].indexOf(S.otherKey) >= 0 ? 'Community-wide' : e.name,
+      otherText: ['events', 'participants', 'dashboard', 'overview', 'identity', 'signup', 'schedule'].indexOf(S.otherKey) >= 0 ? TITLES[S.otherKey] + ' has its own artboard on the canvas.' : 'This artboard shows Teams / Draft. Back returns to it.',
+      backToPage: () => this.backToPage(),
+      pageCls: (running ? 'is-live' : '') + (running && S.showBar ? ' has-proto' : ''),
+      showHead: S.route === 'teams' && !running, summary, head, evName: e.name, isRunning: running,
+      loading: S.route === 'teams' && S.loading, loadError: S.route === 'teams' && S.loadError, retry: () => this.load(), skCards: [1, 2, 3],
+      banner,
+      showSetup: ready && st === 'setup',
+      ready: { title: ready && !v.teams.length ? 'Getting started' : rd.ok ? (man ? 'Ready to finalize' : 'Ready to start the draft') : (man ? 'Before finalizing' : 'Before starting the draft'), sizes: ready ? this.sizeSummary(v) : '', checksLabel: 'Readiness',
+        checks: rd.checks.map(c => ({ cls: c.info ? 'is-info' : c.done ? 'is-done' : '', done: !!c.done, label: c.label, sr: c.info ? ' (note)' : c.done ? ' (done)' : ' (to do)', hasLink: !!c.link, linkLabel: c.link ? c.link.label : '', go: c.link ? c.link.go : () => {} })) },
+      teamsCount: ready ? v.teams.length : 0, canAddTeam: ready && st === 'setup', addTeam: () => this.openTf(null),
+      showCards: ready && st !== 'running', noTeams: ready && !v.teams.length, cards: ready && st !== 'running' ? this.vmCards(v) : [],
+      turn: running ? this.vmTurn(v) : {}, ctl: running ? this.vmCtl(v) : {}, moreOpen: !!(S.menu && S.menu.kind === 'more'), openMore: x => this.openMenu('more', x),
+      board: running ? this.vmBoard(v) : { count: 1, teams: [] }, pool: running ? this.vmPool(v) : { chips: [] },
+      hasManualNote: running && manualTeams.length > 0, manualNote: manualTeams.length ? 'Not in the draft: ' + manualTeams.map(t => t.name + ' (' + t.members.length + ')').join(', ') + ', assembled by hand.' : '',
+      live: S.live,
+      cx: this.vmCx(), tf: this.vmTf(), ps: this.vmPs(), md: this.vmModal(), menu: this.vmMenu(),
+      pb: { show: S.showBar, url: this.cur().url, noBack: this.hist.idx === 0, noFwd: this.hist.idx >= this.hist.entries.length - 1, back: () => this.back(), fwd: () => this.forward(), reload: () => this.reload() },
+      toasts: DKAdmin.toastView(this)
+    };
+  }
+}
+</script>
+</body>
+</html>

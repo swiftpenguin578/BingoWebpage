@@ -76,6 +76,22 @@ public sealed class EventParticipant
         WaitingListedAt = null;
     }
 
+    /// <summary>
+    /// Moves an admitted participant to the end of the current waiting queue.
+    /// Character reservations are deliberately left untouched; this is an
+    /// administrative capacity operation, not a withdrawal.
+    /// </summary>
+    public void MoveToWaiting(long sequence, DateTimeOffset now)
+    {
+        if (SignupStatus != SignupStatus.Confirmed) throw new InvalidOperationException("Only confirmed participants can be moved to the waiting list.");
+        ArgumentOutOfRangeException.ThrowIfLessThan(sequence, 1);
+        SignupStatus = SignupStatus.WaitingList;
+        SignupSequence = sequence;
+        ConfirmedAt = null;
+        WaitingListedAt = now.ToUniversalTime();
+        AdvanceResponseVersion();
+    }
+
     public void Withdraw(DateTimeOffset now, string reason, Guid? actorAccountId = null)
         => Withdraw(now, reason, actorAccountId, null);
 

@@ -16,28 +16,12 @@ public sealed class CatalogueSnapshotService(ApplicationDbContext db, TimeProvid
         Converters = { new JsonStringEnumConverter() }
     };
 
-    public async Task<SnapshotCounts> ExportAsync(string path, CancellationToken cancellationToken = default)
-    {
-        var bosses = await db.BossActivities.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
-        var items = await db.CatalogueItems.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
-        var drops = await db.SourceDrops.AsNoTracking().OrderBy(x => x.BossActivityId).ThenBy(x => x.ItemId).ToListAsync(cancellationToken);
-        var snapshot = new CatalogueSnapshot(
-            2,
-            time.GetUtcNow(),
-            bosses.Select(x => new BossRecord(x.Id, x.Name, x.Slug, x.Category, x.EfficientCompletionsPerHour, x.ExternalIdentifier, x.DataSource, x.ImageUrl, x.Active, x.Notes, x.MappingStatus, x.MappingCheckedAt)).ToArray(),
-            items.Select(x => new ItemRecord(x.Id, x.Name, x.NormalizedName, x.ExternalIdentifier, x.ImageUrl, x.Active, x.Notes, x.CatalogueValueGp, x.PriceSource, x.PriceObservedAt, x.MappingStatus, x.MappingCheckedAt, x.MatchedApiName, x.MatchedApiIcon, x.RejectedPriceGp, x.RejectedPriceObservedAt)).ToArray(),
-            drops.Select(x => new DropRecord(x.Id, x.BossActivityId, x.ItemId, x.DisplayRate, x.NumericProbability, x.RateConditionNote, x.DefaultEhbEstimate, x.ProbabilityScope, x.ConditionalOnParent, x.ParentProbability, x.AssumedParticipants, x.RollsPerCompletion, x.RollGroup, x.DataSource, x.Active)).ToArray());
-
-        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
-        await File.WriteAllTextAsync(path, JsonSerializer.Serialize(snapshot, JsonOptions) + Environment.NewLine, cancellationToken);
-        return snapshot.Counts;
-    }
-
     public async Task<SnapshotCounts> ApplyAsync(string path, CancellationToken cancellationToken = default)
     {
         var snapshot = JsonSerializer.Deserialize<CatalogueSnapshot>(await File.ReadAllTextAsync(path, cancellationToken), JsonOptions)
             ?? throw new InvalidOperationException("The catalogue snapshot is empty or invalid.");
         if (snapshot.SchemaVersion is not (1 or 2)) throw new InvalidOperationException($"Unsupported catalogue snapshot schema version {snapshot.SchemaVersion}.");
+        ValidateImportRecords(snapshot);
 
         var now = time.GetUtcNow();
         await using var transaction = await db.Database.BeginTransactionAsync(cancellationToken);
@@ -55,6 +39,7 @@ public sealed class CatalogueSnapshotService(ApplicationDbContext db, TimeProvid
                 bosses.Add(boss);
             }
             boss.Update(record.Name, record.Category, record.EfficientCompletionsPerHour, snapshot.SchemaVersion == 1 ? record.ExternalIdentifier ?? boss.ExternalIdentifier : record.ExternalIdentifier, record.DataSource, record.Notes, now, record.ImageUrl);
+            boss.SetTeamSize(record.TeamSize);
             if (snapshot.SchemaVersion == 2) boss.RecordMapping(record.MappingStatus, record.MappingCheckedAt);
             boss.SetActive(record.Active);
             bossIds[record.Id] = boss.Id;
@@ -117,37 +102,16 @@ public sealed class CatalogueSnapshotService(ApplicationDbContext db, TimeProvid
         return snapshot.Counts;
     }
 
-    public async Task ValidateBaselineAsync(string path, CancellationToken cancellationToken = default)
+    private static void ValidateImportRecords(CatalogueSnapshot snapshot)
     {
-        var snapshot = JsonSerializer.Deserialize<CatalogueSnapshot>(await File.ReadAllTextAsync(path, cancellationToken), JsonOptions)
-            ?? throw new InvalidOperationException("The catalogue snapshot is empty or invalid.");
-        if (snapshot.SchemaVersion is not (1 or 2) || snapshot.Bosses.Length == 0 || snapshot.Items.Length == 0 || snapshot.Drops.Length == 0)
-            throw new InvalidOperationException("The catalogue baseline is invalid.");
+        if (snapshot.Bosses.Any(record => record.TeamSize < 1))
+            throw new InvalidOperationException("The catalogue snapshot contains an activity with an invalid team size. Set every activity team size to at least 1; no records were changed.");
 
-        var bosses = await db.BossActivities.AsNoTracking().ToListAsync(cancellationToken);
-        var items = await db.CatalogueItems.AsNoTracking().ToListAsync(cancellationToken);
-        var drops = await db.SourceDrops.AsNoTracking().ToListAsync(cancellationToken);
-        var bossesBySlug = bosses.ToDictionary(x => x.Slug, StringComparer.Ordinal);
-        var itemsByNormalizedName = items.ToDictionary(x => x.NormalizedName, StringComparer.Ordinal);
-        var activeDropKeys = drops.Where(x => x.Active).Select(x => (x.BossActivityId, x.ItemId)).ToHashSet();
-
-        if (snapshot.Bosses.Where(x => x.Active).Any(record => !bossesBySlug.TryGetValue(record.Slug, out var boss) || !boss.Active) ||
-            snapshot.Items.Where(x => x.Active).Any(record => !itemsByNormalizedName.TryGetValue(record.NormalizedName, out var item) || !item.Active))
-            throw new InvalidOperationException("The catalogue baseline is incomplete.");
-
-        var snapshotBossesById = snapshot.Bosses.ToDictionary(x => x.Id);
-        var snapshotItemsById = snapshot.Items.ToDictionary(x => x.Id);
-        foreach (var record in snapshot.Drops.Where(x => x.Active))
-        {
-            if (!snapshotBossesById.TryGetValue(record.BossActivityId, out var bossRecord) ||
-                !snapshotItemsById.TryGetValue(record.ItemId, out var itemRecord) ||
-                !bossesBySlug.TryGetValue(bossRecord.Slug, out var boss) ||
-                !boss.Active ||
-                !itemsByNormalizedName.TryGetValue(itemRecord.NormalizedName, out var item) ||
-                !item.Active ||
-                !activeDropKeys.Contains((boss.Id, item.Id)))
-                throw new InvalidOperationException("The catalogue baseline is incomplete.");
-        }
+        if (snapshot.Drops.Any(record => record.ProbabilityScope != DropProbabilityScope.Participant
+            || record.ConditionalOnParent
+            || record.ParentProbability is not null
+            || record.AssumedParticipants != 1))
+            throw new InvalidOperationException("The catalogue snapshot contains retired per-drop participant context (Only after, conditional parent, or non-default participant count). Rebuild the snapshot from reviewed data; no records were changed.");
     }
 
     public sealed record CatalogueSnapshot(int SchemaVersion, DateTimeOffset ExportedAt, BossRecord[] Bosses, ItemRecord[] Items, DropRecord[] Drops)
@@ -156,7 +120,7 @@ public sealed class CatalogueSnapshotService(ApplicationDbContext db, TimeProvid
         public SnapshotCounts Counts => new(Bosses.Length, Items.Length, Drops.Length);
     }
 
-    public sealed record BossRecord(Guid Id, string Name, string Slug, string Category, decimal? EfficientCompletionsPerHour, string? ExternalIdentifier, string? DataSource, string? ImageUrl, bool Active, string? Notes, ApiMappingStatus MappingStatus = ApiMappingStatus.NotConfigured, DateTimeOffset? MappingCheckedAt = null);
+    public sealed record BossRecord(Guid Id, string Name, string Slug, string Category, decimal? EfficientCompletionsPerHour, string? ExternalIdentifier, string? DataSource, string? ImageUrl, bool Active, string? Notes, ApiMappingStatus MappingStatus = ApiMappingStatus.NotConfigured, DateTimeOffset? MappingCheckedAt = null, int TeamSize = 1);
     public sealed record ItemRecord(Guid Id, string Name, string NormalizedName, string? ExternalIdentifier, string? ImageUrl, bool Active, string? Notes, long? CatalogueValueGp = null, CataloguePriceSource PriceSource = CataloguePriceSource.Missing, DateTimeOffset? PriceObservedAt = null, ApiMappingStatus MappingStatus = ApiMappingStatus.NotConfigured, DateTimeOffset? MappingCheckedAt = null, string? MatchedApiName = null, string? MatchedApiIcon = null, long? RejectedPriceGp = null, DateTimeOffset? RejectedPriceObservedAt = null);
     public sealed record DropRecord(Guid Id, Guid BossActivityId, Guid ItemId, string DisplayRate, decimal? NumericProbability, string? RateConditionNote, decimal? DefaultEhbEstimate, DropProbabilityScope ProbabilityScope, bool ConditionalOnParent, decimal? ParentProbability, int AssumedParticipants, int RollsPerCompletion, string RollGroup, string? DataSource, bool Active);
     public sealed record SnapshotCounts(int Bosses, int Items, int Drops);

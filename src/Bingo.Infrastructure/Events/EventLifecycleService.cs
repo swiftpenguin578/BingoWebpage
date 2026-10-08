@@ -11,7 +11,9 @@ using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.Signups;
+using Bingo.Infrastructure.Teams;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using Npgsql;
 
 namespace Bingo.Infrastructure.Events;
@@ -24,7 +26,6 @@ public sealed class EventLifecycleService(
 {
     private readonly EventItemPriceService prices = itemPrices ?? new(db, time);
     private static readonly EventState[] PreLiveStates = [EventState.Draft, EventState.SignupOpen, EventState.SignupClosed];
-    private static readonly EventState[] CurrentStates = [EventState.Live, EventState.AwaitingFinalReview, EventState.Finalized];
 
     public async Task ProcessDueAsync(CancellationToken ct = default)
     {
@@ -61,18 +62,38 @@ public sealed class EventLifecycleService(
 
     public async Task<EventStartResult> StartNowAsync(Guid eventId, long version, bool confirmed, string? reason, LifecycleActor actor, CancellationToken ct = default)
     {
+        var preAuthorizedActor = await EventMutationAuthorization.GetActiveActorAsync(db, actor, ct);
+        if (preAuthorizedActor is null)
+            return new(false, EventMutationAuthorization.UnauthorizedMessage);
+        actor = preAuthorizedActor;
         if (!confirmed) return new(false, "Confirm that you want to start the event.");
-        var prepared = await prices.PrepareStartAsync(ct);
+
+        PreparedEventItemPrices prepared;
+        try
+        {
+            prepared = await prices.PrepareStartAsync(ct);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new(false, ex.Message);
+        }
+
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
-            await LockCurrentBoundaryAsync(ct);
+            var authorizedActor = await EventMutationAuthorization.GetAuthorizedActorAsync(db, actor, ct);
+            if (authorizedActor is null)
+            {
+                await tx.RollbackAsync(ct);
+                return new(false, EventMutationAuthorization.UnauthorizedMessage);
+            }
+            actor = authorizedActor;
+
+            await EventCurrentBoundary.LockAsync(db, ct);
             var item = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE")
                 .SingleOrDefaultAsync(ct) ?? throw new InvalidOperationException("Event not found.");
             if (item.Version != version) throw new DbUpdateConcurrencyException();
             var now = time.GetUtcNow();
-            if (item.EventStartsAt is { } scheduledFor && now < scheduledFor && string.IsNullOrWhiteSpace(reason))
-                return new(false, "Enter a reason when starting the event before its configured start.");
             var blockers = await EvaluateStartAsync(item, ct);
             if (blockers.Count > 0) return new(false, string.Join(" ", blockers.Select(x => x.Description)), blockers);
             var from = item.State;
@@ -88,80 +109,143 @@ public sealed class EventLifecycleService(
             await tx.CommitAsync(ct);
             return new(true);
         }
-        catch (PostgresException ex) when (ex.SqlState is "40001" or "40P01") { await tx.RollbackAsync(ct); db.ChangeTracker.Clear(); return new(false, "This event changed while it was being started. Review its current state and try again."); }
+        catch (PostgresException ex) when (ex.SqlState is "40001" or "40P01") { await TryRollbackConflictAsync(tx, ct); db.ChangeTracker.Clear(); return new(false, "This event changed while it was being started. Review its current state and try again."); }
         catch (DbUpdateConcurrencyException) { await tx.RollbackAsync(ct); db.ChangeTracker.Clear(); return new(false, "This event changed while it was being started. Review its current state and try again."); }
         catch (InvalidOperationException ex) { await tx.RollbackAsync(ct); db.ChangeTracker.Clear(); return new(false, ex.Message); }
         catch (DbUpdateException) { await tx.RollbackAsync(ct); db.ChangeTracker.Clear(); return new(false, "The event could not be started. Review its current state and try again."); }
     }
 
-    public async Task<EventStartResult> EndNowAsync(Guid eventId, long version, bool confirmed, string? reason, LifecycleActor actor, CancellationToken ct = default)
+    public Task<EventStartResult> EndNowAsync(Guid eventId, long version, bool confirmed, string? reason, LifecycleActor actor, CancellationToken ct = default)
     {
-        if (!confirmed) return new(false, "Confirm that you want to end the event.");
+        var clickedAt = time.GetUtcNow();
+        return RetryLifecycleWriteAsync(() => EndNowAttemptAsync(eventId, version, confirmed, reason, actor, clickedAt, ct),
+            "This event changed while it was being ended. Review its current state and try again.", ct);
+    }
+
+    private async Task<EventStartResult> EndNowAttemptAsync(Guid eventId, long version, bool confirmed, string? reason, LifecycleActor actor, DateTimeOffset clickedAt, CancellationToken ct)
+    {
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
-            await LockCurrentBoundaryAsync(ct);
+            var authorizedActor = await EventMutationAuthorization.GetAuthorizedActorAsync(db, actor, ct);
+            if (authorizedActor is null)
+            {
+                await tx.RollbackAsync(ct);
+                return new(false, EventMutationAuthorization.UnauthorizedMessage);
+            }
+            actor = authorizedActor;
+            if (!confirmed) return new(false, "Confirm that you want to end the event.");
+
+            await EventCurrentBoundary.LockAsync(db, ct);
             var item = await EventAsync(eventId, version, ct);
-            var now = time.GetUtcNow();
+            var now = clickedAt;
             if (item.EventEndsAt is { } scheduledEnd && now < scheduledEnd && string.IsNullOrWhiteSpace(reason))
                 return new(false, "Enter a reason when ending the event before its configured end.");
             var from = item.State;
-            item.EndEvent(now);
+            var effectiveEnd = item.EventEndsAt is { } configuredEnd && now >= configuredEnd ? configuredEnd : now;
+            if (item.EventEndsAt is null || now < item.EventEndsAt)
+            {
+                item.EndEarly(now);
+                await RecordPendingEndUpdateAsync(item, now, ct);
+            }
+            else item.EndEvent(effectiveEnd);
             item.CloseSubmissionsIfDue(now);
-            AddTransitionAndAudit(item, from, actor.Id, actor.Username, false, "event.ended", reason, now, now);
+            AddTransitionAndAudit(item, from, actor.Id, actor.Username, false, "event.ended", reason, now, effectiveEnd);
             await db.SaveChangesAsync(ct);
-            await Bingo.Infrastructure.Stats.PublicStatsService.RefreshCheckpointAsync(db, time, eventId, ct);
             await tx.CommitAsync(ct);
             return new(true);
         }
+        catch (Exception ex) when (IsLifecycleWriteConflict(ex)) { await TryRollbackConflictAsync(tx, ct); throw; }
         catch (DbUpdateConcurrencyException) { await tx.RollbackAsync(ct); return new(false, "This event changed while it was being ended. Review its current state and try again."); }
         catch (InvalidOperationException ex) { await tx.RollbackAsync(ct); return new(false, ex.Message); }
         catch (DbUpdateException) { await tx.RollbackAsync(ct); return new(false, "The event could not be ended. Review its current state and try again."); }
     }
 
-    public async Task<EventStartResult> ResumePrematureEndAsync(Guid eventId, long version, bool confirmed, string? reason, DateTimeOffset? replacementEventEndsAt, LifecycleActor actor, CancellationToken ct = default)
+    public Task<EventStartResult> ResumePrematureEndAsync(Guid eventId, long version, bool confirmed, string? reason, DateTimeOffset? replacementEventEndsAt, LifecycleActor actor, CancellationToken ct = default)
     {
-        if (!confirmed) return new(false, "Confirm that you want to resume the event.");
-        if (string.IsNullOrWhiteSpace(reason)) return new(false, "Enter a reason for resuming the event.");
+        var clickedAt = time.GetUtcNow();
+        return RetryLifecycleWriteAsync(() => ResumePrematureEndAttemptAsync(eventId, version, confirmed, reason, replacementEventEndsAt, actor, clickedAt, ct),
+            "This event changed while it was being resumed. Review its current state and try again.", ct);
+    }
+
+    private async Task<EventStartResult> ResumePrematureEndAttemptAsync(Guid eventId, long version, bool confirmed, string? reason, DateTimeOffset? replacementEventEndsAt, LifecycleActor actor, DateTimeOffset clickedAt, CancellationToken ct)
+    {
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
-            await LockCurrentBoundaryAsync(ct);
+            var authorizedActor = await EventMutationAuthorization.GetAuthorizedActorAsync(db, actor, ct);
+            if (authorizedActor is null)
+            {
+                await tx.RollbackAsync(ct);
+                return new(false, EventMutationAuthorization.UnauthorizedMessage);
+            }
+            actor = authorizedActor;
+            if (!confirmed) return new(false, "Confirm that you want to resume the event.");
+            if (string.IsNullOrWhiteSpace(reason)) return new(false, "Enter a reason for resuming the event.");
+
+            await EventCurrentBoundary.LockAsync(db, ct);
             var item = await EventAsync(eventId, version, ct);
-            var now = time.GetUtcNow();
+            var now = clickedAt;
             if (item.State != EventState.AwaitingFinalReview)
                 return new(false, "Only an event in final review can be resumed.");
             if (await db.EventFinalizations.AnyAsync(x => x.EventId == eventId, ct))
                 return new(false, "An event with official finalization history cannot be resumed through this action.");
-            var retainedEnd = item.EventEndsAt is { } configuredEnd && configuredEnd > now ? configuredEnd : (DateTimeOffset?)null;
-            var effectiveEnd = retainedEnd ?? replacementEventEndsAt?.ToUniversalTime();
+            var effectiveEnd = replacementEventEndsAt?.ToUniversalTime();
             if (effectiveEnd is null)
-                return new(false, "The retained event end has expired or is missing; choose a future replacement event end.");
+                return new(false, "Choose a future replacement event end.");
             if (effectiveEnd <= now)
                 return new(false, "The replacement event end must be in the future.");
+            if (effectiveEnd.Value.Minute % 5 != 0 || effectiveEnd.Value.Ticks % TimeSpan.TicksPerMinute != 0)
+                return new(false, "Choose a time in five-minute increments.");
             if (item.EventStartsAt is not { } startsAt || effectiveEnd <= startsAt)
                 return new(false, "The replacement event end must be after the event start.");
-            var singleton = await db.Events.AsNoTracking()
-                .Where(x => x.Id != eventId && x.HiddenAt == null && CurrentStates.Contains(x.State) && !(IsDevelopmentMode() && x.IsDevelopmentFixture))
-                .OrderBy(x => x.Name)
-                .Select(x => x.Name)
-                .FirstOrDefaultAsync(ct);
+            var singleton = await OtherCurrentEventAsync(eventId, ct);
             if (singleton is not null)
-                return new(false, $"{singleton} is already the current event. Archive it before resuming this event.");
+                return new(false, CurrentEventRefusal(singleton));
             var overlap = await FindLifecycleOverlapAsync(item, effectiveEnd.Value, ct);
             if (overlap is not null)
                 return new(false, overlap);
 
             var from = item.State;
             item.ResumePrematureEnd(effectiveEnd.Value, now);
+            await RecordPendingEndUpdateAsync(item, now, ct);
             AddTransitionAndAudit(item, from, actor.Id, actor.Username, false, "event.resumed", reason.Trim(), now, now);
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
             return new(true);
         }
+        catch (Exception ex) when (IsLifecycleWriteConflict(ex)) { await TryRollbackConflictAsync(tx, ct); throw; }
         catch (DbUpdateConcurrencyException) { await tx.RollbackAsync(ct); return new(false, "This event changed while it was being resumed. Review its current state and try again."); }
         catch (InvalidOperationException ex) { await tx.RollbackAsync(ct); return new(false, ex.Message); }
         catch (DbUpdateException) { await tx.RollbackAsync(ct); return new(false, "The event could not be resumed. Review its current state and try again."); }
+    }
+
+    private async Task<EventStartResult> RetryLifecycleWriteAsync(Func<Task<EventStartResult>> action, string conflictMessage, CancellationToken ct)
+    {
+        for (var attempt = 0; attempt < 3; attempt++)
+        {
+            ct.ThrowIfCancellationRequested();
+            try { return await action(); }
+            catch (Exception ex) when (IsLifecycleWriteConflict(ex)) { db.ChangeTracker.Clear(); }
+        }
+        return new(false, conflictMessage);
+    }
+
+    private static async Task TryRollbackConflictAsync(IDbContextTransaction transaction, CancellationToken ct)
+    {
+        try { await transaction.RollbackAsync(ct); }
+        catch (Exception)
+        {
+            // COMMIT may already have ended the transaction. Preserve the original
+            // retryable database conflict even if cleanup fails; await using disposes it.
+        }
+    }
+
+    private static bool IsLifecycleWriteConflict(Exception exception)
+    {
+        for (Exception? current = exception; current is not null; current = current.InnerException)
+            if (current is PostgresException { SqlState: "40001" or "40P01" }) return true;
+        return false;
     }
 
     private async Task ExecuteScheduledStartAsync(Guid eventId, DateTimeOffset now, CancellationToken ct)
@@ -170,7 +254,7 @@ public sealed class EventLifecycleService(
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
-            await LockCurrentBoundaryAsync(ct);
+            await EventCurrentBoundary.LockAsync(db, ct);
             var item = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE").SingleOrDefaultAsync(ct);
             if (item is null || !PreLiveStates.Contains(item.State) || item.EventStartsAt is not { } scheduledFor || scheduledFor > now)
                 return;
@@ -209,7 +293,7 @@ public sealed class EventLifecycleService(
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
-            await LockCurrentBoundaryAsync(ct);
+            await EventCurrentBoundary.LockAsync(db, ct);
             var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct);
             if (item is null || item.State != EventState.Live || item.EventEndsAt is not { } scheduledEnd || scheduledEnd > now)
                 return;
@@ -218,7 +302,6 @@ public sealed class EventLifecycleService(
             item.CloseSubmissionsIfDue(now);
             AddTransitionAndAudit(item, from, null, "System", true, "event.ended_automatically", null, now, scheduledEnd);
             await db.SaveChangesAsync(ct);
-            await Bingo.Infrastructure.Stats.PublicStatsService.RefreshCheckpointAsync(db, time, eventId, ct);
             await tx.CommitAsync(ct);
         }
         catch (Exception) when (!ct.IsCancellationRequested)
@@ -233,7 +316,7 @@ public sealed class EventLifecycleService(
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
-            await LockCurrentBoundaryAsync(ct);
+            await EventCurrentBoundary.LockAsync(db, ct);
             var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct);
             if (item is null || !item.CloseSubmissionsIfDue(now)) return;
             await db.SaveChangesAsync(ct);
@@ -260,7 +343,7 @@ public sealed class EventLifecycleService(
             blockers.Add(new("SCHEDULE_INVALID", "Configure a valid event start and end.", $"/Admin/Events/Schedule/{item.Id}"));
         else if (item.EventEndsAt <= now)
             blockers.Add(new("EVENT_END_PASSED", "The configured event end has passed; cancel this event or replace its schedule before starting it.", $"/Admin/Events/Manage/{item.Id}"));
-        if (!await db.DraftSessions.AsNoTracking().AnyAsync(x => x.EventId == item.Id && x.State == DraftState.Finalized, ct))
+        if (!await db.ActiveRosterPublications(item.Id).AnyAsync(ct))
             blockers.Add(new("DRAFT_NOT_FINALIZED", "Finalize the team draft before starting.", $"/Admin/Events/Draft/{item.Id}"));
         if (!await db.Boards.AsNoTracking().AnyAsync(x => x.EventId == item.Id && x.State == BoardState.Published, ct))
             blockers.Add(new("BOARD_NOT_PUBLISHED", "Publish the board before starting.", $"/Admin/Events/Board/{item.Id}"));
@@ -285,41 +368,42 @@ public sealed class EventLifecycleService(
             .Select(x => x.ParticipantId)
             .ToListAsync(ct);
         foreach (var participantId in confirmedParticipantIds.Except(primaryParticipantIds))
-            blockers.Add(new("PARTICIPANT_PLAYING_ASSIGNMENT_INVALID", "Every confirmed participant needs an unambiguous current Playing assignment before the event can start.", $"/Admin/Events/Participant/{item.Id}/Participants/{participantId}"));
+            blockers.Add(new("PARTICIPANT_PLAYING_ASSIGNMENT_INVALID", "Every confirmed participant needs an unambiguous current Playing assignment before the event can start.", $"/Admin/Events/Participants/{item.Id}?participant={participantId}"));
 
-        var activeTeams = await db.Teams.AsNoTracking().Where(x => x.EventId == item.Id && x.Active).Select(x => new { x.Id, x.Name }).ToListAsync(ct);
-        var activeTeamIds = activeTeams.Select(team => team.Id).ToArray();
-        var captainTeams = await (from membership in db.TeamMemberships.AsNoTracking()
-                                  join participant in db.EventParticipants.AsNoTracking() on membership.EventParticipantId equals participant.Id
-                                  join account in db.Accounts.AsNoTracking() on participant.AccountId equals account.Id
-                                  where membership.LeftAt == null && membership.Role == TeamMembershipRole.Captain && activeTeamIds.Contains(membership.TeamId) &&
-                                        participant.EventId == item.Id && account.Active && account.AccountType == AccountType.WebsiteAccount
-                                  select membership.TeamId).Distinct().ToListAsync(ct);
-        var emergencyTeams = await (from access in db.AccountEventAccesses.AsNoTracking()
-                                    join account in db.Accounts.AsNoTracking() on access.AccountId equals account.Id
-                                    where access.EventId == item.Id && access.Enabled && account.Active && account.PasswordHash != null && !account.MustChangePassword && account.AccountType == AccountType.EmergencyCaptain
-                                        && (access.ActiveFrom == null || access.ActiveFrom <= now) && (access.ExpiresAt == null || access.ExpiresAt > now)
-                                        && activeTeamIds.Contains(access.TeamId)
-                                    select access.TeamId).Distinct().ToListAsync(ct);
-        foreach (var team in activeTeams.Where(x => !captainTeams.Contains(x.Id) && !emergencyTeams.Contains(x.Id)))
-            blockers.Add(new("TEAM_ACCESS_MISSING", $"{team.Name} needs a current Captain or enabled emergency credential.", $"/Admin/Events/Draft/{item.Id}"));
-
-        var developmentMode = string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
-        var current = await db.Events.AsNoTracking()
-            .Where(x => x.Id != item.Id && x.HiddenAt == null && CurrentStates.Contains(x.State) && !(developmentMode && x.IsDevelopmentFixture))
-            .OrderBy(x => x.Name)
-            .Select(x => new { x.Id, x.Name, x.State })
-            .FirstOrDefaultAsync(ct);
+        var current = await OtherCurrentEventAsync(item.Id, ct);
         if (current is not null)
-            blockers.Add(new("CURRENT_EVENT_EXISTS", $"{current.Name} is already the current {ReadableState(current.State)} event.", $"/Admin/Events/Manage/{current.Id}"));
+            blockers.Add(new("CURRENT_EVENT_EXISTS", CurrentEventRefusal(current), $"/Admin/Events/Manage/{current.EventId}")
+            { DescriptionArguments = [current.Name], Subject = current });
         return blockers;
     }
+
+    public async Task<ReadinessSubject?> GetOtherCurrentEventAsync(Guid eventId, CancellationToken ct = default) =>
+        await db.Events.AsNoTracking().AnyAsync(x => x.Id == eventId && x.HiddenAt == null, ct) ? await OtherCurrentEventAsync(eventId, ct) : null;
+
+    private Task<ReadinessSubject?> OtherCurrentEventAsync(Guid eventId, CancellationToken ct) =>
+        EventCurrentBoundary.OtherCurrentEvents(db, eventId)
+            .OrderBy(x => x.Name)
+            .Select(x => new ReadinessSubject(x.Id, x.Name, x.State))
+            .FirstOrDefaultAsync(ct);
+
+    // S2 and U4-Q4/Q5: the retired Archive action is no longer the remedy. A
+    // legacy Finished current event can only be archived by the Super Admin.
+    internal static string CurrentEventRefusal(ReadinessSubject current) => current.State == EventState.Finalized
+        ? $"{current.Name} is still the current event. Contact the Super Admin to archive it."
+        : $"Publish the results of {current.Name} first.";
 
     private async Task AppendInitialActivationsAsync(Guid eventId, DateTimeOffset effectiveAtUtc, CancellationToken ct)
     {
         var candidates = await db.PrimaryCharacters().AsNoTracking()
-            .Where(x => x.EventId == eventId && db.EventParticipants.Any(participant =>
-                participant.Id == x.ParticipantId && participant.SignupStatus == SignupStatus.Confirmed))
+            .Where(x => x.EventId == eventId &&
+                        db.EventParticipants.Any(participant =>
+                            participant.Id == x.ParticipantId && participant.SignupStatus == SignupStatus.Confirmed) &&
+                        db.TeamMemberships.Any(membership =>
+                            membership.EventParticipantId == x.ParticipantId && membership.LeftAt == null &&
+                            db.Teams.Any(team => team.Id == membership.TeamId && team.EventId == eventId && team.Active)) &&
+                        db.DraftPublicationRosters.Any(roster =>
+                            roster.EventParticipantId == x.ParticipantId &&
+                            db.ActiveRosterPublications(eventId).Any(cycle => cycle.Id == roster.DraftPublicationCycleId)))
             .Select(x => new { x.ParticipantId, x.OsrsCharacterId })
             .ToListAsync(ct);
         var participantIds = candidates.Select(x => x.ParticipantId).ToArray();
@@ -344,13 +428,11 @@ public sealed class EventLifecycleService(
 
     private async Task<BingoEvent> EventAsync(Guid eventId, long version, CancellationToken ct)
     {
-        var item = await db.Events.SingleOrDefaultAsync(x => x.Id == eventId && x.HiddenAt == null, ct) ?? throw new InvalidOperationException("Event not found.");
+        var item = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} AND hidden_at IS NULL FOR UPDATE").SingleOrDefaultAsync(ct) ?? throw new InvalidOperationException("Event not found.");
+        await db.Entry(item).ReloadAsync(ct);
         if (item.Version != version) throw new DbUpdateConcurrencyException();
         return item;
     }
-
-    private async Task LockCurrentBoundaryAsync(CancellationToken ct) =>
-        await db.Database.ExecuteSqlRawAsync("SELECT pg_advisory_xact_lock(7303004)", ct);
 
     private async Task NotifyAdminsAsync(Guid eventId, string title, string detail, string route, DateTimeOffset now, CancellationToken ct)
     {
@@ -385,22 +467,21 @@ public sealed class EventLifecycleService(
             .FirstOrDefaultAsync(ct);
         if (overlap is not null) return $"The replacement lifecycle window overlaps {overlap}.";
 
-        var competition = await db.EventCompetitionSynchronizations.AsNoTracking()
-            .SingleOrDefaultAsync(x => x.EventId == item.Id && x.CompetitionId != null, ct);
-        if (competition is not null &&
-            (competition.CompetitionStartsAt is not { } competitionStart || competition.CompetitionEndsAt is not { } competitionEnd ||
-             Math.Abs((start - competitionStart).TotalMinutes) > 5 || Math.Abs((replacementEnd - competitionEnd).TotalMinutes) > 5))
-            return "The linked Wise Old Man competition must remain within five minutes of the event window.";
-
         return null;
+    }
+
+    private async Task RecordPendingEndUpdateAsync(BingoEvent item, DateTimeOffset now, CancellationToken ct)
+    {
+        var synchronization = await db.EventCompetitionSynchronizations
+            .FromSqlInterpolated($"SELECT * FROM event_competition_synchronizations WHERE event_id = {item.Id} FOR UPDATE")
+            .SingleOrDefaultAsync(ct);
+        if (synchronization is not null)
+        {
+            await db.Entry(synchronization).ReloadAsync(ct);
+            synchronization.RequestEndUpdate(item.EventEndsAt!.Value, now);
+        }
     }
 
     private static bool IsDevelopmentMode() => string.Equals(Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"), "Development", StringComparison.OrdinalIgnoreCase);
 
-    private static string ReadableState(EventState state) => state switch
-    {
-        EventState.AwaitingFinalReview => "final-review",
-        EventState.Finalized => "finalized",
-        _ => "live"
-    };
 }

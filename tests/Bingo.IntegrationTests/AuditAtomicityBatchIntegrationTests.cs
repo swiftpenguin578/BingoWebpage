@@ -25,10 +25,10 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class AuditAtomicityBatchIntegrationTests : IAsyncLifetime
+public sealed class AuditAtomicityBatchIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
-        .WithDatabase("audit_atomicity_batch").WithUsername("bingo").WithPassword("bingo_test_password").Build();
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
+        .WithDatabase("audit_atomicity_batch").WithUsername("bingo").WithPassword("bingo_test_password"));
     private readonly DateTimeOffset now = new(2026, 9, 13, 12, 0, 0, TimeSpan.Zero);
     private DbContextOptions<ApplicationDbContext> options = null!;
 
@@ -37,7 +37,6 @@ public sealed class AuditAtomicityBatchIntegrationTests : IAsyncLifetime
         await database.StartAsync();
         options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
         // A real PostgreSQL audit INSERT fails, including when it shares an EF batch
         // with business writes. Auto-unapproval must reach the database before the
         // mandatory removal audit fails, proving that both roll back together.
@@ -77,23 +76,29 @@ public sealed class AuditAtomicityBatchIntegrationTests : IAsyncLifetime
             }
         }
         var baseline = await PersistedStateAsync();
-        var settings = new QuestionsModel.SignupSettingsInput
+        long eventVersion;
+        await using (var versionDb = new ApplicationDbContext(options))
+            eventVersion = await versionDb.Events.Select(item => item.Version).SingleAsync();
+        var settings = new SignupSetupModel.SignupCodeInput
         {
             RequireSignupCode = operation != "disable",
-            NewSignupCode = operation is "enable" or "replace" ? "replacement-test-code" : null
+            NewSignupCode = operation is "enable" or "replace" ? "replacement-test-code" : null,
+            Version = eventVersion
         };
         var observer = new AuditFailureObserver();
         await using (var db = FailureContext(observer))
         {
-            var page = Context(new QuestionsModel(db, new AuditWriter(db, new Clock(now)), hasher, new Clock(now), null!), setup.AdminId, true);
-            await Record.ExceptionAsync(() => page.OnPostSignupCodeAsync(setup.EventId, settings, false, default));
+            var page = Context(new SignupSetupModel(db, new Clock(now), null!, auditWriter: new AuditWriter(db, new Clock(now)), hasher: hasher), setup.AdminId, true);
+            page.SignupCode = settings;
+            await Record.ExceptionAsync(() => page.OnPostSignupCodeAsync(setup.EventId, default));
         }
         Assert.True(observer.SawAuditFailure);
         Assert.Equal(baseline, await PersistedStateAsync());
         await using (var db = new ApplicationDbContext(options))
         {
-            var page = Context(new QuestionsModel(db, new AuditWriter(db, new Clock(now)), hasher, new Clock(now), null!), setup.AdminId);
-            Assert.IsType<RedirectToPageResult>(await page.OnPostSignupCodeAsync(setup.EventId, settings, false, default));
+            var page = Context(new SignupSetupModel(db, new Clock(now), null!, auditWriter: new AuditWriter(db, new Clock(now)), hasher: hasher), setup.AdminId);
+            page.SignupCode = settings;
+            Assert.IsType<RedirectToPageResult>(await page.OnPostSignupCodeAsync(setup.EventId, default));
         }
         await using var verify = new ApplicationDbContext(options);
         var form = await verify.SignupForms.SingleAsync();
@@ -115,13 +120,33 @@ public sealed class AuditAtomicityBatchIntegrationTests : IAsyncLifetime
         Assert.DoesNotContain("Hash", audit.GetRawText());
     }
 
+    [Fact]
+    public async Task SignupCodeConcurrencyFailureReturnsStaleStatusWithoutPersisting()
+    {
+        var setup = await SeedAsync();
+        long version;
+        await using (var versionDb = new ApplicationDbContext(options))
+            version = await versionDb.Events.Where(item => item.Id == setup.EventId).Select(item => item.Version).SingleAsync();
+
+        var observer = new ConcurrencyFailureObserver();
+        await using (var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(observer).Options))
+        {
+            var page = Context(new SignupSetupModel(db, new Clock(now), null!, auditWriter: new AuditWriter(db, new Clock(now)), hasher: new SecretHasher()), setup.AdminId);
+            page.SignupCode = new SignupSetupModel.SignupCodeInput { RequireSignupCode = true, NewSignupCode = "concurrency-code", Version = version };
+            Assert.IsType<RedirectToPageResult>(await page.OnPostSignupCodeAsync(setup.EventId, default));
+            Assert.Contains("changed while you were editing it", page.TempData["StatusMessage"]?.ToString(), StringComparison.OrdinalIgnoreCase);
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        Assert.False(await verify.Events.Where(item => item.Id == setup.EventId).Select(item => item.RequireSignupCode).SingleAsync());
+        Assert.Empty(await verify.AuditEntries.Where(item => item.EventId == setup.EventId && item.Action == "event.signup_code_changed").ToListAsync());
+    }
+
     [Theory]
     [InlineData("update", "team.updated")]
     [InlineData("remove", "draft.team_removed")]
     [InlineData("start", "draft.started")]
     [InlineData("scramble", "draft.order_scrambled")]
-    [InlineData("pause", "draft.paused")]
-    [InlineData("resume", "draft.resumed")]
     [InlineData("pick", "draft.pick_recorded")]
     [InlineData("undo", "draft.pick_undone")]
     [InlineData("acquire", "draft.control_acquired")]
@@ -134,14 +159,13 @@ public sealed class AuditAtomicityBatchIntegrationTests : IAsyncLifetime
         {
             var draft = await db.DraftSessions.SingleAsync();
             if (operation is not ("start" or "acquire")) draft.AcquireControl(operation == "takeover" ? setup.OtherAdminId : setup.AdminId, now, DraftControlLease.Duration);
-            if (operation is "scramble" or "pause" or "resume" or "pick" or "undo")
+            if (operation is "scramble" or "pick" or "undo")
             {
                 draft.Start(now);
                 (await db.Events.SingleAsync()).SetDraftLocked(true);
                 var teams = await db.Teams.Where(x => x.Active).OrderBy(x => x.Name).ToListAsync();
                 for (var i = 0; i < teams.Count; i++) teams[i].SetDraftPosition(i + 1);
             }
-            if (operation == "resume") draft.Pause();
             if (operation == "remove") db.TeamMemberships.RemoveRange(await db.TeamMemberships.Where(x => x.TeamId == setup.TeamId).ToListAsync());
             if (operation == "undo")
             {
@@ -166,8 +190,6 @@ public sealed class AuditAtomicityBatchIntegrationTests : IAsyncLifetime
                 case "remove": await page.OnPostRemoveDraftTeamAsync(setup.EventId, setup.TeamId, default); break;
                 case "start": await page.OnPostStartAsync(setup.EventId, default); break;
                 case "scramble": await page.OnPostScrambleAsync(setup.EventId, default); break;
-                case "pause": await page.OnPostPauseAsync(setup.EventId, default); break;
-                case "resume": await page.OnPostResumeAsync(setup.EventId, default); break;
                 case "pick": await page.OnPostPickAsync(setup.EventId, setup.PickParticipantId, default); break;
                 case "undo": await page.OnPostUndoAsync(setup.EventId, default); break;
                 case "acquire": await page.OnPostAcquireControlAsync(setup.EventId, default); break;
@@ -198,8 +220,6 @@ public sealed class AuditAtomicityBatchIntegrationTests : IAsyncLifetime
             case "remove": Assert.True(before.GetProperty("Active").GetBoolean()); Assert.False(after.GetProperty("Active").GetBoolean()); Assert.False((await verify.Teams.FindAsync(setup.TeamId))!.Active); break;
             case "start": Assert.False(before.GetProperty("DraftLocked").GetBoolean()); Assert.True(after.GetProperty("DraftLocked").GetBoolean()); Assert.Equal(DraftState.Running, actualDraft.State); Assert.All(await verify.Teams.ToListAsync(), team => Assert.Null(team.DraftPosition)); break;
             case "scramble": Assert.Equal(new List<int> { 1, 2 }, (await verify.Teams.OrderBy(x => x.DraftPosition).Select(x => x.DraftPosition!.Value).ToListAsync()).ToArray()); break;
-            case "pause": Assert.Equal("Running", before.GetProperty("State").GetString()); Assert.Equal("Paused", after.GetProperty("State").GetString()); Assert.Equal(DraftState.Paused, actualDraft.State); break;
-            case "resume": Assert.Equal("Paused", before.GetProperty("State").GetString()); Assert.Equal("Running", after.GetProperty("State").GetString()); Assert.Equal(DraftState.Running, actualDraft.State); break;
             case "pick": Assert.Equal(JsonValueKind.Null, before.GetProperty("pick").ValueKind); Assert.Equal(setup.PickParticipantId, after.GetProperty("pick").GetProperty("EventParticipantId").GetGuid()); Assert.Single(await verify.DraftPicks.ToListAsync()); Assert.NotNull(actualDraft.FirstPickRecordedAt); break;
             case "undo": Assert.Equal(JsonValueKind.Null, before.GetProperty("pick").GetProperty("UndoneAt").ValueKind); Assert.Equal(now, after.GetProperty("pick").GetProperty("UndoneAt").GetDateTimeOffset()); Assert.Equal(now, (await verify.TeamMemberships.SingleAsync(x => x.EventParticipantId == setup.PickParticipantId)).LeftAt); break;
             case "acquire": Assert.Equal(JsonValueKind.Null, before.GetProperty("ControllerAccountId").ValueKind); Assert.Equal(setup.AdminId, after.GetProperty("ControllerAccountId").GetGuid()); break;
@@ -219,7 +239,6 @@ public sealed class AuditAtomicityBatchIntegrationTests : IAsyncLifetime
     [InlineData("remove", "board.tile_removed")]
     [InlineData("move", "board.tile_moved")]
     [InlineData("swap", "board.tiles_swapped")]
-    [InlineData("resize", "board.resized")]
     [InlineData("teamSize", "board.expected_team_size_changed")]
     public async Task BoardMutationsRollbackEverySaveAndNotifyOnlyAfterCommit(string operation, string action)
     {
@@ -338,37 +357,153 @@ public sealed class AuditAtomicityBatchIntegrationTests : IAsyncLifetime
                 var moved = await verify.BoardTiles.FindAsync(tileId); Assert.Equal((operation == "move" ? 0 : 1, 1), (moved!.RowIndex, moved.ColumnIndex));
                 if (operation == "swap") Assert.Equal((0, 0), ((await verify.BoardTiles.SingleAsync(x => x.Id != tileId)).RowIndex, (await verify.BoardTiles.SingleAsync(x => x.Id != tileId)).ColumnIndex));
                 break;
-            case "resize": Assert.Equal(2, before.GetProperty("Rows").GetInt32()); Assert.Equal(1, after.GetProperty("Rows").GetInt32()); Assert.Equal(new[] { (0, 0), (0, 1) }, (await verify.BoardTiles.OrderBy(x => x.ColumnIndex).ToListAsync()).Select(x => (x.RowIndex, x.ColumnIndex)).ToArray()); break;
             case "teamSize": Assert.Equal(7, after.GetProperty("ExpectedTeamSize").GetInt32()); Assert.Equal(7, (await verify.Events.SingleAsync()).ExpectedTeamSize); Assert.Equal(2, boardAfter.Version); break;
         }
         Assert.Equal(new[] { setup.EventId }, notifier.Events);
     }
 
     [Fact]
-    public async Task LargeBoardCompactionAndLongObjectivesFitTheExistingAuditColumn()
+    public async Task ValidResizeAuditFailureRollsBackApprovalAndNotification()
     {
         var setup = await SeedAsync();
-        var board = new Board(Guid.NewGuid(), setup.EventId, "Main board", 8, 8);
+        var boardId = Guid.NewGuid();
+        var template = new TileTemplate(Guid.NewGuid(), "Original", "Original description", ObjectiveType.Manual, "", 2);
+        var secondTemplate = new TileTemplate(Guid.NewGuid(), "Second", "", ObjectiveType.Manual, "", 2);
+        var board = new Board(boardId, setup.EventId, "Main board", 2, 2);
+        board.AcquireEditing(setup.AdminId, now, BoardEditingLease.Duration);
+        var tile = new BoardTile(Guid.NewGuid(), boardId, template.Id, 0, 0, "Original", "Original description", "", 2);
+        var second = new BoardTile(Guid.NewGuid(), boardId, secondTemplate.Id, 1, 1, "Second", "", "", 2);
+        var approval = new BoardApprovalSnapshot(Guid.NewGuid(), boardId, 1, now, setup.AdminId, null,
+            board.Name, board.Rows, board.Columns, board.TotalEhbEstimate, board.CalculationVersion, board.Version);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.AddRange(board, template, secondTemplate, tile, second, approval);
+            await db.SaveChangesAsync();
+            board.Approve(approval.Id);
+            await db.SaveChangesAsync();
+        }
+
+        var approvedVersion = board.Version;
+        var baseline = await PersistedStateAsync();
+        var observer = new AuditFailureObserver();
+        var notifier = new Notifier();
+        Exception? failure;
+        await using (var db = FailureContext(observer))
+        {
+            var page = Context(new BoardModel(db, new Clock(now), new AuditWriter(db, new Clock(now)), notifier, new MemoryStorage()), setup.AdminId, true);
+            page.BoardVersion = approvedVersion;
+            page.Rows = 2;
+            page.Columns = 3;
+
+            failure = await Record.ExceptionAsync(() => page.OnPostResizeAsync(setup.EventId, default));
+        }
+
+        Assert.True(observer.SawAuditFailure, failure?.ToString());
+        Assert.NotNull(failure);
+        Assert.Equal(baseline, await PersistedStateAsync());
+        Assert.Empty(notifier.Events);
+        await using (var failed = new ApplicationDbContext(options))
+        {
+            var failedBoard = await failed.Boards.SingleAsync(value => value.Id == boardId);
+            Assert.Equal((2, 2, BoardState.Validated, approvedVersion, approval.Id),
+                (failedBoard.Rows, failedBoard.Columns, failedBoard.State, failedBoard.Version, failedBoard.ActiveApprovalSnapshotId));
+            Assert.Single(await failed.BoardApprovalSnapshots.Where(value => value.Id == approval.Id).ToListAsync());
+            Assert.Empty(await failed.AuditEntries.Where(value => value.EventId == setup.EventId &&
+                (value.Action == "board.auto_unapproved" || value.Action == "board.resized")).ToListAsync());
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var page = Context(new BoardModel(db, new Clock(now), new AuditWriter(db, new Clock(now)), notifier, new MemoryStorage()), setup.AdminId);
+            page.BoardVersion = await db.Boards.Where(value => value.Id == boardId).Select(value => value.Version).SingleAsync();
+            page.Rows = 2;
+            page.Columns = 3;
+
+            Assert.IsType<RedirectToPageResult>(await page.OnPostResizeAsync(setup.EventId, default));
+        }
+
+        await using var verify = new ApplicationDbContext(options);
+        var resizedBoard = await verify.Boards.SingleAsync(value => value.Id == boardId);
+        Assert.Equal((2, 3, BoardState.Draft, approvedVersion + 2, (Guid?)null),
+            (resizedBoard.Rows, resizedBoard.Columns, resizedBoard.State, resizedBoard.Version, resizedBoard.ActiveApprovalSnapshotId));
+        Assert.Single(await verify.BoardApprovalSnapshots.Where(value => value.Id == approval.Id).ToListAsync());
+        Assert.Single(await verify.AuditEntries.Where(value => value.EventId == setup.EventId && value.Action == "board.auto_unapproved").ToListAsync());
+        var resizeAudit = await AuditAsync(verify, setup, "board.resized");
+        Assert.Equal(2, resizeAudit.GetProperty("before").GetProperty("Rows").GetInt32());
+        Assert.Equal(2, resizeAudit.GetProperty("before").GetProperty("Columns").GetInt32());
+        Assert.Equal(2, resizeAudit.GetProperty("after").GetProperty("Rows").GetInt32());
+        Assert.Equal(3, resizeAudit.GetProperty("after").GetProperty("Columns").GetInt32());
+        var persistedTiles = await verify.BoardTiles.Where(value => value.BoardId == boardId)
+            .OrderBy(value => value.RowIndex).ThenBy(value => value.ColumnIndex)
+            .Select(value => new { value.Id, value.RowIndex, value.ColumnIndex })
+            .ToListAsync();
+        Assert.Equal(new[] { (tile.Id, tile.RowIndex, tile.ColumnIndex), (second.Id, second.RowIndex, second.ColumnIndex) },
+            persistedTiles.Select(value => (value.Id, value.RowIndex, value.ColumnIndex)));
+        Assert.Equal(new[] { setup.EventId }, notifier.Events);
+    }
+
+    [Fact]
+    public async Task LargeBoardSafeResizeAndLongObjectivesFitTheExistingAuditColumn()
+    {
+        var setup = await SeedAsync();
+        var board = new Board(Guid.NewGuid(), setup.EventId, "Main board", 8, 7);
         board.AcquireEditing(setup.AdminId, now, BoardEditingLease.Duration);
         var template = new TileTemplate(Guid.NewGuid(), "Original", "Original", ObjectiveType.Manual, "", 1);
-        var tiles = Enumerable.Range(1, 63).Select(position => new BoardTile(Guid.NewGuid(), board.Id, template.Id, position / 8, position % 8, "Original", "Original", "", 1)).ToArray();
+        var tiles = Enumerable.Range(0, 55).Select(position => new BoardTile(Guid.NewGuid(), board.Id, template.Id, position / 7, position % 7, "Original", "Original", "", 1)).ToArray();
         await using (var db = new ApplicationDbContext(options))
         {
             db.AddRange(board, template); db.AddRange(tiles); await db.SaveChangesAsync();
         }
+
+        var notifier = new Notifier();
         await using (var db = new ApplicationDbContext(options))
         {
-            var page = Context(new BoardModel(db, new Clock(now), new AuditWriter(db, new Clock(now)), new Notifier(), new MemoryStorage()), setup.AdminId);
+            var page = Context(new BoardModel(db, new Clock(now), new AuditWriter(db, new Clock(now)), notifier, new MemoryStorage()), setup.AdminId);
             page.BoardVersion = board.Version; page.Rows = 8; page.Columns = 8;
-            await page.OnPostResizeAsync(setup.EventId, default);
+            Assert.IsType<RedirectToPageResult>(await page.OnPostResizeAsync(setup.EventId, default));
         }
         await using (var db = new ApplicationDbContext(options))
         {
-            var resize = await AuditAsync(db, setup, "board.resized");
-            Assert.Equal(63, resize.GetProperty("before").GetProperty("tiles").GetProperty("Count").GetInt32());
-            Assert.True(resize.GetProperty("after").GetProperty("tiles").GetProperty("ValuesOmitted").GetBoolean());
-            Assert.NotEqual(resize.GetProperty("before").GetProperty("tiles").GetProperty("Sha256").GetString(), resize.GetProperty("after").GetProperty("tiles").GetProperty("Sha256").GetString());
-            Assert.Equal(Enumerable.Range(0, 63), await db.BoardTiles.OrderBy(x => x.RowIndex).ThenBy(x => x.ColumnIndex).Select(x => x.RowIndex * 8 + x.ColumnIndex).ToListAsync());
+            var page = Context(new BoardModel(db, new Clock(now), new AuditWriter(db, new Clock(now)), notifier, new MemoryStorage()), setup.AdminId);
+            page.BoardVersion = await db.Boards.Where(value => value.Id == board.Id).Select(value => value.Version).SingleAsync();
+            page.Rows = 8; page.Columns = 7;
+            Assert.IsType<RedirectToPageResult>(await page.OnPostResizeAsync(setup.EventId, default));
+        }
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var resizeAudits = await db.AuditEntries.Where(value => value.EventId == setup.EventId && value.Action == "board.resized")
+                .OrderBy(value => value.OccurredAt).ToListAsync();
+            Assert.Equal(2, resizeAudits.Count);
+            var observedDimensions = new HashSet<((int Rows, int Columns) Before, (int Rows, int Columns) After)>();
+            foreach (var resizeAudit in resizeAudits)
+            {
+                using var resizeDetails = JsonDocument.Parse(resizeAudit.Details!);
+                var before = resizeDetails.RootElement.GetProperty("before");
+                var afterSnapshot = resizeDetails.RootElement.GetProperty("after");
+                var beforeDimensions = (before.GetProperty("Rows").GetInt32(), before.GetProperty("Columns").GetInt32());
+                var afterDimensions = (afterSnapshot.GetProperty("Rows").GetInt32(), afterSnapshot.GetProperty("Columns").GetInt32());
+                observedDimensions.Add((beforeDimensions, afterDimensions));
+                Assert.Equal(55, before.GetProperty("tiles").GetProperty("Count").GetInt32());
+                Assert.True(before.GetProperty("tiles").GetProperty("ValuesOmitted").GetBoolean());
+                Assert.True(afterSnapshot.GetProperty("tiles").GetProperty("ValuesOmitted").GetBoolean());
+                Assert.Equal(before.GetProperty("tiles").GetProperty("Sha256").GetString(), afterSnapshot.GetProperty("tiles").GetProperty("Sha256").GetString());
+                Assert.InRange(resizeAudit.Details!.Length, 1, 4000);
+            }
+            Assert.Equal(
+                new HashSet<((int Rows, int Columns) Before, (int Rows, int Columns) After)> { ((8, 7), (8, 8)), ((8, 8), (8, 7)) },
+                observedDimensions);
+            var persistedTiles = await db.BoardTiles.Where(value => value.BoardId == board.Id)
+                .OrderBy(value => value.RowIndex).ThenBy(value => value.ColumnIndex)
+                .Select(value => new { value.Id, value.RowIndex, value.ColumnIndex })
+                .ToListAsync();
+            Assert.Equal(tiles.Select(value => (value.Id, value.RowIndex, value.ColumnIndex)),
+                persistedTiles.Select(value => (value.Id, value.RowIndex, value.ColumnIndex)));
+            Assert.Equal(new[] { setup.EventId, setup.EventId }, notifier.Events);
+            // U7 B-Board-2 (A10): new or changed tile names are limited to 80 characters; a stored
+            // legacy 200-character name still saves unchanged, so the audit-fit proof keeps 200.
+            db.Entry(await db.BoardTiles.SingleAsync(value => value.Id == tiles[0].Id)).Property(value => value.NameSnapshot).CurrentValue = new string('ø', 200);
+            await db.SaveChangesAsync();
             var page = Context(new BoardModel(db, new Clock(now), new AuditWriter(db, new Clock(now)), new Notifier(), new MemoryStorage()), setup.AdminId);
             page.BoardVersion = (await db.Boards.SingleAsync()).Version;
             page.TileDraft = new BoardModel.TileDraftInput
@@ -379,7 +514,7 @@ public sealed class AuditAtomicityBatchIntegrationTests : IAsyncLifetime
                 ManualEhb = 5,
                 Requirements = Enumerable.Range(1, 8).Select(i => new BoardModel.RequirementInput { Kind = "challenge", Description = new string('ø', 300), Target = i }).ToList()
             };
-            await page.OnPostEditTileAsync(setup.EventId, default);
+            Assert.IsType<RedirectToPageResult>(await page.OnPostEditTileAsync(setup.EventId, default));
         }
         await using var verify = new ApplicationDbContext(options);
         var audit = await AuditAsync(verify, setup, "board.tile_edited");
@@ -419,7 +554,7 @@ public sealed class AuditAtomicityBatchIntegrationTests : IAsyncLifetime
     {
         var admin = Account.CreateWebsite(Guid.NewGuid(), "admin", "ADMIN", now); admin.SetGlobalRole(GlobalRole.Admin);
         var other = Account.CreateWebsite(Guid.NewGuid(), "other", "OTHER", now); other.SetGlobalRole(GlobalRole.Admin);
-        var ev = new BingoEvent(Guid.NewGuid(), "Audit fixture", "audit-fixture", "UTC", admin.Id, now.AddDays(-1));
+        var ev = new BingoEvent(Guid.NewGuid(), "Audit fixture", "audit-fixture", "UTC", admin.Id, now.AddDays(-1), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         ev.ConfigureSchedule(now.AddDays(-1), now.AddHours(-1), null, now.AddHours(1), now.AddDays(1), 10);
         ev.ConfigureSignup(true, false, null); ev.OpenSignups(now.AddDays(-1)); ev.CloseSignups(now.AddHours(-1));
         var form = new SignupForm(Guid.NewGuid(), ev.Id, now);
@@ -427,8 +562,14 @@ public sealed class AuditAtomicityBatchIntegrationTests : IAsyncLifetime
         var first = new Team(Guid.NewGuid(), ev.Id, "First", "first", TeamFormationType.Drafted, "Old affiliation", true);
         var second = new Team(Guid.NewGuid(), ev.Id, "Second", "second", TeamFormationType.Drafted, null, true);
         var participants = Enumerable.Range(0, 4).Select(i => new EventParticipant(Guid.NewGuid(), ev.Id, SignupStatus.Confirmed, i + 1, now, SignupSource.Website)).ToArray();
+        var firstCaptainLogin = $"audit-captain-a-{Guid.NewGuid():N}";
+        var secondCaptainLogin = $"audit-captain-b-{Guid.NewGuid():N}";
+        var firstCaptain = Account.CreateWebsite(Guid.NewGuid(), firstCaptainLogin, firstCaptainLogin.ToUpperInvariant(), now);
+        var secondCaptain = Account.CreateWebsite(Guid.NewGuid(), secondCaptainLogin, secondCaptainLogin.ToUpperInvariant(), now);
+        participants[0].AssignOwner(firstCaptain);
+        participants[1].AssignOwner(secondCaptain);
         await using var db = new ApplicationDbContext(options);
-        db.AddRange(admin, other, ev, form, primary, first, second, new DraftSession(Guid.NewGuid(), ev.Id, 1));
+        db.AddRange(admin, other, firstCaptain, secondCaptain, ev, form, primary, first, second, new DraftSession(Guid.NewGuid(), ev.Id, 1));
         db.AddRange(participants);
         for (var i = 0; i < participants.Length; i++)
         {
@@ -507,6 +648,11 @@ public sealed class AuditAtomicityBatchIntegrationTests : IAsyncLifetime
             SawAuditFailure |= eventData.Exception is DbUpdateException { InnerException: PostgresException { SqlState: "P0001" } };
             return Task.CompletedTask;
         }
+    }
+    private sealed class ConcurrencyFailureObserver : SaveChangesInterceptor
+    {
+        public override ValueTask<InterceptionResult<int>> SavingChangesAsync(DbContextEventData eventData, InterceptionResult<int> result, CancellationToken cancellationToken = default) =>
+            ValueTask.FromException<InterceptionResult<int>>(new DbUpdateConcurrencyException("Injected signup-code concurrency failure."));
     }
     private sealed class Notifier(Func<Task>? inspectCommit = null) : IAdminCollaborationNotifier
     {

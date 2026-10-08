@@ -17,7 +17,7 @@ public sealed class BrowserTestGroup : ICollectionFixture<BrowserTestApplication
 
 public sealed class BrowserTestApplicationFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
         .WithDatabase("bingo_browser_tests")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
@@ -25,9 +25,9 @@ public sealed class BrowserTestApplicationFactory : WebApplicationFactory<Progra
 
     public async Task InitializeAsync()
     {
-        await database.StartAsync();
+        await PostgreSqlReadiness.StartAsync(database);
         var options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseNpgsql(database.GetConnectionString())
+            .UseNpgsql(database.GetOwnedConnectionString())
             .Options;
         await using var db = new ApplicationDbContext(options);
         await db.Database.MigrateAsync();
@@ -36,7 +36,7 @@ public sealed class BrowserTestApplicationFactory : WebApplicationFactory<Progra
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing")
-            .UseSetting("ConnectionStrings:Database", database.GetConnectionString())
+            .UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString())
             .UseSetting("WiseOldMan:BaseUrl", "http://127.0.0.1/")
             .UseSetting("WiseOldMan:DevelopmentFake:Enabled", "false")
             .ConfigureServices(services =>

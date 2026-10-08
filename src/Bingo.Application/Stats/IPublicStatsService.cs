@@ -42,7 +42,12 @@ public sealed record StatsRepeatedItem(StatsItemIdentity Item, int Count, Guid? 
 public sealed record StatsVersatilePlayer(Guid PlayerId, Guid TeamId, string Name, int DistinctTiles);
 
 public enum StatsLuckStatus { Calculated, NoEligibleActivity, WaitingForActivityData, WaitingForActivityUpdate, Incomplete }
+public sealed record StatsLegacyCheckpointConversionResult(bool Converted, string? Diagnostic);
 public sealed record StatsLuckResult(int Received, decimal? Expected, decimal? Percentage, StatsLuckStatus Status,
+    bool Estimated, bool ZeroRecordedApproximation, decimal? KcDifference = null,
+    IReadOnlyList<StatsLuckActivityResult>? Activities = null);
+public sealed record StatsLuckActivityResult(Guid? BossId, string? Metric, string Name, int Received,
+    decimal? Expected, decimal? Kc, decimal? Percentage, decimal? KcDifference, StatsLuckStatus Status,
     bool Estimated, bool ZeroRecordedApproximation);
 public sealed record StatsLuckSource(Guid SourceDropId, Guid ItemId, Guid? BossId, string? Metric, decimal? Probability,
     int? Rolls, decimal? ParentProbability, string? UnavailableReason, StatsItemIdentity Item, string BossName,
@@ -62,8 +67,9 @@ public sealed record StatsLuck(StatsLuckResult Result, IReadOnlyList<StatsLuckTe
 public sealed record StatsTileLuck(Guid TileId, bool HasDropOutcomes, IReadOnlyList<StatsTileLuckTeam> Teams);
 public sealed record StatsTileLuckTeam(Guid TeamId, StatsLuckResult Result, IReadOnlyList<StatsTileKc> Metrics,
     IReadOnlyList<StatsTileLuckPlayer> Players);
-public sealed record StatsTileLuckPlayer(Guid PlayerId, string Name, StatsLuckResult Result, IReadOnlyList<StatsTileKc> Metrics);
+public sealed record StatsTileLuckPlayer(Guid PlayerId, string Name, StatsLuckResult Result, IReadOnlyList<StatsTileKc> Metrics,
+    IReadOnlyList<StatsLuckCharacterSource>? Sources = null);
 public sealed record StatsTileKc(string? Metric, string Name, decimal? Count, StatsLuckStatus Status,
-    bool Estimated, bool ZeroRecordedApproximation);
+    bool Estimated, bool ZeroRecordedApproximation, decimal? Percentage = null, decimal? KcDifference = null);
 public sealed record StatsTileActivity(bool HasDropOutcomes, StatsTileLuckTeam Team, bool Stale,
     DateTimeOffset? CalculatedAt, DateTimeOffset? FetchedAt, long EvidenceRevision);

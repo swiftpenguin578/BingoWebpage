@@ -37,7 +37,7 @@ public sealed class PublishedContentRetentionIntegrationTests : IAsyncLifetime
     private const string PrivateReason = "PRIVATE cancellation reason sentinel";
     private static readonly byte[] Png = CreatePng(default);
     private static readonly byte[] ReplacementPng = CreatePng(new Rgba32(255, 0, 0));
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
         .WithDatabase("bingo_published_content").WithUsername("bingo").WithPassword("bingo_fixture_password").Build();
     private readonly string storageRoot = Path.Combine(Path.GetTempPath(), $"bingo-c21-c37-{Guid.NewGuid():N}");
     private DbContextOptions<ApplicationDbContext> options = null!;
@@ -49,8 +49,8 @@ public sealed class PublishedContentRetentionIntegrationTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        await database.StartAsync();
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
+        await PostgreSqlReadiness.StartAsync(database);
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
         await db.Database.MigrateAsync();
         actor = Account.CreateWebsite(Guid.NewGuid(), "published-admin", "PUBLISHED-ADMIN", DateTimeOffset.UtcNow);
@@ -62,7 +62,7 @@ public sealed class PublishedContentRetentionIntegrationTests : IAsyncLifetime
         await db.SaveChangesAsync();
         factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
-            builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString());
+            builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString());
             builder.UseSetting("EvidenceStorage:LocalPath", storageRoot);
             builder.ConfigureTestServices(services => services.RemoveAll<IHostedService>());
         });
@@ -302,7 +302,8 @@ public sealed class PublishedContentRetentionIntegrationTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.NotFound, (await anonymous.GetAsync($"/Events/{fixture.Slug}/Teams/{fixture.TeamId}/Image")).StatusCode);
         await AssertImageAsync(admin, RetainedUrl(fixture, approval));
         var adminBoardUrl = $"/Admin/Events/Board/{fixture.EventId}";
-        Assert.Equal(HttpStatusCode.Redirect, (await admin.GetAsync(adminBoardUrl)).StatusCode);
+        // U7 D17 (A10): the Admin Board page loads read-only on terminal events; working artwork stays refused.
+        Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync(adminBoardUrl)).StatusCode);
         Assert.Equal(HttpStatusCode.Redirect, (await admin.GetAsync(adminBoardUrl + $"?handler=TileImage&tileId={fixture.TileId}")).StatusCode);
         await PostAsync(admin, adminBoardUrl + "?handler=Remove", await admin.GetStringAsync($"/Admin/Events/Manage/{fixture.EventId}"), new() { ["tileId"] = fixture.TileId.ToString() });
         using var scope = factory.Services.CreateScope();
@@ -376,7 +377,7 @@ public sealed class PublishedContentRetentionIntegrationTests : IAsyncLifetime
     private async Task<Fixture> SeedAsync()
     {
         var now = DateTimeOffset.UtcNow;
-        var ev = new BingoEvent(Guid.NewGuid(), "Public retention fixture", $"retention-{Guid.NewGuid():N}", "UTC", actor.Id, now);
+        var ev = new BingoEvent(Guid.NewGuid(), "Public retention fixture", $"retention-{Guid.NewGuid():N}", "UTC", actor.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         ev.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddHours(1), now.AddDays(2), 10);
         ev.OpenSignups(now.AddDays(-2)); ev.CloseSignups(now.AddDays(-1));
         ev.SetDraftRosterPublication(true);

@@ -1,0 +1,9 @@
+PASS chromium-phone-light: 0 differences
+FAIL chromium-mobile-preferences Expected values to be strictly equal:
+
+3 !== 0
+
+PASS webkit-phone-light: 0 differences
+FAIL webkit-mobile-preferences Expected values to be strictly equal:
+
+null !== 'dark'

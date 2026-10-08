@@ -247,9 +247,20 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         await using (var db = new ApplicationDbContext(options))
         {
             (await db.EventParticipants.SingleAsync(x => x.Id == f.Players[0].Id)).AssignOwner(f.Admin);
-            (await db.TeamMemberships.SingleAsync()).Leave(f.Clock.GetUtcNow(), "Controlled move");
+            var oldMembership = await db.TeamMemberships.SingleAsync();
+            oldMembership.Leave(f.Clock.GetUtcNow(), "Controlled move");
             db.Add(current);
             db.Add(new TeamMembership(Guid.NewGuid(), current.Id, f.Players[0].Id, TeamMembershipRole.Participant, f.Clock.GetUtcNow(), null, "Controlled move"));
+            var oldPublication = await db.DraftPublicationCycles.SingleAsync();
+            oldPublication.Supersede(f.Clock.GetUtcNow(), f.Admin.Id, "Controlled move");
+            var currentPublication = new DraftPublicationCycle(Guid.NewGuid(), (await db.DraftSessions.SingleAsync()).Id,
+                oldPublication.CycleNumber + 1, f.Clock.GetUtcNow(), f.Admin.Id, DraftPublicationMethod.DirectRoster);
+            var retainedRoster = await db.DraftPublicationRosters.Where(x => x.DraftPublicationCycleId == oldPublication.Id).ToListAsync();
+            db.Add(currentPublication);
+            db.AddRange(retainedRoster.Select(row => new DraftPublicationRoster(Guid.NewGuid(), currentPublication.Id,
+                row.TeamId, row.EventParticipantId, row.Role, row.EffectivePickNumber, row.PublicCharacterName)));
+            db.Add(new DraftPublicationRoster(Guid.NewGuid(), currentPublication.Id, current.Id, f.Players[0].Id,
+                TeamMembershipRole.Participant, null, f.Characters[0].DisplayName));
             await db.SaveChangesAsync();
         }
         await SyncStatsAsync(f, 100);
@@ -269,7 +280,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
     }
 
     [Fact]
-    public async Task StatsPass5CorrectionOfficialCompletionDtosRetainRawHistoryAcrossFinalizationArchiveAndReopening()
+    public async Task StatsPass5CalculatedCompletionDtosRetainRawHistoryAcrossFinalizationArchiveAndReopening()
     {
         var f = await FullStatsFixtureAsync(target: 1, dimensions: 5);
         for (var i = 0; i < 25; i++) await ApproveStatsAsync(f, await PendingStatsAsync(f, i, 0, i + 1));
@@ -281,15 +292,15 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
             var ev = await db.Events.SingleAsync();
             Assert.True((await new EventLifecycleService(db, null!, f.Clock).EndNowAsync(ev.Id, ev.Version, true, "Controlled end", new(f.Admin.Id, f.Admin.LoginName))).Succeeded);
         }
+        f.Clock.Advance(TimeSpan.FromHours(1));
         await using (var db = new ApplicationDbContext(options))
         {
             var service = new EventFinalizationService(db, new PublicBoardService(db, f.Clock), f.Clock);
             var ready = (await service.GetReadinessAsync(f.Event.Id))!;
-            await service.CorrectCompletionAsync(f.Event.Id, f.Team.Id, corrected, "Controlled Stats presentation correction", f.Admin.Id, ready.EventVersion, ready.ReviewCycleId);
-            ready = (await service.GetReadinessAsync(f.Event.Id))!;
-            await service.AcknowledgeCompletionTimeAsync(f.Event.Id, f.Team.Id, f.Admin.Id, ready.EventVersion, ready.ReviewCycleId, ready.Blockers.Single(x => x.IsCompletionTimeAcknowledgement).Key);
-            ready = (await service.GetReadinessAsync(f.Event.Id))!;
-            Assert.True(ready.CanFinalize);
+            await Assert.ThrowsAsync<InvalidOperationException>(() => service.CorrectCompletionAsync(
+                f.Event.Id, f.Team.Id, corrected, "Retired Stats presentation correction", f.Admin.Id,
+                ready.EventVersion, ready.ReviewCycleId));
+            Assert.True(ready.CanFinalize, string.Join("; ", ready.Blockers.Select(x => x.Description)));
             await service.FinalizeAsync(f.Event.Id, new(f.Admin.Id, f.Admin.LoginName), ready.EventVersion);
         }
         foreach (var state in new[] { "finalized", "archived", "reopened" })
@@ -298,16 +309,15 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
             {
                 await using var db = new ApplicationDbContext(options);
                 var service = new EventFinalizationService(db, new PublicBoardService(db, f.Clock), f.Clock);
-                if (state == "archived") await service.ArchiveAsync(f.Event.Id, true, new(f.Admin.Id, f.Admin.LoginName));
-                else await service.UnfinalizeAsync(f.Event.Id, "Controlled Stats reopening", true, new(f.Admin.Id, f.Admin.LoginName));
+                if (state == "reopened") await service.UnfinalizeAsync(f.Event.Id, "Controlled Stats reopening", true, new(f.Admin.Id, f.Admin.LoginName), (await db.Events.SingleAsync(x => x.Id == f.Event.Id)).Version); // B-Final-2: valid reopen supplies current version.
             }
             var payload = await StatsCorrectionPayloadAsync(f, state);
             var stats = payload.GetProperty("stats"); var team = Assert.Single(stats.GetProperty("teams").EnumerateArray());
             Assert.Equal(rawCompleted, team.GetProperty("progressHistory").EnumerateArray().Last().GetProperty("at").GetDateTimeOffset());
             var completion = stats.GetProperty("milestones").EnumerateArray().Single(x => x.GetProperty("id").GetString() == "board").GetProperty("at").GetDateTimeOffset();
-            Assert.Equal(state == "reopened" ? rawCompleted : corrected, completion);
+            Assert.Equal(rawCompleted, completion);
             if (state == "reopened") Assert.Equal(JsonValueKind.Null, team.GetProperty("officialCompletion").ValueKind);
-            else Assert.Equal(corrected, team.GetProperty("officialCompletion").GetProperty("completedAt").GetDateTimeOffset());
+            else Assert.Equal(rawCompleted, team.GetProperty("officialCompletion").GetProperty("completedAt").GetDateTimeOffset());
         }
     }
 

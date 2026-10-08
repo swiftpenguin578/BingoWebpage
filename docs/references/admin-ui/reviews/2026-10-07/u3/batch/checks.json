@@ -1,0 +1,77 @@
+{
+  "sourceCommit": "5ef3ab3ad4e6c23fe9a0e6c8c3bc25404c89ca11",
+  "release": {
+    "passed": true,
+    "warnings": 0,
+    "errors": 0,
+    "elapsedSeconds": 18.83,
+    "runs": 1
+  },
+  "js": {
+    "total": 102,
+    "passed": 97,
+    "failed": 5,
+    "runnerRuns": 1,
+    "parityConfiguration": "Debug",
+    "failures": [
+      {
+        "file": "admin-design-events.browser.js",
+        "browser": "chromium",
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "milliseconds": 28080,
+        "evidence": "admin-design-events.browser.js.chromium.log"
+      },
+      {
+        "file": "admin-design-events.browser.js",
+        "browser": "webkit",
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "milliseconds": 23135,
+        "evidence": "admin-design-events.browser.js.webkit.log"
+      },
+      {
+        "file": "admin-design-page-conformance.browser.js",
+        "browser": "chromium",
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "milliseconds": 18397,
+        "evidence": "admin-design-page-conformance.browser.js.chromium.log"
+      },
+      {
+        "file": "admin-design-page-conformance.browser.js",
+        "browser": "webkit",
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "milliseconds": 18630,
+        "evidence": "admin-design-page-conformance.browser.js.webkit.log"
+      },
+      {
+        "file": "admin-stale-change.browser.js",
+        "browser": "default",
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "milliseconds": 355,
+        "evidence": "admin-stale-change.browser.js.default.log"
+      }
+    ]
+  },
+  "focusedEventsCorrection": {
+    "commit": "12d9d6c5",
+    "passed": 28,
+    "failed": 0,
+    "engines": [
+      "chromium",
+      "webkit"
+    ]
+  },
+  "staleAccountFixture": "UNPASSED: captured pre-T1 HTML lacks data-account-drawer; no product failure established",
+  "fullDotNet": "NOT RUN; planner-owned",
+  "sharedCssCmp": "PASS",
+  "diffCheck": "PASS"
+}

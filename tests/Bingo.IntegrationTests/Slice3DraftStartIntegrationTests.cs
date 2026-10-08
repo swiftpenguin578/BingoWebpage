@@ -20,13 +20,13 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class Slice3DraftStartIntegrationTests : IAsyncLifetime
+public sealed class Slice3DraftStartIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_slice3_draft_start")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
-        .Build();
+        );
     private readonly DateTimeOffset now = new(2026, 7, 27, 18, 0, 0, TimeSpan.Zero);
     private DbContextOptions<ApplicationDbContext> options = null!;
 
@@ -35,7 +35,6 @@ public sealed class Slice3DraftStartIntegrationTests : IAsyncLifetime
         await database.StartAsync();
         options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
@@ -48,7 +47,12 @@ public sealed class Slice3DraftStartIntegrationTests : IAsyncLifetime
         var closedAt = now.AddHours(-1);
         await using (var setup = new ApplicationDbContext(options))
         {
-            var seededItem = SeedDraftSetup(setup, eventId, "closed-draft-start", EventState.SignupClosed, adminId, closedAt);
+            var admin = Account.CreateWebsite(adminId, "draft-admin", "DRAFT-ADMIN", now);
+            admin.SetGlobalRole(GlobalRole.Admin);
+            var firstOwner = Account.CreateWebsite(Guid.NewGuid(), "draft-captain-one", "DRAFT-CAPTAIN-ONE", now);
+            var secondOwner = Account.CreateWebsite(Guid.NewGuid(), "draft-captain-two", "DRAFT-CAPTAIN-TWO", now);
+            setup.Add(admin);
+            var seededItem = SeedDraftSetup(setup, eventId, "closed-draft-start", EventState.SignupClosed, adminId, closedAt, firstOwner, secondOwner);
             setup.EventStateTransitions.Add(new EventStateTransition(Guid.NewGuid(), eventId, EventState.SignupOpen, EventState.SignupClosed, adminId, closedAt, "Signup closed before draft."));
             await setup.SaveChangesAsync();
             Assert.Equal(closedAt, seededItem.ActualSignupClosedAt);
@@ -120,9 +124,17 @@ public sealed class Slice3DraftStartIntegrationTests : IAsyncLifetime
         Assert.Equal(0, notifier.DraftChanges);
     }
 
-    private BingoEvent SeedDraftSetup(ApplicationDbContext db, Guid eventId, string slug, EventState state, Guid adminId, DateTimeOffset closedAt)
+    private BingoEvent SeedDraftSetup(
+        ApplicationDbContext db,
+        Guid eventId,
+        string slug,
+        EventState state,
+        Guid adminId,
+        DateTimeOffset closedAt,
+        Account? firstOwner = null,
+        Account? secondOwner = null)
     {
-        var item = new BingoEvent(eventId, slug, slug, "UTC", adminId, now.AddDays(-2));
+        var item = new BingoEvent(eventId, slug, slug, "UTC", adminId, now.AddDays(-2), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureSchedule(now.AddDays(-2), closedAt, null, now.AddDays(1), now.AddDays(2), 20);
         item.ConfigureSignup(true, false, null);
         if (state is not (EventState.Draft or EventState.Cancelled or EventState.Discarded)) item.OpenSignups(now.AddDays(-2));
@@ -144,8 +156,15 @@ public sealed class Slice3DraftStartIntegrationTests : IAsyncLifetime
         secondTeam.SetDraftPosition(2);
         var firstParticipant = new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 1, now, SignupSource.Website);
         var secondParticipant = new EventParticipant(Guid.NewGuid(), eventId, SignupStatus.Confirmed, 2, now, SignupSource.Website);
+        if (firstOwner is not null)
+        {
+            firstParticipant.AssignOwner(firstOwner);
+        }
+        if (secondOwner is not null) secondParticipant.AssignOwner(secondOwner);
         var firstCharacter = new OsrsCharacter(Guid.NewGuid(), $"{slug} one", $"{slug.ToUpperInvariant()} ONE", now);
         var secondCharacter = new OsrsCharacter(Guid.NewGuid(), $"{slug} two", $"{slug.ToUpperInvariant()} TWO", now);
+        if (firstOwner is not null) db.Add(firstOwner);
+        if (secondOwner is not null) db.Add(secondOwner);
         db.AddRange(
             item,
             form,

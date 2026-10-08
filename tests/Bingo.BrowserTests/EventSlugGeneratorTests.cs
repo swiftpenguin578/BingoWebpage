@@ -1,3 +1,4 @@
+using Bingo.Domain.Events;
 using Bingo.Web.Events;
 
 namespace Bingo.BrowserTests;

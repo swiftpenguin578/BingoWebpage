@@ -1,0 +1,42 @@
+[
+  {
+    "path": "artifacts/js-fixtures/account-Disable-opened.html",
+    "sha256": "6ab69b9be6da94ee3647d77d39ebd6eff0f0d54bb9628c4a6f20b6f6e9509497",
+    "drawer": true
+  },
+  {
+    "path": "artifacts/js-fixtures/account-Disable-stale.html",
+    "sha256": "343bb6e209e403e7fa9d0be3f90718093a5b417ae9bf2f40cbde92d1e8f4d4ae",
+    "drawer": true
+  },
+  {
+    "path": "artifacts/js-fixtures/account-GrantAdmin-opened.html",
+    "sha256": "a8e831762e9cf95a2c860e33d9e6896d8da3023e00cfa16b9ea1dc1c7c88cb9a",
+    "drawer": true
+  },
+  {
+    "path": "artifacts/js-fixtures/account-GrantAdmin-stale.html",
+    "sha256": "22c5aa6ad9db1e0404d98eecac8eb2f9cadd37bbd3fa65918459f3fe9ddb55d4",
+    "drawer": true
+  },
+  {
+    "path": "artifacts/js-fixtures/account-Restore-opened.html",
+    "sha256": "220037179af01007954a4ada7056243f9559a5df700577904f528ad05b24f438",
+    "drawer": true
+  },
+  {
+    "path": "artifacts/js-fixtures/account-Restore-stale.html",
+    "sha256": "db4a313387edcd3d046a37ddf55846742ed248bb66e335f945afafba3ab728e5",
+    "drawer": true
+  },
+  {
+    "path": "artifacts/js-fixtures/account-RevokeAdmin-opened.html",
+    "sha256": "908baad42b5aedd6b85b1b52f5503528904ecd8106c4a58ba790775a4f026403",
+    "drawer": true
+  },
+  {
+    "path": "artifacts/js-fixtures/account-RevokeAdmin-stale.html",
+    "sha256": "6ac201f425eb523aec9934f860fdd6f6634cb808e3b7112070790f98e7a55181",
+    "drawer": true
+  }
+]

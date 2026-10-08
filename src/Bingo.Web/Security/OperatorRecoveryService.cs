@@ -55,7 +55,10 @@ public sealed class OperatorRecoveryService(
         if (previousOwner?.Id == destination.Id) return;
         if (previousOwner is not null) previousOwner.SetGlobalRole(GlobalRole.Admin);
         destination.SetGlobalRole(GlobalRole.SuperAdmin);
-        db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), time.GetUtcNow(), null, "System", "account.owner_recovered", "account", destination.Id.ToString(),
+        var now = time.GetUtcNow();
+        if (previousOwner is not null) await AccountResetTokenPolicy.SupersedeResetTokensAsync(db, previousOwner.Id, now, ct);
+        await AccountResetTokenPolicy.SupersedeResetTokensAsync(db, destination.Id, now, ct);
+        db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, null, "System", "account.owner_recovered", "account", destination.Id.ToString(),
             "Owner recovery executed through the controlled operator command.", beforeState: previousOwner is null ? "null" : "{\"role\":\"SuperAdmin\"}", afterState: "{\"role\":\"SuperAdmin\"}"));
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
@@ -94,7 +97,9 @@ public sealed class OperatorRecoveryService(
         if (owner.AccountType != AccountType.WebsiteAccount || !owner.Active || owner.GlobalRole != GlobalRole.Admin) throw new InvalidOperationException("The selected owner must be an active existing Admin.");
         if (await db.Accounts.AnyAsync(x => x.GlobalRole == GlobalRole.SuperAdmin, ct)) throw new InvalidOperationException("Retained owner promotion requires no existing Super Admin.");
         owner.SetGlobalRole(GlobalRole.SuperAdmin);
-        db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), time.GetUtcNow(), null, "System", "account.retained_owner_promoted", "account", owner.Id.ToString(), "Preflight-selected retained Admin promoted to Super Admin."));
+        var now = time.GetUtcNow();
+        await AccountResetTokenPolicy.SupersedeResetTokensAsync(db, owner.Id, now, ct);
+        db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, null, "System", "account.retained_owner_promoted", "account", owner.Id.ToString(), "Preflight-selected retained Admin promoted to Super Admin."));
         await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
     }
 }

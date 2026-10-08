@@ -27,9 +27,12 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
+// U3 / DP:966–971 / C4: these existing operations now belong to SignupSetup;
+// terminal mutation/refusal, replay, version and data-integrity assertions are retained.
+
 public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
         .WithDatabase("bingo_slice4_authenticated_signup")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
@@ -38,8 +41,8 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        await database.StartAsync();
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
+        await PostgreSqlReadiness.StartAsync(database);
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
         await db.Database.MigrateAsync();
     }
@@ -55,7 +58,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         await using var db = new ApplicationDbContext(options);
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"co-migration-{Guid.NewGuid():N}", now);
-        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Co-captain migration", $"co-captain-migration-{Guid.NewGuid():N}", "UTC", admin.Id, now);
+        var bingoEvent = new BingoEvent(Guid.NewGuid(), "Co-captain migration", $"co-captain-migration-{Guid.NewGuid():N}", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
         var regular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         var captain = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer);
@@ -150,14 +153,15 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         await using var db = new ApplicationDbContext(options);
         var admin = Website($"co-captain-admin-{Guid.NewGuid():N}", now);
         admin.SetGlobalRole(GlobalRole.Admin);
+        var internalOwner = Website($"co-captain-internal-owner-{Guid.NewGuid():N}", now);
         var bingoEvent = Event(admin.Id, now);
         var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
         var regular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         var captain = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer);
         var coCaptain = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, SignupQuestion.CoCaptainKey, SignupQuestion.CoCaptainLabel, SignupQuestionType.Text, false, 2, null, SignupSystemField.CoCaptainName);
-        var main = new OsrsCharacter(Guid.NewGuid(), "Co-captain main", $"CO CAPTAIN MAIN {Guid.NewGuid():N}", now);
+        var main = new OsrsCharacter(Guid.NewGuid(), "Cocap Main", $"CO CAPTAIN MAIN {Guid.NewGuid():N}", now);
         var mainLink = new AccountOsrsCharacter(Guid.NewGuid(), admin.Id, main.Id, admin.Id, true, 0, null, 18m, now);
-        db.AddRange(admin, bingoEvent, form, regular, captain, coCaptain, main, mainLink);
+        db.AddRange(admin, internalOwner, bingoEvent, form, regular, captain, coCaptain, main, mainLink);
         await db.SaveChangesAsync();
         var service = Signup(db, new FixedSignupTimeProvider(now));
         var accountAnswers = new Dictionary<Guid, AuthenticatedAccountAnswer> { [regular.Id] = new(main.Id, 18m) };
@@ -192,15 +196,112 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         Assert.True(cleared.Succeeded, cleared.Error);
         Assert.Empty(await db.SignupAnswers.Where(x => x.EventParticipantId == participant.Id && x.SignupQuestionId == coCaptain.Id).ToListAsync());
 
-        var internalCharacter = new OsrsCharacter(Guid.NewGuid(), "Internal replacement", $"INTERNAL REPLACEMENT {Guid.NewGuid():N}", now);
+        var internalCharacter = new OsrsCharacter(Guid.NewGuid(), "Internal Rep", $"INTERNAL REPLACEMENT {Guid.NewGuid():N}", now);
         db.OsrsCharacters.Add(internalCharacter);
         await db.SaveChangesAsync();
-        var internalResult = await service.CreateAdminParticipantAsync(new(bingoEvent.Id, null, admin.Id, admin.LoginName, null,
+        var internalResult = await service.CreateAdminParticipantAsync(new(bingoEvent.Id, null, admin.Id, admin.LoginName, internalOwner.Id,
             new Dictionary<Guid, AdminAccountAnswer> { [regular.Id] = new(internalCharacter.DisplayName, 12m) },
             new Dictionary<Guid, string> { [captain.Id] = "false", [coCaptain.Id] = "forged internal value" }));
         Assert.True(internalResult.Succeeded, internalResult.Error);
         Assert.False(await db.EventParticipants.Where(x => x.Id == internalResult.ParticipantId).Select(x => x.CaptainVolunteer).SingleAsync());
         Assert.Empty(await db.SignupAnswers.Where(x => x.EventParticipantId == internalResult.ParticipantId && x.SignupQuestionId == coCaptain.Id).ToListAsync());
+    }
+
+    [Fact]
+    public async Task ConfirmedQuestionMutationRechecksImpactReleasesOnlyEventRegistrationAndAllowsReuse()
+    {
+        var now = DateTimeOffset.UtcNow;
+        await using var db = new ApplicationDbContext(options);
+        var admin = Website($"sgn-confirm-{Guid.NewGuid():N}", now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        var borrower = Website($"sgn-borrower-{Guid.NewGuid():N}", now);
+        var bingoEvent = Event(admin.Id, now);
+        var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
+        var primary = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
+        var captain = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, true, 1, null, SignupSystemField.CaptainVolunteer);
+        var optionalAlt = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "optional_alt", "Optional alt", SignupQuestionType.Account, false, 2, null, SignupSystemField.None, EventCharacterRole.Informational);
+        var main = new OsrsCharacter(Guid.NewGuid(), "SGN Main", $"SGN MAIN {Guid.NewGuid():N}", now);
+        var alt = new OsrsCharacter(Guid.NewGuid(), "SGN Alt", $"SGN ALT {Guid.NewGuid():N}", now);
+        db.AddRange(admin, borrower, bingoEvent, form, primary, captain, optionalAlt, main, alt,
+            new AccountOsrsCharacter(Guid.NewGuid(), admin.Id, main.Id, admin.Id, true, 0, null, 10m, now),
+            new AccountOsrsCharacter(Guid.NewGuid(), admin.Id, alt.Id, admin.Id, false, 1, null, null, now),
+            new AccountOsrsCharacter(Guid.NewGuid(), borrower.Id, alt.Id, borrower.Id, true, 0, null, 8m, now));
+        await db.SaveChangesAsync();
+        var participant = new EventParticipant(Guid.NewGuid(), bingoEvent.Id, SignupStatus.Confirmed, 1, now, SignupSource.Website);
+        participant.AssignOwner(admin);
+        db.AddRange(participant,
+            new EventParticipantCharacter(Guid.NewGuid(), bingoEvent.Id, participant.Id, main.Id, 0, now, admin.Id, primary.Id, EventCharacterRole.Playing, 10m, EhbSource.Manual, null),
+            new EventParticipantCharacter(Guid.NewGuid(), bingoEvent.Id, participant.Id, alt.Id, 1, now, admin.Id, optionalAlt.Id, EventCharacterRole.Informational, null, null, null),
+            new SignupAnswer(Guid.NewGuid(), participant.Id, optionalAlt.Id, optionalAlt.Label, string.Empty, alt.Id));
+        await db.SaveChangesAsync();
+
+        var service = Signup(db, new FixedSignupTimeProvider(now));
+        var unconfirmed = await service.ApplyQuestionMutationAsync(new(
+            bingoEvent.Id, optionalAlt.Id, admin.Id, admin.LoginName, SignupQuestionMutationKind.DeleteQuestion,
+            false, 1, 1, optionalAlt.Version));
+        Assert.False(unconfirmed.Succeeded);
+        Assert.True(unconfirmed.RequiresConfirmation);
+        Assert.Equal(1, unconfirmed.Impact?.AnswerCount);
+        Assert.Equal(1, unconfirmed.Impact?.EventRegistrationReleaseCount);
+        Assert.True(await db.SignupQuestions.Where(x => x.Id == optionalAlt.Id).Select(x => x.Active).SingleAsync());
+
+        var stale = await service.ApplyQuestionMutationAsync(new(
+            bingoEvent.Id, optionalAlt.Id, admin.Id, admin.LoginName, SignupQuestionMutationKind.DeleteQuestion,
+            true, 0, 1, optionalAlt.Version));
+        Assert.False(stale.Succeeded);
+        Assert.True(stale.RequiresConfirmation);
+        Assert.True(await db.SignupAnswers.AnyAsync(x => x.SignupQuestionId == optionalAlt.Id));
+
+        var confirmed = await service.ApplyQuestionMutationAsync(new(
+            bingoEvent.Id, optionalAlt.Id, admin.Id, admin.LoginName, SignupQuestionMutationKind.DeleteQuestion,
+            true, 1, 1, optionalAlt.Version));
+        Assert.True(confirmed.Succeeded, confirmed.Error);
+        Assert.Equal(SignupQuestion.DeletedReason, await db.SignupQuestions.Where(x => x.Id == optionalAlt.Id).Select(x => x.DisabledReason).SingleAsync());
+        Assert.False(await db.SignupAnswers.AnyAsync(x => x.SignupQuestionId == optionalAlt.Id));
+        var released = await db.EventParticipantCharacters.SingleAsync(x => x.SignupQuestionId == optionalAlt.Id);
+        Assert.NotNull(released.ReleasedAt);
+        Assert.True(await db.AccountOsrsCharacters.Where(x => x.AccountId == admin.Id && x.OsrsCharacterId == alt.Id).Select(x => x.Active).SingleAsync());
+
+        var reused = await service.SignUpAuthenticatedAsync(new(
+            bingoEvent.Id,
+            borrower.Id,
+            new Dictionary<Guid, AuthenticatedAccountAnswer> { [primary.Id] = new(alt.Id, 8m) },
+            new Dictionary<Guid, string> { [captain.Id] = "false" },
+            null));
+        Assert.True(reused.Succeeded, reused.Error);
+        Assert.Equal(alt.Id, await db.EventParticipantCharacters.Where(x => x.EventParticipantId == reused.ParticipantId && x.ReleasedAt == null).Select(x => x.OsrsCharacterId).SingleAsync());
+    }
+
+    [Fact]
+    public async Task CoCaptainDisableRequiresConfirmationAndCanReEnableRetainedDefinition()
+    {
+        var now = DateTimeOffset.UtcNow;
+        await using var db = new ApplicationDbContext(options);
+        var admin = Website($"sgn-cocaptain-{Guid.NewGuid():N}", now);
+        admin.SetGlobalRole(GlobalRole.Admin);
+        var bingoEvent = Event(admin.Id, now);
+        var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
+        var coCaptain = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, SignupQuestion.CoCaptainKey, SignupQuestion.CoCaptainLabel, SignupQuestionType.Text, false, 2, null, SignupSystemField.CoCaptainName);
+        var participant = new EventParticipant(Guid.NewGuid(), bingoEvent.Id, SignupStatus.Confirmed, 1, now, SignupSource.Website);
+        participant.AssignOwner(admin);
+        db.AddRange(admin, bingoEvent, form, coCaptain, participant, new SignupAnswer(Guid.NewGuid(), participant.Id, coCaptain.Id, coCaptain.Label, "saved co-captain"));
+        await db.SaveChangesAsync();
+
+        var service = Signup(db, new FixedSignupTimeProvider(now));
+        var first = await service.ApplyQuestionMutationAsync(new(
+            bingoEvent.Id, coCaptain.Id, admin.Id, admin.LoginName, SignupQuestionMutationKind.DisableCoCaptain,
+            false, 1, 0, coCaptain.Version));
+        Assert.False(first.Succeeded);
+        Assert.True(await db.SignupQuestions.Where(x => x.Id == coCaptain.Id).Select(x => x.Active).SingleAsync());
+        var disabled = await service.ApplyQuestionMutationAsync(new(
+            bingoEvent.Id, coCaptain.Id, admin.Id, admin.LoginName, SignupQuestionMutationKind.DisableCoCaptain,
+            true, 1, 0, coCaptain.Version));
+        Assert.True(disabled.Succeeded, disabled.Error);
+        Assert.False(await db.SignupQuestions.Where(x => x.Id == coCaptain.Id).Select(x => x.Active).SingleAsync());
+        Assert.False(await db.SignupAnswers.AnyAsync(x => x.SignupQuestionId == coCaptain.Id));
+        Assert.True((await service.EnableCoCaptainAsync(bingoEvent.Id, coCaptain.Id, admin.Id, admin.LoginName, (await db.SignupForms.SingleAsync(item => item.EventId == bingoEvent.Id)).Version)).Succeeded);
+        Assert.True(await db.SignupQuestions.Where(x => x.Id == coCaptain.Id).Select(x => x.Active).SingleAsync());
+        Assert.False(await db.SignupAnswers.AnyAsync(x => x.SignupQuestionId == coCaptain.Id));
     }
 
     [Theory]
@@ -237,34 +338,78 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var participant = await db.EventParticipants.SingleAsync(x => x.Id == signedUp.ParticipantId);
         var sequence = participant.SignupSequence;
         var signedUpAt = participant.SignedUpAt;
-        Assert.False((await service.DeleteQuestionAsync(bingoEvent.Id, answered.Id, admin.Id, admin.LoginName)).Succeeded);
+        async Task<SignupAdministrationResult> MutateQuestionAsync(Guid questionId, Guid actorId, string actorName, bool confirmed)
+        {
+            var question = await db.SignupQuestions.SingleAsync(x => x.Id == questionId);
+            return await service.ApplyQuestionMutationAsync(new(
+                bingoEvent.Id,
+                questionId,
+                actorId,
+                actorName,
+                SignupQuestionMutationKind.DeleteQuestion,
+                confirmed,
+                await db.SignupAnswers.CountAsync(x => x.SignupQuestionId == questionId),
+                await db.EventParticipantCharacters.CountAsync(x => x.EventId == bingoEvent.Id && x.SignupQuestionId == questionId && x.ReleasedAt == null),
+                question.Version));
+        }
+
+        var openConfirmation = await MutateQuestionAsync(answered.Id, admin.Id, admin.LoginName, confirmed: false);
+        Assert.False(openConfirmation.Succeeded);
+        Assert.True(openConfirmation.RequiresConfirmation);
+        Assert.True(await db.SignupAnswers.AnyAsync(x => x.SignupQuestionId == answered.Id));
         bingoEvent.CloseSignups(now);
         original.Deactivate(admin.Id, now, "structural replacement");
         original.ReplaceWith(replacement.Id);
         db.Add(replacement);
         await db.SaveChangesAsync();
-        Assert.False((await service.DeleteQuestionAsync(bingoEvent.Id, answered.Id, borrower.Id, borrower.LoginName)).Succeeded);
-        Assert.False((await service.DeleteQuestionAsync(bingoEvent.Id, primary.Id, admin.Id, admin.LoginName)).Succeeded);
-        Assert.False((await service.DeleteQuestionAsync(bingoEvent.Id, original.Id, admin.Id, admin.LoginName)).Succeeded);
+        var unauthorized = await MutateQuestionAsync(answered.Id, borrower.Id, borrower.LoginName, confirmed: true);
+        Assert.False(unauthorized.Succeeded);
+        Assert.True(await db.SignupAnswers.AnyAsync(x => x.SignupQuestionId == answered.Id));
+        var protectedQuestion = await MutateQuestionAsync(primary.Id, admin.Id, admin.LoginName, confirmed: true);
+        Assert.False(protectedQuestion.Succeeded);
+        Assert.True(await db.SignupQuestions.Where(x => x.Id == primary.Id).Select(x => x.Active).SingleAsync());
+        var inactive = await MutateQuestionAsync(original.Id, admin.Id, admin.LoginName, confirmed: true);
+        Assert.False(inactive.Succeeded);
+        Assert.False(await db.SignupQuestions.Where(x => x.Id == original.Id).Select(x => x.Active).SingleAsync());
         var version = participant.ResponseVersion;
         var formVersion = form.Version;
         await using (var failing = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(new ThrowOnParticipantAudit("signup_question.deleted")).Options))
-            await Assert.ThrowsAsync<InvalidOperationException>(() => Signup(failing).DeleteQuestionAsync(bingoEvent.Id, optional.Id, admin.Id, admin.LoginName));
+        {
+            var failingQuestion = await failing.SignupQuestions.SingleAsync(x => x.Id == optional.Id);
+            var failure = await Signup(failing).ApplyQuestionMutationAsync(new(
+                bingoEvent.Id, optional.Id, admin.Id, admin.LoginName, SignupQuestionMutationKind.DeleteQuestion,
+                true,
+                await failing.SignupAnswers.CountAsync(x => x.SignupQuestionId == optional.Id),
+                await failing.EventParticipantCharacters.CountAsync(x => x.EventId == bingoEvent.Id && x.SignupQuestionId == optional.Id && x.ReleasedAt == null),
+                failingQuestion.Version));
+            Assert.False(failure.Succeeded);
+        }
         Assert.True(await db.SignupQuestions.AsNoTracking().Where(x => x.Id == optional.Id).Select(x => x.Active).SingleAsync());
         Assert.True(await db.EventParticipantCharacters.AnyAsync(x => x.SignupQuestionId == optional.Id && x.ReleasedAt == null));
 
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var page = await client.GetStringAsync("/Account/Login");
         using (var login = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string> { ["Input.Username"] = admin.LoginName, ["Input.Password"] = "delete-password", ["__RequestVerificationToken"] = AntiforgeryToken(page) }))) Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
-        var route = $"/Admin/Events/Questions/{bingoEvent.Id}";
+        var route = $"/Admin/Events/SignupSetup/{bingoEvent.Id}";
         foreach (var question in new[] { optional, answered, unanswered })
         {
             page = await client.GetStringAsync(route);
-            var removalForm = Regex.Match(page, $"<form(?=[^>]*action=\"[^\"]*handler=Deactivate[^\"]*\")[^>]*>(?:(?!</form>)[\\s\\S])*?value=\"{question.Id}\"(?:(?!</form>)[\\s\\S])*?</form>").Value;
-            Assert.NotEmpty(removalForm);
-            var action = WebUtility.HtmlDecode(Regex.Match(removalForm, "action=\"([^\"]*)\"").Groups[1].Value);
-            using var removed = await client.PostAsync(action, new FormUrlEncodedContent(new Dictionary<string, string> { ["questionId"] = question.Id.ToString(), ["__RequestVerificationToken"] = AntiforgeryToken(removalForm) }));
+            // C4: the reference confirmation uses the authorized Current read, keyed by ID.
+            using var definition = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync(route + "?handler=Current"));
+            var currentQuestion = Assert.Single(definition.RootElement.GetProperty("questions").EnumerateArray(), value => value.GetProperty("id").GetGuid() == question.Id);
+            var impact = currentQuestion.GetProperty("impact");
+            Assert.True(currentQuestion.GetProperty("active").GetBoolean());
+            var action = route + "?handler=Deactivate";
+            using var removed = await client.PostAsync(action, new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["questionId"] = question.Id.ToString(),
+                ["confirmed"] = "true",
+                ["expectedAnswerCount"] = impact.GetProperty("answerCount").GetInt32().ToString(CultureInfo.InvariantCulture),
+                ["expectedEventRegistrationReleaseCount"] = impact.GetProperty("eventRegistrationReleaseCount").GetInt32().ToString(CultureInfo.InvariantCulture),
+                ["expectedQuestionVersion"] = impact.GetProperty("questionVersion").GetInt32().ToString(CultureInfo.InvariantCulture),
+                ["__RequestVerificationToken"] = AntiforgeryToken(page)
+            }));
             Assert.Equal(HttpStatusCode.Redirect, removed.StatusCode);
         }
         db.ChangeTracker.Clear();
@@ -285,14 +430,25 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         Assert.Equal(version + 2, participant.ResponseVersion);
         Assert.Equal(formVersion + 3, await db.SignupForms.Where(x => x.Id == form.Id).Select(x => x.Version).SingleAsync());
         Assert.Equal(3, await db.AuditEntries.CountAsync(x => x.EventId == bingoEvent.Id && x.Action == "signup_question.deleted"));
-        Assert.True((await service.DeleteQuestionAsync(bingoEvent.Id, optional.Id, admin.Id, admin.LoginName)).Succeeded);
-        Assert.Equal(3, await db.AuditEntries.CountAsync(x => x.EventId == bingoEvent.Id && x.Action == "signup_question.deleted"));
-        foreach (var view in new[] { route, $"/Events/{bingoEvent.Slug}/Signups", $"/Events/{bingoEvent.Slug}/Signup/Confirmation?participantId={participant.Id}", $"/Admin/Events/Participant/{bingoEvent.Id}/Participants/{participant.Id}" })
+        var auditCount = await db.AuditEntries.CountAsync(x => x.EventId == bingoEvent.Id && x.Action == "signup_question.deleted");
+        var idempotent = await MutateQuestionAsync(optional.Id, admin.Id, admin.LoginName, confirmed: true);
+        Assert.False(idempotent.Succeeded);
+        Assert.Equal(auditCount, await db.AuditEntries.CountAsync(x => x.EventId == bingoEvent.Id && x.Action == "signup_question.deleted"));
+        foreach (var view in new[] { route, $"/Events/{bingoEvent.Slug}/Signups", $"/Events/{bingoEvent.Slug}/Signup/Confirmation?participantId={participant.Id}", $"/Admin/Events/Participants/{bingoEvent.Id}?handler=Current&participant={participant.Id}" })
         {
             page = await client.GetStringAsync(view);
-            foreach (var question in new[] { optional, answered, unanswered }) Assert.DoesNotContain(question.Label, page);
+            if (view == route)
+            {
+                // C4/RC02: recovery retains inactive definitions by ID in page metadata.
+                // They must be inactive, while every public/participant rendering omits them.
+                using var current = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync(route + "?handler=Current"));
+                foreach (var question in new[] { optional, answered, unanswered })
+                    Assert.False(Assert.Single(current.RootElement.GetProperty("questions").EnumerateArray(), value => value.GetProperty("id").GetGuid() == question.Id).GetProperty("active").GetBoolean());
+            }
+            else foreach (var question in new[] { optional, answered, unanswered }) Assert.DoesNotContain(question.Label, page);
             Assert.DoesNotContain("erase this answer", page);
-            if (view.Contains("Confirmation", StringComparison.Ordinal) || view.EndsWith("Signups", StringComparison.Ordinal)) Assert.Contains("keep this history", page);
+            if (view.Contains("Confirmation", StringComparison.Ordinal)) Assert.Contains("keep this history", page);
+            if (view.EndsWith("Signups", StringComparison.Ordinal)) Assert.DoesNotContain("keep this history", page);
         }
         bingoEvent = await db.Events.SingleAsync(x => x.Id == bingoEvent.Id);
         bingoEvent.OpenSignups(now);
@@ -313,7 +469,8 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         if (bingoEvent.State == EventState.SignupOpen) bingoEvent.CloseSignups(now);
         bingoEvent.SetDraftLocked(true);
         await db.SaveChangesAsync();
-        Assert.False((await service.DeleteQuestionAsync(bingoEvent.Id, replacement.Id, admin.Id, admin.LoginName)).Succeeded);
+        var locked = await MutateQuestionAsync(replacement.Id, admin.Id, admin.LoginName, confirmed: true);
+        Assert.False(locked.Succeeded);
         Assert.True(await db.SignupQuestions.AsNoTracking().Where(x => x.Id == replacement.Id).Select(x => x.Active).SingleAsync());
     }
 
@@ -353,7 +510,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             Assert.True(created.Succeeded, created.Error);
             existingId = created.ParticipantId;
         }
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var page = await client.GetStringAsync("/Account/Login");
         using (var login = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string> { ["Input.Username"] = owner.LoginName, ["Input.Password"] = "conflict-password", ["__RequestVerificationToken"] = AntiforgeryToken(page) }))) Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
@@ -484,7 +641,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
         var primary = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         var original = new OsrsCharacter(Guid.NewGuid(), "Corrected restore original", $"CORRECTED RESTORE ORIGINAL {Guid.NewGuid():N}", now);
-        var correctedCharacter = new OsrsCharacter(Guid.NewGuid(), "Corrected restore name", "CORRECTED RESTORE NAME", now);
+        var correctedCharacter = new OsrsCharacter(Guid.NewGuid(), "Corrected Rn", "CORRECTED RN", now);
         var link = new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, original.Id, owner.Id, true, 0, "Main", 18m, now);
         await using (var setup = new ApplicationDbContext(options))
         {
@@ -526,8 +683,8 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         {
             var savedLink = await accountsDb.AccountOsrsCharacters.SingleAsync(item => item.Id == link.Id);
             await new MyAccountsService(accountsDb, new FixedSignupTimeProvider(now), new SuccessfulWiseOldManAccountValidation())
-                .UpdateAsync(owner.Id, savedLink.Id, savedLink.Version, "Corrected restore name", savedLink.PersonalLabel, savedLink.SavedEhb, CancellationToken.None);
-            correctedId = await accountsDb.OsrsCharacters.Where(item => item.NormalizedName == "CORRECTED RESTORE NAME").Select(item => item.Id).SingleAsync();
+                .UpdateAsync(owner.Id, savedLink.Id, savedLink.Version, "Corrected Rn", savedLink.PersonalLabel, savedLink.SavedEhb, CancellationToken.None);
+            correctedId = await accountsDb.OsrsCharacters.Where(item => item.NormalizedName == "CORRECTED RN").Select(item => item.Id).SingleAsync();
         }
 
         await using (var corrected = new ApplicationDbContext(options))
@@ -580,7 +737,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         await db.SaveChangesAsync();
         Assert.True((await Signup(db).SignUpAuthenticatedAsync(new(bingoEvent.Id, owner.Id,
             new Dictionary<Guid, AuthenticatedAccountAnswer> { [primary.Id] = new(main.Id, 18m) }, new Dictionary<Guid, string> { [answer.Id] = "original" }, null))).Succeeded);
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var page = await client.GetStringAsync("/Account/Login");
         using (var login = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string> { ["Input.Username"] = owner.LoginName, ["Input.Password"] = "retry-password", ["__RequestVerificationToken"] = AntiforgeryToken(page) }))) Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
@@ -750,7 +907,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
     {
         var fake = new FakeWiseOldManPlayerLookup();
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
-            .UseSetting("ConnectionStrings:Database", database.GetConnectionString())
+            .UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString())
             .ConfigureServices(services =>
             {
                 services.RemoveAll<IWiseOldManPlayerLookup>();
@@ -760,7 +917,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);
 
         var discordUserId = $"onboarding-culture-{culture}-{Guid.NewGuid():N}";
-        var characterName = $"Bilingual Character {culture}";
+        var characterName = $"Bilingual {culture}";
         var username = $"onboarding-{culture}-{Guid.NewGuid():N}";
         var onboardingState = factory.Services.GetRequiredService<DiscordOnboardingStateService>();
         var issue = new DefaultHttpContext();
@@ -831,7 +988,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
 
         var fake = new FakeWiseOldManPlayerLookup();
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
-            .UseSetting("ConnectionStrings:Database", database.GetConnectionString())
+            .UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString())
             .ConfigureServices(services =>
             {
                 services.RemoveAll<IWiseOldManPlayerLookup>();
@@ -931,19 +1088,19 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var beforeAddLinkCount = await CountActiveLinksAsync(accountId);
         using var fetchedAdd = await client.PostAsync("/Account/MyAccounts?handler=FetchAdd", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Add.CharacterName"] = "Route WoM Add",
+            ["Add.CharacterName"] = "Route WoM Ad",
             ["Add.SavedEhb"] = culture == "da" ? "12,50" : "12.50",
             ["__RequestVerificationToken"] = AntiforgeryToken(addPage)
         }));
         Assert.Equal(HttpStatusCode.OK, fetchedAdd.StatusCode);
         var fetchedAddPage = await fetchedAdd.Content.ReadAsStringAsync();
         Assert.Equal(3, fake.Calls);
-        Assert.Contains("Route WoM Add", fetchedAddPage, StringComparison.Ordinal);
+        Assert.Contains("Route WoM Ad", fetchedAddPage, StringComparison.Ordinal);
         Assert.Contains($"value=\"{addFetchedDisplay}\"", fetchedAddPage, StringComparison.Ordinal);
         Assert.Equal(beforeAddLinkCount, await CountActiveLinksAsync(accountId));
         using var savedFetchedAdd = await client.PostAsync("/Account/MyAccounts?handler=Add", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Add.CharacterName"] = "Route WoM Add",
+            ["Add.CharacterName"] = "Route WoM Ad",
             ["Add.SavedEhb"] = addFetchedDisplay,
             ["__RequestVerificationToken"] = AntiforgeryToken(fetchedAddPage)
         }));
@@ -1028,7 +1185,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             loginName = owner.LoginName;
         }
 
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var slug = await EventSlugAsync(eventId);
         var login = await client.GetStringAsync("/Account/Login");
@@ -1119,7 +1276,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             regularId = regular.Id;
         }
 
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var slug = await EventSlugAsync(eventId);
         using var anonymous = await client.GetAsync($"/Events/{slug}/Signup");
@@ -1218,13 +1375,30 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             secondLogin = second.LoginName;
         }
 
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var adminClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await LoginAsync(adminClient, adminLogin, "admin-password");
-        var questionsUrl = $"/Admin/Events/Questions/{eventId}";
-        var adminPage = await adminClient.GetStringAsync(questionsUrl);
-        using (var enable = await adminClient.PostAsync($"{questionsUrl}?handler=SignupCode", SignupCodePost(adminPage, true, signupCode)))
+        var participantsUrl = $"/Admin/Events/SignupSetup/{eventId}";
+        var adminPage = await adminClient.GetStringAsync(participantsUrl);
+        Assert.Contains("id=\"code-on\"", adminPage, StringComparison.Ordinal);
+        // C4: the historical Questions GET now redirects to the Signup form tab.
+        using (var retired = await adminClient.GetAsync($"/Admin/Events/Questions/{eventId}"))
+        {
+            Assert.Equal(HttpStatusCode.Redirect, retired.StatusCode);
+            Assert.Contains("SignupSetup/", retired.Headers.Location!.OriginalString, StringComparison.Ordinal);
+            Assert.Contains("tab=form", retired.Headers.Location.OriginalString, StringComparison.Ordinal);
+        }
+        var firstRotationPage = adminPage;
+        var secondRotationPage = adminPage;
+        using (var enable = await adminClient.PostAsync($"{participantsUrl}?handler=SignupCode", SignupCodePost(firstRotationPage, true, signupCode)))
             Assert.Equal(HttpStatusCode.Redirect, enable.StatusCode);
+        using (var staleCodeUpdate = await adminClient.PostAsync($"{participantsUrl}?handler=SignupCode", SignupCodePost(secondRotationPage, true, "stale-rotation")))
+            Assert.Equal(HttpStatusCode.Redirect, staleCodeUpdate.StatusCode);
+        using (var staleResult = await adminClient.GetAsync(participantsUrl))
+        {
+            Assert.Equal(HttpStatusCode.OK, staleResult.StatusCode);
+            Assert.Contains("This event changed while you were editing it.", await staleResult.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        }
         string codeHash;
         await using (var verify = new ApplicationDbContext(options))
         {
@@ -1235,7 +1409,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             codeHash = configuredForm.SignupCodeHash!;
             Assert.False(string.IsNullOrWhiteSpace(codeHash));
         }
-        adminPage = await adminClient.GetStringAsync(questionsUrl);
+        adminPage = await adminClient.GetStringAsync(participantsUrl);
         Assert.DoesNotContain(signupCode, adminPage, StringComparison.Ordinal);
         Assert.DoesNotContain(codeHash, adminPage, StringComparison.Ordinal);
 
@@ -1313,8 +1487,8 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             Assert.NotNull(await verify.SignupForms.Where(item => item.Id == formId).Select(item => item.FirstResponseAt).SingleAsync());
         }
 
-        adminPage = await adminClient.GetStringAsync(questionsUrl);
-        using (var disable = await adminClient.PostAsync($"{questionsUrl}?handler=SignupCode", SignupCodePost(adminPage, false, null)))
+        adminPage = await adminClient.GetStringAsync(participantsUrl);
+        using (var disable = await adminClient.PostAsync($"{participantsUrl}?handler=SignupCode", SignupCodePost(adminPage, false, null)))
             Assert.Equal(HttpStatusCode.Redirect, disable.StatusCode);
         await using (var verify = new ApplicationDbContext(options))
         {
@@ -1393,7 +1567,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             adminLogin = admin.LoginName;
         }
 
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var login = await client.GetStringAsync("/Account/Login");
         using (var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
@@ -1404,7 +1578,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         })))
             Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
 
-        var questionsUrl = $"/Admin/Events/Questions/{eventId}";
+        var questionsUrl = $"/Admin/Events/SignupSetup/{eventId}";
         var page = await client.GetStringAsync(questionsUrl);
         Assert.DoesNotContain("name=\"Edit.Type\"", page, StringComparison.Ordinal);
         Assert.DoesNotContain("name=\"Edit.Options\"", page, StringComparison.Ordinal);
@@ -1437,7 +1611,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         })))
             Assert.Equal(HttpStatusCode.Redirect, crafted.StatusCode);
         refreshed = await client.GetStringAsync(questionsUrl);
-        Assert.Contains("Answer format is locked after the first response. Use replacement for a new optional question.", refreshed, StringComparison.Ordinal);
+        Assert.Contains("Answer format is locked after the first response. Delete the old question with confirmation, then add a new optional question.", refreshed, StringComparison.Ordinal);
         var afterCrafted = await QuestionStateAsync();
         Assert.Equal(afterPresentation, afterCrafted);
 
@@ -1461,7 +1635,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             await db.SaveChangesAsync();
             preResponseEventId = eventForMarkup.Id;
         }
-        var preResponsePage = await client.GetStringAsync($"/Admin/Events/Questions/{preResponseEventId}");
+        var preResponsePage = await client.GetStringAsync($"/Admin/Events/SignupSetup/{preResponseEventId}");
         Assert.DoesNotContain("selected=\"False\"", preResponsePage, StringComparison.Ordinal);
         Assert.DoesNotContain("checked=\"False\"", preResponsePage, StringComparison.Ordinal);
 
@@ -1478,6 +1652,63 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task QuestionsEditInactiveRetainedQuestionDoesNotMutate()
+    {
+        var now = DateTimeOffset.UtcNow;
+        Guid eventId;
+        Guid formId;
+        Guid questionId;
+        string adminLogin;
+        string originalLabel;
+        int originalFormVersion;
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var admin = Website($"inactive-edit-admin-{Guid.NewGuid():N}", now);
+            admin.SetGlobalRole(GlobalRole.Admin);
+            admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "inactive-edit-password"), false, now, incrementVersion: false);
+            var bingoEvent = Event(admin.Id, now);
+            var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
+            var regular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
+            var captain = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer);
+            var retained = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "retained", "Retained question", SignupQuestionType.Text, false, 2, null);
+            retained.Deactivate(admin.Id, now, "retained history");
+            db.AddRange(admin, bingoEvent, form, regular, captain, retained);
+            await db.SaveChangesAsync();
+            eventId = bingoEvent.Id;
+            formId = form.Id;
+            questionId = retained.Id;
+            adminLogin = admin.LoginName;
+            originalLabel = retained.Label;
+            originalFormVersion = form.Version;
+        }
+
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var login = await client.GetStringAsync("/Account/Login");
+        using (var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Username"] = adminLogin,
+            ["Input.Password"] = "inactive-edit-password",
+            ["__RequestVerificationToken"] = AntiforgeryToken(login)
+        })))
+            Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
+
+        var questionsUrl = $"/Admin/Events/SignupSetup/{eventId}";
+        var page = await client.GetStringAsync(questionsUrl);
+        using (var edited = await client.PostAsync($"{questionsUrl}?handler=Edit", EditPost(page, questionId, "Forged retained edit", "Must not persist")))
+            Assert.Equal(HttpStatusCode.Redirect, edited.StatusCode);
+        var refreshed = await client.GetStringAsync(questionsUrl);
+        Assert.Contains("That question cannot be edited.", refreshed, StringComparison.Ordinal);
+
+        await using var verify = new ApplicationDbContext(options);
+        var question = await verify.SignupQuestions.SingleAsync(item => item.Id == questionId);
+        Assert.False(question.Active);
+        Assert.Equal(originalLabel, question.Label);
+        Assert.Equal(originalFormVersion, await verify.SignupForms.Where(item => item.Id == formId).Select(item => item.Version).SingleAsync());
+        Assert.Equal(0, await verify.AuditEntries.CountAsync(item => item.EventId == eventId && item.Action == "signup_question.edited"));
+    }
+
+    [Fact]
     public async Task AdminQuestionsRouteAddsOneCustomQuestionAndPreservesInvalidInput()
     {
         var now = DateTimeOffset.UtcNow;
@@ -1489,7 +1720,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             var admin = Website($"questions-admin-{Guid.NewGuid():N}", now);
             admin.SetGlobalRole(GlobalRole.Admin);
             admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "questions-password"), false, now, incrementVersion: false);
-            var bingoEvent = new BingoEvent(Guid.NewGuid(), "Question builder", $"question-builder-{Guid.NewGuid():N}", "Europe/Copenhagen", admin.Id, now);
+            var bingoEvent = new BingoEvent(Guid.NewGuid(), "Question builder", $"question-builder-{Guid.NewGuid():N}", "Europe/Copenhagen", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
             var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
             var regular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
             var captain = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer);
@@ -1500,7 +1731,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             loginName = admin.LoginName;
         }
 
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var login = await client.GetStringAsync("/Account/Login");
         using var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
@@ -1511,7 +1742,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         }));
         Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
 
-        var questionsUrl = $"/Admin/Events/Questions/{eventId}";
+        var questionsUrl = $"/Admin/Events/SignupSetup/{eventId}";
         var page = await client.GetStringAsync(questionsUrl);
         var versionBefore = await FormVersionAsync();
         using var invalid = await client.PostAsync(questionsUrl, QuestionPost(page, "Invalid choices", "SingleChoice"));
@@ -1550,6 +1781,77 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         }
     }
 
+    [Fact]
+    public async Task QuestionsReorderSkipsSeparatedAccountRowsAndPreservesTheirIdentity()
+    {
+        var now = DateTimeOffset.UtcNow;
+        Guid eventId;
+        Guid formId;
+        Guid firstCustomId;
+        Guid accountFieldId;
+        Guid secondCustomId;
+        string adminLogin;
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var admin = Website($"questions-reorder-admin-{Guid.NewGuid():N}", now);
+            admin.SetGlobalRole(GlobalRole.Admin);
+            admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "questions-reorder-password"), false, now, incrementVersion: false);
+            var bingoEvent = new BingoEvent(Guid.NewGuid(), "Question reorder", $"question-reorder-{Guid.NewGuid():N}", "Europe/Copenhagen", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
+            var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
+            var regular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
+            var captain = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "captain_volunteer", "Captain volunteer", SignupQuestionType.YesNo, false, 1, null, SignupSystemField.CaptainVolunteer);
+            var first = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "first_custom", "First custom", SignupQuestionType.Text, false, 2, null);
+            var account = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "alt_account", "Alt account", SignupQuestionType.Account, false, 3, null, SignupSystemField.None, EventCharacterRole.Informational);
+            var second = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "second_custom", "Second custom", SignupQuestionType.Text, false, 4, null);
+            db.AddRange(admin, bingoEvent, form, regular, captain, first, account, second);
+            await db.SaveChangesAsync();
+            eventId = bingoEvent.Id;
+            formId = form.Id;
+            firstCustomId = first.Id;
+            accountFieldId = account.Id;
+            secondCustomId = second.Id;
+            adminLogin = admin.LoginName;
+        }
+
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var login = await client.GetStringAsync("/Account/Login");
+        using (var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Username"] = adminLogin,
+            ["Input.Password"] = "questions-reorder-password",
+            ["__RequestVerificationToken"] = AntiforgeryToken(login)
+        })))
+            Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
+
+        var questionsUrl = $"/Admin/Events/SignupSetup/{eventId}";
+        var page = await client.GetStringAsync(questionsUrl);
+        Assert.True(page.IndexOf("First custom", StringComparison.Ordinal) < page.IndexOf("Second custom", StringComparison.Ordinal));
+        Assert.Contains("Alt account", page, StringComparison.Ordinal);
+        using (var moved = await client.PostAsync($"{questionsUrl}?handler=Move", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["questionId"] = secondCustomId.ToString(),
+            ["up"] = "true",
+            ["overlay"] = "false",
+            ["expectedFormVersion"] = InputValueByName(page, "expectedFormVersion"),
+            ["__RequestVerificationToken"] = AntiforgeryToken(page)
+        })))
+            Assert.Equal(HttpStatusCode.Redirect, moved.StatusCode);
+
+        var refreshed = await client.GetStringAsync(questionsUrl);
+        Assert.True(refreshed.IndexOf("Second custom", StringComparison.Ordinal) < refreshed.IndexOf("First custom", StringComparison.Ordinal));
+        await using var verify = new ApplicationDbContext(options);
+        var ordered = await verify.SignupQuestions.Where(x => x.EventId == eventId && x.Active).OrderBy(x => x.Position).Select(x => new { x.Id, x.Position }).ToListAsync();
+        Assert.Equal(new[] { secondCustomId, accountFieldId, firstCustomId }, ordered.Where(x => x.Id == firstCustomId || x.Id == accountFieldId || x.Id == secondCustomId).Select(x => x.Id).ToArray());
+        var accountAfter = await verify.SignupQuestions.SingleAsync(x => x.Id == accountFieldId);
+        Assert.Equal(3, accountAfter.Position);
+        Assert.Equal(SignupQuestionType.Account, accountAfter.Type);
+        Assert.Equal(EventCharacterRole.Informational, accountAfter.AccountAnswerRole);
+        Assert.Equal(0, await verify.SignupAnswers.CountAsync(x => x.SignupQuestionId == accountFieldId));
+        Assert.Equal(1, await verify.AuditEntries.CountAsync(x => x.EventId == eventId && x.Action == "signup_question.reordered"));
+        Assert.Equal(1, await verify.SignupForms.Where(x => x.Id == formId).Select(x => x.Version).SingleAsync());
+    }
+
     [Theory]
     [InlineData("en")]
     [InlineData("da")]
@@ -1572,7 +1874,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, alternate.Id, owner.Id, false, 1, null, 73.25m, now),
             new AccountOsrsCharacter(Guid.NewGuid(), borrower.Id, character.Id, borrower.Id, true, 0, null, 9m, now));
         await seed.SaveChangesAsync();
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var a = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var b = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await Login(a, owner.LoginName);
@@ -1720,7 +2022,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             eventId = bingoEvent.Id; participantId = ownerParticipant.Id; waitingId = waitingParticipant.Id; slug = bingoEvent.Slug; ownerLogin = owner.LoginName; otherLogin = other.LoginName;
         }
 
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var ownerClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var login = await ownerClient.GetStringAsync("/Account/Login");
         using (var signedIn = await ownerClient.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string> { ["Input.Username"] = ownerLogin, ["Input.Password"] = "owner-password", ["__RequestVerificationToken"] = AntiforgeryToken(login) }))) Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
@@ -1865,7 +2167,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             await retainedData.SaveChangesAsync();
         }
 
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var ownerClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var otherClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await LoginAsync(ownerClient, ownerLogin, "notification-owner-password");
@@ -1954,6 +2256,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         string superAdminLogin;
         string formerAdminLogin;
         Guid eventId;
+        Guid confirmedParticipantId;
         Guid formerAdminId;
         await using (var db = new ApplicationDbContext(options))
         {
@@ -1973,7 +2276,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             formerAdmin.SetPassword(new PasswordHasher<Account>().HashPassword(formerAdmin, "former-admin-password"), false, now, incrementVersion: false);
             var emergency = Account.CreateEmergency(Guid.NewGuid(), "emergency-sentinel", "EMERGENCY-SENTINEL", now);
 
-            var privateEvent = new BingoEvent(Guid.NewGuid(), "Private sentinel", $"private-{Guid.NewGuid():N}", "UTC", owner.Id, now);
+            var privateEvent = new BingoEvent(Guid.NewGuid(), "Private sentinel", $"private-{Guid.NewGuid():N}", "UTC", owner.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
             privateSlug = privateEvent.Slug;
             var bingoEvent = Event(owner.Id, now);
             bingoEvent.MarkFirstPublic(now);
@@ -2018,10 +2321,11 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             adminLogin = admin.LoginName;
             superAdminLogin = superAdmin.LoginName;
             formerAdminLogin = formerAdmin.LoginName;
+            confirmedParticipantId = confirmed.Id;
             formerAdminId = formerAdmin.Id;
         }
 
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var anonymous = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var ownerClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var adminClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
@@ -2032,7 +2336,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var table = await anonymous.GetStringAsync($"/Events/{slug}/Signups");
         Assert.Contains("Confirmed", table, StringComparison.Ordinal); Assert.Contains("Waiting list", table, StringComparison.Ordinal);
         Assert.Contains("Account 1", table, StringComparison.Ordinal); Assert.Contains("Account 2", table, StringComparison.Ordinal); Assert.Contains("Alt account", table, StringComparison.Ordinal);
-        Assert.Contains("Allowed Main", table, StringComparison.Ordinal); Assert.Contains("123.45", table, StringComparison.Ordinal); Assert.Contains("EHB", table, StringComparison.Ordinal); Assert.Contains("Allowed answer", table, StringComparison.Ordinal); Assert.Contains("Historical answer", table, StringComparison.Ordinal); Assert.Contains("Not answered", table, StringComparison.Ordinal); Assert.Contains("Waiting Main", table, StringComparison.Ordinal); Assert.Contains("01", table, StringComparison.Ordinal);
+        Assert.Contains("Allowed Main", table, StringComparison.Ordinal); Assert.Contains("123.45", table, StringComparison.Ordinal); Assert.Contains("EHB", table, StringComparison.Ordinal); Assert.Contains("Allowed answer", table, StringComparison.Ordinal); Assert.DoesNotContain("Historical answer", table, StringComparison.Ordinal); Assert.Contains("Not answered", table, StringComparison.Ordinal); Assert.Contains("Waiting Main", table, StringComparison.Ordinal); Assert.Contains("01", table, StringComparison.Ordinal);
         Assert.DoesNotContain("Private co-captain", table, StringComparison.Ordinal); Assert.DoesNotContain("Co-captain (optional)", table, StringComparison.Ordinal);
         Assert.DoesNotContain("Withdrawn Main", table, StringComparison.Ordinal);
         foreach (var secret in new[] { "PUBLIC-USERNAME-", "DISCORD-ID-SENTINEL", "DISCORD-NAME-SENTINEL", "DISCORD-PARTICIPANT-SENTINEL", "PRIVATE-COMMENTS-SENTINEL", "ADMIN-NOTES-SENTINEL", "EDIT-TOKEN-SENTINEL", "EMERGENCY-SENTINEL" }) Assert.DoesNotContain(secret, table, StringComparison.Ordinal);
@@ -2056,9 +2360,10 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             item.CloseSignups(now);
             var team = new Team(Guid.NewGuid(), item.Id, "Published team", "published-team", TeamFormationType.Drafted, null, true); team.Finalize(now);
             var draft = new DraftSession(Guid.NewGuid(), item.Id, 1);
+            draft.FinalizeDirect(now);
+            var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now, Guid.NewGuid());
             db.Add(team);
-            db.Add(draft);
-            db.Add(new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now, Guid.NewGuid()));
+            db.AddRange(draft, cycle, new DraftPublicationRoster(Guid.NewGuid(), cycle.Id, team.Id, confirmedParticipantId, TeamMembershipRole.Participant, null, "Allowed Main"));
             await db.SaveChangesAsync();
         }
         var rosterOverview = await anonymous.GetStringAsync("/");
@@ -2072,22 +2377,23 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         await LoginAsync(adminClient, adminLogin, "admin-password");
         await LoginAsync(superAdminClient, superAdminLogin, "super-admin-password");
         var adminTable = await adminClient.GetStringAsync($"/Events/{slug}/Signups");
-        Assert.Contains("Historical answer", adminTable, StringComparison.Ordinal);
+        Assert.DoesNotContain("Historical answer", adminTable, StringComparison.Ordinal);
         Assert.DoesNotContain("ADMIN-NOTES-SENTINEL", adminTable, StringComparison.Ordinal);
         var adminParticipants = await adminClient.GetStringAsync($"/Admin/Events/Participants/{eventId}");
         Assert.Contains("Private co-captain", adminParticipants, StringComparison.Ordinal);
-        Assert.Contains("Captain volunteer", adminParticipants, StringComparison.Ordinal);
+        // U5 (A10): Participants.dc.html columns; confirmations are transient layers, not inline forms.
         Assert.DoesNotContain("Volunteered to captain", adminParticipants, StringComparison.Ordinal);
-        var captainHeader = adminParticipants.IndexOf("data-sort-key=\"captain\"", StringComparison.Ordinal);
-        var teamHeader = adminParticipants.IndexOf("data-sort-key=\"ownership\"", StringComparison.Ordinal);
-        var teamCell = adminParticipants.IndexOf("data-label=\"Team\"", StringComparison.Ordinal);
-        var captainCell = adminParticipants.IndexOf("data-label=\"Captain volunteer\"", StringComparison.Ordinal);
+        var captainHeader = adminParticipants.IndexOf("sort=captain", StringComparison.Ordinal);
+        var teamHeader = adminParticipants.IndexOf("sort=team", StringComparison.Ordinal);
+        var teamCell = adminParticipants.IndexOf("class=\"td c-team\"", StringComparison.Ordinal);
+        var captainCell = adminParticipants.IndexOf("class=\"td c-cap\"", StringComparison.Ordinal);
         Assert.True(captainHeader >= 0 && teamHeader >= 0 && captainHeader < teamHeader);
         Assert.True(captainCell >= 0 && teamCell >= 0 && captainCell < teamCell);
-        Assert.Contains("data-participant-captain=\"1\"", adminParticipants, StringComparison.Ordinal);
-        var captainAscending = await adminClient.GetStringAsync($"/Admin/Events/Participants/{eventId}?sort=captain&direction=asc");
+        Assert.Contains(">Volunteer<", adminParticipants, StringComparison.Ordinal);
+        // Reference sort: ascending puts volunteers first, so descending lists the non-volunteer first.
+        var captainAscending = await adminClient.GetStringAsync($"/Admin/Events/Participants/{eventId}?tab=all&sort=captain&dir=desc");
         Assert.True(captainAscending.IndexOf("Waiting Main", StringComparison.Ordinal) < captainAscending.IndexOf("Allowed Main", StringComparison.Ordinal));
-        Assert.Contains("Historical answer", await superAdminClient.GetStringAsync($"/Events/{slug}/Signups"), StringComparison.Ordinal);
+        Assert.DoesNotContain("Historical answer", await superAdminClient.GetStringAsync($"/Events/{slug}/Signups"), StringComparison.Ordinal);
         await using (var db = new ApplicationDbContext(options))
         {
             (await db.Accounts.SingleAsync(account => account.Id == formerAdminId)).Disable(now, null, "former admin");
@@ -2179,19 +2485,21 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             db.AddRange(new SignupAnswer(Guid.NewGuid(), confirmed.Id, answer.Id, "Custom answer", "WORKSPACE-ANSWER"), new SignupAnswer(Guid.NewGuid(), confirmed.Id, historical.Id, "Historical answer", "WORKSPACE-HISTORICAL"));
             await db.SaveChangesAsync();
         }
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await LoginAsync(client, admin.LoginName, "password");
         var route = $"/Admin/Events/Participants/{bingoEvent.Id}";
         var page = await client.GetStringAsync(route);
-        Assert.Contains("WORKSPACE-USERNAME-", page, StringComparison.Ordinal); Assert.Contains("Discord linked", page, StringComparison.Ordinal); Assert.Contains("Unlinked", page, StringComparison.Ordinal); Assert.Contains("Workspace team", page, StringComparison.Ordinal);
-        foreach (var query in new[] { "ParticipantSearch=WORKSPACE", "ParticipantStatus=WaitingList", "ParticipantPayment=paid", "ParticipantDiscord=linked", "ParticipantCaptain=true", "ParticipantSource=Website", $"ParticipantTeamId={team.Id}" })
-        { var filtered = await client.GetStringAsync($"{route}?{query}"); Assert.Contains(query.Contains("Waiting") ? "Waiting Workspace" : "Workspace Main", filtered, StringComparison.Ordinal); }
-        var detail = await client.GetStringAsync($"/Admin/Events/Participant/{bingoEvent.Id}/Participants/{confirmed.Id}");
+        // B-Participants-5/6 (A10): the row shows @username and the team; Discord linkage and the Discord/captain/source/team filters are retired.
+        Assert.Contains("WORKSPACE-USERNAME-", page, StringComparison.Ordinal); Assert.Contains("Workspace team", page, StringComparison.Ordinal);
+        foreach (var query in new[] { "tab=all&q=WORKSPACE", "tab=waiting", "tab=all&pay=paid" })
+        { var filtered = await client.GetStringAsync($"{route}?{query}"); Assert.Contains(query.Contains("waiting", StringComparison.Ordinal) ? "Waiting Workspace" : "Workspace Main", filtered, StringComparison.Ordinal); }
+        // A10 (U5 item 1b): the drawer's current-state read replaces the old detail page.
+        var detail = await client.GetStringAsync($"/Admin/Events/Participants/{bingoEvent.Id}?handler=Current&participant={confirmed.Id}");
         foreach (var expected in new[] { "Workspace Main", "42.5", "Workspace Alt", "WORKSPACE-ANSWER", "WORKSPACE-HISTORICAL", "WORKSPACE-PRIVATE-NOTE", "Website signup" }) Assert.Contains(expected, detail, StringComparison.Ordinal);
         foreach (var secret in new[] { "WORKSPACE-DISCORD-ID", "WORKSPACE-DISCORD-DISPLAY", "WORKSPACE-TOKEN" }) Assert.DoesNotContain(secret, detail, StringComparison.Ordinal);
         var publicTable = await factory.CreateClient().GetStringAsync($"/Events/{bingoEvent.Slug}/Signups");
-        foreach (var secret in new[] { "WORKSPACE-USERNAME-", "WORKSPACE-DISCORD", "WORKSPACE-PRIVATE-NOTE", "WORKSPACE-TOKEN", "AdminCreated", "CsvImport" }) Assert.DoesNotContain(secret, publicTable, StringComparison.Ordinal);
+        foreach (var secret in new[] { "WORKSPACE-USERNAME-", "WORKSPACE-DISCORD", "WORKSPACE-PRIVATE-NOTE", "WORKSPACE-TOKEN", "AdminCreated", "CsvImport", "WORKSPACE-HISTORICAL" }) Assert.DoesNotContain(secret, publicTable, StringComparison.Ordinal);
 
         async Task LoginAsync(HttpClient http, string username, string password)
         { var login = await http.GetStringAsync("/Account/Login"); using var response = await http.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string> { ["Input.Username"] = username, ["Input.Password"] = password, ["__RequestVerificationToken"] = AntiforgeryToken(login) })); Assert.Equal(HttpStatusCode.Redirect, response.StatusCode); }
@@ -2203,25 +2511,22 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var now = DateTimeOffset.UtcNow; var admin = Website($"mutation-admin-{Guid.NewGuid():N}", now); admin.SetGlobalRole(GlobalRole.Admin); admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "password"), false, now, incrementVersion: false);
         var bingoEvent = Event(admin.Id, now); var participant = new EventParticipant(Guid.NewGuid(), bingoEvent.Id, SignupStatus.Confirmed, 1, now, SignupSource.Website, null); var character = new OsrsCharacter(Guid.NewGuid(), "Mutation Main", $"MUTATION {Guid.NewGuid():N}", now); var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now); var regular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         await using (var db = new ApplicationDbContext(options)) { db.AddRange(admin, bingoEvent, participant, character, form, regular, new EventParticipantCharacter(Guid.NewGuid(), bingoEvent.Id, participant.Id, character.Id, 0, now, admin.Id, regular.Id, EventCharacterRole.Playing, 1m, EhbSource.Manual, null)); await db.SaveChangesAsync(); }
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString())); using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString())); using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var login = await client.GetStringAsync("/Account/Login"); using (var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string> { ["Input.Username"] = admin.LoginName, ["Input.Password"] = "password", ["__RequestVerificationToken"] = AntiforgeryToken(login) }))) Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
+        // A10 (U5 item 1b): the old detail page's native Payment/AdminNote forms are retired. The
+        // same rules run on the Participants page: the row Payment toggle (Service gate) and the
+        // drawer's single save with its payment/note baselines (U5-Q2). Audits, stale refusal and
+        // the D16 terminal matrix (payment and note allowed, roster/status changes refused) are unchanged.
         var participantsRoute = $"/Admin/Events/Participants/{bingoEvent.Id}";
         var participantsPage = await client.GetStringAsync(participantsRoute);
-        var detailRoute = RenderedParticipantDetailRoute(participantsPage, participant.Id); Assert.False(string.IsNullOrWhiteSpace(detailRoute));
-        var detail = await client.GetStringAsync(detailRoute);
-        Assert.Contains($"action=\"{detailRoute}?handler=Payment\"", detail, StringComparison.Ordinal);
-        using (var paid = await client.PostAsync($"{detailRoute}?handler=Payment", new FormUrlEncodedContent(new Dictionary<string, string> { ["payment"] = "Paid", ["__RequestVerificationToken"] = AntiforgeryToken(detail) }))) { Assert.Equal(HttpStatusCode.Redirect, paid.StatusCode); Assert.Equal($"{detailRoute}#payment", paid.Headers.Location?.OriginalString); }
-        var afterPaid = await client.GetStringAsync(detailRoute);
-        using (var unpaid = await client.PostAsync($"{detailRoute}?handler=Payment", new FormUrlEncodedContent(new Dictionary<string, string> { ["payment"] = "Unpaid", ["__RequestVerificationToken"] = AntiforgeryToken(afterPaid) }))) Assert.Equal(HttpStatusCode.Redirect, unpaid.StatusCode);
-        var afterUnpaid = await client.GetStringAsync(detailRoute);
-        using (var paidAgain = await client.PostAsync($"{detailRoute}?handler=Payment", new FormUrlEncodedContent(new Dictionary<string, string> { ["payment"] = "Paid", ["__RequestVerificationToken"] = AntiforgeryToken(afterUnpaid) }))) Assert.Equal(HttpStatusCode.Redirect, paidAgain.StatusCode);
-        var afterPaidAgain = await client.GetStringAsync(detailRoute);
-        using (var unpaidAgain = await client.PostAsync($"{detailRoute}?handler=Payment", new FormUrlEncodedContent(new Dictionary<string, string> { ["payment"] = "Unpaid", ["__RequestVerificationToken"] = AntiforgeryToken(afterPaidAgain) }))) Assert.Equal(HttpStatusCode.Redirect, unpaidAgain.StatusCode);
-        using (var note = await client.PostAsync($"{detailRoute}?handler=AdminNote", new FormUrlEncodedContent(new Dictionary<string, string> { ["AdminNote"] = "private note", ["ExpectedAdminNote"] = "", ["__RequestVerificationToken"] = AntiforgeryToken(detail) }))) Assert.Equal(HttpStatusCode.Redirect, note.StatusCode);
-        var stale = await client.GetStringAsync(detailRoute);
-        using (var rejected = await client.PostAsync($"{detailRoute}?handler=AdminNote", new FormUrlEncodedContent(new Dictionary<string, string> { ["AdminNote"] = "stale overwrite", ["ExpectedAdminNote"] = "", ["__RequestVerificationToken"] = AntiforgeryToken(stale) }))) Assert.Equal(HttpStatusCode.Redirect, rejected.StatusCode);
+        Assert.Equal($"{participantsRoute}?participant={participant.Id}", WebUtility.HtmlDecode(RenderedDrawerRoute(participantsPage, participant.Id)));
+        var token = AntiforgeryToken(participantsPage); Assert.False(string.IsNullOrWhiteSpace(token));
+        foreach (var payment in new[] { "Paid", "Unpaid", "Paid", "Unpaid" })
+            Assert.Equal("done", await PostJsonAsync("Payment", new() { ["participantId"] = participant.Id.ToString(), ["payment"] = payment }));
+        var current = await CurrentAsync();
+        Assert.Equal("saved", await PostJsonAsync("SaveParticipant", Save(current, paid: false, note: "private note")));
+        Assert.Equal("stale", await PostJsonAsync("SaveParticipant", Save(current, paid: false, note: "stale overwrite")));
         await using (var verify = new ApplicationDbContext(options)) { var saved = await verify.EventParticipants.SingleAsync(x => x.Id == participant.Id); Assert.False(saved.PaymentReceived); Assert.Equal("private note", saved.AdminNotes); var audits = await verify.AuditEntries.Where(x => x.TargetId == participant.Id.ToString()).ToListAsync(); Assert.Equal(4, audits.Count(x => x.Action == "participant.payment_updated")); Assert.Contains(audits, x => x.Action == "participant.admin_note_updated" && x.BeforeState!.Contains("false") && x.AfterState!.Contains("true")); Assert.Equal(1, audits.Count(x => x.Action == "participant.admin_note_updated")); }
-        var post = await client.GetStringAsync(detailRoute); Assert.Contains("Save note", post, StringComparison.Ordinal); Assert.Contains("handler=Payment", post, StringComparison.Ordinal); Assert.DoesNotContain("data-save-state", post, StringComparison.Ordinal); Assert.DoesNotContain("data-admin-note-form", post, StringComparison.Ordinal);
 
         await using (var lifecycle = new ApplicationDbContext(options))
         {
@@ -2230,16 +2535,46 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             await lifecycle.SaveChangesAsync();
         }
         var terminalParticipantsPage = await client.GetStringAsync(participantsRoute);
-        var terminalDetailRoute = RenderedParticipantDetailRoute(terminalParticipantsPage, participant.Id); Assert.False(string.IsNullOrWhiteSpace(terminalDetailRoute));
-        var terminal = await client.GetStringAsync(terminalDetailRoute);
-        Assert.Contains("handler=Payment", terminal, StringComparison.Ordinal); Assert.Contains("handler=AdminNote", terminal, StringComparison.Ordinal); Assert.DoesNotContain("handler=TransferOwnership", terminal, StringComparison.Ordinal); Assert.DoesNotContain("handler=Withdraw", terminal, StringComparison.Ordinal); Assert.DoesNotContain("handler=Restore", terminal, StringComparison.Ordinal); Assert.DoesNotContain("Save changes", terminal, StringComparison.Ordinal);
-        using (var terminalPayment = await client.PostAsync($"{terminalDetailRoute}?handler=Payment", new FormUrlEncodedContent(new Dictionary<string, string> { ["payment"] = "Paid", ["__RequestVerificationToken"] = AntiforgeryToken(terminal) }))) Assert.Equal(HttpStatusCode.Redirect, terminalPayment.StatusCode);
-        var terminalAfterPayment = await client.GetStringAsync(terminalDetailRoute);
-        using (var terminalNote = await client.PostAsync($"{terminalDetailRoute}?handler=AdminNote", new FormUrlEncodedContent(new Dictionary<string, string> { ["AdminNote"] = "archived note", ["ExpectedAdminNote"] = "private note", ["__RequestVerificationToken"] = AntiforgeryToken(terminalAfterPayment) }))) Assert.Equal(HttpStatusCode.Redirect, terminalNote.StatusCode);
-        using (var terminalCorrection = await client.PostAsync(terminalDetailRoute, new FormUrlEncodedContent(new Dictionary<string, string> { ["Input.ExpectedResponseVersion"] = "1", ["__RequestVerificationToken"] = AntiforgeryToken(terminalAfterPayment) }))) { Assert.Equal(HttpStatusCode.Redirect, terminalCorrection.StatusCode); Assert.Equal($"/Admin/Events/Manage/{bingoEvent.Id}", terminalCorrection.Headers.Location?.OriginalString); }
-        using (var terminalWithdraw = await client.PostAsync($"{terminalDetailRoute}?handler=Withdraw", new FormUrlEncodedContent(new Dictionary<string, string> { ["ConfirmLifecycleAction"] = "true", ["__RequestVerificationToken"] = AntiforgeryToken(terminalAfterPayment) }))) Assert.Equal(HttpStatusCode.Redirect, terminalWithdraw.StatusCode);
-        using (var terminalRestore = await client.PostAsync($"{terminalDetailRoute}?handler=Restore", new FormUrlEncodedContent(new Dictionary<string, string> { ["ConfirmLifecycleAction"] = "true", ["__RequestVerificationToken"] = AntiforgeryToken(terminalAfterPayment) }))) { Assert.Equal(HttpStatusCode.Redirect, terminalRestore.StatusCode); Assert.Equal($"/Admin/Events/Manage/{bingoEvent.Id}", terminalRestore.Headers.Location?.OriginalString); }
-        await using (var verify = new ApplicationDbContext(options)) { var saved = await verify.EventParticipants.SingleAsync(x => x.Id == participant.Id); Assert.True(saved.PaymentReceived); Assert.Equal("archived note", saved.AdminNotes); Assert.Equal(SignupStatus.Confirmed, saved.SignupStatus); }
+        Assert.Equal($"{participantsRoute}?participant={participant.Id}", WebUtility.HtmlDecode(RenderedDrawerRoute(terminalParticipantsPage, participant.Id)));
+        current = await CurrentAsync();
+        Assert.False(current.GetProperty("editable").GetBoolean()); Assert.True(current.GetProperty("privateEditable").GetBoolean());
+        Assert.Equal("done", await PostJsonAsync("Payment", new() { ["participantId"] = participant.Id.ToString(), ["payment"] = "Paid" }));
+        current = await CurrentAsync();
+        Assert.Equal("saved", await PostJsonAsync("SaveParticipant", Save(current, paid: true, note: "archived note")));
+        current = await CurrentAsync();
+        var correction = Save(current, paid: true, note: "archived note");
+        correction["accounts"] = $"[{{\"assignmentId\":null,\"name\":\"Late Change\",\"ehb\":1,\"role\":\"playing\",\"primary\":true}}]";
+        Assert.Equal("refused", await PostJsonAsync("SaveParticipant", correction));
+        foreach (var handler in new[] { "Withdraw", "Restore" })
+        {
+            using var refused = await client.PostAsync($"{participantsRoute}?handler={handler}", new FormUrlEncodedContent(new Dictionary<string, string> { ["participantId"] = participant.Id.ToString(), ["confirmLifecycleAction"] = "true", ["__RequestVerificationToken"] = AntiforgeryToken(terminalParticipantsPage) }));
+            Assert.Equal(HttpStatusCode.Redirect, refused.StatusCode); Assert.Equal($"/Admin/Events/Manage/{bingoEvent.Id}", refused.Headers.Location?.OriginalString);
+        }
+        await using (var verify = new ApplicationDbContext(options)) { var saved = await verify.EventParticipants.SingleAsync(x => x.Id == participant.Id); Assert.True(saved.PaymentReceived); Assert.Equal("archived note", saved.AdminNotes); Assert.Equal(SignupStatus.Confirmed, saved.SignupStatus); Assert.Equal("Mutation Main", await verify.AdminPrimaryCharacters().Where(x => x.ParticipantId == participant.Id).Select(x => x.Name).SingleAsync()); }
+
+        async Task<System.Text.Json.JsonElement> CurrentAsync()
+        {
+            using var json = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync($"{participantsRoute}?handler=Current&participant={participant.Id}"));
+            return json.RootElement.Clone();
+        }
+        Dictionary<string, string> Save(System.Text.Json.JsonElement view, bool paid, string note) => new()
+        {
+            ["participantId"] = participant.Id.ToString(),
+            ["expectedResponseVersion"] = view.GetProperty("responseVersion").GetInt32().ToString(CultureInfo.InvariantCulture),
+            ["expectedPaid"] = view.GetProperty("paid").GetBoolean() ? "true" : "false",
+            ["expectedNote"] = view.GetProperty("adminNote").GetString() ?? string.Empty,
+            ["paid"] = paid ? "true" : "false",
+            ["note"] = note
+        };
+        async Task<string?> PostJsonAsync(string handler, Dictionary<string, string> fields)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{participantsRoute}?handler={handler}") { Content = new FormUrlEncodedContent(fields) };
+            request.Headers.Add("Accept", "application/json"); request.Headers.Add("RequestVerificationToken", token);
+            using var response = await client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            using var json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            return json.RootElement.GetProperty("outcome").GetString();
+        }
     }
 
     [Fact]
@@ -2362,11 +2697,13 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             await db.SaveChangesAsync();
         }
 
-        foreach (var row in seeded.Where(row => row.Event.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview))
+        foreach (var row in seeded)
         {
             await using var db = new ApplicationDbContext(options);
             var result = await Signup(db).TransferParticipantOwnershipAsync(new ParticipantOwnershipTransferRequest(row.Event.Id, row.Participant.Id, admin.Id, admin.LoginName, transferTarget.Id, null, true));
-            Assert.True(result.Succeeded, $"Ownership transfer failed for {row.Key}: {result.Error}");
+            Assert.False(result.Succeeded, $"Ownership transfer unexpectedly succeeded for {row.Key}.");
+            Assert.False(result.Changed);
+            Assert.Equal("Participant ownership transfer is no longer available.", result.Error);
         }
         foreach (var row in seeded)
         {
@@ -2385,18 +2722,15 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
                 var participant = await verify.EventParticipants.SingleAsync(x => x.Id == row.Participant.Id);
                 Assert.True(participant.PaymentReceived);
                 Assert.Equal($"note-{row.Key}", participant.AdminNotes);
-                if (row.Event.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview) Assert.Equal(transferTarget.Id, participant.AccountId);
+                Assert.Null(participant.AccountId);
+                Assert.Empty(await verify.AuditEntries.Where(x => x.TargetId == row.Participant.Id.ToString() && x.Action == "participant.ownership_transferred").ToListAsync());
+                Assert.Empty(await verify.PersonalNotifications.Where(x => x.EventId == row.Event.Id && x.Title == "participant.ownership_transferred").ToListAsync());
             }
         }
 
         await using (var denied = new ApplicationDbContext(options))
         {
             var service = Signup(denied);
-            foreach (var row in seeded.Where(row => row.Event.State is EventState.Finalized or EventState.Archived or EventState.Cancelled))
-            {
-                var result = await service.TransferParticipantOwnershipAsync(new ParticipantOwnershipTransferRequest(row.Event.Id, row.Participant.Id, admin.Id, admin.LoginName, transferTarget.Id, null, true));
-                Assert.False(result.Succeeded, $"Ownership transfer unexpectedly succeeded for {row.Key}.");
-            }
             Assert.False((await service.TransferParticipantOwnershipAsync(new ParticipantOwnershipTransferRequest(hidden.Id, hiddenParticipant.Id, admin.Id, admin.LoginName, transferTarget.Id, null, true))).Succeeded);
             Assert.False((await service.TransferParticipantOwnershipAsync(new ParticipantOwnershipTransferRequest(discarded.Id, Guid.NewGuid(), admin.Id, admin.LoginName, transferTarget.Id, null, true))).Succeeded);
             Assert.False((await service.SetPaymentAsync(hidden.Id, hiddenParticipant.Id, admin.Id, admin.LoginName, PaymentStatus.Paid)).Succeeded);
@@ -2413,8 +2747,11 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task InternalParticipantOutageConfirmationAndCancelWorkWithoutJavaScript()
+    public async Task SavedAccountAddNeedsNoWomAndRetiredInternalParticipantHandlersAreGone()
     {
+        // A10 (U5 item 1c, F04): the internal-participant form, its WOM outage confirmation and
+        // CancelWomValidation are retired. Add uses the account's saved Playing accounts and stored
+        // EHB without any WOM request, even while WOM is unavailable; retired posts write nothing.
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"internal-outage-admin-{Guid.NewGuid():N}", now);
         admin.SetGlobalRole(GlobalRole.Admin);
@@ -2425,15 +2762,16 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var primary = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null,
             SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         var answer = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "cancel-answer", "Cancel answer", SignupQuestionType.Text, false, 1, null);
+        var saved = new OsrsCharacter(Guid.NewGuid(), "Outage Alice", $"OUTAGE ALICE {Guid.NewGuid():N}", now);
         await using (var db = new ApplicationDbContext(options))
         {
-            db.AddRange(admin, bingoEvent, form, primary, answer);
+            db.AddRange(admin, bingoEvent, form, primary, answer, saved, new AccountOsrsCharacter(Guid.NewGuid(), admin.Id, saved.Id, admin.Id, true, 0, null, 7.25m, now));
             await db.SaveChangesAsync();
         }
 
         var offlineLookup = new UnavailableWiseOldManPlayerLookup();
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
-            .UseSetting("ConnectionStrings:Database", database.GetConnectionString())
+            .UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString())
             .ConfigureServices(services =>
             {
                 services.RemoveAll<IWiseOldManPlayerLookup>();
@@ -2449,53 +2787,53 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         }))) Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
 
         var route = $"/Admin/Events/Participants/{bingoEvent.Id}";
-        var page = await client.GetStringAsync($"{route}?addParticipant=1");
-        const string characterName = "Internal outage Alice";
-        const string submittedAnswer = "Keep this answer after cancel";
-        var characterField = $"InternalParticipant.AccountAnswers[{primary.Id}].CharacterName";
-        var ehbField = $"InternalParticipant.AccountAnswers[{primary.Id}].Ehb";
-        var answerField = $"InternalParticipant.Answers[{answer.Id}]";
-        var fields = new Dictionary<string, string>
+        var page = await client.GetStringAsync($"{route}?add=1");
+        Assert.Contains("data-drawer-add=\"true\"", page, StringComparison.Ordinal);
+        Assert.DoesNotContain("InternalParticipant.", page, StringComparison.Ordinal);
+        foreach (var retired in new[] { "CreateInternalParticipant", "CancelWomValidation" })
         {
-            [characterField] = characterName,
-            [ehbField] = "7.25",
-            [answerField] = submittedAnswer,
-            ["__RequestVerificationToken"] = AntiforgeryToken(page)
-        };
-        using var confirmationResponse = await client.PostAsync($"{route}?handler=CreateInternalParticipant", new FormUrlEncodedContent(fields));
-        Assert.Equal(HttpStatusCode.OK, confirmationResponse.StatusCode);
-        var confirmation = await confirmationResponse.Content.ReadAsStringAsync();
-        Assert.Contains("data-wom-validation-confirmation", confirmation, StringComparison.Ordinal);
-        Assert.Contains("participant-add-route-page", confirmation, StringComparison.Ordinal);
-        Assert.Equal(characterName, InputValueByName(confirmation, characterField));
-        Assert.Equal("7.25", InputValueByName(confirmation, ehbField));
-        Assert.Equal(submittedAnswer, InputValueByName(confirmation, answerField));
-        var token = InputValueByName(confirmation, "InternalParticipant.WomValidationConfirmationToken");
-        Assert.NotEmpty(token);
+            using var response = await client.PostAsync($"{route}?handler={retired}", new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["InternalParticipant.OwnerAccountId"] = admin.Id.ToString(),
+                [$"InternalParticipant.AccountAnswers[{primary.Id}].CharacterName"] = "Typed Outage",
+                [$"InternalParticipant.AccountAnswers[{primary.Id}].Ehb"] = "7.25",
+                ["__RequestVerificationToken"] = AntiforgeryToken(page)
+            }));
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        }
+        await using (var verify = new ApplicationDbContext(options)) Assert.Empty(await verify.EventParticipants.Where(item => item.EventId == bingoEvent.Id).ToListAsync());
 
-        var cancelButton = Regex.Match(confirmation, "<button(?=[^>]*data-wom-validation-cancel)[^>]*>").Value;
-        Assert.Contains("type=\"submit\"", cancelButton, StringComparison.Ordinal);
-        var cancelAction = WebUtility.HtmlDecode(Regex.Match(cancelButton, "formaction=\"([^\"]+)\"").Groups[1].Value);
-        Assert.Contains("handler=CancelWomValidation", cancelAction, StringComparison.Ordinal);
-        var cancelUri = new Uri(new Uri(client.BaseAddress!, route), cancelAction);
-        var cancelFields = new Dictionary<string, string>(fields)
+        using var owners = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync($"{route}?handler=OwnerAccounts&owner={admin.Id}"));
+        var option = Assert.Single(owners.RootElement.EnumerateArray());
+        Assert.Equal(saved.Id, option.GetProperty("characterId").GetGuid()); Assert.Equal(7.25m, option.GetProperty("savedEhb").GetDecimal());
+        long eventVersion;
+        await using (var read = new ApplicationDbContext(options)) eventVersion = await read.Events.Where(item => item.Id == bingoEvent.Id).Select(item => item.Version).SingleAsync();
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{route}?handler=Add")
         {
-            ["InternalParticipant.WomValidationConfirmationToken"] = token,
-            ["__RequestVerificationToken"] = AntiforgeryToken(confirmation)
+            Content = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
+            {
+                new("owner", admin.Id.ToString()), new("accounts", saved.Id.ToString()), new("primary", saved.Id.ToString()),
+                new("paid", "false"), new("addPlace", "false"), new("eventVersion", eventVersion.ToString(CultureInfo.InvariantCulture))
+            })
         };
-        using var cancelledResponse = await client.PostAsync(cancelUri.PathAndQuery, new FormUrlEncodedContent(cancelFields));
-        Assert.Equal(HttpStatusCode.OK, cancelledResponse.StatusCode);
-        var cancelled = await cancelledResponse.Content.ReadAsStringAsync();
-        Assert.Contains("data-wom-validation-cancelled=\"true\"", cancelled, StringComparison.Ordinal);
-        Assert.DoesNotContain("data-wom-validation-confirmation", cancelled, StringComparison.Ordinal);
-        Assert.Equal(characterName, InputValueByName(cancelled, characterField));
-        Assert.Equal("7.25", InputValueByName(cancelled, ehbField));
-        Assert.Equal(submittedAnswer, InputValueByName(cancelled, answerField));
-        Assert.Empty(InputValueByName(cancelled, "InternalParticipant.WomValidationConfirmationToken"));
-        await using var verify = new ApplicationDbContext(options);
-        Assert.Empty(await verify.EventParticipants.Where(item => item.EventId == bingoEvent.Id).ToListAsync());
-        Assert.False(await verify.OsrsCharacters.AnyAsync(item => item.NormalizedName == "INTERNAL OUTAGE ALICE"));
-        Assert.True(offlineLookup.Calls >= 1);
+        request.Headers.Add("Accept", "application/json"); request.Headers.Add("RequestVerificationToken", AntiforgeryToken(page));
+        using (var added = await client.SendAsync(request))
+        {
+            Assert.Equal(HttpStatusCode.OK, added.StatusCode);
+            using var json = System.Text.Json.JsonDocument.Parse(await added.Content.ReadAsStringAsync());
+            Assert.Equal("done", json.RootElement.GetProperty("outcome").GetString());
+            Assert.Equal("Outage Alice", json.RootElement.GetProperty("data").GetProperty("name").GetString());
+        }
+        await using (var verify = new ApplicationDbContext(options))
+        {
+            var created = await verify.EventParticipants.SingleAsync(item => item.EventId == bingoEvent.Id);
+            Assert.Equal(SignupSource.AdminCreated, created.Source); Assert.Equal(admin.Id, created.AccountId); Assert.False(created.CaptainVolunteer);
+            var assignment = await verify.EventParticipantCharacters.SingleAsync(item => item.EventParticipantId == created.Id && item.ReleasedAt == null);
+            Assert.Equal(saved.Id, assignment.OsrsCharacterId); Assert.Equal(7.25m, assignment.EhbSnapshot);
+            Assert.Empty(await verify.SignupAnswers.Where(item => item.EventParticipantId == created.Id && item.SignupQuestionId == answer.Id).ToListAsync());
+            Assert.Equal(7.25m, await verify.AccountOsrsCharacters.Where(item => item.AccountId == admin.Id).Select(item => item.SavedEhb).SingleAsync());
+        }
+        Assert.Equal(0, offlineLookup.Calls);
     }
 
     [Fact]
@@ -2522,33 +2860,93 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
                 new EventParticipantCharacter(Guid.NewGuid(), bingoEvent.Id, other.Id, reserved.Id, 0, now, admin.Id, regular.Id, EventCharacterRole.Playing, 7m, EhbSource.Manual, null));
             await db.SaveChangesAsync(); db.Add(new SignupAnswer(Guid.NewGuid(), first.Id, answer.Id, "Answer", "before")); await db.SaveChangesAsync();
         }
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await LoginAsync(client, admin.LoginName, "password");
-        var detailRoute = $"/Admin/Events/Participant/{bingoEvent.Id}/Participants/{first.Id}"; var detail = await client.GetStringAsync(detailRoute);
-        Assert.Contains($"name=\"Input.CustomAnswers[{captain.Id}]\"", detail, StringComparison.Ordinal);
-        Assert.Contains("value=\"true\" selected", detail, StringComparison.Ordinal);
-        using (var corrected = await client.PostAsync(detailRoute, new FormUrlEncodedContent(new Dictionary<string, string> { [$"Input.AccountAnswers[{regular.Id}].CharacterName"] = newRegular.DisplayName, [$"Input.AccountAnswers[{regular.Id}].Ehb"] = "19", [$"Input.AccountAnswers[{alt.Id}].CharacterName"] = newAlt.DisplayName, [$"Input.CustomAnswers[{captain.Id}]"] = "true", [$"Input.CustomAnswers[{answer.Id}]"] = "after", ["Input.ExpectedResponseVersion"] = "1", ["__RequestVerificationToken"] = AntiforgeryToken(detail) }))) Assert.Equal(HttpStatusCode.Redirect, corrected.StatusCode);
+        // A10 (U5 item 1b, U5-Q1/Q2): the old detail form is retired; the same correction runs through the
+        // drawer's single save (accounts, alt, captain and custom answers) with its version check.
+        var participantsRoute = $"/Admin/Events/Participants/{bingoEvent.Id}"; var participants = await client.GetStringAsync(participantsRoute);
+        using (var initial = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync($"{participantsRoute}?handler=Current&participant={first.Id}")))
+            Assert.Equal("true", initial.RootElement.GetProperty("answers").EnumerateArray().Single(x => x.GetProperty("questionId").GetGuid() == captain.Id).GetProperty("value").GetString());
+        Assert.Equal("saved", (await SaveDrawerAsync(newRegular.DisplayName, 19m, newAlt.DisplayName, "true", "after", 1)).Outcome);
         await using (var verify = new ApplicationDbContext(options))
         {
             var saved = await verify.EventParticipants.SingleAsync(x => x.Id == first.Id); Assert.Equal(SignupSource.Website, saved.Source); Assert.Equal(now.AddTicks(-(now.Ticks % TimeSpan.TicksPerMicrosecond)), saved.SignedUpAt); Assert.Equal(1, saved.SignupSequence); Assert.True(saved.PaymentReceived); Assert.True(saved.CaptainVolunteer); Assert.Equal("private-note", saved.AdminNotes);
             Assert.Equal("after", await verify.SignupAnswers.Where(x => x.EventParticipantId == first.Id && x.SignupQuestionId == answer.Id).Select(x => x.Value).SingleAsync());
             Assert.Equal(2, await verify.EventParticipantCharacters.CountAsync(x => x.EventParticipantId == first.Id && x.ReleasedAt == null)); Assert.Contains(await verify.AuditEntries.Where(x => x.TargetId == first.Id.ToString()).ToListAsync(), x => x.Action == "participant.corrected" && x.BeforeState != x.AfterState);
+            Assert.Single(await verify.PersonalNotifications.Where(x => x.RecipientAccountId == owner.Id && x.Title == "participant.accounts_changed").ToListAsync());
         }
-        var secondDetail = await client.GetStringAsync(detailRoute);
-        using (var rejected = await client.PostAsync(detailRoute, new FormUrlEncodedContent(new Dictionary<string, string> { [$"Input.AccountAnswers[{regular.Id}].CharacterName"] = reserved.DisplayName, [$"Input.AccountAnswers[{regular.Id}].Ehb"] = "23", [$"Input.AccountAnswers[{alt.Id}].CharacterName"] = newAlt.DisplayName, [$"Input.CustomAnswers[{captain.Id}]"] = "true", [$"Input.CustomAnswers[{answer.Id}]"] = "must-not-save", ["Input.ExpectedResponseVersion"] = "2", ["__RequestVerificationToken"] = AntiforgeryToken(secondDetail) }))) Assert.Equal(HttpStatusCode.OK, rejected.StatusCode);
+        var reservedOutcome = (await SaveDrawerAsync(reserved.DisplayName, 23m, newAlt.DisplayName, "true", "must-not-save", 2)).Outcome;
+        Assert.True(reservedOutcome is "refused" or "invalid", reservedOutcome);
         await using (var verify = new ApplicationDbContext(options)) { Assert.Equal("after", await verify.SignupAnswers.Where(x => x.EventParticipantId == first.Id && x.SignupQuestionId == answer.Id).Select(x => x.Value).SingleAsync()); Assert.Equal(1, await verify.AuditEntries.CountAsync(x => x.TargetId == first.Id.ToString() && x.Action == "participant.corrected")); }
-        var captainDetail = await client.GetStringAsync(detailRoute);
-        using (var captainChanged = await client.PostAsync(detailRoute, new FormUrlEncodedContent(new Dictionary<string, string> { [$"Input.AccountAnswers[{regular.Id}].CharacterName"] = newRegular.DisplayName, [$"Input.AccountAnswers[{regular.Id}].Ehb"] = "19", [$"Input.AccountAnswers[{alt.Id}].CharacterName"] = newAlt.DisplayName, [$"Input.CustomAnswers[{captain.Id}]"] = "false", [$"Input.CustomAnswers[{answer.Id}]"] = "after", ["Input.ExpectedResponseVersion"] = "2", ["__RequestVerificationToken"] = AntiforgeryToken(captainDetail) }))) Assert.Equal(HttpStatusCode.Redirect, captainChanged.StatusCode);
+        Assert.Equal("saved", (await SaveDrawerAsync(newRegular.DisplayName, 19m, newAlt.DisplayName, "false", "after", 2)).Outcome);
         await using (var verify = new ApplicationDbContext(options)) Assert.False(await verify.EventParticipants.Where(x => x.Id == first.Id).Select(x => x.CaptainVolunteer).SingleAsync());
-        var missingVersion = await client.GetStringAsync(detailRoute);
         ParticipantState correctionBeforeStale;
         await using (var snapshot = new ApplicationDbContext(options)) correctionBeforeStale = await ParticipantStateAsync(snapshot, first.Id);
-        using (var stale = await client.PostAsync(detailRoute, new FormUrlEncodedContent(new Dictionary<string, string> { [$"Input.AccountAnswers[{regular.Id}].CharacterName"] = oldRegular.DisplayName, [$"Input.AccountAnswers[{regular.Id}].Ehb"] = "999", [$"Input.AccountAnswers[{alt.Id}].CharacterName"] = oldAlt.DisplayName, [$"Input.CustomAnswers[{captain.Id}]"] = "true", [$"Input.CustomAnswers[{answer.Id}]"] = "must-not-save", ["__RequestVerificationToken"] = AntiforgeryToken(missingVersion) }))) { Assert.Equal(HttpStatusCode.OK, stale.StatusCode); Assert.Contains("reload", await stale.Content.ReadAsStringAsync(), StringComparison.OrdinalIgnoreCase); }
+        var stale = await SaveDrawerAsync(oldRegular.DisplayName, 999m, oldAlt.DisplayName, "true", "must-not-save", null);
+        Assert.Equal("refused", stale.Outcome); Assert.Contains("reload", stale.Message, StringComparison.OrdinalIgnoreCase);
         await using (var verify = new ApplicationDbContext(options)) { Assert.Equal(correctionBeforeStale, await ParticipantStateAsync(verify, first.Id)); var saved = await verify.EventParticipants.SingleAsync(x => x.Id == first.Id); Assert.False(saved.CaptainVolunteer); Assert.Equal(SignupStatus.Confirmed, saved.SignupStatus); Assert.Equal(SignupSource.Website, saved.Source); Assert.Equal(now.AddTicks(-(now.Ticks % TimeSpan.TicksPerMicrosecond)), saved.SignedUpAt); Assert.Equal(1, saved.SignupSequence); Assert.Equal(3, saved.ResponseVersion); Assert.True(saved.PaymentReceived); Assert.Equal("private-note", saved.AdminNotes); Assert.Equal("after", await verify.SignupAnswers.Where(x => x.EventParticipantId == first.Id && x.SignupQuestionId == answer.Id).Select(x => x.Value).SingleAsync()); Assert.Equal(19m, await verify.EventParticipantCharacters.Where(x => x.EventParticipantId == first.Id && x.ReleasedAt == null && x.SignupQuestionId == regular.Id).Select(x => x.EhbSnapshot).SingleAsync()); Assert.Equal(2, await verify.AuditEntries.CountAsync(x => x.TargetId == first.Id.ToString() && x.Action == "participant.corrected")); }
-        var participantsRoute = $"/Admin/Events/Participants/{bingoEvent.Id}"; var participants = await client.GetStringAsync(participantsRoute);
-        using (var created = await client.PostAsync($"{participantsRoute}?handler=CreateInternalParticipant", new FormUrlEncodedContent(new Dictionary<string, string> { [$"InternalParticipant.AccountAnswers[{regular.Id}].CharacterName"] = $"Internal {Guid.NewGuid():N}", [$"InternalParticipant.AccountAnswers[{regular.Id}].Ehb"] = "8", [$"InternalParticipant.Answers[{answer.Id}]"] = "created", ["__RequestVerificationToken"] = AntiforgeryToken(participants) }))) Assert.Equal(HttpStatusCode.Redirect, created.StatusCode);
-        await using (var verify = new ApplicationDbContext(options)) { var created = await verify.EventParticipants.SingleAsync(x => x.Source == SignupSource.AdminCreated); Assert.Null(created.AccountId); Assert.Equal(SignupStatus.Confirmed, created.SignupStatus); Assert.NotNull(await verify.SignupForms.Where(x => x.Id == form.Id).Select(x => x.FirstResponseAt).SingleAsync()); }
+
+        async Task<(string? Outcome, string Message)> SaveDrawerAsync(string regularName, decimal ehb, string altName, string captainValue, string answerValue, int? version)
+        {
+            using var current = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync($"{participantsRoute}?handler=Current&participant={first.Id}"));
+            var accounts = current.RootElement.GetProperty("accounts").EnumerateArray().ToList();
+            var playingId = accounts.Single(x => x.GetProperty("role").GetString() == "playing").GetProperty("assignmentId").GetGuid();
+            var altId = accounts.Single(x => x.GetProperty("role").GetString() == "alt").GetProperty("assignmentId").GetGuid();
+            var fields = new Dictionary<string, string>
+            {
+                ["participantId"] = first.Id.ToString(),
+                ["expectedPaid"] = "true",
+                ["expectedNote"] = "private-note",
+                ["paid"] = "true",
+                ["note"] = "private-note",
+                ["accounts"] = System.Text.Json.JsonSerializer.Serialize(new object[] { new { assignmentId = playingId, name = regularName, ehb, role = "playing", primary = true }, new { assignmentId = altId, name = altName, ehb = (decimal?)null, role = "alt", primary = false } }),
+                ["answers"] = System.Text.Json.JsonSerializer.Serialize(new Dictionary<Guid, string> { [captain.Id] = captainValue, [answer.Id] = answerValue })
+            };
+            if (version is { } expected) fields["expectedResponseVersion"] = expected.ToString(CultureInfo.InvariantCulture);
+            using var request = new HttpRequestMessage(HttpMethod.Post, $"{participantsRoute}?handler=SaveParticipant") { Content = new FormUrlEncodedContent(fields) };
+            request.Headers.Add("Accept", "application/json"); request.Headers.Add("RequestVerificationToken", AntiforgeryToken(participants));
+            using var response = await client.SendAsync(request);
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            using var json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            return (json.RootElement.GetProperty("outcome").GetString(), json.RootElement.GetProperty("message").GetString() ?? string.Empty);
+        }
+        // A10 (U5 item 1c, F04): the internal-participant form is retired; Add takes the admin
+        // account's saved Playing account with its stored EHB (no answers, no WOM).
+        var addedCharacter = new OsrsCharacter(Guid.NewGuid(), $"Int {Guid.NewGuid().ToString("N")[..8]}", $"INT {Guid.NewGuid():N}", now);
+        long addVersion;
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.AddRange(addedCharacter, new AccountOsrsCharacter(Guid.NewGuid(), admin.Id, addedCharacter.Id, admin.Id, true, 0, null, 8m, now));
+            await db.SaveChangesAsync();
+            addVersion = await db.Events.Where(x => x.Id == bingoEvent.Id).Select(x => x.Version).SingleAsync();
+        }
+        participants = await client.GetStringAsync(participantsRoute);
+        using (var addRequest = new HttpRequestMessage(HttpMethod.Post, $"{participantsRoute}?handler=Add")
+        {
+            Content = new FormUrlEncodedContent(new List<KeyValuePair<string, string>> { new("owner", admin.Id.ToString()), new("accounts", addedCharacter.Id.ToString()), new("primary", addedCharacter.Id.ToString()), new("paid", "false"), new("addPlace", "false"), new("eventVersion", addVersion.ToString(CultureInfo.InvariantCulture)) })
+        })
+        {
+            addRequest.Headers.Add("Accept", "application/json"); addRequest.Headers.Add("RequestVerificationToken", AntiforgeryToken(participants));
+            using var created = await client.SendAsync(addRequest);
+            using var json = System.Text.Json.JsonDocument.Parse(await created.Content.ReadAsStringAsync());
+            Assert.Equal("done", json.RootElement.GetProperty("outcome").GetString());
+        }
+        // U5 L2: a row action for a participant outside this event is a definite JSON refusal; a plain post keeps its 404.
+        foreach (var json in new[] { true, false })
+        {
+            using var withdraw = new HttpRequestMessage(HttpMethod.Post, $"{participantsRoute}?handler=Withdraw")
+            { Content = new FormUrlEncodedContent(new Dictionary<string, string> { ["participantId"] = Guid.NewGuid().ToString(), ["confirmLifecycleAction"] = "true" }) };
+            if (json) withdraw.Headers.Add("Accept", "application/json");
+            withdraw.Headers.Add("RequestVerificationToken", AntiforgeryToken(participants));
+            using var missing = await client.SendAsync(withdraw);
+            if (!json) { Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode); continue; }
+            Assert.Equal(HttpStatusCode.OK, missing.StatusCode);
+            using var refusal = System.Text.Json.JsonDocument.Parse(await missing.Content.ReadAsStringAsync());
+            Assert.Equal("refused", refusal.RootElement.GetProperty("outcome").GetString());
+            Assert.Equal("This participant isn't part of this event.", refusal.RootElement.GetProperty("message").GetString());
+        }
+        await using (var verify = new ApplicationDbContext(options)) { var created = await verify.EventParticipants.SingleAsync(x => x.Source == SignupSource.AdminCreated); Assert.Equal(admin.Id, created.AccountId); Assert.Equal(SignupStatus.Confirmed, created.SignupStatus); Assert.NotNull(await verify.SignupForms.Where(x => x.Id == form.Id).Select(x => x.FirstResponseAt).SingleAsync()); }
 
         async Task LoginAsync(HttpClient http, string username, string password)
         { var login = await http.GetStringAsync("/Account/Login"); using var signedIn = await http.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string> { ["Input.Username"] = username, ["Input.Password"] = password, ["__RequestVerificationToken"] = AntiforgeryToken(login) })); Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode); }
@@ -2567,27 +2965,43 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var duplicate = new EventParticipant(Guid.NewGuid(), bingoEvent.Id, SignupStatus.Confirmed, 2, now.AddMinutes(1), SignupSource.Website, null); duplicate.AssignOwner(duplicateOwner);
         var character = new OsrsCharacter(Guid.NewGuid(), "Transfer Main", $"TRANSFER {Guid.NewGuid():N}", now);
         await using (var db = new ApplicationDbContext(options)) { db.AddRange(admin, oldOwner, newOwner, duplicateOwner, bingoEvent, form, regular, participant, duplicate, character, new EventParticipantCharacter(Guid.NewGuid(), bingoEvent.Id, participant.Id, character.Id, 0, now, admin.Id, regular.Id, EventCharacterRole.Playing, 12m, EhbSource.Manual, null)); await db.SaveChangesAsync(); }
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
+        await using (var direct = new ApplicationDbContext(options))
+        {
+            var result = await Signup(direct).TransferParticipantOwnershipAsync(new ParticipantOwnershipTransferRequest(
+                bingoEvent.Id, participant.Id, admin.Id, admin.LoginName, newOwner.Id, oldOwner.Id, true));
+            Assert.False(result.Succeeded);
+            Assert.False(result.Changed);
+            Assert.Equal("Participant ownership transfer is no longer available.", result.Error);
+        }
+
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
         using var adminClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false }); await LoginAsync(adminClient, admin.LoginName, "password");
-        var detailRoute = $"/Admin/Events/Participant/{bingoEvent.Id}/Participants/{participant.Id}"; var detail = await adminClient.GetStringAsync(detailRoute);
-        using (var unconfirmed = await adminClient.PostAsync($"{detailRoute}?handler=TransferOwnership", new FormUrlEncodedContent(new Dictionary<string, string> { ["ExpectedOwnerAccountId"] = oldOwner.Id.ToString(), ["DestinationOwnerAccountId"] = newOwner.Id.ToString(), ["__RequestVerificationToken"] = AntiforgeryToken(detail) }))) Assert.Equal(HttpStatusCode.Redirect, unconfirmed.StatusCode);
-        await using (var unchanged = new ApplicationDbContext(options)) { Assert.Equal(oldOwner.Id, await unchanged.EventParticipants.Where(x => x.Id == participant.Id).Select(x => x.AccountId).SingleAsync()); Assert.Empty(await unchanged.PersonalNotifications.Where(x => x.Title == "participant.ownership_transferred").ToListAsync()); }
-        using (var invalid = await adminClient.PostAsync($"{detailRoute}?handler=TransferOwnership", new FormUrlEncodedContent(new Dictionary<string, string> { ["ExpectedOwnerAccountId"] = oldOwner.Id.ToString(), ["DestinationOwnerAccountId"] = Guid.NewGuid().ToString(), ["ConfirmOwnershipTransfer"] = "true", ["__RequestVerificationToken"] = AntiforgeryToken(detail) }))) Assert.Equal(HttpStatusCode.Redirect, invalid.StatusCode);
-        var transferPage = await adminClient.GetStringAsync(detailRoute);
-        using (var transferred = await adminClient.PostAsync($"{detailRoute}?handler=TransferOwnership", new FormUrlEncodedContent(new Dictionary<string, string> { ["ExpectedOwnerAccountId"] = oldOwner.Id.ToString(), ["DestinationOwnerAccountId"] = newOwner.Id.ToString(), ["ConfirmOwnershipTransfer"] = "true", ["__RequestVerificationToken"] = AntiforgeryToken(transferPage) }))) Assert.Equal(HttpStatusCode.Redirect, transferred.StatusCode);
+        // A10 (U5 item 1b): the old detail route only redirects; the Participants page and the
+        // drawer read offer no ownership transfer, and a forged post to the old route is refused.
+        var detailRoute = $"/Admin/Events/Participant/{bingoEvent.Id}/Participants/{participant.Id}";
+        var detail = await adminClient.GetStringAsync($"/Admin/Events/Participants/{bingoEvent.Id}");
+        var drawer = await adminClient.GetStringAsync($"/Admin/Events/Participants/{bingoEvent.Id}?handler=Current&participant={participant.Id}");
+        foreach (var view in new[] { detail, drawer }) { Assert.DoesNotContain("TransferOwnership", view, StringComparison.Ordinal); Assert.DoesNotContain("ConfirmOwnershipTransfer", view, StringComparison.Ordinal); }
+        using (var forged = await adminClient.PostAsync($"{detailRoute}?handler=TransferOwnership", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["ExpectedOwnerAccountId"] = oldOwner.Id.ToString(),
+            ["DestinationOwnerAccountId"] = duplicateOwner.Id.ToString(),
+            ["ConfirmOwnershipTransfer"] = "true",
+            ["__RequestVerificationToken"] = AntiforgeryToken(detail)
+        }))) Assert.Equal(HttpStatusCode.NotFound, forged.StatusCode);
+
         await using (var verify = new ApplicationDbContext(options))
         {
-            var saved = await verify.EventParticipants.SingleAsync(x => x.Id == participant.Id); Assert.Equal(newOwner.Id, saved.AccountId); Assert.Equal(now.AddTicks(-(now.Ticks % TimeSpan.TicksPerMicrosecond)), saved.SignedUpAt); Assert.Equal(1, saved.SignupSequence); Assert.True(saved.PaymentReceived); Assert.Equal("private", saved.AdminNotes);
+            var saved = await verify.EventParticipants.SingleAsync(x => x.Id == participant.Id);
+            Assert.Equal(oldOwner.Id, saved.AccountId);
+            Assert.Equal(now.AddTicks(-(now.Ticks % TimeSpan.TicksPerMicrosecond)), saved.SignedUpAt);
+            Assert.Equal(1, saved.SignupSequence);
+            Assert.True(saved.PaymentReceived);
+            Assert.Equal("private", saved.AdminNotes);
             Assert.Equal(12m, await verify.EventParticipantCharacters.Where(x => x.EventParticipantId == participant.Id && x.ReleasedAt == null).Select(x => x.EhbSnapshot).SingleAsync());
-            var notifications = await verify.PersonalNotifications.Where(x => x.Title == "participant.ownership_transferred").ToListAsync();
-            Assert.Equal(2, notifications.Count); Assert.Equal("/Account/MyEvents", notifications.Single(x => x.RecipientAccountId == oldOwner.Id).Route); Assert.Equal($"/Events/{bingoEvent.Slug}/Signup/Confirmation?participantId={participant.Id}", notifications.Single(x => x.RecipientAccountId == newOwner.Id).Route);
-            Assert.Single(await verify.AuditEntries.Where(x => x.TargetId == participant.Id.ToString() && x.Action == "participant.ownership_transferred").ToListAsync());
+            Assert.Empty(await verify.PersonalNotifications.Where(x => x.Title == "participant.ownership_transferred").ToListAsync());
+            Assert.Empty(await verify.AuditEntries.Where(x => x.TargetId == participant.Id.ToString() && x.Action == "participant.ownership_transferred").ToListAsync());
         }
-        using var oldClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false }); await LoginAsync(oldClient, oldOwner.LoginName, "password"); Assert.NotEqual(HttpStatusCode.OK, (await oldClient.GetAsync($"/Events/{bingoEvent.Slug}/Signup/Confirmation?participantId={participant.Id}")).StatusCode); Assert.Equal(HttpStatusCode.OK, (await oldClient.GetAsync("/Account/MyEvents")).StatusCode);
-        using var newClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false }); await LoginAsync(newClient, newOwner.LoginName, "password"); Assert.Equal(HttpStatusCode.OK, (await newClient.GetAsync($"/Events/{bingoEvent.Slug}/Signup/Confirmation?participantId={participant.Id}")).StatusCode);
-        var duplicatePage = await adminClient.GetStringAsync(detailRoute);
-        using (var duplicateTransfer = await adminClient.PostAsync($"{detailRoute}?handler=TransferOwnership", new FormUrlEncodedContent(new Dictionary<string, string> { ["ExpectedOwnerAccountId"] = newOwner.Id.ToString(), ["DestinationOwnerAccountId"] = duplicateOwner.Id.ToString(), ["ConfirmOwnershipTransfer"] = "true", ["__RequestVerificationToken"] = AntiforgeryToken(duplicatePage) }))) Assert.Equal(HttpStatusCode.Redirect, duplicateTransfer.StatusCode);
-        await using (var verify = new ApplicationDbContext(options)) { Assert.Equal(newOwner.Id, await verify.EventParticipants.Where(x => x.Id == participant.Id).Select(x => x.AccountId).SingleAsync()); Assert.Equal(2, await verify.PersonalNotifications.CountAsync(x => x.Title == "participant.ownership_transferred")); }
 
         async Task LoginAsync(HttpClient http, string username, string password)
         { var login = await http.GetStringAsync("/Account/Login"); using var signedIn = await http.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string> { ["Input.Username"] = username, ["Input.Password"] = password, ["__RequestVerificationToken"] = AntiforgeryToken(login) })); Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode); }
@@ -2614,13 +3028,18 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var start = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var first = TransferAsync(firstDestination.Id); var second = TransferAsync(secondDestination.Id); start.SetResult();
         var results = await Task.WhenAll(first, second);
-        Assert.Equal(1, results.Count(x => x.Succeeded)); Assert.Equal(1, results.Count(x => !x.Succeeded && x.Error!.Contains("changed elsewhere", StringComparison.Ordinal)));
+        Assert.Equal(0, results.Count(x => x.Succeeded));
+        Assert.All(results, result =>
+        {
+            Assert.False(result.Changed);
+            Assert.Equal("Participant ownership transfer is no longer available.", result.Error);
+        });
         await using (var verify = new ApplicationDbContext(options))
         {
-            var saved = await verify.EventParticipants.SingleAsync(x => x.Id == participant.Id); Assert.True(saved.AccountId is { } winner && (winner == firstDestination.Id || winner == secondDestination.Id)); Assert.Equal(SignupSource.Website, saved.Source); Assert.Equal(now.AddTicks(-(now.Ticks % TimeSpan.TicksPerMicrosecond)), saved.SignedUpAt); Assert.Equal(1, saved.SignupSequence); Assert.True(saved.PaymentReceived); Assert.Equal("race-private-note", saved.AdminNotes);
+            var saved = await verify.EventParticipants.SingleAsync(x => x.Id == participant.Id); Assert.Equal(original.Id, saved.AccountId); Assert.Equal(SignupSource.Website, saved.Source); Assert.Equal(now.AddTicks(-(now.Ticks % TimeSpan.TicksPerMicrosecond)), saved.SignedUpAt); Assert.Equal(1, saved.SignupSequence); Assert.True(saved.PaymentReceived); Assert.Equal("race-private-note", saved.AdminNotes);
             Assert.Equal("retained", await verify.SignupAnswers.Where(x => x.EventParticipantId == participant.Id).Select(x => x.Value).SingleAsync()); Assert.Equal(13m, await verify.EventParticipantCharacters.Where(x => x.EventParticipantId == participant.Id && x.ReleasedAt == null).Select(x => x.EhbSnapshot).SingleAsync());
             Assert.Equal(original.Id, await verify.AccountOsrsCharacters.Where(x => x.OsrsCharacterId == character.Id).Select(x => x.AccountId).SingleAsync()); Assert.Equal(team.Id, await verify.TeamMemberships.Where(x => x.EventParticipantId == participant.Id && x.LeftAt == null).Select(x => x.TeamId).SingleAsync());
-            Assert.Single(await verify.AuditEntries.Where(x => x.TargetId == participant.Id.ToString() && x.Action == "participant.ownership_transferred").ToListAsync()); Assert.Equal(2, await verify.PersonalNotifications.CountAsync(x => x.Title == "participant.ownership_transferred"));
+            Assert.Empty(await verify.AuditEntries.Where(x => x.TargetId == participant.Id.ToString() && x.Action == "participant.ownership_transferred").ToListAsync()); Assert.Empty(await verify.PersonalNotifications.Where(x => x.Title == "participant.ownership_transferred").ToListAsync());
         }
 
         async Task<ParticipantOwnershipTransferResult> TransferAsync(Guid destination)
@@ -2643,13 +3062,14 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var participant = new EventParticipant(Guid.NewGuid(), bingoEvent.Id, SignupStatus.Confirmed, 1, now, SignupSource.Website); participant.AssignOwner(original);
         await using (var setup = new ApplicationDbContext(options)) { setup.AddRange(admin, original, destination, bingoEvent, participant); await setup.SaveChangesAsync(); }
 
-        var failingOptions = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).AddInterceptors(new ThrowOnOwnershipAudit()).Options;
+        var failingOptions = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).AddInterceptors(new ThrowOnOwnershipAudit()).Options;
         await using (var failing = new ApplicationDbContext(failingOptions))
         {
             var service = Signup(failing);
             var result = await service.TransferParticipantOwnershipAsync(new ParticipantOwnershipTransferRequest(bingoEvent.Id, participant.Id, admin.Id, admin.LoginName, destination.Id, original.Id, true));
             Assert.False(result.Succeeded);
-            Assert.Contains("try again", result.Error, StringComparison.OrdinalIgnoreCase);
+            Assert.False(result.Changed);
+            Assert.Equal("Participant ownership transfer is no longer available.", result.Error);
         }
         await using var verify = new ApplicationDbContext(options);
         Assert.Equal(original.Id, await verify.EventParticipants.Where(x => x.Id == participant.Id).Select(x => x.AccountId).SingleAsync());
@@ -2714,8 +3134,9 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
 
     private static FormUrlEncodedContent SignupCodePost(string page, bool required, string? code) => new(new Dictionary<string, string>
     {
-        ["Settings.RequireSignupCode"] = required ? "true" : "false",
-        ["Settings.NewSignupCode"] = code ?? string.Empty,
+        ["SignupCode.RequireSignupCode"] = required ? "true" : "false",
+        ["SignupCode.NewSignupCode"] = code ?? string.Empty,
+        ["SignupCode.Version"] = HiddenValue(page, "SignupCode_Version"),
         ["__RequestVerificationToken"] = AntiforgeryToken(page)
     });
 
@@ -2726,6 +3147,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             ["questionId"] = questionId.ToString(),
             ["Edit.Label"] = label,
             ["Edit.HelpText"] = helpText ?? string.Empty,
+            ["expectedFormVersion"] = InputValueByName(page, "expectedFormVersion"),
             ["__RequestVerificationToken"] = AntiforgeryToken(page)
         };
         if (structural is not null)
@@ -2737,11 +3159,13 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
 
     private static FormUrlEncodedContent QuestionPost(string page, string label, string type = "Text") => new(new Dictionary<string, string>
     {
+        ["addRequestId"] = InputValueByName(page, "addRequestId"),
         ["Input.Label"] = label,
         ["Input.Type"] = type,
         ["Input.HelpText"] = string.Empty,
         ["Input.Options"] = string.Empty,
         ["Input.AccountRole"] = string.Empty,
+        ["expectedFormVersion"] = InputValueByName(page, "expectedFormVersion"),
         ["__RequestVerificationToken"] = AntiforgeryToken(page)
     });
 
@@ -2750,8 +3174,8 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         $"<input(?=[^>]*\\bname=\"{Regex.Escape(name)}\")(?=[^>]*\\bvalue=\"([^\"]*)\")[^>]*>").Groups[1].Value);
     private static string HiddenValue(string page, string id) => Regex.Match(InputTag(page, id), "value=\"([^\"]*)\"").Groups[1].Value;
 
-    private static string RenderedParticipantDetailRoute(string page, Guid participantId) =>
-        Regex.Match(page, $"<tr[^>]*data-participant-id=\"{Regex.Escape(participantId.ToString())}\"[\\s\\S]*?<a[^>]+href=\"([^\"]+)\"", RegexOptions.CultureInvariant).Groups[1].Value;
+    private static string RenderedDrawerRoute(string page, Guid participantId) =>
+        Regex.Match(page, $"href=\"([^\"]+)\" data-participant-open=\"{Regex.Escape(participantId.ToString())}\"", RegexOptions.CultureInvariant).Groups[1].Value;
 
     private static decimal InputDecimal(string page, string id) => decimal.Parse(InputValue(page, id), CultureInfo.InvariantCulture);
 
@@ -2773,7 +3197,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         public Task<WiseOldManPlayerLookupResult> LookupPlayerAsync(string characterName, CancellationToken cancellationToken = default)
         {
             Calls++;
-            var ehb = characterName == "Route WoM Add" ? 3000.09582m : 17.5m;
+            var ehb = characterName == "Route WoM Ad" ? 3000.09582m : 17.5m;
             return Task.FromResult(new WiseOldManPlayerLookupResult(WiseOldManLookupStatus.Success, ehb, DateTimeOffset.UtcNow));
         }
     }

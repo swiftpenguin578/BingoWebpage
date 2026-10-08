@@ -1,0 +1,54 @@
+@using Microsoft.Extensions.Configuration
+@using Bingo.Web.Navigation
+@inject SharedShellService SharedShell
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+@{
+    var shell = ViewData["AdminDesignShell"] as AdminDesignShell ?? await SharedShell.GetAdminDesignAsync(User, ViewContext.RouteData.Values, Context.RequestAborted, Context.Request.Query["eventId"].ToString());
+    ViewData["AdminDesignShell"] = shell;
+    var title = ViewData["Title"]?.ToString() ?? "Admin";
+    var localizedTitle = ViewData["LocalizedTitle"] ?? (ViewData["Title"] is Microsoft.Extensions.Localization.LocalizedString translatedTitle ? translatedTitle.Value : T[title].Value);
+    ViewData["LocalizedTitle"] = localizedTitle;
+    var family = ViewData["PageFamily"] as string ?? throw new InvalidOperationException("A new-layout page must declare its fixed PageFamily key.");
+}
+<!DOCTYPE html>
+<html lang="@CultureInfo.CurrentUICulture.TwoLetterISOLanguageName" class="dk-theme">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@(localizedTitle) · DK Legacy Admin</title>
+    <script src="~/js/admin-design-theme.js" asp-append-version="true" data-admin-shell-script></script>
+    <link rel="stylesheet" href="~/css/admin-design-tokens.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-design-components.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/admin-design-layout.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
+</head>
+<body data-admin-design data-navigation-enabled="@(Configuration.GetValue<bool?>("AdminUi:InPageNavigation") ?? true)"
+      data-close="@T["Close"]" data-discard-title="@T["Discard unsaved changes?"]"
+      data-discard-description="@T["AdminDesign.Your changes to {0} haven’t been saved.", title]"
+      data-keep-editing="@T["Keep editing"]" data-discard="@T["Discard"]"
+      data-session-title="@T["Your changes were not saved"]" data-session-message="@T["Your session is no longer available. What you entered is still here. Sign in before trying again."]" data-sign-in="@T["Sign in"]" data-empty-value="@T["Empty"]"
+      data-readback-session-title="@T["You were signed out"]" data-readback-session-message="@T["You were signed out, so we could not check whether the change went through. Your draft is still here. Sign in and use Check again."]"
+      data-collapse-navigation="@T["Collapse sidebar"]" data-expand-navigation="@T["Expand sidebar"]" data-close-navigation="@T["Close navigation"]"
+      data-page-init-error-title="@T["Couldn’t initialize this page"]" data-page-init-error="@T["Try again, or open another page."]"
+      data-load-error-title="@T["Couldn’t load this event"]" data-load-error="@T["Check your connection and try again. Nothing was changed."]" data-retry="@T["Try again"]" data-loading="@T["Loading"]">
+    <a class="design-skip" href="#main-content">@T["Skip to main content"]</a>
+    <div class="app" id="admin-design-app">
+        <partial name="_AdminDesignSidebar" model="shell" />
+        <button class="nav-scrim" data-side-scrim tabindex="-1" aria-label="@T["Close navigation"]"></button>
+        <div class="main">
+            <partial name="_AdminDesignTopbar" model="shell" />
+            <main class="scroller" id="main-content" data-page-region>
+                <div class="page" data-page-family="@family">
+                    <header class="page-head" data-page-family="@family"><div style="min-width:0">@if (IsSectionDefined("HeaderTitle")) { @await RenderSectionAsync("HeaderTitle") } else { <h1 class="h1" id="page-h1" tabindex="-1">@(localizedTitle)</h1> }@if (IsSectionDefined("HeaderSummary")) { <p class="summary">@await RenderSectionAsync("HeaderSummary")</p> } else if (ViewData["Summary"] is { } summary) { <p class="summary"><span data-summary-template="@ViewData["SummaryTemplate"]">@summary</span></p> }</div>@await RenderSectionAsync("HeaderActions", required: false)</header>
+                    @RenderBody()
+                </div>
+            </main>
+        </div>
+    </div>
+    <partial name="_AdminDesignHosts" />
+    <form hidden data-shell-antiforgery>@Html.AntiForgeryToken()</form>
+    <script src="~/js/admin-design-shell.js" asp-append-version="true" defer data-admin-shell-script></script>
+    <script src="~/js/admin-design-fetch.js" asp-append-version="true" defer data-admin-shell-script></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

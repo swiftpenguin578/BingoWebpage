@@ -3,6 +3,7 @@ using Bingo.Domain.Access;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Infrastructure.Teams;
 using Bingo.Web;
 using Bingo.Web.Events;
 using Bingo.Web.Security;
@@ -35,7 +36,7 @@ public sealed class SignupsModel(ApplicationDbContext db, ITeamCaptainAuthorityS
     {
         var item = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Slug == slug && x.HiddenAt == null, ct);
         if (item is null) return NotFound();
-        var rosterExists = await db.DraftPublicationCycles.AsNoTracking().AnyAsync(x => x.SupersededAt == null && db.DraftSessions.Any(d => d.Id == x.DraftSessionId && d.EventId == item.Id), ct);
+        var rosterExists = await db.ActiveRosterPublications(item.Id).AnyAsync(ct);
         var policy = EventDestinationPolicy.From(item, rosterExists);
         var administrator = await HasHistoricalTableAccessAsync(ct);
         var accountId = User.GetAccountId();
@@ -72,9 +73,10 @@ public sealed class SignupsModel(ApplicationDbContext db, ITeamCaptainAuthorityS
             _ => item.State.ToString()
         };
         ParticipantCap = item.ParticipantCap;
-        // Retained historical questions remain visible to administrators, but public
-        // projections must honour the same explicit board-visibility flag.
-        var questions = await db.SignupQuestions.AsNoTracking().Where(x => x.EventId == item.Id && x.DisabledReason != SignupQuestion.DeletedReason && (captainDraftAccess ? x.Active : x.PublicOnSignupBoard)).OrderBy(x => x.Position).ToListAsync(ct);
+        // This route is the active-only public signup-table projection for every user,
+        // including Admin and SuperAdmin. Inactive legacy answers remain on authorized
+        // private history routes; deleted, private, and co-captain answers never enter it.
+        var questions = await db.SignupQuestions.AsNoTracking().Where(x => x.EventId == item.Id && x.DisabledReason != SignupQuestion.DeletedReason && x.Active && x.SystemField != SignupSystemField.CoCaptainName && (captainDraftAccess || x.PublicOnSignupBoard)).OrderBy(x => x.Position).ToListAsync(ct);
         var accountQuestions = questions.Where(x => x.Type == SignupQuestionType.Account).ToList();
         var regularCount = accountQuestions.Count(x => x.AccountAnswerRole == EventCharacterRole.Playing);
         var altCount = accountQuestions.Count(x => x.AccountAnswerRole == EventCharacterRole.Informational);
@@ -84,7 +86,18 @@ public sealed class SignupsModel(ApplicationDbContext db, ITeamCaptainAuthorityS
             .ToList();
         Columns = columns;
 
-        var participants = await db.EventParticipants.AsNoTracking().Where(x => x.EventId == item.Id && (captainDraftAccess ? x.SignupStatus == SignupStatus.Confirmed : x.SignupStatus == SignupStatus.Confirmed || x.SignupStatus == SignupStatus.WaitingList)).OrderBy(x => x.SignedUpAt).ThenBy(x => x.SignupSequence).ToListAsync(ct);
+        var participants = await db.EventParticipants.AsNoTracking()
+            .Where(x => x.EventId == item.Id && (captainDraftAccess
+                ? x.SignupStatus == SignupStatus.Confirmed
+                : x.SignupStatus == SignupStatus.Confirmed || x.SignupStatus == SignupStatus.WaitingList))
+            // Keep the displayed waiting positions aligned with the service's
+            // queue authority. Confirmed rows stay above the queue, while a
+            // restored/moved waiter is ordered by its new waiting timestamp.
+            .OrderBy(x => x.SignupStatus == SignupStatus.WaitingList)
+            .ThenBy(x => x.WaitingListedAt ?? x.SignedUpAt)
+            .ThenBy(x => x.SignupSequence)
+            .ThenBy(x => x.Id)
+            .ToListAsync(ct);
         var participantIds = participants.Select(x => x.Id).ToList();
         var assignments = await (from assignment in db.EventParticipantCharacters.AsNoTracking()
                                  join character in db.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id

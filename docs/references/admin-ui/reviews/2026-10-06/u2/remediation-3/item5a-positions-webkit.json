@@ -1,0 +1,567 @@
+[
+  {
+    "engine": "webkit",
+    "width": 390,
+    "loaded": {
+      ".page-head": {
+        "x": 16,
+        "y": 74,
+        "width": 358,
+        "height": 134.71875,
+        "minHeight": "0px"
+      },
+      ".h1": {
+        "x": 16,
+        "y": 74,
+        "width": 358,
+        "height": 27.59375,
+        "minHeight": "0px"
+      },
+      ".summary": {
+        "x": 16,
+        "y": 107.59375,
+        "width": 358,
+        "height": 43.125,
+        "minHeight": "0px"
+      },
+      ".summary-btn": {
+        "x": 10,
+        "y": 130.15625,
+        "width": 149.375,
+        "height": 21.5625,
+        "minHeight": "auto"
+      },
+      ".head-actions": {
+        "x": 16,
+        "y": 174.71875,
+        "width": 137.8125,
+        "height": 34,
+        "minHeight": "auto"
+      },
+      ".head-actions .btn": {
+        "x": 16,
+        "y": 174.71875,
+        "width": 137.8125,
+        "height": 34,
+        "minHeight": "auto"
+      },
+      ".toolbar": {
+        "x": 16,
+        "y": 228.71875,
+        "width": 358,
+        "height": 82,
+        "minHeight": "0px"
+      }
+    },
+    "reference": {
+      ".page-head": {
+        "x": 16,
+        "y": 74,
+        "width": 358,
+        "height": 134.71875,
+        "minHeight": "0px"
+      },
+      ".h1": {
+        "x": 16,
+        "y": 74,
+        "width": 358,
+        "height": 27.59375,
+        "minHeight": "0px"
+      },
+      ".summary": {
+        "x": 16,
+        "y": 107.59375,
+        "width": 358,
+        "height": 43.125,
+        "minHeight": "0px"
+      },
+      ".summary-btn": {
+        "x": 10,
+        "y": 130.15625,
+        "width": 149.375,
+        "height": 21.5625,
+        "minHeight": "auto"
+      },
+      ".head-actions": {
+        "x": 16,
+        "y": 174.71875,
+        "width": 137.8125,
+        "height": 34,
+        "minHeight": "auto"
+      },
+      ".head-actions .btn": {
+        "x": 16,
+        "y": 174.71875,
+        "width": 137.8125,
+        "height": 34,
+        "minHeight": "auto"
+      },
+      ".toolbar": {
+        "x": 16,
+        "y": 228.71875,
+        "width": 358,
+        "height": 82,
+        "minHeight": "0px"
+      }
+    },
+    "loading": {
+      "height": 43.140625,
+      "minHeight": 43.150002,
+      "line": 19.575001,
+      "gap": 4,
+      "text": ""
+    }
+  },
+  {
+    "engine": "webkit",
+    "width": 640,
+    "loaded": {
+      ".page-head": {
+        "x": 16,
+        "y": 74,
+        "width": 608,
+        "height": 111.15625,
+        "minHeight": "0px"
+      },
+      ".h1": {
+        "x": 16,
+        "y": 74,
+        "width": 323.703125,
+        "height": 27.59375,
+        "minHeight": "0px"
+      },
+      ".summary": {
+        "x": 16,
+        "y": 107.59375,
+        "width": 323.703125,
+        "height": 19.5625,
+        "minHeight": "0px"
+      },
+      ".summary-btn": {
+        "x": 221.609375,
+        "y": 106.59375,
+        "width": 124.09375,
+        "height": 21.5625,
+        "minHeight": "auto"
+      },
+      ".head-actions": {
+        "x": 16,
+        "y": 151.15625,
+        "width": 137.8125,
+        "height": 34,
+        "minHeight": "auto"
+      },
+      ".head-actions .btn": {
+        "x": 16,
+        "y": 151.15625,
+        "width": 137.8125,
+        "height": 34,
+        "minHeight": "auto"
+      },
+      ".toolbar": {
+        "x": 16,
+        "y": 205.15625,
+        "width": 608,
+        "height": 82,
+        "minHeight": "0px"
+      }
+    },
+    "reference": {
+      ".page-head": {
+        "x": 16,
+        "y": 74,
+        "width": 608,
+        "height": 111.15625,
+        "minHeight": "0px"
+      },
+      ".h1": {
+        "x": 16,
+        "y": 74,
+        "width": 323.703125,
+        "height": 27.59375,
+        "minHeight": "0px"
+      },
+      ".summary": {
+        "x": 16,
+        "y": 107.59375,
+        "width": 323.703125,
+        "height": 19.5625,
+        "minHeight": "0px"
+      },
+      ".summary-btn": {
+        "x": 221.609375,
+        "y": 106.59375,
+        "width": 124.09375,
+        "height": 21.5625,
+        "minHeight": "auto"
+      },
+      ".head-actions": {
+        "x": 16,
+        "y": 151.15625,
+        "width": 137.8125,
+        "height": 34,
+        "minHeight": "auto"
+      },
+      ".head-actions .btn": {
+        "x": 16,
+        "y": 151.15625,
+        "width": 137.8125,
+        "height": 34,
+        "minHeight": "auto"
+      },
+      ".toolbar": {
+        "x": 16,
+        "y": 205.15625,
+        "width": 608,
+        "height": 82,
+        "minHeight": "0px"
+      }
+    },
+    "loading": {
+      "height": 43.140625,
+      "minHeight": 43.150002,
+      "line": 19.575001,
+      "gap": 4,
+      "text": ""
+    }
+  },
+  {
+    "engine": "webkit",
+    "width": 860,
+    "loaded": {
+      ".page-head": {
+        "x": 16,
+        "y": 74,
+        "width": 828,
+        "height": 111.15625,
+        "minHeight": "0px"
+      },
+      ".h1": {
+        "x": 16,
+        "y": 74,
+        "width": 323.703125,
+        "height": 27.59375,
+        "minHeight": "0px"
+      },
+      ".summary": {
+        "x": 16,
+        "y": 107.59375,
+        "width": 323.703125,
+        "height": 19.5625,
+        "minHeight": "0px"
+      },
+      ".summary-btn": {
+        "x": 221.609375,
+        "y": 106.59375,
+        "width": 124.09375,
+        "height": 21.5625,
+        "minHeight": "auto"
+      },
+      ".head-actions": {
+        "x": 16,
+        "y": 151.15625,
+        "width": 137.8125,
+        "height": 34,
+        "minHeight": "auto"
+      },
+      ".head-actions .btn": {
+        "x": 16,
+        "y": 151.15625,
+        "width": 137.8125,
+        "height": 34,
+        "minHeight": "auto"
+      },
+      ".toolbar": {
+        "x": 16,
+        "y": 205.15625,
+        "width": 828,
+        "height": 36,
+        "minHeight": "0px"
+      }
+    },
+    "reference": {
+      ".page-head": {
+        "x": 16,
+        "y": 74,
+        "width": 828,
+        "height": 111.15625,
+        "minHeight": "0px"
+      },
+      ".h1": {
+        "x": 16,
+        "y": 74,
+        "width": 323.703125,
+        "height": 27.59375,
+        "minHeight": "0px"
+      },
+      ".summary": {
+        "x": 16,
+        "y": 107.59375,
+        "width": 323.703125,
+        "height": 19.5625,
+        "minHeight": "0px"
+      },
+      ".summary-btn": {
+        "x": 221.609375,
+        "y": 106.59375,
+        "width": 124.09375,
+        "height": 21.5625,
+        "minHeight": "auto"
+      },
+      ".head-actions": {
+        "x": 16,
+        "y": 151.15625,
+        "width": 137.8125,
+        "height": 34,
+        "minHeight": "auto"
+      },
+      ".head-actions .btn": {
+        "x": 16,
+        "y": 151.15625,
+        "width": 137.8125,
+        "height": 34,
+        "minHeight": "auto"
+      },
+      ".toolbar": {
+        "x": 16,
+        "y": 205.15625,
+        "width": 828,
+        "height": 36,
+        "minHeight": "0px"
+      }
+    },
+    "loading": {
+      "height": 43.140625,
+      "minHeight": 43.150002,
+      "line": 19.575001,
+      "gap": 4,
+      "text": ""
+    }
+  },
+  {
+    "engine": "webkit",
+    "width": 861,
+    "loaded": {
+      ".page-head": {
+        "x": 284,
+        "y": 82,
+        "width": 545,
+        "height": 53.15625,
+        "minHeight": "0px"
+      },
+      ".h1": {
+        "x": 284,
+        "y": 82,
+        "width": 323.703125,
+        "height": 27.59375,
+        "minHeight": "0px"
+      },
+      ".summary": {
+        "x": 284,
+        "y": 115.59375,
+        "width": 323.703125,
+        "height": 19.5625,
+        "minHeight": "0px"
+      },
+      ".summary-btn": {
+        "x": 489.609375,
+        "y": 114.59375,
+        "width": 124.09375,
+        "height": 21.5625,
+        "minHeight": "auto"
+      },
+      ".head-actions": {
+        "x": 691.1875,
+        "y": 101.15625,
+        "width": 137.8125,
+        "height": 34,
+        "minHeight": "auto"
+      },
+      ".head-actions .btn": {
+        "x": 691.1875,
+        "y": 101.15625,
+        "width": 137.8125,
+        "height": 34,
+        "minHeight": "auto"
+      },
+      ".toolbar": {
+        "x": 284,
+        "y": 155.15625,
+        "width": 545,
+        "height": 82,
+        "minHeight": "0px"
+      }
+    },
+    "reference": {
+      ".page-head": {
+        "x": 284,
+        "y": 82,
+        "width": 545,
+        "height": 53.15625,
+        "minHeight": "0px"
+      },
+      ".h1": {
+        "x": 284,
+        "y": 82,
+        "width": 323.703125,
+        "height": 27.59375,
+        "minHeight": "0px"
+      },
+      ".summary": {
+        "x": 284,
+        "y": 115.59375,
+        "width": 323.703125,
+        "height": 19.5625,
+        "minHeight": "0px"
+      },
+      ".summary-btn": {
+        "x": 489.609375,
+        "y": 114.59375,
+        "width": 124.09375,
+        "height": 21.5625,
+        "minHeight": "auto"
+      },
+      ".head-actions": {
+        "x": 691.1875,
+        "y": 101.15625,
+        "width": 137.8125,
+        "height": 34,
+        "minHeight": "auto"
+      },
+      ".head-actions .btn": {
+        "x": 691.1875,
+        "y": 101.15625,
+        "width": 137.8125,
+        "height": 34,
+        "minHeight": "auto"
+      },
+      ".toolbar": {
+        "x": 284,
+        "y": 155.15625,
+        "width": 545,
+        "height": 82,
+        "minHeight": "0px"
+      }
+    },
+    "loading": {
+      "height": 19.5625,
+      "minHeight": 19.575001,
+      "line": 19.575001,
+      "gap": 4,
+      "text": ""
+    }
+  },
+  {
+    "engine": "webkit",
+    "width": 1280,
+    "loaded": {
+      ".page-head": {
+        "x": 284,
+        "y": 82,
+        "width": 964,
+        "height": 53.15625,
+        "minHeight": "0px"
+      },
+      ".h1": {
+        "x": 284,
+        "y": 82,
+        "width": 323.703125,
+        "height": 27.59375,
+        "minHeight": "0px"
+      },
+      ".summary": {
+        "x": 284,
+        "y": 115.59375,
+        "width": 323.703125,
+        "height": 19.5625,
+        "minHeight": "0px"
+      },
+      ".summary-btn": {
+        "x": 489.609375,
+        "y": 114.59375,
+        "width": 124.09375,
+        "height": 21.5625,
+        "minHeight": "auto"
+      },
+      ".head-actions": {
+        "x": 1110.1875,
+        "y": 101.15625,
+        "width": 137.8125,
+        "height": 34,
+        "minHeight": "auto"
+      },
+      ".head-actions .btn": {
+        "x": 1110.1875,
+        "y": 101.15625,
+        "width": 137.8125,
+        "height": 34,
+        "minHeight": "auto"
+      },
+      ".toolbar": {
+        "x": 284,
+        "y": 155.15625,
+        "width": 964,
+        "height": 36,
+        "minHeight": "0px"
+      }
+    },
+    "reference": {
+      ".page-head": {
+        "x": 284,
+        "y": 82,
+        "width": 964,
+        "height": 53.15625,
+        "minHeight": "0px"
+      },
+      ".h1": {
+        "x": 284,
+        "y": 82,
+        "width": 323.703125,
+        "height": 27.59375,
+        "minHeight": "0px"
+      },
+      ".summary": {
+        "x": 284,
+        "y": 115.59375,
+        "width": 323.703125,
+        "height": 19.5625,
+        "minHeight": "0px"
+      },
+      ".summary-btn": {
+        "x": 489.609375,
+        "y": 114.59375,
+        "width": 124.09375,
+        "height": 21.5625,
+        "minHeight": "auto"
+      },
+      ".head-actions": {
+        "x": 1110.1875,
+        "y": 101.15625,
+        "width": 137.8125,
+        "height": 34,
+        "minHeight": "auto"
+      },
+      ".head-actions .btn": {
+        "x": 1110.1875,
+        "y": 101.15625,
+        "width": 137.8125,
+        "height": 34,
+        "minHeight": "auto"
+      },
+      ".toolbar": {
+        "x": 284,
+        "y": 155.15625,
+        "width": 964,
+        "height": 36,
+        "minHeight": "0px"
+      }
+    },
+    "loading": {
+      "height": 19.5625,
+      "minHeight": 19.575001,
+      "line": 19.575001,
+      "gap": 4,
+      "text": ""
+    }
+  }
+]

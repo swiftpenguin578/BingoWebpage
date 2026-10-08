@@ -1,3 +1,9 @@
+> Historical pre-simplification ticket ledger; not an active queue or authority.
+> Preserve recorded outcomes as evidence. Later simplification and approved UI-era
+> changes supersede conflicting requirements; use PRODUCT_REQUIREMENTS,
+> FUNCTIONAL_CONTRACTS and DELIVERY_PLAN. Model/routing/authorization statements
+> below applied to those old assignments only and do not dispatch new work.
+
 # September 2026 follow-up backlog
 
 Execution snapshot: 23 September 2026. The original nine ticket implementations have independent technical **PASS** verdicts. The user accepted the current work, including final display corrections, on 2026-09-23; manual execution, explicit waivers and live-test deferrals are distinguished in MANUAL_TEST_CHECKLIST.md, “Current walkthrough disposition”. Older per-ticket pending manual statuses below are superseded by this acceptance; they do not imply that waived/deferred scenarios were executed. A later Astra review identified bounded follow-up findings F1–F8. Their corrections passed focused checks and one fresh independent Sol/high named-finding review with no residual technical finding. The inherited leaderboard and managed-WOM localization corrections are recorded with that supplement. Manual acceptance is now explicit within the scope and exceptions recorded above.

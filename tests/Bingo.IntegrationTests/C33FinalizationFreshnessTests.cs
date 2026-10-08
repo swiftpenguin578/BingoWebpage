@@ -32,7 +32,7 @@ namespace Bingo.IntegrationTests;
 
 public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
         .WithDatabase("c33_freshness").WithUsername("bingo").WithPassword("bingo_test_password").Build();
     private readonly DateTimeOffset now = new(2026, 9, 14, 12, 0, 0, TimeSpan.Zero);
     private DbContextOptions<ApplicationDbContext> options = null!;
@@ -40,8 +40,8 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        await database.StartAsync();
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
+        await PostgreSqlReadiness.StartAsync(database);
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
         await db.Database.MigrateAsync();
         fixture = await SeedAsync(db);
@@ -50,73 +50,95 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
 
     [Fact]
-    public async Task ActualFormsRejectChangedAndReturnedInputsThenReinspectAndFinalizeWithoutReusingHistory()
+    public async Task BFinal2Br12StructuredCurrentAndMissingReopenVersionAreHonest()
+    {
+        await ApproveAsync(fixture.First);
+        await RejectAsync(fixture.Replacement);
+        await using var factory = Factory();
+        using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
+        await LoginAsync(client, "c33-admin");
+        var publish = Form(await client.GetStringAsync(FinalizeUrl), "Finalize");
+        publish.Fields["FinalizeConfirmation"] = "PUBLISH_OFFICIAL_RESULTS";
+        client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+        using var response = await client.PostAsync(publish.Action, new FormUrlEncodedContent(publish.Fields));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.True(body.RootElement.GetProperty("succeeded").GetBoolean());
+        Assert.Equal("Archived", body.RootElement.GetProperty("current").GetProperty("state").GetString());
+        using var current = await client.GetAsync(FinalizeUrl + "?handler=Current");
+        Assert.Equal(HttpStatusCode.OK, current.StatusCode);
+        Assert.True(current.Headers.CacheControl!.NoStore);
+        using var readback = JsonDocument.Parse(await current.Content.ReadAsStringAsync());
+        Assert.Single(readback.RootElement.GetProperty("history").EnumerateArray());
+        client.DefaultRequestHeaders.Accept.Clear();
+        var reopen = Form(await client.GetStringAsync(FinalizeUrl), "Unfinalize");
+        reopen.Fields.Remove("ExpectedVersion");
+        reopen.Fields["Reason"] = "B-Final-2 / BR-12 missing version";
+        reopen.Fields["ConfirmLifecycleAction"] = "true";
+        await using var db = new ApplicationDbContext(options);
+        var transitions = await db.EventStateTransitions.CountAsync();
+        var audits = await db.AuditEntries.CountAsync();
+        client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+        using var refused = await client.PostAsync(reopen.Action, new FormUrlEncodedContent(reopen.Fields));
+        using var refusal = JsonDocument.Parse(await refused.Content.ReadAsStringAsync());
+        Assert.False(refusal.RootElement.GetProperty("succeeded").GetBoolean());
+        Assert.Equal("refused", refusal.RootElement.GetProperty("outcome").GetString());
+        Assert.Equal(EventState.Archived, (await db.Events.SingleAsync()).State);
+        Assert.Equal(transitions, await db.EventStateTransitions.CountAsync());
+        Assert.Equal(audits, await db.AuditEntries.CountAsync());
+    }
+
+    [Fact]
+    public async Task ActualPublishFormRejectsStaleResultsThenPublishesCalculatedHistory()
     {
         await using var factory = Factory();
         using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
         await LoginAsync(client, "c33-admin");
         await ReviewHttpAsync(client, fixture.First, "Approve");
         var first = await ReadinessAsync();
-        var initialInspection = Form(await client.GetStringAsync(FinalizeUrl), "AcknowledgeCompletion", fixture.TeamA);
-        var teamBInspection = Form(await client.GetStringAsync(FinalizeUrl), "AcknowledgeCompletion", fixture.TeamB);
-        Assert.Equal(Key(first, fixture.TeamA), initialInspection.Fields["ExpectedInspectionKey"]);
-        await PostAsync(client, initialInspection);
-        // The other displayed form is now version-stale, but its team's inspection identity is unchanged.
-        await PostAsync(client, teamBInspection);
-        Assert.False(Blocker(await ReadinessAsync(), fixture.TeamB).Resolved);
-        await AcknowledgeHttpAsync(client, fixture.TeamB);
-        var inspected = await ReadinessAsync();
-        Assert.True(Blocker(inspected, fixture.TeamA).Resolved);
         var staleFinalize = Form(await client.GetStringAsync(FinalizeUrl), "Finalize");
         await ReviewHttpAsync(client, fixture.First, "Reverse");
-        var incomplete = await ReadinessAsync();
-        Assert.False(incomplete.Placements.Single(x => x.TeamId == fixture.TeamA).BoardComplete);
-        Assert.True(Blocker(incomplete, fixture.TeamB).Resolved);
-        await PostAsync(client, staleFinalize, ("FinalizeConfirmation", "PUBLISH_OFFICIAL_RESULTS"));
-        await AssertNotFinalizedAsync();
-        await PostAsync(client, initialInspection);
-        Assert.Equal(2, await ResolutionCountAsync());
+        var changed = await ReadinessAsync();
+        Assert.False(changed.Placements.Single(x => x.TeamId == fixture.TeamA).BoardComplete);
         await ReviewHttpAsync(client, fixture.Replacement, "Approve");
         var returned = await ReadinessAsync();
+        Assert.True(returned.EventVersion > first.EventVersion);
         Assert.Equal(first.ReviewCycleId, returned.ReviewCycleId);
-        Assert.Equal(first.Placements.Single(x => x.TeamId == fixture.TeamA), returned.Placements.Single(x => x.TeamId == fixture.TeamA));
-        Assert.NotEqual(Key(first, fixture.TeamA), Key(returned, fixture.TeamA));
-        Assert.False(Blocker(returned, fixture.TeamA).Resolved);
-        Assert.True(Blocker(returned, fixture.TeamB).Resolved);
-        await PostAsync(client, initialInspection);
-        // Even a forged current version cannot turn an old inspection identity into a new acknowledgment.
-        await PostAsync(client, initialInspection, ("ExpectedVersion", returned.EventVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)));
-        Assert.Equal(2, await ResolutionCountAsync());
-        var freshInspection = Form(await client.GetStringAsync(FinalizeUrl), "AcknowledgeCompletion", fixture.TeamA);
-        await PostAsync(client, freshInspection);
-        var afterAck = await ReadinessAsync();
-        await PostAsync(client, freshInspection); // exact authorized replay
-        Assert.Equal(afterAck.EventVersion, (await ReadinessAsync()).EventVersion);
-        Assert.Equal(3, await ResolutionCountAsync());
-        await ResolveAllAsync();
+        foreach (var placement in first.Placements.Where(x => x.TeamId != fixture.TeamA))
+            Assert.Equal(placement, returned.Placements.Single(x => x.TeamId == placement.TeamId));
+        var firstTeamA = first.Placements.Single(x => x.TeamId == fixture.TeamA);
+        var returnedTeamA = returned.Placements.Single(x => x.TeamId == fixture.TeamA);
+        Assert.Equal(firstTeamA.Placement, returnedTeamA.Placement);
+        Assert.Equal(firstTeamA.BoardComplete, returnedTeamA.BoardComplete);
+        Assert.Equal(now.AddHours(-3).AddMinutes(1), returnedTeamA.CurrentScoreReachedAt);
+        Assert.NotEqual(firstTeamA.CurrentScoreReachedAt, returnedTeamA.CurrentScoreReachedAt);
+        await PostAsync(client, staleFinalize, ("FinalizeConfirmation", "PUBLISH_OFFICIAL_RESULTS"));
+        await AssertNotFinalizedAsync();
+        var staleHtml = WebUtility.HtmlDecode(await client.GetStringAsync(FinalizeUrl));
+        Assert.Contains("This event changed in another session", staleHtml, StringComparison.Ordinal);
+        AssertStalePublishShownAsErrorToast(staleHtml); // A10: shared Admin toast.
         var finalReadiness = await ReadinessAsync();
         var finalForm = Form(await client.GetStringAsync(FinalizeUrl), "Finalize");
         await PostAsync(client, finalForm, ("FinalizeConfirmation", "PUBLISH_OFFICIAL_RESULTS"));
         await using var verify = new ApplicationDbContext(options);
-        Assert.Equal(EventState.Finalized, await verify.Events.Select(x => x.State).SingleAsync());
+        Assert.Equal(EventState.Archived, await verify.Events.Select(x => x.State).SingleAsync());
         var snapshot = await verify.EventFinalizations.SingleAsync();
         Assert.Equal(2, await verify.OfficialPlacements.CountAsync());
         Assert.Contains("CurrentScoreReachedAt", snapshot.CalculationInputsJson, StringComparison.Ordinal);
         foreach (var placement in finalReadiness.Placements)
             Assert.Equal(placement.CurrentScoreReachedAt, await verify.OfficialPlacements.Where(value => value.TeamId == placement.TeamId)
                 .Select(value => value.CurrentScoreReachedAt).SingleAsync());
-        var historical = await verify.FinalReviewResolutions.SingleAsync(x => x.BlockerKey == Key(first, fixture.TeamA));
-        Assert.DoesNotContain(historical.Id.ToString(), snapshot.ConsumedResolutionIdsJson);
-        Assert.Equal(3, await verify.FinalReviewResolutions.CountAsync(x => x.Kind == FinalReviewResolutionKind.CompletionTimeAcknowledgement));
         var published = await client.GetStringAsync($"/Events/{fixture.Slug}/Board");
         Assert.Contains("Team A", published);
         Assert.Contains("Team B", published);
         await PostAsync(client, finalForm, ("FinalizeConfirmation", "PUBLISH_OFFICIAL_RESULTS"));
         Assert.Single(await verify.EventFinalizations.AsNoTracking().ToListAsync());
+        Assert.Empty(await verify.FinalReviewResolutions.ToListAsync());
+        Assert.Empty(await verify.TeamCompletionCorrections.ToListAsync());
     }
 
     [Fact]
-    public async Task IncompleteTieAcknowledgementSurvivesUnchangedInputsButNotChangedScoreTimeWhenTieReturns()
+    public async Task EvidenceDerivedEqualAndUnequalScoreTimesDriveRankAndPublishExactTie()
     {
         Guid originalB;
         Guid earlyB;
@@ -124,8 +146,8 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         Guid laterB;
         await using (var setup = new ApplicationDbContext(options))
         {
-            // Publish a second, unfinished tile so this exercises placement review without
-            // the full-board completion-inspection blockers masking a stale tie resolution.
+            // Publish a second, unfinished tile so ranking is driven by evidence-derived
+            // score time even when the boards are incomplete.
             var board = await setup.Boards.SingleAsync(x => x.EventId == fixture.EventId);
             var tile = await setup.BoardTiles.SingleAsync(x => x.Id == fixture.Tile);
             var requirement = await setup.BoardRequirementSnapshots.SingleAsync(x => x.Id == fixture.Requirement);
@@ -168,54 +190,49 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         async Task ReverseAsync(Guid submissionId)
         {
             await using var db = new ApplicationDbContext(options);
-            await Submissions(db).ReverseAsync(submissionId, fixture.Admin, "Changed tie evidence");
-        }
-        static FinalReviewBlocker Tie(FinalReviewReadiness readiness) =>
-            readiness.Blockers.Single(x => x.Key.StartsWith("placement-tie-", StringComparison.Ordinal));
-        async Task ResolveTieAsync(FinalReviewReadiness readiness, string key)
-        {
-            await using var db = new ApplicationDbContext(options);
-            await Finalization(db).ResolveBlockerAsync(fixture.EventId, key, "Inspected current tie", true,
-                fixture.Admin, readiness.EventVersion, readiness.ReviewCycleId);
+            await Submissions(db).ReverseCurrentAsync(submissionId, fixture.Admin, "Changed tie evidence");
         }
 
         await ReverseAsync(originalB);
         await ApproveAsync(fixture.First);
         await ApproveAsync(earlyB);
+        await RejectAsync(fixture.Replacement);
         var initial = await ReadinessAsync();
-        Assert.All(initial.Placements, x => { Assert.False(x.BoardComplete); Assert.Equal(1, x.CompletedTiles); Assert.Equal(now.AddHours(-3), x.CurrentScoreReachedAt); });
+        Assert.All(initial.Placements, x =>
+        {
+            Assert.False(x.BoardComplete);
+            Assert.Equal(1, x.CompletedTiles);
+            Assert.Equal(now.AddHours(-3), x.CurrentScoreReachedAt);
+        });
+        Assert.Equal(initial.Placements[0].Placement, initial.Placements[1].Placement);
         Assert.DoesNotContain(initial.Blockers, x => x.IsCompletionTimeAcknowledgement);
-        var oldKey = Tie(initial).Key;
-        await ResolveTieAsync(initial, oldKey);
-        await using (var unrelated = new ApplicationDbContext(options))
-            await Submissions(unrelated).RejectAsync(fixture.Replacement, fixture.Admin, "Unrelated pending evidence rejected");
-        var unchanged = await ReadinessAsync();
-        Assert.True(unchanged.EventVersion > initial.EventVersion);
-        Assert.Equal(oldKey, Tie(unchanged).Key);
-        Assert.True(Tie(unchanged).Resolved);
 
         await ReverseAsync(fixture.First);
         await ApproveAsync(laterA);
         var broken = await ReadinessAsync();
-        Assert.DoesNotContain(broken.Blockers, x => x.Key.StartsWith("placement-tie-", StringComparison.Ordinal));
+        Assert.NotEqual(broken.Placements[0].CurrentScoreReachedAt, broken.Placements[1].CurrentScoreReachedAt);
+        Assert.NotEqual(broken.Placements[0].Placement, broken.Placements[1].Placement);
         await ReverseAsync(earlyB);
         await ApproveAsync(laterB);
         var returned = await ReadinessAsync();
         Assert.Equal(initial.ReviewCycleId, returned.ReviewCycleId);
-        foreach (var placement in returned.Placements)
-        {
-            var before = initial.Placements.Single(x => x.TeamId == placement.TeamId);
-            Assert.Equal(before with { CurrentScoreReachedAt = now.AddHours(-2) }, placement);
-        }
-        Assert.NotEqual(oldKey, Tie(returned).Key);
-        Assert.False(Tie(returned).Resolved);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => ResolveTieAsync(returned, oldKey));
-        Assert.Equal(1, await ResolutionCountAsync());
-        await ResolveTieAsync(returned, Tie(returned).Key);
-        Assert.True(Tie(await ReadinessAsync()).Resolved);
+        Assert.True(returned.CanFinalize);
+        Assert.Equal(returned.Placements[0].Placement, returned.Placements[1].Placement);
+        Assert.Equal(returned.Placements[0].CurrentScoreReachedAt, returned.Placements[1].CurrentScoreReachedAt);
+        Assert.Equal(now.AddHours(-2), returned.Placements[0].CurrentScoreReachedAt);
+        await FinalizeAsync();
         await using var history = new ApplicationDbContext(options);
-        Assert.Equal(2, await history.FinalReviewResolutions.CountAsync());
-        Assert.True(await history.FinalReviewResolutions.AnyAsync(x => x.BlockerKey == oldKey));
+        Assert.Equal(EventState.Archived, await history.Events.Select(x => x.State).SingleAsync());
+        var snapshot = await history.EventFinalizations.SingleAsync();
+        Assert.Contains("exactTieExplanations", snapshot.CalculationInputsJson, StringComparison.Ordinal);
+        Assert.Equal(returned.Placements[0].Placement, await history.OfficialPlacements
+            .Where(x => x.FinalizationId == snapshot.Id && x.TeamId == returned.Placements[0].TeamId)
+            .Select(x => x.Placement).SingleAsync());
+        Assert.Equal(returned.Placements[0].CurrentScoreReachedAt, await history.OfficialPlacements
+            .Where(x => x.FinalizationId == snapshot.Id && x.TeamId == returned.Placements[0].TeamId)
+            .Select(x => x.CurrentScoreReachedAt).SingleAsync());
+        Assert.Empty(await history.FinalReviewResolutions.ToListAsync());
+        Assert.Empty(await history.TeamCompletionCorrections.ToListAsync());
     }
 
     [Fact]
@@ -292,54 +309,62 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
     [InlineData("Approve")]
     public async Task PendingReviewChangesAdvanceEventFreshnessAndRejectOldFinalizeHttp(string handler)
     {
+        await RejectAsync(fixture.Replacement);
         await using var factory = Factory();
         using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
         await LoginAsync(client, "c33-admin");
         var before = await ReadinessAsync();
         var finalForm = Form(await client.GetStringAsync(FinalizeUrl), "Finalize");
         await ReviewHttpAsync(client, fixture.First, handler);
+        if (handler == "Edit") await ReviewHttpAsync(client, fixture.First, "Reject");
         var after = await ReadinessAsync();
-        Assert.Equal(before.EventVersion + 1, after.EventVersion);
-        Assert.Equal(Key(before, fixture.TeamB), Key(after, fixture.TeamB));
+        Assert.Equal(before.EventVersion + (handler == "Edit" ? 2 : 1), after.EventVersion);
+        Assert.True(after.CanFinalize);
         await PostAsync(client, finalForm, ("FinalizeConfirmation", "PUBLISH_OFFICIAL_RESULTS"));
         await AssertNotFinalizedAsync();
         var html = WebUtility.HtmlDecode(await client.GetStringAsync(FinalizeUrl));
         Assert.Contains("This event changed in another session", html);
-        Assert.Contains("app-toast-error", html);
-        Assert.DoesNotContain("app-toast-success", html);
+        AssertStalePublishShownAsErrorToast(html); // A10: shared Admin toast.
+    }
+
+    // The rendered error toast itself must carry the stale-publish message, and
+    // no polite status toast may carry it (the layout always contains unrelated
+    // is-error banner templates, so a page-wide match would prove nothing).
+    private static void AssertStalePublishShownAsErrorToast(string html)
+    {
+        Assert.Matches(new Regex(@"<div class=""toast is-error"" data-toast role=""alert"">(?:(?!</div>).)*?data-component-text>[^<]*This event changed in another session", RegexOptions.Singleline), html);
+        Assert.DoesNotMatch(new Regex(@"<div class=""toast\s*"" data-toast role=""status""[^>]*>(?:(?!</div>).)*?This event changed in another session", RegexOptions.Singleline), html);
     }
 
     [Fact]
-    public async Task CompletionCorrectionsAtIdenticalClockRetainOldInspectionsAndRejectChangeAndReturnReplay()
+    public async Task CalculatedScoreTimeIgnoresRetiredManualCompletionCorrectionAndFreezesOnPublish()
     {
         await ApproveAsync(fixture.First);
-        await AcknowledgeAsync(fixture.TeamA);
-        await AcknowledgeAsync(fixture.TeamB);
-        var first = await ReadinessAsync();
-        var correctedAt = now.AddHours(-2).AddMinutes(-30);
-        await CorrectAsync(correctedAt, "first correction");
-        await AcknowledgeAsync(fixture.TeamA);
-        var inspectedCorrection = await ReadinessAsync();
-        await CorrectAsync(correctedAt.AddMinutes(1), "next correction");
-        await CorrectAsync(correctedAt, "first correction");
-        var returned = await ReadinessAsync();
-        Assert.NotEqual(Key(inspectedCorrection, fixture.TeamA), Key(returned, fixture.TeamA));
-        Assert.False(Blocker(returned, fixture.TeamA).Resolved);
-        Assert.True(Blocker(returned, fixture.TeamB).Resolved);
+        await RejectAsync(fixture.Replacement);
+        var readiness = await ReadinessAsync();
+        Assert.True(readiness.CanFinalize);
+        var expectedTeamATime = await SubmissionSubmittedAtAsync(fixture.TeamA);
+        Assert.Equal(expectedTeamATime, readiness.Placements.Single(x => x.TeamId == fixture.TeamA).CurrentScoreReachedAt);
+        var correctionCount = await CompletionCorrectionCountAsync();
         await using var db = new ApplicationDbContext(options);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => Finalization(db).AcknowledgeCompletionTimeAsync(fixture.EventId, fixture.TeamA, fixture.Admin, returned.EventVersion, returned.ReviewCycleId, expectedInspectionKey: Key(inspectedCorrection, fixture.TeamA)));
-        Assert.Equal(3, await db.FinalReviewResolutions.CountAsync());
-        Assert.Equal(3, await db.AuditEntries.CountAsync(x => x.Action == "event.completion_time_corrected"));
-        await Assert.ThrowsAsync<InvalidOperationException>(() => Finalization(db).CorrectCompletionAsync(fixture.EventId, fixture.TeamA, correctedAt, "first correction", fixture.Admin, first.EventVersion, first.ReviewCycleId));
-        await AcknowledgeAsync(fixture.TeamA);
-        await ResolveAllAsync();
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => Finalization(db).CorrectCompletionAsync(
+            fixture.EventId, fixture.TeamA, now.AddHours(-2).AddMinutes(-30), "retired correction", fixture.Admin,
+            readiness.EventVersion, readiness.ReviewCycleId));
+        Assert.Contains("retired", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(correctionCount, await CompletionCorrectionCountAsync());
         await FinalizeAsync();
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(EventState.Archived, await verify.Events.Select(x => x.State).SingleAsync());
+        Assert.Equal(expectedTeamATime, await verify.OfficialPlacements.Where(x => x.TeamId == fixture.TeamA)
+            .Select(x => x.CurrentScoreReachedAt).SingleAsync());
+        Assert.Empty(await verify.TeamCompletionCorrections.ToListAsync());
     }
 
     [Fact]
-    public async Task CorrectedEqualFinishTimesTieAndFreezeTheEffectiveScoreTime()
+    public async Task EvidenceDerivedScoreTimeDifferenceDeterminesRankAndFreezesOfficialSnapshot()
     {
         await ApproveAsync(fixture.First);
+        await RejectAsync(fixture.Replacement);
         var before = await ReadinessAsync();
         var teamA = before.Placements.Single(value => value.TeamId == fixture.TeamA);
         var teamB = before.Placements.Single(value => value.TeamId == fixture.TeamB);
@@ -348,32 +373,6 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         Assert.True(teamA.CalculatedCompletedAt.Value < teamB.CalculatedCompletedAt.Value);
         Assert.True(teamA.Placement < teamB.Placement);
         Assert.NotEqual(teamA.CurrentScoreReachedAt, teamB.CurrentScoreReachedAt);
-        await AcknowledgeAsync(fixture.TeamA);
-        await AcknowledgeAsync(fixture.TeamB);
-        var inspected = await ReadinessAsync();
-        var oldTeamBInspection = Key(inspected, fixture.TeamB);
-
-        await using (var correction = new ApplicationDbContext(options))
-            await Finalization(correction).CorrectCompletionAsync(fixture.EventId, fixture.TeamB,
-                teamA.CalculatedCompletedAt.Value, "Equalize the authoritative finish times", fixture.Admin,
-                inspected.EventVersion, inspected.ReviewCycleId);
-
-        var corrected = await ReadinessAsync();
-        var correctedA = corrected.Placements.Single(value => value.TeamId == fixture.TeamA);
-        var correctedB = corrected.Placements.Single(value => value.TeamId == fixture.TeamB);
-        Assert.Equal(correctedA.Placement, correctedB.Placement);
-        Assert.Equal(correctedA.CurrentScoreReachedAt, correctedB.CurrentScoreReachedAt);
-        Assert.Equal(correctedA.CalculatedCompletedAt, correctedB.CurrentScoreReachedAt);
-        Assert.NotEqual(oldTeamBInspection, Key(corrected, fixture.TeamB));
-        Assert.True(Blocker(corrected, fixture.TeamA).Resolved);
-        Assert.False(Blocker(corrected, fixture.TeamB).Resolved);
-        Assert.Contains(corrected.Blockers, value => value.Key.StartsWith("placement-tie-", StringComparison.Ordinal));
-
-        await using (var stale = new ApplicationDbContext(options))
-            await Assert.ThrowsAsync<InvalidOperationException>(() => Finalization(stale).AcknowledgeCompletionTimeAsync(
-                fixture.EventId, fixture.TeamB, fixture.Admin, corrected.EventVersion, corrected.ReviewCycleId, oldTeamBInspection));
-        await AcknowledgeAsync(fixture.TeamB);
-        await ResolveAllAsync();
         await FinalizeAsync();
 
         await using var verify = new ApplicationDbContext(options);
@@ -381,67 +380,105 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         using var inputs = JsonDocument.Parse(snapshot.CalculationInputsJson!);
         var teamBInput = inputs.RootElement.GetProperty("teams").EnumerateArray()
             .Single(value => value.GetProperty("TeamId").GetGuid() == fixture.TeamB);
-        Assert.Equal(correctedB.CurrentScoreReachedAt, teamBInput.GetProperty("CurrentScoreReachedAt").GetDateTimeOffset());
-        Assert.Equal(correctedB.CurrentScoreReachedAt, await verify.OfficialPlacements
+        Assert.Equal(teamB.CurrentScoreReachedAt, teamBInput.GetProperty("CurrentScoreReachedAt").GetDateTimeOffset());
+        Assert.Equal(teamB.CurrentScoreReachedAt, await verify.OfficialPlacements
             .Where(value => value.FinalizationId == snapshot.Id && value.TeamId == fixture.TeamB)
             .Select(value => value.CurrentScoreReachedAt).SingleAsync());
+        Assert.Empty(await verify.TeamCompletionCorrections.ToListAsync());
+        Assert.Empty(await verify.FinalReviewResolutions.ToListAsync());
     }
 
     [Fact]
     public async Task FinalizationPageExplainsAndDisplaysScoreTimeInEnglishAndDanish()
     {
+        await ApproveAsync(fixture.First); // gives team A a dated current-score time
         await using var factory = Factory();
         using var english = factory.CreateClient(new() { AllowAutoRedirect = false });
         await LoginAsync(english, "c33-admin");
         var englishHtml = WebUtility.HtmlDecode(await english.GetStringAsync(FinalizeUrl));
-        Assert.Contains("Rank order: completed boards by effective finish time", englishHtml, StringComparison.Ordinal);
-        Assert.Contains(">Score time</th>", englishHtml, StringComparison.Ordinal);
-        Assert.Contains(Regex.Matches(englishHtml, "<td data-label=\\\"Score time\\\"><span>(.*?)</span></td>")
-            .Cast<Match>(), match => match.Groups[1].Value != "—");
+        // A10 / AU12: shared table markup, same authoritative score-time values and rule explanation.
+        Assert.Contains("Completed boards first, then earlier completion.", englishHtml, StringComparison.Ordinal);
+        Assert.Contains(">Score reached</div>", englishHtml, StringComparison.Ordinal);
+        // The 1x1 fixture completes the board, so the Score reached cell (last cell of the row) reads
+        // "At completion" and the dated completion value sits in the Full board cell (second cell).
+        Assert.Matches(@"role=""cell""><span class=""tval[^""]*"">At completion</span></div></div>", englishHtml);
+        Assert.Matches(@"</div></div></div><div class=""td"" role=""cell""><span class=""tval[^""]*"">[0-9]{2} [A-Za-z]+ [0-9]{4}", englishHtml);
 
         using var danish = factory.CreateClient(new() { AllowAutoRedirect = false });
         danish.DefaultRequestHeaders.AcceptLanguage.ParseAdd("da");
         await LoginAsync(danish, "c33-admin");
         var danishHtml = WebUtility.HtmlDecode(await danish.GetStringAsync(FinalizeUrl));
-        Assert.Contains("Rangorden: fuldførte boards efter gældende sluttid", danishHtml, StringComparison.Ordinal);
-        Assert.Contains(">Scoretid</th>", danishHtml, StringComparison.Ordinal);
-        Assert.Contains(Regex.Matches(danishHtml, "<td data-label=\\\"Scoretid\\\"><span>(.*?)</span></td>")
-            .Cast<Match>(), match => match.Groups[1].Value != "—");
+        Assert.Contains("Fuldførte plader først, derefter tidligste fuldførelse.", danishHtml, StringComparison.Ordinal);
+        Assert.Contains(">Score opnået</div>", danishHtml, StringComparison.Ordinal);
+        Assert.Matches(@"role=""cell""><span class=""tval[^""]*"">Ved fuldførelse</span></div></div>", danishHtml);
+        Assert.Matches(@"</div></div></div><div class=""td"" role=""cell""><span class=""tval[^""]*"">[0-9]{2} ", danishHtml);
     }
 
     [Fact]
-    public async Task MissingForgedAndUnauthorizedHttpTokensCannotWriteInspectionOrOfficialState()
+    public async Task FinalizationHttpBoundaryRejectsForgedInputsAndRetiredReviewMutationsWithoutWrites()
     {
         await ApproveAsync(fixture.First);
         await using var factory = Factory();
         using var admin = factory.CreateClient(new() { AllowAutoRedirect = false });
         await LoginAsync(admin, "c33-admin");
-        var form = Form(await admin.GetStringAsync(FinalizeUrl), "AcknowledgeCompletion", fixture.TeamA);
-        await PostAsync(admin, form, ("ExpectedInspectionKey", ""));
-        await PostAsync(admin, form, ("ExpectedReviewCycleId", Guid.NewGuid().ToString()));
-        await PostAsync(admin, form, ("teamId", fixture.TeamB.ToString()));
-        Assert.Equal(0, await ResolutionCountAsync());
-        var noCsrf = new Dictionary<string, string>(form.Fields);
+        var form = Form(await admin.GetStringAsync(FinalizeUrl), "Finalize");
+        await PostAsync(admin, form);
+        await AssertNotFinalizedAsync();
+        var noVersion = new Dictionary<string, string>(form.Fields)
+        {
+            ["ExpectedVersion"] = string.Empty,
+            ["FinalizeConfirmation"] = "PUBLISH_OFFICIAL_RESULTS"
+        };
+        using var missingVersion = await admin.PostAsync(form.Action, new FormUrlEncodedContent(noVersion));
+        Assert.Equal(HttpStatusCode.Redirect, missingVersion.StatusCode);
+        await AssertNotFinalizedAsync();
+
+        await ReviewHttpAsync(admin, fixture.First, "Reverse");
+        await ReviewHttpAsync(admin, fixture.Replacement, "Approve");
+        await PostAsync(admin, form, ("FinalizeConfirmation", "PUBLISH_OFFICIAL_RESULTS"));
+        await AssertNotFinalizedAsync();
+        var staleHtml = WebUtility.HtmlDecode(await admin.GetStringAsync(FinalizeUrl));
+        Assert.Contains("This event changed in another session", staleHtml, StringComparison.Ordinal);
+
+        var fresh = Form(await admin.GetStringAsync(FinalizeUrl), "Finalize");
+        var noCsrf = new Dictionary<string, string>(fresh.Fields)
+        {
+            ["FinalizeConfirmation"] = "PUBLISH_OFFICIAL_RESULTS"
+        };
         noCsrf.Remove("__RequestVerificationToken");
-        using var csrfDenied = await admin.PostAsync(form.Action, new FormUrlEncodedContent(noCsrf));
+        using var csrfDenied = await admin.PostAsync(fresh.Action, new FormUrlEncodedContent(noCsrf));
         Assert.Equal(HttpStatusCode.BadRequest, csrfDenied.StatusCode);
         using var ordinary = factory.CreateClient(new() { AllowAutoRedirect = false });
         await LoginAsync(ordinary, "c33-player");
-        using var forbidden = await ordinary.PostAsync(form.Action, new FormUrlEncodedContent(form.Fields));
+        var unauthorized = new Dictionary<string, string>(fresh.Fields) { ["FinalizeConfirmation"] = "PUBLISH_OFFICIAL_RESULTS" };
+        using var forbidden = await ordinary.PostAsync(fresh.Action, new FormUrlEncodedContent(unauthorized));
         Assert.Contains(forbidden.StatusCode, new[] { HttpStatusCode.Forbidden, HttpStatusCode.Redirect });
-        var finalForm = Form(await admin.GetStringAsync(FinalizeUrl), "Finalize");
-        await PostAsync(admin, finalForm, ("ExpectedVersion", ""), ("FinalizeConfirmation", "PUBLISH_OFFICIAL_RESULTS"));
         await AssertNotFinalizedAsync();
-        Assert.Equal(0, await ResolutionCountAsync());
+
+        var resolutionCount = await ResolutionCountAsync();
+        var correctionCount = await CompletionCorrectionCountAsync();
+        await using (var db = new ApplicationDbContext(options))
+        {
+            await Assert.ThrowsAsync<InvalidOperationException>(() => Finalization(db).AcknowledgeCompletionTimeAsync(fixture.EventId, fixture.TeamA, fixture.Admin));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => Finalization(db).CorrectCompletionAsync(fixture.EventId, fixture.TeamA, now, "retired", fixture.Admin));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => Finalization(db).ResolveBlockerAsync(fixture.EventId, "retired", "retired", true, fixture.Admin));
+        }
+        Assert.Equal(resolutionCount, await ResolutionCountAsync());
+        Assert.Equal(correctionCount, await CompletionCorrectionCountAsync());
+
+        await PostAsync(admin, fresh, ("FinalizeConfirmation", "PUBLISH_OFFICIAL_RESULTS"));
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(EventState.Archived, await verify.Events.Select(x => x.State).SingleAsync());
+        Assert.Single(await verify.EventFinalizations.ToListAsync());
+        Assert.Equal(resolutionCount, await verify.FinalReviewResolutions.CountAsync());
+        Assert.Equal(correctionCount, await verify.TeamCompletionCorrections.CountAsync());
     }
 
     [Fact]
-    public async Task UnfinalizeRetainsOfficialAndInspectionHistoryAndOldCycleCannotReplayIntoNewResults()
+    public async Task UnfinalizeRetainsOfficialHistoryAndRejectsOldCycleBeforeNewPublication()
     {
         await ApproveAsync(fixture.First);
-        await AcknowledgeAsync(fixture.TeamA);
-        await AcknowledgeAsync(fixture.TeamB);
-        await ResolveAllAsync();
+        await RejectAsync(fixture.Replacement);
         var first = await ReadinessAsync();
         await FinalizeAsync();
         string originalResults;
@@ -459,26 +496,23 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         }
         var reopened = await ReadinessAsync();
         Assert.NotEqual(first.ReviewCycleId, reopened.ReviewCycleId);
-        Assert.NotEqual(Key(first, fixture.TeamA), Key(reopened, fixture.TeamA));
-        Assert.False(Blocker(reopened, fixture.TeamA).Resolved);
+        Assert.True(reopened.CanFinalize);
         await using (var db = new ApplicationDbContext(options))
         {
-            await Assert.ThrowsAsync<InvalidOperationException>(() => Finalization(db).AcknowledgeCompletionTimeAsync(fixture.EventId, fixture.TeamA, fixture.Admin, reopened.EventVersion, first.ReviewCycleId, Key(first, fixture.TeamA)));
-            await Assert.ThrowsAsync<InvalidOperationException>(() => Finalization(db).AcknowledgeCompletionTimeAsync(fixture.EventId, fixture.TeamA, fixture.Admin, reopened.EventVersion, reopened.ReviewCycleId, Key(first, fixture.TeamA)));
             await Assert.ThrowsAsync<InvalidOperationException>(() => Finalization(db).FinalizeAsync(fixture.EventId, Actor, first.EventVersion));
         }
-        await AcknowledgeAsync(fixture.TeamA);
-        await AcknowledgeAsync(fixture.TeamB);
-        await ResolveAllAsync();
         await FinalizeAsync();
         await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(EventState.Archived, await verify.Events.Select(x => x.State).SingleAsync());
         var old = await verify.EventFinalizations.SingleAsync(x => x.Id == firstFinalization);
         Assert.NotNull(old.UnfinalizedAt);
         Assert.Equal(originalResults, old.CalculationResultsJson);
         Assert.Equal(originalScoreTime, await verify.OfficialPlacements.Where(value => value.FinalizationId == old.Id && value.TeamId == fixture.TeamA)
             .Select(value => value.CurrentScoreReachedAt).SingleAsync());
         Assert.Equal(2, await verify.EventFinalizations.CountAsync());
-        Assert.Equal(4, await verify.FinalReviewResolutions.CountAsync(x => x.Kind == FinalReviewResolutionKind.CompletionTimeAcknowledgement));
+        Assert.NotEqual(firstFinalization, await verify.EventFinalizations.Where(x => x.Id != firstFinalization).Select(x => x.Id).SingleAsync());
+        Assert.Empty(await verify.FinalReviewResolutions.ToListAsync());
+        Assert.Empty(await verify.TeamCompletionCorrections.ToListAsync());
         await Assert.ThrowsAsync<InvalidOperationException>(() => Finalization(verify).FinalizeAsync(fixture.EventId, Actor, first.EventVersion));
         Assert.Equal(2, await verify.EventFinalizations.CountAsync());
     }
@@ -486,13 +520,11 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
     [Theory]
     [InlineData("submission.approved")]
     [InlineData("submission.reversed")]
-    [InlineData("event.completion_time_inspected")]
-    [InlineData("event.completion_time_corrected")]
-    [InlineData("event.finalized")]
+    [InlineData("event.results_published")]
     public async Task FaultAfterDatabaseSaveRollsBackFreshnessAndAllRelatedWrites(string action)
     {
-        if (action != "submission.approved") await ApproveAsync(fixture.First);
-        if (action == "event.finalized") { await AcknowledgeAsync(fixture.TeamA); await AcknowledgeAsync(fixture.TeamB); await ResolveAllAsync(); }
+        if (action is "submission.reversed" or "event.results_published") await ApproveAsync(fixture.First);
+        if (action == "event.results_published") await RejectAsync(fixture.Replacement);
         var before = await DatabaseStateAsync();
         var readiness = await ReadinessAsync();
         var fault = new AfterSaveBoundary(action, throwFailure: true);
@@ -502,10 +534,8 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
             {
                 switch (action)
                 {
-                    case "submission.approved": await Submissions(db).ApproveAsync(fixture.First, fixture.Admin); break;
-                    case "submission.reversed": await Submissions(db).ReverseAsync(fixture.First, fixture.Admin, "fault reversal"); break;
-                    case "event.completion_time_inspected": await Finalization(db).AcknowledgeCompletionTimeAsync(fixture.EventId, fixture.TeamA, fixture.Admin, readiness.EventVersion, readiness.ReviewCycleId, expectedInspectionKey: Key(readiness, fixture.TeamA)); break;
-                    case "event.completion_time_corrected": await Finalization(db).CorrectCompletionAsync(fixture.EventId, fixture.TeamA, now.AddHours(-2).AddMinutes(-30), "fault correction", fixture.Admin, readiness.EventVersion, readiness.ReviewCycleId); break;
+                    case "submission.approved": await Submissions(db).ApproveCurrentAsync(fixture.First, fixture.Admin); break;
+                    case "submission.reversed": await Submissions(db).ReverseCurrentAsync(fixture.First, fixture.Admin, "fault reversal"); break;
                     default: await Finalization(db).FinalizeAsync(fixture.EventId, Actor, readiness.EventVersion); break;
                 }
             });
@@ -521,11 +551,9 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
     public async Task ReviewAndFinalizationSerializeWithoutPublishingStaleCompetitiveInputs(bool reviewWins)
     {
         await ApproveAsync(fixture.First);
-        await AcknowledgeAsync(fixture.TeamA);
-        await AcknowledgeAsync(fixture.TeamB);
-        await ResolveAllAsync();
+        await RejectAsync(fixture.Replacement);
         var ready = await ReadinessAsync();
-        var boundary = new AfterSaveBoundary(reviewWins ? "submission.reversed" : "event.finalized");
+        var boundary = new AfterSaveBoundary(reviewWins ? "submission.reversed" : "event.results_published");
         var waiting = new EventReadBoundary();
         async Task<Exception?> RunAsync(bool review, bool winner)
         {
@@ -534,7 +562,7 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
             await using var db = new ApplicationDbContext(builder.Options);
             try
             {
-                if (review) await Submissions(db).ReverseAsync(fixture.First, fixture.Admin, "concurrent reversal");
+                if (review) await Submissions(db).ReverseCurrentAsync(fixture.First, fixture.Admin, "concurrent reversal");
                 else await Finalization(db).FinalizeAsync(fixture.EventId, Actor, ready.EventVersion);
                 return null;
             }
@@ -560,6 +588,7 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
             Assert.Equal(SubmissionStatus.Approved, (await verify.Submissions.SingleAsync(x => x.Id == fixture.First)).Status);
             Assert.True((await verify.OfficialPlacements.SingleAsync(x => x.TeamId == fixture.TeamA)).BoardComplete);
             Assert.Empty(await verify.ReviewActions.Where(x => x.Action == ReviewActionType.ReverseApproval).ToListAsync());
+            Assert.Empty(await verify.FinalReviewResolutions.ToListAsync());
         }
     }
 
@@ -570,7 +599,21 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
     [InlineData("Reverse")]
     public async Task ConcurrentReviewHttpLoserShowsActionableErrorWithoutWritesThenFreshRetrySucceeds(string handler)
     {
-        if (handler == "Reverse") await ApproveAsync(fixture.Replacement);
+        var concurrentWinner = fixture.First;
+        if (handler == "Reverse")
+        {
+            await RejectAsync(fixture.First);
+            await ApproveAsync(fixture.Replacement);
+            await using var seed = new ApplicationDbContext(options);
+            var source = await seed.Submissions.SingleAsync(x => x.Id == fixture.First);
+            var pendingWinner = new Submission(Guid.NewGuid(), source.EventId, source.TeamId, source.BoardTileId,
+                source.RequirementId, source.DropSnapshotId, source.CreditedParticipantId, source.CreditedOsrsCharacterId,
+                source.CreditedCharacterName, source.SubmittedByAccountId, source.ClaimedWeight,
+                source.SubmittedAt.AddMinutes(30), null, source.ExpectedEvidenceCode);
+            seed.Submissions.Add(pendingWinner);
+            await seed.SaveChangesAsync();
+            concurrentWinner = pendingWinner.Id;
+        }
         var waiting = new EventReadBoundary();
         await using var factory = Factory(waiting);
         using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
@@ -584,47 +627,36 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         async Task RejectWinnerAsync()
         {
             await using var db = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(boundary).Options);
-            await Submissions(db).RejectAsync(fixture.First, fixture.Admin, "C33 concurrent winning decision");
+            await Submissions(db).RejectCurrentAsync(concurrentWinner, fixture.Admin, "C33 concurrent winning decision");
         }
         var winner = RejectWinnerAsync();
         await boundary.Reached.Task.WaitAsync(TimeSpan.FromSeconds(20));
         Task<HttpResponseMessage> loser;
         try
         {
-            loser = client.PostAsync(form.Action, new FormUrlEncodedContent(fields));
+            loser = XhrAsync(client, form.Action, fields);
             await waiting.Reached.Task.WaitAsync(TimeSpan.FromSeconds(20));
         }
         finally { boundary.Release.TrySetResult(); }
         await winner;
+        // U8 in-place decisions (A10): the loser answers a definite "stale" outcome as JSON instead of a
+        // redirect with a TempData toast; nothing is written and the page re-reads the current record.
         using var result = await loser;
-        Assert.Equal(HttpStatusCode.Redirect, result.StatusCode);
-        var location = result.Headers.Location!.OriginalString;
-        Assert.StartsWith($"/Admin/Review/Details/{fixture.Replacement}?", location, StringComparison.Ordinal);
-        Assert.Contains($"eventId={fixture.EventId}", location);
-        Assert.Contains("search=C33", location);
-        Assert.Contains("status=Pending", location);
-        var html = WebUtility.HtmlDecode(await client.GetStringAsync(location));
-        AssertReviewConflictFeedback(html);
+        AssertReviewConflictFeedback(await OutcomeAsync(result));
+        var location = detailUrl;
         Assert.Equal(before, await SubmissionStateAsync(fixture.Replacement));
         Assert.Equal(version + 1, (await ReadinessAsync()).EventVersion);
         await using (var verify = new ApplicationDbContext(options))
-            Assert.Equal(SubmissionStatus.Rejected, await verify.Submissions.Where(x => x.Id == fixture.First).Select(x => x.Status).SingleAsync());
+            Assert.Equal(SubmissionStatus.Rejected, await verify.Submissions.Where(x => x.Id == concurrentWinner).Select(x => x.Status).SingleAsync());
 
         // Explicitly reload and submit the rendered current form, with no automatic retry.
         var fresh = Form(await client.GetStringAsync(location), handler);
         Assert.Equal(form.Fields["Input.ExpectedVersion"], fresh.Fields["Input.ExpectedVersion"]);
-        using var retry = await client.PostAsync(fresh.Action, new FormUrlEncodedContent(ReviewFields(fresh)));
-        Assert.Equal(HttpStatusCode.Redirect, retry.StatusCode);
-        var successHtml = WebUtility.HtmlDecode(await client.GetStringAsync(retry.Headers.Location!));
-        Assert.DoesNotContain("This review was not saved", successHtml);
-        Assert.DoesNotContain("app-toast-error", successHtml);
-        Assert.Contains(handler switch
-        {
-            "Approve" => "Approved with 1 contribution.",
-            "Reject" => "Submission rejected.",
-            "Reverse" => "Approval reversed and later contributions recalculated.",
-            _ => "Metadata corrected."
-        }, successHtml);
+        using var retry = await XhrAsync(client, fresh.Action, ReviewFields(fresh));
+        using var success = await OutcomeAsync(retry);
+        Assert.Equal("saved", success.RootElement.GetProperty("outcome").GetString());
+        Assert.Equal(handler switch { "Approve" => "approve", "Reject" => "reject", "Reverse" => "reverse", _ => "correct" }, success.RootElement.GetProperty("kind").GetString());
+        if (handler == "Approve") Assert.Equal(1, success.RootElement.GetProperty("amount").GetInt32());
         Assert.NotEqual(before, await SubmissionStateAsync(fixture.Replacement));
         Assert.Equal(version + 2, (await ReadinessAsync()).EventVersion);
         await using var after = new ApplicationDbContext(options);
@@ -650,22 +682,98 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         await LoginAsync(client, "c33-admin");
         var form = Form(await client.GetStringAsync($"/Admin/Review/Details/{fixture.Replacement}"), "Reject");
         var before = await DatabaseStateAsync();
-        using var result = await client.PostAsync(form.Action, new FormUrlEncodedContent(ReviewFields(form)));
-        Assert.Equal(HttpStatusCode.Redirect, result.StatusCode);
-        AssertReviewConflictFeedback(WebUtility.HtmlDecode(await client.GetStringAsync(result.Headers.Location!)));
+        using var result = await XhrAsync(client, form.Action, ReviewFields(form));
+        AssertReviewConflictFeedback(await OutcomeAsync(result));
         Assert.Equal(1, fault.Attempts);
         Assert.Equal(before, await DatabaseStateAsync());
     }
 
-    private static void AssertReviewConflictFeedback(string html)
+    [Fact]
+    public async Task ReviewApprovalRefusalRendersEarlierSubmissionLink()
     {
-        Assert.Contains("This review was not saved", html);
-        Assert.Contains("Reload the submission, review the latest state, and try again.", html);
-        Assert.Contains("app-toast-error", html);
-        Assert.DoesNotContain("app-toast-information", html);
-        Assert.DoesNotContain("app-toast-success", html);
-        Assert.DoesNotContain("likely due to a transient failure", html);
-        Assert.DoesNotContain("40001", html);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE submissions SET submitted_at = {now.AddHours(-3)} WHERE id = {fixture.First}");
+            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE submissions SET submitted_at = {now.AddHours(-2)} WHERE id = {fixture.Replacement}");
+        }
+
+        await using var factory = Factory();
+        using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
+        await LoginAsync(client, "c33-admin");
+        var before = await SubmissionStateAsync(fixture.Replacement);
+        var form = Form(await client.GetStringAsync($"/Admin/Review/Details/{fixture.Replacement}?eventId={fixture.EventId}&search=C33&status=Pending"), "Approve");
+        // U8 G1/BR-1 (A10): the refusal answers "blocked" with a direct link that keeps the queue filters,
+        // and the workspace shows the block state from the readback contribution (no TempData path).
+        using var response = await XhrAsync(client, form.Action, form.Fields);
+        using var outcome = await OutcomeAsync(response);
+        Assert.Equal("blocked", outcome.RootElement.GetProperty("outcome").GetString());
+        Assert.Equal("Approve or reject the earlier upload first.", outcome.RootElement.GetProperty("message").GetString());
+        var link = outcome.RootElement.GetProperty("blockingUrl").GetString()!;
+        Assert.StartsWith($"/Admin/Review/Details/{fixture.First}?", link, StringComparison.Ordinal);
+        Assert.Contains("search=C33", link, StringComparison.Ordinal);
+        Assert.Contains("status=Pending", link, StringComparison.Ordinal);
+        var html = WebUtility.HtmlDecode(await client.GetStringAsync($"/Admin/Review/Details/{fixture.Replacement}?eventId={fixture.EventId}&search=C33&status=Pending"));
+        Assert.Contains($"/Admin/Review/Details/{fixture.First}?eventId={fixture.EventId}&search=C33&status=Pending", html, StringComparison.Ordinal);
+        Assert.Equal(before, await SubmissionStateAsync(fixture.Replacement));
+        await using var verify = new ApplicationDbContext(options);
+        Assert.Equal(SubmissionStatus.Pending, await verify.Submissions.Where(x => x.Id == fixture.Replacement).Select(x => x.Status).SingleAsync());
+        Assert.Empty(await verify.ReviewActions.Where(x => x.SubmissionId == fixture.Replacement && x.Action == ReviewActionType.Approve).ToListAsync());
+    }
+
+    [Fact]
+    public async Task ReviewDetailsShowsPausedIntervalsAsScreenshotTimeGuidance()
+    {
+        var pausedAt = now.AddHours(-2.5);
+        var resumedAt = now.AddHours(-1.5);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.EventStateTransitions.AddRange(
+                new EventStateTransition(Guid.NewGuid(), fixture.EventId, EventState.AwaitingFinalReview, EventState.Live, fixture.Admin,
+                    resumedAt, "C33 paused interval resumed", effectiveAt: resumedAt),
+                new EventStateTransition(Guid.NewGuid(), fixture.EventId, EventState.Live, EventState.AwaitingFinalReview, fixture.Admin,
+                    pausedAt, "C33 paused interval started", effectiveAt: pausedAt));
+            await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE submissions SET submitted_at = {now.AddHours(-2)} WHERE id = {fixture.Replacement}");
+            await db.SaveChangesAsync();
+        }
+
+        await using var factory = Factory();
+        using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
+        await LoginAsync(client, "c33-admin");
+        var html = WebUtility.HtmlDecode(await client.GetStringAsync($"/Admin/Review/Details/{fixture.Replacement}"));
+
+        // U8 (A10; BR-3/RC07 wording, U8-Q1 UTC first): the paused-period check judges the screenshot's game time.
+        Assert.Contains("Check the in-game time: the event was paused.", html, StringComparison.Ordinal);
+        Assert.Contains("A drop inside that period doesn’t count; an earlier drop uploaded then still can.", html, StringComparison.Ordinal);
+        Assert.Contains("14 Sep 2026, 09:30 UTC", html, StringComparison.Ordinal);
+        Assert.Contains("14 Sep 2026, 10:30 UTC", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Ineligible final-review interval", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Treat it as outside the authoritative live eligibility intervals.", html, StringComparison.Ordinal);
+    }
+
+    private static void AssertReviewConflictFeedback(System.Text.Json.JsonDocument outcome)
+    {
+        using (outcome)
+        {
+            Assert.Equal("stale", outcome.RootElement.GetProperty("outcome").GetString());
+            var message = outcome.RootElement.GetProperty("message").GetString()!;
+            Assert.True(message.Contains("This review was not saved", StringComparison.Ordinal) || message.Contains("This evidence changed in another request", StringComparison.Ordinal), message);
+            Assert.DoesNotContain("likely due to a transient failure", message, StringComparison.Ordinal);
+            Assert.DoesNotContain("40001", message, StringComparison.Ordinal);
+        }
+    }
+
+    private static Task<HttpResponseMessage> XhrAsync(HttpClient client, string action, IDictionary<string, string> fields)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, action) { Content = new FormUrlEncodedContent(fields) };
+        request.Headers.Add("X-Requested-With", "XMLHttpRequest");
+        return client.SendAsync(request);
+    }
+
+    private static async Task<System.Text.Json.JsonDocument> OutcomeAsync(HttpResponseMessage response)
+    {
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("application/json", response.Content.Headers.ContentType!.ToString(), StringComparison.Ordinal);
+        return System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
     }
 
     private Dictionary<string, string> ReviewFields(RenderedForm form) => new(form.Fields)
@@ -673,7 +781,7 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         ["Input.Reason"] = "C33 explicit review decision",
         ["Input.BoardTileId"] = fixture.Tile.ToString(),
         ["Input.RequirementId"] = fixture.Requirement.ToString(),
-        ["Input.CreditedOsrsCharacterId"] = fixture.CharacterA.ToString()
+        ["Input.CreditedOsrsCharacterId"] = fixture.CorrectionCharacter.ToString()
     };
 
     private async Task<string> SubmissionStateAsync(Guid submissionId)
@@ -692,8 +800,6 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
     private LifecycleActor Actor => new(fixture.Admin, "c33-admin");
     private EventFinalizationService Finalization(ApplicationDbContext db) => new(db, new PublicBoardService(db, new FixedClock(now)), new FixedClock(now));
     private SubmissionService Submissions(ApplicationDbContext db) => new(db, new UnusedStorage(), new FixedClock(now));
-    private static FinalReviewBlocker Blocker(FinalReviewReadiness r, Guid team) => r.Blockers.Single(x => x.TeamId == team && x.IsCompletionTimeAcknowledgement);
-    private static string Key(FinalReviewReadiness r, Guid team) => Blocker(r, team).Key;
     private async Task<FinalReviewReadiness> ReadinessAsync() { await using var db = new ApplicationDbContext(options); return (await Finalization(db).GetReadinessAsync(fixture.EventId))!; }
     private async Task<DateTimeOffset> SubmissionSubmittedAtAsync(Guid teamId)
     {
@@ -702,29 +808,15 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
             .Select(value => value.SubmittedAt).SingleAsync();
     }
     private async Task<int> ResolutionCountAsync() { await using var db = new ApplicationDbContext(options); return await db.FinalReviewResolutions.CountAsync(); }
-    private async Task ApproveAsync(Guid id) { await using var db = new ApplicationDbContext(options); await Submissions(db).ApproveAsync(id, fixture.Admin); }
-    private async Task AcknowledgeAsync(Guid team)
+    private async Task<int> CompletionCorrectionCountAsync() { await using var db = new ApplicationDbContext(options); return await db.TeamCompletionCorrections.CountAsync(); }
+    private async Task ApproveAsync(Guid id)
     {
-        var r = await ReadinessAsync();
         await using var db = new ApplicationDbContext(options);
-        await Finalization(db).AcknowledgeCompletionTimeAsync(fixture.EventId, team, fixture.Admin, r.EventVersion, r.ReviewCycleId, expectedInspectionKey: Key(r, team));
+        var result = await Submissions(db).ApproveCurrentAsync(id, fixture.Admin);
+        Assert.True(result.ApprovedContribution > 0, "The deterministic C33 fixture approval must succeed.");
+        Assert.Null(result.BlockingSubmission);
     }
-    private async Task CorrectAsync(DateTimeOffset at, string reason)
-    {
-        var r = await ReadinessAsync();
-        await using var db = new ApplicationDbContext(options);
-        await Finalization(db).CorrectCompletionAsync(fixture.EventId, fixture.TeamA, at, reason, fixture.Admin, r.EventVersion, r.ReviewCycleId);
-    }
-    private async Task ResolveAllAsync()
-    {
-        var r = await ReadinessAsync();
-        foreach (var blocker in r.Blockers.Where(x => x.CanOverride && !x.Resolved))
-        {
-            r = await ReadinessAsync();
-            await using var db = new ApplicationDbContext(options);
-            await Finalization(db).ResolveBlockerAsync(fixture.EventId, blocker.Key, "Controlled C33 fixture override", true, fixture.Admin, r.EventVersion, r.ReviewCycleId);
-        }
-    }
+    private async Task RejectAsync(Guid id) { await using var db = new ApplicationDbContext(options); await Submissions(db).RejectCurrentAsync(id, fixture.Admin, "C33 fixture rejection"); }
     private async Task FinalizeAsync()
     {
         var r = await ReadinessAsync();
@@ -735,11 +827,18 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
     private async Task AssertNotFinalizedAsync()
     {
         await using var db = new ApplicationDbContext(options);
-        Assert.Equal(EventState.AwaitingFinalReview, await db.Events.Select(x => x.State).SingleAsync());
+        var eventItem = await db.Events.SingleAsync();
+        Assert.Equal(EventState.AwaitingFinalReview, eventItem.State);
+        Assert.False(eventItem.ResultsPublished);
+        Assert.Null(eventItem.FinalizedAt);
+        Assert.Null(eventItem.ArchivedAt);
         Assert.Empty(await db.EventFinalizations.ToListAsync());
         Assert.Empty(await db.OfficialPlacements.ToListAsync());
         Assert.Empty(await db.AuditEntries.Where(x => x.Action == "event.finalized").ToListAsync());
         Assert.Empty(await db.EventStateTransitions.Where(x => x.ToState == EventState.Finalized).ToListAsync());
+        Assert.Empty(await db.EventStateTransitions.Where(x => x.ToState == EventState.Archived).ToListAsync());
+        Assert.Empty(await db.AuditEntries.Where(x => x.EventId == fixture.EventId && x.Action == "event.results_published").ToListAsync());
+        Assert.Empty(await db.PersonalNotifications.Where(x => x.EventId == fixture.EventId && x.Title == "event.results_published").ToListAsync());
     }
     private async Task<string> DatabaseStateAsync()
     {
@@ -762,7 +861,7 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
 
     private WebApplicationFactory<Program> Factory(IInterceptor? interceptor = null) => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
     {
-        builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString());
+        builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString());
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<IHostedService>();
@@ -786,7 +885,7 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         var form = Regex.Matches(html, @"<form\b[\s\S]*?</form>").Select(x => x.Value).Single(value =>
             Regex.IsMatch(value, "action=\"[^\"]*[?&](?:amp;)?handler=" + handler + "(?:&[^\"]*)?\"") &&
             (team is null || value.Contains($"value=\"{team}\"", StringComparison.Ordinal)));
-        var action = WebUtility.HtmlDecode(Regex.Match(form, "action=\"([^\"]+)\"").Groups[1].Value);
+        var action = WebUtility.HtmlDecode(Regex.Match(form, @"\saction=""([^""]+)""").Groups[1].Value);
         var fields = Regex.Matches(form, @"<input\b[^>]*>").Select(x => x.Value).Where(x => x.Contains("type=\"hidden\"", StringComparison.Ordinal))
             .ToDictionary(x => Regex.Match(x, "name=\"([^\"]+)\"").Groups[1].Value, x => WebUtility.HtmlDecode(Regex.Match(x, "value=\"([^\"]*)\"").Groups[1].Value));
         Assert.NotEmpty(action);
@@ -803,12 +902,89 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
     private async Task ReviewHttpAsync(HttpClient client, Guid submission, string handler)
     {
         var form = Form(await client.GetStringAsync($"/Admin/Review/Details/{submission}"), handler);
-        await PostAsync(client, form, ("Input.Reason", "C33 review reason"), ("Input.BoardTileId", fixture.Tile.ToString()), ("Input.RequirementId", fixture.Requirement.ToString()), ("Input.CreditedOsrsCharacterId", fixture.CharacterA.ToString()));
+        await PostAsync(client, form, ("Input.Reason", "C33 review reason"), ("Input.BoardTileId", fixture.Tile.ToString()), ("Input.RequirementId", fixture.Requirement.ToString()), ("Input.CreditedOsrsCharacterId", fixture.CorrectionCharacter.ToString()));
         await using var db = new ApplicationDbContext(options);
         Assert.Contains(await db.ReviewActions.Where(x => x.SubmissionId == submission).ToListAsync(), x => x.Action == handler switch
         { "Approve" => ReviewActionType.Approve, "Reverse" => ReviewActionType.ReverseApproval, "Reject" => ReviewActionType.Reject, _ => ReviewActionType.EditMetadata });
     }
-    private async Task AcknowledgeHttpAsync(HttpClient client, Guid team) => await PostAsync(client, Form(await client.GetStringAsync(FinalizeUrl), "AcknowledgeCompletion", team));
+
+    [Fact]
+    public async Task AdminReviewDetailsRendersLegacyReviewActionsOnceThroughSharedAuditPresentation()
+    {
+        var submittedAt = now.AddMinutes(-30);
+        var actions = new[]
+        {
+            new ReviewAction(Guid.NewGuid(), fixture.Replacement, ReviewActionType.Submitted, fixture.Admin, submittedAt, "Legacy submission note", null, null),
+            new ReviewAction(Guid.NewGuid(), fixture.Replacement, ReviewActionType.RequestChanges, fixture.Admin, submittedAt.AddMinutes(1), "Legacy changes reason", null, null),
+            new ReviewAction(Guid.NewGuid(), fixture.Replacement, ReviewActionType.Resubmit, fixture.Admin, submittedAt.AddMinutes(2), "Legacy linked attempt reason", null, null),
+            new ReviewAction(Guid.NewGuid(), fixture.Replacement, ReviewActionType.Reject, fixture.Admin, submittedAt.AddMinutes(3), "Legacy rejection reason", null, null),
+            new ReviewAction(Guid.NewGuid(), fixture.Replacement, ReviewActionType.ReverseApproval, fixture.Admin, submittedAt.AddMinutes(4), "Legacy reversal reason", null, null)
+        };
+        var approved = new ReviewAction(Guid.NewGuid(), fixture.Replacement, ReviewActionType.Approve, fixture.Admin, submittedAt.AddMinutes(5), "Legacy approval note", "{\"Status\":\"Pending\"}", "{\"Status\":\"Approved\"}");
+        var matchedAudit = new AuditEntry(Guid.NewGuid(), approved.PerformedAt, approved.PerformedByAccountId, "c33-admin", "submission.approved", "submission", fixture.Replacement.ToString("D"), approved.Note, fixture.EventId, approved.BeforeSnapshot, approved.AfterSnapshot);
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.ReviewActions.AddRange(actions.Append(approved));
+            db.AuditEntries.Add(matchedAudit);
+            await db.SaveChangesAsync();
+        }
+
+        await using var factory = Factory();
+        using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
+        await LoginAsync(client, "c33-admin");
+        var html = await client.GetStringAsync($"/Admin/Review/Details/{fixture.Replacement}");
+
+        Assert.Contains("Evidence submitted", html, StringComparison.Ordinal);
+        Assert.Contains("Evidence changes requested", html, StringComparison.Ordinal);
+        Assert.Contains("Historical linked evidence submitted", html, StringComparison.Ordinal);
+        Assert.Contains("Evidence rejected", html, StringComparison.Ordinal);
+        Assert.Contains("Evidence approval reversed", html, StringComparison.Ordinal);
+        Assert.Contains("Evidence approved", html, StringComparison.Ordinal);
+        foreach (var action in actions)
+        {
+            Assert.Single(Regex.Matches(html, Regex.Escape($"data-audit-entry=\"{action.Id}\"")));
+            Assert.Contains(action.Note!, html, StringComparison.Ordinal);
+        }
+        Assert.Single(Regex.Matches(html, Regex.Escape($"data-audit-entry=\"{matchedAudit.Id}\"")));
+        Assert.Single(Regex.Matches(html, Regex.Escape("Evidence approved")));
+        Assert.Contains("c33-admin", html, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("Reject")]
+    [InlineData("Reverse")]
+    [InlineData("Edit")]
+    public async Task ReviewReasonOverLimitIsRejectedBeforeAnyMutation(string handler)
+    {
+        if (handler == "Reverse")
+        {
+            await RejectAsync(fixture.First);
+            await ApproveAsync(fixture.Replacement);
+        }
+        await using var factory = Factory();
+        using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
+        await LoginAsync(client, "c33-admin");
+        var form = Form(await client.GetStringAsync($"/Admin/Review/Details/{fixture.Replacement}"), handler);
+        var before = await SubmissionStateAsync(fixture.Replacement);
+        var notificationCount = await NotificationCountAsync();
+        var fields = ReviewFields(form);
+        fields["Input.Reason"] = new string('x', 4001);
+
+        // U8 in-place decisions (A10): a definite refusal answers JSON with the server's reason.
+        using var response = await XhrAsync(client, form.Action, fields);
+        using var outcome = await OutcomeAsync(response);
+        Assert.Equal("refused", outcome.RootElement.GetProperty("outcome").GetString());
+        Assert.Equal("Reason must be 4000 characters or fewer.", outcome.RootElement.GetProperty("message").GetString());
+        Assert.Equal(before, await SubmissionStateAsync(fixture.Replacement));
+        Assert.Equal(notificationCount, await NotificationCountAsync());
+    }
+
+    private async Task<int> NotificationCountAsync()
+    {
+        await using var db = new ApplicationDbContext(options);
+        return await db.PersonalNotifications.CountAsync(x => x.EventId == fixture.EventId);
+    }
 
     private async Task<Setup> SeedAsync(ApplicationDbContext db)
     {
@@ -816,16 +992,20 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         admin.SetGlobalRole(GlobalRole.Admin);
         var player = Account.CreateWebsite(Guid.NewGuid(), "c33-player", "C33-PLAYER", now.AddDays(-10));
         foreach (var account in new[] { admin, player }) account.SetPassword(new PasswordHasher<Account>().HashPassword(account, "password"), false, now, false);
-        var ev = new BingoEvent(Guid.NewGuid(), "C33 final review", "c33-final-review", "UTC", admin.Id, now.AddDays(-10));
+        var ev = new BingoEvent(Guid.NewGuid(), "C33 final review", "c33-final-review", "UTC", admin.Id, now.AddDays(-10), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         ev.ConfigureSchedule(now.AddDays(-8), now.AddDays(-5), null, now.AddHours(-4), now.AddHours(-1), 20);
-        ev.OpenSignups(now.AddDays(-8)); ev.CloseSignups(now.AddDays(-5)); ev.StartEvent(now.AddHours(-4)); ev.MarkFirstPublic(now.AddDays(-8));
+        ev.OpenSignups(now.AddDays(-8)); ev.CloseSignups(now.AddDays(-5)); ev.SetDraftRosterPublication(true); ev.StartEvent(now.AddHours(-4)); ev.MarkFirstPublic(now.AddDays(-8));
         var board = new Board(Guid.NewGuid(), ev.Id, "C33 board", 1, 1);
         var tile = new BoardTile(Guid.NewGuid(), board.Id, Guid.NewGuid(), 0, 0, "C33 objective", "Finish the run", "Show completion", 1m);
         var requirement = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, 0, 1, true, false, "One run", true);
+        var draft = new DraftSession(Guid.NewGuid(), ev.Id, 1);
+        draft.FinalizeDirect(now.AddDays(-2));
+        var publication = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now.AddDays(-2), admin.Id, DraftPublicationMethod.DirectRoster);
         db.AddRange(admin, player, ev, board, tile, requirement);
         var teams = new List<Team>();
         var characters = new List<OsrsCharacter>();
         var submissions = new List<Submission>();
+        var alternateCharacter = Guid.Empty;
         for (var index = 0; index < 2; index++)
         {
             var team = new Team(Guid.NewGuid(), ev.Id, index == 0 ? "Team A" : "Team B", index == 0 ? "team-a" : "team-b", TeamFormationType.Drafted, null, true);
@@ -834,22 +1014,33 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
             var character = new OsrsCharacter(Guid.NewGuid(), $"C33 Player {index}", $"C33 PLAYER {index}", now.AddDays(-6));
             var assignment = new EventParticipantCharacter(Guid.NewGuid(), ev.Id, participant.Id, character.Id, 0, now.AddDays(-6), admin.Id, null, EventCharacterRole.Playing, 10m, EhbSource.Manual, null);
             db.AddRange(team, participant, character, assignment, new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now.AddDays(-4), null, "C33 fixture"));
+            if (index == 0)
+            {
+                // B-Review-2 (U8, A10): a review correction must change a detail, so Team A's participant has a second Playing account to credit.
+                var alternate = new OsrsCharacter(Guid.NewGuid(), "C33 Player 0 Alt", "C33 PLAYER 0 ALT", now.AddDays(-6));
+                db.AddRange(alternate, new EventParticipantCharacter(Guid.NewGuid(), ev.Id, participant.Id, alternate.Id, 1, now.AddDays(-6), admin.Id, null, EventCharacterRole.Playing, 10m, EhbSource.Manual, null));
+                alternateCharacter = alternate.Id;
+            }
             for (var count = 0; count < (index == 0 ? 2 : 1); count++)
             {
-                var submission = new Submission(Guid.NewGuid(), ev.Id, team.Id, tile.Id, requirement.Id, null, participant.Id, character.Id, character.DisplayName, player.Id, 1, now.AddHours(index == 0 ? -3 : -2), null, null);
+                var submittedAt = index == 0 ? now.AddHours(-3).AddMinutes(count) : now.AddHours(-2);
+                var submission = new Submission(Guid.NewGuid(), ev.Id, team.Id, tile.Id, requirement.Id, null, participant.Id, character.Id, character.DisplayName, player.Id, 1, submittedAt, null, null);
                 db.Submissions.Add(submission);
                 submissions.Add(submission);
             }
             teams.Add(team); characters.Add(character);
+            db.DraftPublicationRosters.Add(new DraftPublicationRoster(Guid.NewGuid(), publication.Id, team.Id, participant.Id,
+                TeamMembershipRole.Participant, null, character.DisplayName));
         }
+        db.AddRange(draft, publication);
         await BoardApprovalFixture.PublishAsync(db, board, now.AddDays(-2), [tile], [requirement]);
-        await Submissions(db).ApproveAsync(submissions[2].Id, admin.Id);
+        await Submissions(db).ApproveCurrentAsync(submissions[2].Id, admin.Id);
         ev.EndEvent(now.AddHours(-1));
         db.EventStateTransitions.Add(new EventStateTransition(Guid.NewGuid(), ev.Id, EventState.Live, EventState.AwaitingFinalReview, admin.Id, now.AddHours(-1), "C33 fixture ended", effectiveAt: now.AddHours(-1)));
         await db.SaveChangesAsync();
-        return new(ev.Id, ev.Slug, admin.Id, teams[0].Id, teams[1].Id, submissions[0].Id, submissions[1].Id, tile.Id, requirement.Id, characters[0].Id);
+        return new(ev.Id, ev.Slug, admin.Id, teams[0].Id, teams[1].Id, submissions[0].Id, submissions[1].Id, tile.Id, requirement.Id, alternateCharacter);
     }
-    private sealed record Setup(Guid EventId, string Slug, Guid Admin, Guid TeamA, Guid TeamB, Guid First, Guid Replacement, Guid Tile, Guid Requirement, Guid CharacterA);
+    private sealed record Setup(Guid EventId, string Slug, Guid Admin, Guid TeamA, Guid TeamB, Guid First, Guid Replacement, Guid Tile, Guid Requirement, Guid CorrectionCharacter);
     private sealed class FixedClock(DateTimeOffset value) : TimeProvider { public override DateTimeOffset GetUtcNow() => value; }
     private sealed class UnusedStorage : IEvidenceStorage
     {

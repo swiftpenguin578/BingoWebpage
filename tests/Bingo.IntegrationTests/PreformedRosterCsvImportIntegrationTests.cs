@@ -1,5 +1,4 @@
 using System.Text;
-using System.Text.RegularExpressions;
 using Bingo.Domain.Access;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
@@ -13,11 +12,11 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class PreformedRosterCsvImportIntegrationTests : IAsyncLifetime
+public sealed class PreformedRosterCsvImportIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("bingo_preformed_csv").WithUsername("bingo").WithPassword("bingo_test_password").Build();
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("bingo_preformed_csv").WithUsername("bingo").WithPassword("bingo_test_password"));
     private DbContextOptions<ApplicationDbContext> options = null!;
-    public async Task InitializeAsync() { await database.StartAsync(); options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options; await using var db = new ApplicationDbContext(options); await db.Database.MigrateAsync(); }
+    public async Task InitializeAsync() { await database.StartAsync(); options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options; await using var db = new ApplicationDbContext(options); }
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
 
     [Fact]
@@ -92,6 +91,29 @@ public sealed class PreformedRosterCsvImportIntegrationTests : IAsyncLifetime
         var (actor, ev, team) = await SeedAsync(); await using var db = new ApplicationDbContext(options); using var cache = new MemoryCache(new MemoryCacheOptions()); var service = new PreformedRosterCsvImportService(db, new EventParticipantCharacterService(db, TimeProvider.System), cache, TimeProvider.System); await using var stream = new MemoryStream(Encoding.UTF8.GetBytes(csv));
         Assert.False((await service.PreviewAsync(actor.Id, ev.Id, team.Id, stream, CancellationToken.None)).IsValid); Assert.Equal(0, await db.EventParticipants.CountAsync()); Assert.Equal(0, await db.EventParticipantCharacters.CountAsync()); Assert.Equal(0, await db.TeamMemberships.CountAsync()); Assert.Equal(0, await db.AuditEntries.CountAsync());
     }
+    [Fact]
+    public async Task NewInvalidRsnIsRefusedPerRowAndNothingIsWrittenWhileStoredNamesStayUntouched()
+    {
+        var (actor, ev, team) = await SeedAsync();
+        await using var db = new ApplicationDbContext(options); using var cache = new MemoryCache(new MemoryCacheOptions());
+        var service = new PreformedRosterCsvImportService(db, new EventParticipantCharacterService(db, TimeProvider.System), cache, TimeProvider.System);
+        await using var bad = new MemoryStream(Encoding.UTF8.GetBytes("Account,EHB,Account\r\nGood Name,1,\r\nBad.Name!!,2,\r\nFine One,3,Way Too Long Name 1\r\n"));
+        var refused = await service.PreviewAsync(actor.Id, ev.Id, team.Id, bad, CancellationToken.None);
+        Assert.False(refused.IsValid); Assert.Null(refused.Nonce);
+        Assert.Equal([3, 4], refused.Errors.Select(error => error.Number).Order().ToArray());
+        Assert.All(refused.Errors, error => Assert.Equal(RsnRule.Message, error.Message));
+        Assert.False((await service.ApplyAsync(actor.Id, actor.LoginName, ev.Id, team.Id, refused.Nonce ?? "", CancellationToken.None)).Succeeded);
+        Assert.Equal(0, await db.EventParticipants.CountAsync()); Assert.Equal(0, await db.OsrsCharacters.CountAsync()); Assert.Equal(0, await db.EventParticipantCharacters.CountAsync()); Assert.Equal(0, await db.TeamMemberships.CountAsync()); Assert.Equal(0, await db.AuditEntries.CountAsync());
+
+        // A stored name that predates the rule is not re-validated: it imports and its stored display name is unchanged.
+        db.OsrsCharacters.Add(new OsrsCharacter(Guid.NewGuid(), "Legacy.Name!!", SignupService.NormalizeAccountName("Legacy.Name!!"), DateTimeOffset.UtcNow)); await db.SaveChangesAsync();
+        await using var legacy = new MemoryStream(Encoding.UTF8.GetBytes("Account,EHB\r\nLegacy.Name!!,1\r\n"));
+        var preview = await service.PreviewAsync(actor.Id, ev.Id, team.Id, legacy, CancellationToken.None);
+        Assert.True(preview.IsValid);
+        Assert.True((await service.ApplyAsync(actor.Id, actor.LoginName, ev.Id, team.Id, preview.Nonce!, CancellationToken.None)).Succeeded);
+        Assert.Equal("Legacy.Name!!", await db.OsrsCharacters.Select(x => x.DisplayName).SingleAsync());
+    }
+
     [Theory]
     [InlineData("actor")]
     [InlineData("team")]
@@ -112,12 +134,19 @@ public sealed class PreformedRosterCsvImportIntegrationTests : IAsyncLifetime
         var (actor, ev, team) = await SeedAsync(); await using var db = new ApplicationDbContext(options); using var cache = new MemoryCache(new MemoryCacheOptions()); var service = new PreformedRosterCsvImportService(db, new EventParticipantCharacterService(db, TimeProvider.System), cache, TimeProvider.System); const string csv = "Account,EHB\r\nReserved Main,1\r\nSecond Main,2\r\n"; await using var previewStream = new MemoryStream(Encoding.UTF8.GetBytes(csv)); var preview = await service.PreviewAsync(actor.Id, ev.Id, team.Id, previewStream, CancellationToken.None); var participant = new EventParticipant(Guid.NewGuid(), ev.Id, SignupStatus.Confirmed, 1, DateTimeOffset.UtcNow, SignupSource.AdminCreated); var character = new OsrsCharacter(Guid.NewGuid(), "Reserved Main", "RESERVED MAIN", DateTimeOffset.UtcNow); db.AddRange(participant, character, new EventParticipantCharacter(Guid.NewGuid(), ev.Id, participant.Id, character.Id, 0, DateTimeOffset.UtcNow, actor.Id, null, EventCharacterRole.Playing, 5m, EhbSource.AdminCorrection, null)); await db.SaveChangesAsync(); Assert.False((await service.ApplyAsync(actor.Id, actor.LoginName, ev.Id, team.Id, preview.Nonce!, CancellationToken.None)).Succeeded); Assert.Equal(1, await db.EventParticipants.CountAsync()); Assert.Equal(1, await db.OsrsCharacters.CountAsync()); Assert.Equal(1, await db.EventParticipantCharacters.CountAsync()); Assert.Equal(0, await db.TeamMemberships.CountAsync()); Assert.Equal(0, await db.AuditEntries.CountAsync());
     }
     [Fact]
-    public async Task PreformedTemplateHandlerAllowsOnlyPreformedTeamsAndMarkupKeepsCsvSurfaceBounded()
+    public async Task OperatorCsvTemplateRemainsAvailableWhileDraftRetiresTheCsvSurface()
     {
-        var markup = await File.ReadAllTextAsync(Path.Combine(FindRepositoryRoot(), "src", "Bingo.Web", "Pages", "Admin", "Events", "Draft.cshtml")); var csv = markup[markup.IndexOf("Import external roster CSV", StringComparison.Ordinal)..markup.IndexOf("Advanced correction", StringComparison.Ordinal)]; Assert.Equal("Account,EHB\r\n", Encoding.UTF8.GetString(PreformedRosterCsvImportService.Template())); Assert.Contains("TeamFormationType.Preformed", markup); Assert.Contains("Account,EHB", csv); Assert.True(Regex.Count(csv, "name=\\\"csv\\\"") == 1); Assert.DoesNotContain("Role<select", csv); Assert.DoesNotContain("Discord", csv); Assert.DoesNotContain("Image URL", csv); Assert.DoesNotContain("targetSize", csv);
+        // A10 (U6): the Teams page renders its team controls client-side, so the surface is the page markup plus its module.
+        var markup = await File.ReadAllTextAsync(Path.Combine(FindRepositoryRoot(), "src", "Bingo.Web", "Pages", "Admin", "Events", "Draft.cshtml"))
+            + await File.ReadAllTextAsync(Path.Combine(FindRepositoryRoot(), "src", "Bingo.Web", "wwwroot", "js", "admin-draft.js"));
+        Assert.Equal("Account,EHB\r\n", Encoding.UTF8.GetString(PreformedRosterCsvImportService.Template()));
+        Assert.Contains("includedInDraft", markup);
+        Assert.DoesNotContain("Import external roster CSV", markup);
+        Assert.DoesNotContain("RosterCsv", markup);
+        Assert.DoesNotContain("TeamFormationType.Preformed", markup);
     }
     private async Task<(Account Actor, BingoEvent Event, Team Team)> SeedAsync()
-    { var now = DateTimeOffset.UtcNow; await using var db = new ApplicationDbContext(options); var actor = Account.CreateWebsite(Guid.NewGuid(), "csv-admin-" + Guid.NewGuid(), "CSVADMIN" + Guid.NewGuid().ToString("N"), now); actor.SetGlobalRole(GlobalRole.Admin); var ev = new BingoEvent(Guid.NewGuid(), "CSV event " + Guid.NewGuid(), "csv-" + Guid.NewGuid().ToString("N"), "UTC", actor.Id, now); var team = new Team(Guid.NewGuid(), ev.Id, "Preformed", "preformed-" + Guid.NewGuid().ToString("N"), TeamFormationType.Preformed, null, false); db.AddRange(actor, ev, team); await db.SaveChangesAsync(); return (actor, ev, team); }
+    { var now = DateTimeOffset.UtcNow; await using var db = new ApplicationDbContext(options); var actor = Account.CreateWebsite(Guid.NewGuid(), "csv-admin-" + Guid.NewGuid(), "CSVADMIN" + Guid.NewGuid().ToString("N"), now); actor.SetGlobalRole(GlobalRole.Admin); var ev = new BingoEvent(Guid.NewGuid(), "CSV event " + Guid.NewGuid(), "csv-" + Guid.NewGuid().ToString("N"), "UTC", actor.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb); var team = new Team(Guid.NewGuid(), ev.Id, "Preformed", "preformed-" + Guid.NewGuid().ToString("N"), TeamFormationType.Preformed, null, false); db.AddRange(actor, ev, team); await db.SaveChangesAsync(); return (actor, ev, team); }
     private sealed class TestClock(DateTimeOffset now) : TimeProvider { private DateTimeOffset value = now; public override DateTimeOffset GetUtcNow() => value; public void Advance(TimeSpan span) => value += span; }
     private static string FindRepositoryRoot() { for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent) if (File.Exists(Path.Combine(directory.FullName, "Bingo.slnx"))) return directory.FullName; throw new DirectoryNotFoundException("Repository root was not found."); }
 }

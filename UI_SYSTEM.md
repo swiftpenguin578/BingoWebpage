@@ -27,6 +27,159 @@ Archived documents, root tombstones, old pass notes, selector presence, and
 page-local CSS cannot override these active sources. A canonical reference is
 not the same thing as approval in the current regression.
 
+## Approved Admin reference direction — 2 October 2026
+
+For the new Admin overhaul, `UI_PAGE_MATRIX.md` names the accepted pages and
+`docs/references/admin-ui/` holds their committed design. Canvas 42 / published
+artifact `1790965722-e7ad` is frozen in the 2 October manifest. The user explicitly
+selected this design over older Admin visual rules, including filled primary
+buttons. Its light/dark typography, spacing, surfaces, focus, motion, responsive
+tables and component hierarchy are the target; Public UI rules are unchanged.
+
+The reference's `ui/tokens.css`, `ui/components.css`, `ui/behavior.js` and Components
+preview are the shared design owners. Reuse them as the design contract during
+application integration; map runtime ownership deliberately into the existing app.
+`support.js`, vendor canvas support, fixture data and simulated requests/URLs are
+reference runtime machinery, not production services or mandatory dependencies.
+New reusable components may be added when needed, consistent with this visual
+language and documented in the gallery. Page-specific composition need not become
+a generic component. Underlined actions already accepted are intentional exceptions.
+
+Older Admin dimensions, fonts, outline-only/button prohibitions, forced table-to-
+card transitions and no-stacked-dialog rules below describe the prior application,
+not competing targets for these accepted pages. Keep wide tables horizontally
+scrollable. Layered confirmation is permitted with the underlying editor inert,
+appropriately dimmed, scroll locked and focus returned. Keep existing accessibility,
+dirty/pending/conflict/uncertainty and security contracts. New-reference visual
+acceptance is not application binding or acceptance of newly exposed feedback.
+
+Approved production shell decisions (plan42 group A, 5 October 2026):
+
+- A3/A4: account menu contains Account settings, Change password, View public site
+  and Sign out. Notifications bell is in the top bar; its Admin actions overview
+  opens that section of `/notifications`. English/Danish is a two-state switch
+  beside the theme switch. Drop the blocker chip and the old admin header description;
+  retain the reference summary line under each page title (5 October clarification).
+- A6: theme initially follows the OS; remember a manual choice per browser and
+  apply it before first paint. Keep the switch in the reference top-bar position.
+- A7/A11: switcher includes only the current Live/Final-review event and upcoming
+  Draft/Signups-open/Signups-closed events, soonest start first. Exclude Cancelled,
+  finished, Archived and Discarded. A past event still names the button but is not
+  listed. SuperAdmins additionally see qualifying hidden events marked Hidden;
+  those open Overview's limited view. Other choices keep the current page. Scroll
+  after about eight rows; All events stays below the list.
+- A12: outside click closes only a layer without input. Confirmations and layers
+  with unsaved input stay open. Everything that can lose progress must be a modal
+  that does not close on an outside click. If a reference shows editable input in
+  a layer that closes on an outside click, bind it as not closing and report that
+  reference exception. Preserve layered focus trapping and restoration.
+- A13: no sidebar item counts.
+- Product brand (brief43 item3.5, not A13): DK Legacy.
+- A16: new-shell links use a shared dirty guard, target-page skeleton, normal HTML
+  fetch and content/title/breadcrumb/nav/script swap, with Back/Forward and a
+  failed-load Try again state. Unexpected responses and old-layout targets fall
+  back to a full load. One site-wide setting, on by default, disables swaps.
+  Page scripts provide `init(root)` and `dispose()` removing listeners, timers and
+  connections; repeated event switches must leave no stale work running.
+
+U1 review decisions (user approval, 5 October 2026; brief50 / decisions08):
+
+- U-A: Check again encountering session loss says signed out / could not check
+  whether the change went through / sign in and Check again. Keep the draft;
+  never say not saved for an unknown write outcome. Ordinary save-session loss
+  retains its separate not-saved notice. Both show localized field labels.
+- U-B: the top-bar bell shows the existing unread-item number badge and announces
+  that count to screen readers. This does not introduce sidebar counts.
+- U-C: switcher stage · when follows the reference: closes plus signup closing date
+  while signups are open, starts plus event start before play, ends plus event end
+  in Live/final review, or not announced when unset. Unsupported stored timezone
+  uses UTC for that date text. Finalized/Archived use ended plus the end date.
+  User decision, 6 October (brief60 item3): Cancelled uses on plus CancelledAt
+  in the event timezone, even when its planned end remains in the future.
+- U-E: event breadcrumb is plain text; failed loads show the reference icon/title;
+  menus use reference placement and exit animation; collapse labels toggle. Pages
+  may provide their own loading skeleton, with a generic fallback. Use the existing
+  DK Legacy mark image in the reference logo position. The sidebar header shows
+  the signed-in public username, localized role and chevron; the account menu adds
+  the name / @handle · role header (visual-check Q1/Q2). Hide event-specific nav
+  links when no event is selected or remembered. The reference nav label is Teams / Draft (R17).
+  User decision, 5 October (brief60 item2): a browser-session cookie stores only the
+  last Admin event ID, revalidated against current visibility/access on every render.
+  Community pages retain its sidebar navigation without an event breadcrumb; public
+  navigation keeps it, selecting another replaces it, and sign-out clears it. Past
+  events remain selectable context; discarded/deleted/inaccessible context is dropped.
+- U-F: Identity makes unchanged Save inert with `aria-disabled`, remaining focusable
+  with the No changes to save tooltip and no visible no-change status. Reverting
+  typed edits restores the clean status. Timezone
+  review uses Cancel and Show this event’s times in ‹zone›? / Save with ‹zone› and names both
+  zones. Scheduled moments are rows; unset moments share one Not scheduled yet:
+  … line (or Nothing is scheduled yet, so no shown times change.). The quiet note
+  after successful readback is Up to date, without attributing a save request.
+  Follow the complete reference presentation, including title summary, icons,
+  shared busy spinner/labels, field notes/counters, dialog structure and banners.
+  The timezone select shows zone ID with current UTC offset (Q4); Description
+  and Buy-in accept over-limit typing with counter/error, while server refusal
+  remains mandatory (Q6).
+- U-G: Danish new-shell/Identity terminology is event/events (Events, Alle events),
+  not Bingoer. Scoped resource keys preserve legacy-page translations.
+
+U1 visual-check clarifications (5 October; brief55): language changes save through
+existing `/language` POST then swap translated page/shell without a skeleton,
+retaining sidebar, scroll and focus. Highlight after the dirty guard; use the theme
+segment transition and a `--dk-dur-theme` text cross-fade (none with reduced motion).
+Keep editing preserves draft and language and returns focus to the last edited page
+control, closing mobile navigation first when needed to release its inert state.
+Language swaps suppress card entrance animation; only the theme-duration cross-fade
+runs (none under reduced motion). Unavailable swaps fall back to reload.
+The temporary skeleton before full-load fallback to old-layout pages is user-accepted
+until those pages are bound. The address bar changes only after a successful swap;
+this timing is also user-accepted (5 October).
+Loading/failed navigation already shows the destination event in switcher/crumb
+(Q7, as the reference); Back and cancelled guards restore the correct context.
+Toasts use finite reference lifetime and animated exit, without hover pause; on
+phones they sit above the sticky save bar (Q5). Every save/action uses shared
+`AdminUI.busy` (600 ms, quick 250 ms only for one-click live-draft actions).
+
+User decision, 5 October 2026: “Move the light switch and language switch into the hamburger”, clarified “This is obviously only on mobile widths.” At the existing mobile/off-canvas breakpoint (max-width: 860px), both controls live inside navigation; the bell remains in the topbar. Above that breakpoint their topbar placement is unchanged. Theme/language behavior, dirty guards and keyboard access remain unchanged. This approved mobile placement gives the event breadcrumb at least the reference reading width.
+
+There is no U-D decision. Shared navigation retains sidebar DOM/collapse state,
+updates current/event-dependent links, closes clean layers before swaps and guards
+layers with unsaved input. Fragment-only history changes stay native; widening
+past 860 px closes mobile navigation and releases content interaction.
+
+U1 page-script contract: each opted-in page supplies a same-origin ES module with
+`<script type="module" data-admin-page-script src="…">`. It exports
+`init(root, ui)` and `dispose()`; top-level module evaluation must not initialize
+the page. `root` is `[data-page-region]` and `ui` is `window.AdminUI`. Register
+owned drafts through `registerDraft(owner, { isDirty, discard, isPending })` or
+`trackForm(form)`; dispose the returned registration as well as all owned event
+listeners, timers and connections. Async work must be aborted or ignored after
+disposal. Optional page CSS links carry `data-admin-page-style`. The shell keeps
+its own controls/listeners alive, disposes the previous page before fetch/swap,
+and initializes only the new page. Configuration `AdminUi:InPageNavigation`
+defaults to `true`; `false` retains the shared dirty guard but uses full loads.
+Filter/search updates use `AdminUI.setUrl` (replace); record opening passes
+`{ record: true }` (push). Query schemas validate and omit defaults. Page owners
+supply a `<template data-page-loading-template="identity">` (using their page
+kind) for their loading composition. The shell remembers those templates and
+uses a generic skeleton when none is available. A discarded draft is never stored in browser history.
+
+New pages use `AdminFetch.request(url, { expect, draft, labels, readback, …fetchOptions })`
+for their handler traffic. Field-keyed draft values and a separate localized labels
+map populate the session notice; readback selects U-A's uncertain-outcome wording.
+Non-2xx responses are unknown with their status before HTML/session classification;
+only successful HTML in place of expected JSON can indicate a lost session.
+Handle `handler`, `session-lost`, `refused` and `unknown` separately; unknown writes
+require the owning page's readback contract, never automatic resend. Only an
+explicit same-page PRG destination may be allowed through `allowRedirectTo`, and
+the page still validates the returned data before showing a result.
+
+Exit timing derives from computed shared CSS animation and completes even when no
+animation runs. U1's selected shared busy minimum is 600 ms for saves and 250 ms
+for one-click actions; reduced motion removes the wait (implemented and
+proved by U1 item4). It never delays the backend operation or shows success before its
+response. Block repeat submission while pending. No toast Undo is approved.
+
 ## Rule promotion and ownership
 
 Page-specific is the default. A page rule becomes global only through an
@@ -63,13 +216,12 @@ Ownership is recorded at three levels:
   component. It must be named as such until a real owner exists.
 
 The Admin shell is physically owned by
-`src/Bingo.Web/Pages/Shared/_AdminLayout.cshtml` and its Admin CSS in
-the transitional stylesheet set. Questions uses the static dialog host in `_AdminLayout.cshtml`
-plus its `signup-questions-overlay.js` module. Accounts and Catalogue
-create/manage their dialog hosts through their page-specific JavaScript
-modules, `account-manage-dialog.js` and `catalogue-admin.js`.
-`_AdminOverlayLayout.cshtml` is the standalone/fallback presentation shell
-only, not the shared dialog host. These implementations follow the canonical
+`src/Bingo.Web/Pages/Shared/_AdminDesignLayout.cshtml` and its `admin-design-*` CSS and
+`admin-design-shell.js`. Questions uses the static dialog host in `_AdminDesignLayout.cshtml`
+with `admin-signup-setup.js`. The Accounts route dialog is owned by `admin-accounts.js`. The bound
+Catalogue page uses `admin-catalogue.js` with `AdminUI.openLayer` in
+`admin-design-shell.js` and the shared hosts in `_AdminDesignHosts.cshtml`.
+`_AdminOverlayLayout.cshtml` is retired (U10). These implementations follow the canonical
 route-dialog behavior and must not spawn new variants. Toast markup is
 physically shared by `_TransientToast.cshtml`; toast behavior is in `site.js`.
 
@@ -99,11 +251,10 @@ physically shared by `_TransientToast.cshtml`; toast behavior is in `site.js`.
 - Primary content and actions align to the owning layout. Final actions sit
   at the end of their row; low-priority navigation does not compete with the
   primary action.
-- Normal Admin primary actions use the neutral/muted outline treatment.
-  Hierarchy comes from placement, wording, and typographic weight; colored
-  normal actions are forbidden. Red is reserved for explicit destructive
-  actions, and semantic success color is reserved for an action that explicitly
-  means success.
+- New Admin primary actions use the accepted shared reference treatment, including
+  filled primaries. Neutral and destructive variants retain their distinct roles.
+  Use shared theme tokens, not page-local color substitutions. The older outline
+  treatment remains existing application code until the authorized integration.
 
 ## Layout families
 
@@ -132,10 +283,11 @@ table record management.
 
 ### Detail/form with optional information rail
 
-The canonical rendered references are Manage/Overview, Identity, and Schedule.
-`.event-manage-layout`, `.identity-editor-layout`, and
-`.schedule-editor-layout` are page-local compositions with CSS owners in the
-transitional stylesheet set; no shared rail partial exists.
+The retained rendered rail references are Manage/Overview and Schedule.
+`.event-manage-layout` and `.schedule-editor-layout` are page-local compositions
+with CSS owners in the transitional stylesheet set; no shared rail partial exists.
+U1 Identity uses the frozen reference form-card composition in the opt-in Admin
+shell; it has no information rail. Its binding awaits the matrix acceptance gate.
 
 On wide desktop, a detail/form page may use a sticky information rail. At
 constrained widths the rail is removed, not moved below or into the form.
@@ -544,7 +696,7 @@ coral live, sage signup, bronze postponed/upcoming, and subdued bronze archived.
 The mapping is semantic, never positional, and its hover/focus contrast must pass
 in both themes.
 
-## Primitive registry
+## Existing application primitive registry — migration sources
 
 Each entry names the semantic role, exact owner, canonical rendered reference,
 current uses, permitted variants, and forbidden legacy residue.
@@ -552,7 +704,7 @@ current uses, permitted variants, and forbidden legacy residue.
 | Role | Exact owner and reference | Uses and permitted variants | Forbidden residue |
 | --- | --- | --- | --- |
 | Create/Add | CSS `.admin-button-create` in the transitional stylesheet set; Events directory markup is the canonical reference | Events, Accounts emergency credential, Catalogue Add, and page-approved Add actions; label and icon vary | Bootstrap/local border, background, outline, padding, or geometry layered over the class |
-| Primary action | CSS `.admin-button-primary` in the transitional stylesheet set; Board and Events directory are canonical action references | Neutral/muted outline primary submit/publish/save action; hierarchy comes from placement, wording, and weight | Colored normal action, filled/local `.btn` styling, duplicated focus, or page-local color override |
+| Primary action | CSS `.admin-button-primary` in the transitional stylesheet set; Board and Events directory are canonical action references | Existing outline implementation; new Admin target uses reference primary variants | Duplicated focus or local overrides outside the approved shared design |
 | Secondary action | CSS `.admin-button-secondary` and `.event-create-cancel` in the transitional stylesheet set; Board/Identity are references | Neutral cancel, edit, navigation, and independent save actions | Ad hoc neutral button geometry or a disabled-looking fake terminal action |
 | Destructive action | CSS `.action-danger-outline` in the transitional stylesheet set; lifecycle controls in Manage and Board are references | Danger-outline delete/remove/reversal actions, normally behind confirmation | Red filled action, generic danger text without consequence, or empty danger panel |
 | Ghost/low-priority | CSS `.event-overview-row-action` is the canonical quiet route action; other page-local quiet links remain patterns | Read-only Workspace/route links and low-priority navigation | Treating every text link as a global component or adding a pill/button shell |
@@ -561,11 +713,11 @@ current uses, permitted variants, and forbidden legacy residue.
 | Tables/responsive cards | Events directory `.admin-events-table-wrap`/`.event-table` and its `1100px` card rules; Accounts/Participants are named page-local references | Wide table, server empty state, and label/value card transition | Row separators/outlines, squeezed desktop table, or claiming Accounts markup is shared |
 | State/lifecycle pills | `.admin-status-pill` and `.is-*` modifiers in the transitional stylesheet set; Manage/Events directory are references | Lifecycle, role, setup, cutoff, and readiness states; text accompanies color | Color-only meaning, invented modifier semantics, or page-local pill geometry |
 | Headings/support | Shared Admin typography tokens; markup owners are each page heading/component heading; Manage is the hierarchy reference | Page, component, row label, and support roles | Promoting a page selector to global or duplicating headings inside nested surfaces |
-| Rows/panels/callouts | `.event-overview-section`, `.event-overview-row`, `.event-confirmation-box`, and `.information-callout` CSS; Manage/Board references | Operational row, tonal panel, compact confirmation, and informational note | Unnamed nested boxes, legacy card wrappers, or decorative dividers without owner |
-| Information rail | No shared markup owner; Manage `.event-overview-dates-panel`, Identity `.identity-event-information-rail`, and Schedule `.schedule-event-information-rail` are canonical patterns | Detail/form only on wide desktop; page-local content may differ | Adding it to full-width/table pages or relocating it below constrained forms |
-| Route dialogs | Questions uses `_AdminLayout.cshtml` + `signup-questions-overlay.js`; Participant uses the dialog section of `event-manage.js`; both use `admin-editor-guard.js` for dirty/pending/failure safeguards. Accounts/Catalogue retain their existing owners | Questions/Participant share the accepted modal policy at every width with fullscreen at <=900; explicit routes/reload/recovery remain. Other owners retain their current behavior until authorized rollout | A second page shell, opaque host surface, generalized overlay framework, or new route-dialog variant |
-| Compact/nested confirmations | `event-confirmation-box`; Questions/Participant use compact inline markup and `admin-editor-guard.js` for unsaved-discard mechanics | Compact inline confirmation inside an editor, neutral Cancel before semantic action, body-size consequences; no additional dim layer | Stacked dim layers, typed-reason prompts where handler does not support them, or loose destructive copy |
-| Backdrop/focus/scroll/history | Admin route CSS plus `site.js`, `signup-questions-overlay.js`, `account-manage-dialog.js`, and `catalogue-admin.js`; public Board retains its evidence viewer and submission drawer but no team-board popup | Modal/drawer backdrop, body-scroll lock, trigger focus restore where applicable, route history, bounded overlay content scroll | A page-local duplicate modal policy, lost focus, background scrolling, or realtime interrupting an active submission/result |
+| Rows/panels/callouts | `.event-overview-section`, `.event-overview-row`, and `.information-callout` CSS; Manage/Board references | Operational row, tonal panel, compact confirmation, and informational note | Unnamed nested boxes, legacy card wrappers, or decorative dividers without owner |
+| Information rail | No shared markup owner; Manage `.event-overview-dates-panel` and Schedule `.schedule-event-information-rail` are canonical patterns | Detail/form only on wide desktop; page-local content may differ | Adding it to full-width/table pages or relocating it below constrained forms |
+| Route dialogs | Questions uses `_AdminDesignLayout.cshtml` + `admin-signup-setup.js`; Participant is now the Participants drawer in `admin-participants.js` (`event-manage.js` is deleted, U10); both use the shared admin-design shell script (`admin-design-shell.js`) for dirty/pending/failure safeguards. Accounts/Catalogue retain their existing owners | Questions/Participant share the accepted modal policy at every width with fullscreen at <=900; explicit routes/reload/recovery remain. Other owners retain their current behavior until authorized rollout | A second page shell, opaque host surface, generalized overlay framework, or new route-dialog variant |
+| Admin confirmations | ADM-02 establishes the shared confirmation owner using existing dialog/guard/toast components; remaining inline owners are migration sources | One centered consequence-specific confirmation, dimmed backdrop, Cancel before semantic action; editor hands off and resumes preserved state | Product-action native confirms, inline/`details` confirmations, stacked dialogs, duplicate prompts, unsupported reason fields |
+| Backdrop/focus/scroll/history | Admin route CSS plus `site.js`, `admin-signup-setup.js`, `admin-accounts.js`; bound Catalogue uses `admin-design-shell.js` shared layers with `admin-catalogue.js`; public Board retains its evidence viewer and submission drawer but no team-board popup | Modal/drawer backdrop, body-scroll lock, trigger focus restore where applicable, route history, bounded overlay content scroll | A page-local duplicate modal policy, lost focus, background scrolling, or realtime interrupting an active submission/result |
 | Toasts | `_TransientToast.cshtml`, `.app-toast` CSS, and `site.js` transient-toast layer | Success, warning, error, information; live region, dismiss button, timeout pause, reduced motion | Inline duplicate toast systems, non-announced mutation feedback, or toast-only authorization/validation |
 | Removable-object X | `.action-remove-x` for self-evident removable objects, using the standard inline two-stroke crossed-line SVG; shared close glyph path is `.admin-route-dialog-close` | Muted neutral Board-style default and neutral hover treatment for banner/evidence/objective removal, with accessible label and focus state | Pink/red default, bare unlabeled font/text `×`, oversized invisible target without focus, or using X for non-removal actions |
 
@@ -573,7 +725,7 @@ The registry distinguishes CSS sharing from markup sharing. A class reused by
 several pages is physically shared CSS; the surrounding composition remains a
 page-local exception unless a partial/helper/module owns it.
 
-## Explicit Create/Add rule
+## Existing application Create/Add rule — superseded as redesign target
 
 `.admin-button-create` owns the approved outline-free Create/Add appearance.
 It affects consumers of that class, not every action whose label says
@@ -592,8 +744,8 @@ the primitive includes removing conflicting local rules and wrappers.
 - `max-width: 1100px`: full-width data tables use label/value cards; detail
   information rails are removed; no drawer activation is established here.
 - `max-width: 900px`: the Admin sidebar becomes the route-backed drawer with
-  scrim and focus handling in `_AdminLayout.cshtml`, `site.js`, and the
-  transitional stylesheet set.
+  scrim and focus handling in `_AdminDesignLayout.cshtml`, `admin-design-shell.js`, and
+  `admin-design-layout.css`.
   Desktop Admin route dialogs become ordinary pages. Public team cards navigate
   to the ordinary TeamBoard page at every viewport; direct loads,
   reload/history, browser Back, and modified clicks use that same route. Public
@@ -626,34 +778,41 @@ Preserve that composition while checking these details against the shared system
 the implementer/planner may use a targeted render where a concrete visual
 uncertainty warrants it. This does not add duplicate reviewer visual inspection.
 
-### Admin popup and confirmation contract — accepted 2026-09-07
+### Admin popup and confirmation contract — target updated 2026-09-26
+
+The approved Admin simplification contract supersedes earlier inline/page-specific
+confirmation requirements. It does not revoke prior visual acceptance or claim
+the new primitive/pages are implemented or manually accepted. ADM-02 establishes
+one accessible centered shared confirmation; owning tickets migrate their actions.
+Editor placement remains independent, and later visual redesign is out of scope.
 
 Ordinary Admin popups inherit the shared Admin type family and size hierarchy:
 popup title, smaller section headings, normal body/label/input/button sizes and
-smaller muted help. Inline confirmation headings use emphasized body text; warning
+smaller muted help. Confirmation headings use emphasized body text; warning
 copy must not dominate the item heading or inherit public/page-introduction sizing.
 Use semantic shared Admin styling; do not invent a page-local typography scale.
 
-Use a compact inline confirmation beside the affected object inside an existing
-editor popup. On ordinary pages, destructive actions may use a small confirmation
-dialog. These contexts share Cancel-before-destructive button order, accessible
-focus, concise consequence-specific wording and danger styling. Use Delete for
-permanent deletion and Remove for unlinking. A non-account question must not show
-account-removal consequences. Escape cancels the topmost confirmation first and
-returns focus to its trigger; do not stack editor modals.
-
-While an inline action confirmation is open, hide its initiating action button so
-the action appears only once, beside Cancel. Restore the trigger before returning
-focus on Cancel/Escape; switching or dismissing confirmations must not leave a
-trigger hidden. Preserve typed values, discard recovery and pending-request guards.
-This general rule is accepted 2026-09-08; the current correction covers Questions,
-Participant Manage, Accounts Create/Manage and Catalogue Add/Edit only.
+Use one centered shared confirmation with a dimmed backdrop, meaningful focus
+entry/return, Escape cancellation, keyboard support and responsive layout. Cancel
+precedes the semantic action. Wording describes the actual consequence; use Delete
+for permanent deletion and Remove for unlinking. An editor hands interaction to
+the confirmation and resumes with values preserved; never stack active dialogs.
+Preserve pending-request guards and submit-once behavior. No ordinary-save
+confirmation. The only typed product confirmation is **Fetch WOM data now**;
+reasons appear only where the owning action requires them. Schedule changes after
+public reliance use one old → new consequence confirmation, except Draft-time-only
+edits; manual Open/Close/Reopen has one consequence modal without a prepare/warning/
+proposed-close acknowledgement ladder. Server readiness is always rechecked.
+Approval of evidence and a private Board is one click; the owning contracts define
+destructive/publication/reopen confirmation and reason requirements.
 
 Unchanged editors dismiss without confirmation. Closing actual unsaved changes
-requires a compact discard choice that preserves edits when cancelled. Close,
+requires the shared discard choice that preserves edits when cancelled. Close,
 Cancel, Escape, Back and outside-click paths must not bypass this protection or
-leave URL/focus/scroll state inconsistent. Reload/navigation away may use native
-browser unsaved-change protection. While a save is pending, keep the editor present
+leave URL/focus/scroll state inconsistent. Native `beforeunload` protection is
+allowed only for genuinely unsaved browser-level exit/tab-close/reload; clear it
+after save/discard and avoid duplicate prompts. In-application confirmations use
+the shared system. No autosave is introduced. While a save is pending, keep the editor present
 until it settles; prevent duplicate submissions. Failures retain values and usable
 localized retry controls. Replacing content after any action must not silently
 discard edits in another form in the same editor.
@@ -679,7 +838,7 @@ typography rules with real shared ownership where appropriate. This does not cla
 other Admin popups conform or authorize their rollout. Participant-specific authority
 and lifecycle actions remain explicit and protected.
 
-Accounts Create/Manage adopts this same shared guard, inline-confirmation and
+Accounts Create/Manage adopts this same shared guard, shared-confirmation and
 all-width modal contract for the 2026-09-08 behavior rollout. Its existing compact
 composition and account-specific action/secret disclosure semantics remain intact.
 The general Accounts narrow standalone switch is superseded; deliberate standalone
@@ -687,9 +846,10 @@ routes still provide direct navigation and recovery. Independent rollout review 
 source-only by user decision; changed client behavior receives one targeted browser
 check and the user provides final visual acceptance.
 
-Catalogue Add/Edit adopts the same all-width modal/shared guard/inline confirmation
+Catalogue Add/Edit adopts the same all-width modal/shared guard/shared confirmation
 and parent-freshness contract for the user-approved 2026-09-08 rollout. Preserve the
-specialized activity/drop layout, typed-delete and duplicate-item decisions. Revealed
+specialized activity/drop layout and duplicate-item decisions. The former typed-delete
+requirement is superseded by the sole WOM typed-confirmation exception. Revealed
 confirmations must scroll into view, with ordinary Admin body typography and no
 second modal layer. Explicit standalone routes remain usable.
 
@@ -889,6 +1049,33 @@ remediation. Record cleared pages as awaiting manual approval. The later combine
 walkthrough includes shared-shell/CSS regressions across those pages. This does
 not authorize scope expansion, packaging, commits, deployment or bypassing a blocker.
 
+## Luck display contract — active 2026-10-01
+
+Stats keeps its existing Luck container and team/player comparison flow. The
+default mode is **Luck %** on a fixed 0–100 scale; an in-container toggle selects
+**KC difference**. Do not add a second container, boss selector or EHB mode. Both
+modes use the same saved snapshot, timestamp and scope. Sort, pin and extreme
+selection use the active mode's unrounded value, while display rounds to at most
+one decimal. Signed KC values normalize rounded negative zero.
+
+Luck uses the fixed percentile scale, so it has no plus signs, negative values or
+zero-as-expected centre. KC difference is signed and uses a zero-centred scale.
+Missing, unranked, estimated, zero-recorded, stale and numerically unavailable
+states remain explicit rows without fabricated values. A neutral Last updated
+label may accompany a retained snapshot; ordinary age is not shown as a routine
+error. Provider failure and estimate wording remains meaningful without exposing
+private diagnostics.
+
+One localized explanation is shared by Stats and tile help: Luck compares approved
+drops with modeled outcomes at the same recorded activity and retained rates;
+higher percentages mean luckier outcomes and expectation is not forced to the
+midpoint. KC mode explains the rate-equivalent balance and uses the short tooltip
+“KC totals don’t account for differences in boss kill speed.” Tile projections
+show one aggregate result plus each relevant boss/activity result, and contributor
+rows use their matching activity result. Single-boss views do not repeat identical
+aggregate and boss rows unnecessarily. Preserve reduced-motion, keyboard-focus,
+responsive and EN/DA localization rules from this document.
+
 ## Protected baselines
 
 The protected Admin baseline is the shell plus Event Create, Identity,
@@ -915,3 +1102,14 @@ that actor's current event/team.
 The canonical submission workspace remains a separate approval unit; legacy
 Captain routes are compatibility aliases rather than a standalone workspace.
 This Board approval does not claim whole-application production readiness.
+
+### U1 Identity page lifecycle and uncertain departure
+
+Identity is the first `[AdminDesign]` page. Its ES module exports asynchronous
+`init(root, ui)` and `dispose()`; disposal aborts requests, unregisters its draft
+and awaits closure of its layer before another page initialises. Saves and Current
+reads use AdminFetch. A registered dirty draft may supply `confirmLeave()` to use
+its page-specific uncertain-save warning; the shared guard still refuses pending
+navigation and owns sidebar, switcher, breadcrumb and history transitions. Identity
+uses Check again / Leave anyway while uncertain, otherwise the normal discard
+confirmation. This binding changes no other page's guard or layout.

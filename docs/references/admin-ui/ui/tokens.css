@@ -1,0 +1,210 @@
+/* DK Legacy Admin — design tokens
+   Extracted from the approved Participants design. Values are unchanged; only names are new.
+   Apply the theme by putting `dk-theme` (light) or `dk-theme theme-dark` on a root element.
+   Both themes share the same semantic names. Components read tokens only; they never hardcode colors.
+   Breakpoints can't be CSS variables; they are documented here and used as literals:
+     --dk-bp-wide 1260px (drop low-priority table columns) · --dk-bp-medium 1080px · --dk-bp-mobile 860px (off-canvas nav) */
+
+.dk-theme {
+  /* Surfaces, back to front */
+  --dk-bg:            #f6f6f3;   /* app background */
+  --dk-bg-sidebar:    #efefeb;
+  --dk-surface:       #ffffff;   /* cards, drawers, buttons */
+  --dk-surface-2:     #fafaf8;   /* table header, subtle fills, secondary hover */
+  --dk-surface-raised:#ffffff;   /* menus, modals */
+  --dk-field:         #ffffff;   /* input background */
+  --dk-track:         #eaeae5;   /* segmented/tab track, disabled fields, info banner, quotes */
+  --dk-skeleton:      #ececE6;
+  --dk-avatar:        #e6e6e0;
+  --dk-tab-selected:  #ffffff;   /* selected tab / theme option */
+
+  /* Borders */
+  --dk-border:        #e2e2dc;
+  --dk-border-subtle: #ededE8;   /* row and section dividers */
+  --dk-border-strong: #cfcfc8;   /* control outlines */
+
+  /* Text and icons */
+  --dk-text:          #1c1d1f;
+  --dk-text-2:        #54565b;   /* secondary text, labels */
+  --dk-text-3:        #74767c;   /* muted text, icons, placeholders */
+
+  /* Accent (selection, focus, links-in-UI). The only accent hue. */
+  --dk-accent:        #2f6a74;
+  --dk-accent-soft:   #e9f1f2;
+  --dk-accent-border: #a8c6ca;
+  --dk-focus:         #2f6a74;               /* keyboard focus outline */
+  --dk-focus-ring:    rgba(47,106,116,.18);  /* focused-field glow */
+
+  /* Actions */
+  --dk-primary:       #2b6069;
+  --dk-primary-hover: #245259;
+  --dk-on-primary:    #ffffff;
+  --dk-control-hover: #fafaf8;               /* secondary button hover fill */
+  --dk-danger:        #b3443a;               /* filled destructive */
+  --dk-danger-hover:  #9f3a31;
+  --dk-on-danger:     #ffffff;
+  --dk-danger-fg:     #a23d33;               /* destructive text, errors */
+  --dk-danger-soft:   #f9ebe8;               /* destructive hover, error banner */
+
+  /* Status tones (badges, chips) */
+  --dk-info-bg:       #e8eef7;  --dk-info-fg: #2f5b8f;
+  --dk-done-bg:       #efebf6;  --dk-done-fg: #5f4a94;
+  --dk-success-bg:    #e6f1ea;  --dk-success-fg: #256a45;
+  --dk-warning-bg:    #f7eed8;  --dk-warning-fg: #985a00;   /* amber: text >= 4.5:1 on page, surface and warning-bg */
+  --dk-neutral-bg:    #eeeeea;  --dk-neutral-fg: #5d5f65;
+
+  /* Interaction states */
+  --dk-hover:         rgba(28,29,31,.045);
+  --dk-pressed:       rgba(28,29,31,.085);
+  --dk-row-hover:     #fafaf7;
+  --dk-selected:      #eff5f5;               /* selected row */
+  --dk-segment-on:    #e9f1f2;               /* selected segmented option */
+  --dk-nav-current:   rgba(28,29,31,.065);
+
+  /* Overlays */
+  --dk-scrim:         rgba(28,29,31,.22);
+  --dk-shadow-sm:     0 1px 2px rgba(28,29,31,.06);
+  --dk-shadow-lg:     0 12px 32px rgba(28,29,31,.12),0 2px 6px rgba(28,29,31,.06);
+  --dk-toast-bg:      #232427;
+  --dk-toast-fg:      #f4f4f2;
+  --dk-toast-muted:   #b9bbbf;
+  --dk-toast-success: #9fd3b1;
+  --dk-toast-error:   #f0a097;
+
+  /* Data display. One-hue ordinal ramp from the accent (validated: monotone lightness, light end >= 2:1
+     on the surface, both themes). 1 = the emphasised part (e.g. returning), 2 = the lighter part
+     (e.g. first time). Muted = data outside the tracked set (e.g. imported). */
+  --dk-chart-1:       #2f6a74;
+  --dk-chart-2:       #80adb4;
+  --dk-chart-muted:   #c4c4bd;
+
+  color-scheme: light;
+
+  /* ---- Theme-independent tokens ---- */
+
+  /* Typography */
+  --dk-font-sans: 'Geist', ui-sans-serif, system-ui, sans-serif;
+  --dk-font-mono: 'Geist Mono', ui-monospace, monospace;
+  --dk-fs-caption: 11.5px;   /* nav group labels, pills */
+  --dk-fs-meta:    12px;     /* hints, secondary meta */
+  --dk-fs-small:   12.5px;   /* labels, table headers, badges, errors */
+  --dk-fs-control-sm: 13px;  /* small controls, pagination, breadcrumbs */
+  --dk-fs-control: 13.5px;   /* controls, menus, section titles, dense body */
+  --dk-fs-body:    14px;     /* base */
+  --dk-fs-title-sm: 15px;    /* empty-state title */
+  --dk-fs-dialog-title: 16.5px;
+  --dk-fs-drawer-title: 19px;
+  --dk-fs-page-title: 23px;
+  --dk-fs-stat: 26px;        /* headline statistic values */
+  --dk-fs-stat-sm: 19px;     /* compact statistic values */
+  --dk-fw-regular: 400; --dk-fw-medium: 500; --dk-fw-strong: 550; --dk-fw-bold: 600;
+  --dk-lh-body: 1.45; --dk-lh-tight: 1.2; --dk-lh-relaxed: 1.5;
+
+  /* Spacing (layout rhythm; component-internal nudges stay literal) */
+  --dk-space-1: 4px; --dk-space-2: 8px; --dk-space-3: 12px; --dk-space-4: 16px;
+  --dk-space-5: 20px; --dk-space-6: 24px; --dk-space-7: 28px; --dk-space-8: 32px;
+
+  /* Control sizes */
+  --dk-control-h:    34px;   /* buttons, inputs */
+  --dk-control-h-md: 32px;   /* icon buttons, nav items, pagination, large segments */
+  --dk-control-h-sm: 28px;   /* small buttons, segments, chips */
+  --dk-icon: 16px; --dk-icon-sm: 14px;
+
+  /* Radii */
+  --dk-radius-xs: 6px;  --dk-radius-sm: 7px;  --dk-radius-md: 8px;
+  --dk-radius-lg: 9px;  --dk-radius-xl: 10px; --dk-radius-card: 12px;
+  --dk-radius-dialog: 13px; --dk-radius-pill: 999px;
+
+  /* Layout */
+  --dk-sidebar-w: 252px; --dk-sidebar-w-collapsed: 64px; --dk-sidebar-w-mobile: min(284px,86vw);
+  --dk-topbar-h: 54px; --dk-page-max: 1320px;
+  --dk-drawer-w: min(560px,100vw); --dk-modal-w: min(440px,100%); --dk-menu-w: 236px;
+
+  /* Layers */
+  --dk-z-sticky: 2; --dk-z-drawer: 40; --dk-z-nav: 49; --dk-z-menu: 59;
+  --dk-z-modal: 70; --dk-z-toast: 90;
+
+  /* Motion. Entrances ease out; exits ease in and are ~25–30% faster.
+     The only source of durations: behavior.js measures exit animations from computed styles. */
+  --dk-ease-out: cubic-bezier(.2,.8,.2,1);  /* panels, dialogs, toasts, chevrons */
+  --dk-dur-press: .08s;          /* chip press scale */
+  --dk-dur-hover: .12s;          /* hover/pressed colors */
+  --dk-dur-select: .15s;         /* tabs, segments, small fades */
+  --dk-dur-theme: .2s;           /* theme switch, sidebar width */
+  --dk-dur-popover-in: .12s;  --dk-dur-popover-out: .1s;   /* menus */
+  --dk-dur-dialog-in: .18s;   --dk-dur-dialog-out: .14s;   /* modals */
+  --dk-dur-drawer-in: .22s;   --dk-dur-drawer-out: .16s;   /* drawers, mobile nav */
+  --dk-dur-toast-in: .2s;     --dk-dur-toast-out: .16s;
+  --dk-dur-content-in: .18s;  --dk-dur-content-out: .14s;  /* rows, disclosures, view changes */
+  --dk-dur-item-out: .15s;       /* removed repeated field */
+  --dk-dur-flash: 1.5s;          /* changed-row highlight */
+  --dk-dur-shuffle: .5s;         /* one beat of the waiting shuffle while a draw is saving (loops) */
+  --dk-dur-shuffle-min: .7s;     /* shortest waiting shuffle, so a fast draw still reads as a shuffle */
+  --dk-dur-reorder: .62s;        /* items travelling to their confirmed new positions */
+  --dk-dur-reorder-stagger: .07s;/* delay between successive items in a reorder */
+}
+
+.dk-theme.theme-dark {
+  --dk-bg:            #131416;
+  --dk-bg-sidebar:    #161719;
+  --dk-surface:       #1a1b1e;
+  --dk-surface-2:     #1d1e21;
+  --dk-surface-raised:#222327;
+  --dk-field:         #16171a;
+  --dk-track:         rgba(255,255,255,.05);
+  --dk-skeleton:      rgba(255,255,255,.055);
+  --dk-avatar:        #2a2c31;
+  --dk-tab-selected:  #27292d;
+
+  --dk-border:        #2a2c30;
+  --dk-border-subtle: #232428;
+  --dk-border-strong: #3a3c42;
+
+  --dk-text:          #e8e8e5;
+  --dk-text-2:        #b1b3b8;
+  --dk-text-3:        #8a8d94;
+
+  --dk-accent:        #8bbcc3;
+  --dk-accent-soft:   rgba(139,188,195,.09);
+  --dk-accent-border: rgba(139,188,195,.38);
+  --dk-focus:         #8bbcc3;
+  --dk-focus-ring:    rgba(139,188,195,.2);
+
+  --dk-primary:       #3d6f77;
+  --dk-primary-hover: #487c84;
+  --dk-on-primary:    #f3f8f8;
+  --dk-control-hover: #232428;
+  --dk-danger:        #b9564a;
+  --dk-danger-hover:  #c86256;
+  --dk-on-danger:     #ffffff;
+  --dk-danger-fg:     #eb968b;
+  --dk-danger-soft:   rgba(224,110,97,.11);
+
+  --dk-info-bg:       rgba(122,162,222,.13); --dk-info-fg: #9fbde6;
+  --dk-done-bg:       rgba(168,142,220,.13); --dk-done-fg: #c0aee6;
+  --dk-success-bg:    rgba(111,180,137,.12); --dk-success-fg: #95cfaa;
+  --dk-warning-bg:    rgba(221,178,94,.12);  --dk-warning-fg: #dfbd7a;
+  --dk-neutral-bg:    rgba(255,255,255,.06); --dk-neutral-fg: #a5a7ad;
+
+  --dk-hover:         rgba(255,255,255,.05);
+  --dk-pressed:       rgba(255,255,255,.09);
+  --dk-row-hover:     rgba(255,255,255,.022);
+  --dk-selected:      rgba(139,188,195,.065);
+  --dk-segment-on:    rgba(255,255,255,.08);
+  --dk-nav-current:   rgba(255,255,255,.07);
+
+  --dk-scrim:         rgba(4,5,7,.55);
+  --dk-shadow-sm:     0 1px 2px rgba(0,0,0,.35);
+  --dk-shadow-lg:     0 18px 44px rgba(0,0,0,.5),0 0 0 1px rgba(255,255,255,.03);
+  --dk-toast-bg:      #2b2d32;
+  --dk-toast-fg:      #ececea;
+  --dk-toast-muted:   #a9abb1;
+  --dk-toast-success: #9fd3b1;
+  --dk-toast-error:   #f0a097;
+
+  --dk-chart-1:       #9ccbd1;   /* dark: the emphasised step is the lighter one */
+  --dk-chart-2:       #467a82;
+  --dk-chart-muted:   #45474d;
+
+  color-scheme: dark;
+}

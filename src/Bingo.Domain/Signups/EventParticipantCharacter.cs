@@ -64,6 +64,13 @@ public sealed class EventParticipantCharacter
         OsrsCharacterId = osrsCharacterId;
     }
 
+    /// <summary>Moves an active assignment between configured account slots.</summary>
+    public void SetSignupQuestion(Guid? signupQuestionId)
+    {
+        if (ReleasedAt is not null) throw new InvalidOperationException("Released event assignments cannot be remapped.");
+        SignupQuestionId = signupQuestionId;
+    }
+
     public void Release(Guid? actorAccountId, DateTimeOffset now)
     {
         if (ReleasedAt is not null) return;

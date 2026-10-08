@@ -13,6 +13,7 @@ public sealed class NotificationsModel(Bingo.Infrastructure.Persistence.Applicat
 {
     public IReadOnlyList<NotificationView> Notifications { get; private set; } = [];
     public AdminActionProjection AdminActions { get; private set; } = new([], [], 0);
+    public bool AdminActionsUnavailable { get; private set; }
     public async Task<IActionResult> OnGetAsync(Guid? read, CancellationToken cancellationToken)
     {
         if (read is not null)
@@ -23,7 +24,11 @@ public sealed class NotificationsModel(Bingo.Infrastructure.Persistence.Applicat
             .Where(item => item.RecipientAccountId == accountId && (item.EventId == null || db.Events.Any(eventItem => eventItem.Id == item.EventId && eventItem.HiddenAt == null)))
             .OrderByDescending(item => item.CreatedAt)
             .Select(item => new NotificationView(item.Id, item.Title, item.Detail, item.Route, item.CreatedAt, item.ReadAt)).ToListAsync(cancellationToken);
-        if (shell is not null && (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))) AdminActions = await shell.GetAdminActionsAsync(cancellationToken);
+        if (shell is not null && (User.IsInRole("Admin") || User.IsInRole("SuperAdmin")))
+        {
+            AdminActions = await shell.GetAdminActionsSafelyAsync(cancellationToken);
+            AdminActionsUnavailable = !AdminActions.IsAvailable;
+        }
         return Page();
     }
 
@@ -50,6 +55,9 @@ public sealed class NotificationsModel(Bingo.Infrastructure.Persistence.Applicat
         if (accountId is null) return Challenge();
         var notification = await db.PersonalNotifications.SingleOrDefaultAsync(item => item.Id == id && item.RecipientAccountId == accountId && (item.EventId == null || db.Events.Any(eventItem => eventItem.Id == item.EventId && eventItem.HiddenAt == null)), cancellationToken);
         if (notification is null) return NotFound();
+        // Personal notification read state is recipient-scoped presentation
+        // state. It deliberately does not acknowledge or audit the separate
+        // authoritative Admin action projection.
         notification.MarkRead(time.GetUtcNow());
         await db.SaveChangesAsync(cancellationToken);
         return Redirect(string.IsNullOrWhiteSpace(notification.Route) ? "/notifications" : notification.Route);

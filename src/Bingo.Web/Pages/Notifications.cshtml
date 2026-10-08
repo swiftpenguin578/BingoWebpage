@@ -48,7 +48,11 @@
     {
         <section class="public-pass2-inbox public-pass2-admin-inbox" data-public-ui-admin-actions aria-labelledby="admin-actions-heading">
             <header class="public-pass2-ledger-heading public-pass2-ledger-heading--inbox"><h2 id="admin-actions-heading">@T["Admin actions"]</h2><span class="public-pass2-notifications-heading__metadata">@Model.AdminActions.Count</span><span class="public-pass2-notifications-heading__rule" aria-hidden="true"></span><a class="public-pass2-text-link public-pass2-notifications-heading__action" href="/Admin">@T["Open Admin tools"]</a></header>
-            @if (Model.AdminActions.Items.Count == 0)
+            @if (Model.AdminActionsUnavailable)
+            {
+                <div class="public-pass2-empty-state"><p>@T["Admin actions are temporarily unavailable. Refresh to retry."]</p><a class="public-pass2-text-link" href="/notifications">@T["Retry"]</a></div>
+            }
+            else if (Model.AdminActions.Items.Count == 0)
             {
                 <div class="public-pass2-empty-state"><p>@T["No unresolved Admin actions."]</p></div>
             }

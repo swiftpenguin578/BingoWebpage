@@ -1,0 +1,52 @@
+
+:where([data-page-family="signupsetup"]) .ss-wrap{max-width:760px}
+:where([data-page-family="signupsetup"]) .ss-tabs{margin-bottom:16px}
+:where([data-page-family="signupsetup"]) .ss-panel{display:flex;flex-direction:column;gap:16px}
+:where([data-page-family="signupsetup"]) .ss-owners{color:var(--dk-text-3)}
+:where([data-page-family="signupsetup"]) .ss-owners .text-btn{color:var(--dk-text-2);font-weight:500}
+:where([data-page-family="signupsetup"]) .ss-owners .text-btn:hover{color:var(--dk-text)}
+:where([data-page-family="signupsetup"]) .ss-cap{display:grid;grid-template-columns:minmax(0,1fr) minmax(200px,248px);gap:24px;align-items:start}
+:where([data-page-family="signupsetup"]) .ss-num{max-width:180px}
+:where([data-page-family="signupsetup"]) .ss-counts{padding:12px 14px;border:1px solid var(--dk-border-subtle);border-radius:var(--dk-radius-lg);gap:8px}
+:where([data-page-family="signupsetup"]) .ss-counts-link{justify-content:flex-start}
+:where([data-page-family="signupsetup"]) .ss-counts-link .fact-value{font-weight:400;text-align:left}
+:where([data-page-family="signupsetup"]) .ss-fact-btn{display:inline-flex;align-items:center;gap:2px;font-weight:400;color:var(--dk-text-2);text-align:left;font-size:var(--dk-fs-control-sm)}
+:where([data-page-family="signupsetup"]) .ss-fact-btn:hover{color:var(--dk-text)}
+:where([data-page-family="signupsetup"]) .ss-fact-btn .ic{width:13px;height:13px;color:var(--dk-text-3);transition:transform var(--dk-dur-hover)}
+:where([data-page-family="signupsetup"]) .ss-fact-btn:hover .ic{transform:translateX(2px)}
+:where([data-page-family="signupsetup"]) .ss-note{margin-top:14px}
+:where([data-page-family="signupsetup"]) .ss-always{margin-top:12px}
+:where([data-page-family="signupsetup"]) .ss-card-banner{margin-bottom:16px}
+:where([data-page-family="signupsetup"]) .ss-help{min-height:76px}
+:where([data-page-family="signupsetup"]) .ss-effects{margin:2px 0 0;padding-left:18px;color:var(--dk-text-2);font-size:var(--dk-fs-control);line-height:1.55;display:flex;flex-direction:column;gap:6px}
+:where([data-page-family="signupsetup"]) .ss-dlg-banner{margin-bottom:12px}
+:where([data-page-family="signupsetup"]) .form-sec-title[tabindex]:focus{outline:none}
+:where([data-page-family="signupsetup"]) .form-sec-title[tabindex]:focus-visible{outline:2px solid var(--dk-focus);outline-offset:3px;border-radius:var(--dk-radius-sm)}
+:where([data-page-family="signupsetup"]) .sk-block{padding:var(--dk-space-5) var(--dk-space-6);border-bottom:1px solid var(--dk-border-subtle)}
+@media (max-width:640px){:where([data-page-family="signupsetup"]) .ss-cap{grid-template-columns:1fr;gap:16px}:where([data-page-family="signupsetup"]) .ss-num{max-width:none}:where([data-page-family="signupsetup"]) .drawer .choices{grid-template-columns:1fr}}
+
+:where([data-page-family="signupsetup"]) [hidden]{display:none!important}
+:where([data-page-family="signupsetup"]) .ss-sk-line{min-height:1lh;display:flex;align-items:center;font-size:var(--dk-fs-control);line-height:var(--dk-lh-body)}
+:where([data-page-family="signupsetup"]) .form-banners:not(:has(> :not([hidden]))){display:none}
+:where([data-page-family="signupsetup"]) .form-bar .btn-primary{min-width:132px}
+@media(max-width:640px){:where([data-page-family="signupsetup"]) .form-bar .btn-primary{flex:1}}
+:where([data-page-family="signupsetup"]) .fade-in{animation:none}
+:where([data-page-family="signupsetup"]) .ss-choice-line{display:block}
+:where([data-page-family="signupsetup"]) .ss-drawer-save{min-width:128px}
+@media(max-width:640px){:where([data-page-family="signupsetup"]).drawer .choices{grid-template-columns:1fr}}
+
+/* U3-Q12(b): keep the hint beside the counts without changing its text or DOM. */
+:where([data-page-family="signupsetup"]) #signup-settings-form > .form-sec{display:grid;grid-template-columns:minmax(0,1fr) 210px;grid-template-rows:auto auto max-content minmax(0,1fr);column-gap:24px}
+:where([data-page-family="signupsetup"]) #signup-settings-form .form-sec-head{grid-column:1/-1;grid-row:1}
+:where([data-page-family="signupsetup"]) #signup-settings-form .ss-card-banner{grid-column:1/-1;grid-row:2}
+:where([data-page-family="signupsetup"]) #signup-settings-form .ss-cap{grid-column:1/-1;grid-row:3/span 2;grid-template-columns:subgrid;grid-template-rows:subgrid;row-gap:0}
+:where([data-page-family="signupsetup"]) #signup-settings-form .ss-cap > .field{grid-column:1;grid-row:1}
+:where([data-page-family="signupsetup"]) #signup-settings-form .ss-counts{grid-column:2;grid-row:1/span 2;align-self:start}
+:where([data-page-family="signupsetup"]) #cap-hint{grid-column:1;grid-row:4;align-self:start}
+:where([data-page-family="signupsetup"]) #cap-note{grid-column:1/-1;grid-row:5}
+@media(max-width:640px){
+ :where([data-page-family="signupsetup"]) #signup-settings-form > .form-sec{grid-template-columns:minmax(0,1fr)}
+ :where([data-page-family="signupsetup"]) #signup-settings-form .ss-cap{grid-row:3/span 3}
+ :where([data-page-family="signupsetup"]) #signup-settings-form .ss-counts{grid-column:1;grid-row:3;margin-top:16px}
+ :where([data-page-family="signupsetup"]) #cap-note{grid-row:6}
+}

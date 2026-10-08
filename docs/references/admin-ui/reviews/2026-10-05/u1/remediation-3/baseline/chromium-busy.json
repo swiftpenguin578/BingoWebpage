@@ -1,0 +1,302 @@
+{
+  "actual": [
+    {
+      "name": "save",
+      "text": "Save changes",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "550",
+        "lineHeight": "20.3px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgb(234, 234, 229)",
+        "paddingTop": "0px",
+        "paddingRight": "14px",
+        "paddingBottom": "0px",
+        "paddingLeft": "14px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "7px",
+        "borderRadius": "8px"
+      },
+      "icons": null,
+      "rect": {
+        "width": 122.40625,
+        "height": 34
+      },
+      "options": {
+        "text": true,
+        "icon": true,
+        "required": true,
+        "dimensions": [
+          "width",
+          "height"
+        ]
+      }
+    },
+    {
+      "name": "dirty",
+      "missing": true
+    },
+    {
+      "name": "saved",
+      "text": "Unsaved changes",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "12.5px",
+        "fontWeight": "400",
+        "lineHeight": "18.125px",
+        "color": "rgb(116, 118, 124)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "6px",
+        "borderRadius": "0px"
+      },
+      "icons": null,
+      "rect": {
+        "width": 101.171875,
+        "height": 18.125
+      },
+      "options": {
+        "text": true,
+        "icon": true,
+        "required": false
+      }
+    },
+    {
+      "name": "spinner",
+      "missing": true
+    }
+  ],
+  "expected": [
+    {
+      "name": "save",
+      "text": "Saving…",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "550",
+        "lineHeight": "20.3px",
+        "color": "rgb(255, 255, 255)",
+        "backgroundColor": "rgb(43, 96, 105)",
+        "paddingTop": "0px",
+        "paddingRight": "14px",
+        "paddingBottom": "0px",
+        "paddingLeft": "14px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "7px",
+        "borderRadius": "8px"
+      },
+      "icons": null,
+      "rect": {
+        "width": 324,
+        "height": 34
+      },
+      "options": {
+        "text": true,
+        "icon": true,
+        "required": true,
+        "dimensions": [
+          "width",
+          "height"
+        ]
+      }
+    },
+    {
+      "name": "dirty",
+      "missing": true
+    },
+    {
+      "name": "saved",
+      "missing": true
+    },
+    {
+      "name": "spinner",
+      "text": "",
+      "styles": {
+        "fontFamily": "Geist, ui-sans-serif, system-ui, sans-serif",
+        "fontSize": "14px",
+        "fontWeight": "550",
+        "lineHeight": "20.3px",
+        "color": "rgb(255, 255, 255)",
+        "backgroundColor": "rgba(0, 0, 0, 0)",
+        "paddingTop": "0px",
+        "paddingRight": "0px",
+        "paddingBottom": "0px",
+        "paddingLeft": "0px",
+        "marginTop": "0px",
+        "marginBottom": "0px",
+        "gap": "normal",
+        "borderRadius": "50%"
+      },
+      "icons": null,
+      "rect": {
+        "width": 15.011444091796875,
+        "height": 15.011474609375
+      },
+      "options": {
+        "text": true,
+        "icon": true,
+        "required": true
+      }
+    }
+  ],
+  "classes": {
+    "used": [
+      "account-btn",
+      "app",
+      "banner",
+      "brand-name",
+      "brand-sub",
+      "brand-text",
+      "btn",
+      "btn-primary",
+      "btn-quiet",
+      "btn-sm",
+      "card",
+      "collapse-btn",
+      "compare",
+      "compare-head",
+      "compare-k",
+      "compare-label",
+      "compare-new",
+      "compare-old",
+      "compare-row",
+      "copy-field",
+      "crumbs",
+      "design-event-crumb",
+      "design-event-menu",
+      "design-event-options",
+      "design-notifications-menu",
+      "design-skip",
+      "design-top-actions",
+      "dk-theme",
+      "dot",
+      "ev-chev",
+      "ev-ic",
+      "ev-lbl",
+      "ev-meta",
+      "ev-meta-text",
+      "ev-name",
+      "ev-text",
+      "event-switch",
+      "field",
+      "field-count",
+      "field-err",
+      "field-hint",
+      "field-narrow",
+      "field-note",
+      "field-validation-valid",
+      "form-banners",
+      "form-bar",
+      "form-card",
+      "form-fields",
+      "form-sec",
+      "form-sec-head",
+      "form-sec-sub",
+      "form-sec-title",
+      "grow",
+      "h1",
+      "ic",
+      "icon-btn",
+      "id-buyin",
+      "id-desc",
+      "id-name",
+      "identity-editor-form",
+      "input",
+      "is-current",
+      "is-error",
+      "is-on",
+      "is-warning",
+      "lbl",
+      "lbl-row",
+      "logo",
+      "m-body",
+      "main",
+      "menu",
+      "menu-head",
+      "menu-hint",
+      "menu-item",
+      "menu-sep",
+      "menu-toggle",
+      "mono",
+      "nav",
+      "nav-item",
+      "nav-label",
+      "nav-scrim",
+      "nav-text",
+      "page",
+      "page-head",
+      "saved-note",
+      "scroller",
+      "select",
+      "select-field",
+      "side",
+      "side-rule",
+      "side-top",
+      "sk",
+      "sk-block",
+      "textarea",
+      "theme-opt",
+      "theme-seg",
+      "toasts",
+      "tone-open",
+      "topbar"
+    ],
+    "undefined": [
+      "sk-block"
+    ]
+  },
+  "differences": [
+    {
+      "element": "save",
+      "property": "color",
+      "actual": "rgb(116, 118, 124)",
+      "expected": "rgb(255, 255, 255)"
+    },
+    {
+      "element": "save",
+      "property": "backgroundColor",
+      "actual": "rgb(234, 234, 229)",
+      "expected": "rgb(43, 96, 105)"
+    },
+    {
+      "element": "save",
+      "property": "text",
+      "actual": "Save changes",
+      "expected": "Saving…"
+    },
+    {
+      "element": "save",
+      "property": "width",
+      "actual": 122.40625,
+      "expected": 324
+    },
+    {
+      "element": "saved",
+      "property": "presence",
+      "actual": true,
+      "expected": false
+    },
+    {
+      "element": "spinner",
+      "property": "presence",
+      "actual": false,
+      "expected": true
+    },
+    {
+      "element": "shipped CSS",
+      "property": "undefined classes",
+      "actual": [
+        "sk-block"
+      ],
+      "expected": []
+    }
+  ]
+}

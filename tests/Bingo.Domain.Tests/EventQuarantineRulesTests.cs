@@ -59,22 +59,24 @@ public sealed class EventQuarantineRulesTests
     }
 
     [Fact]
-    public void HideAndRestoreRequireOrdinalNameConfirmationAndReasons()
+    public void HideRequiresAReasonAndRestoreAllowsAnOptionalReason()
     {
         var item = Event(EventState.AwaitingFinalReview);
 
-        Assert.Throws<InvalidOperationException>(() => item.Hide(Guid.NewGuid(), Now, item.Name.ToLowerInvariant(), "reason"));
-        Assert.Throws<ArgumentException>(() => item.Hide(Guid.NewGuid(), Now, item.Name, " "));
+        Assert.Throws<ArgumentException>(() => item.Hide(Guid.NewGuid(), Now, confirmation: null, reason: " "));
+        Assert.False(item.IsHidden);
 
-        item.Hide(Guid.NewGuid(), Now, item.Name, " hidden reason ");
+        item.Hide(Guid.NewGuid(), Now, confirmation: null, reason: " hidden reason ");
         Assert.Equal("hidden reason", item.HiddenReason);
-        Assert.Throws<ArgumentException>(() => item.Restore(item.Name, " "));
-        Assert.Throws<InvalidOperationException>(() => item.Restore(item.Name + " ", "reason"));
+
+        item.Restore(confirmation: null, reason: null);
+        Assert.False(item.IsHidden);
+        Assert.Null(item.HiddenReason);
     }
 
     private static BingoEvent Event(EventState state)
     {
-        var item = new BingoEvent(Guid.NewGuid(), "Quarantine test", $"quarantine-{Guid.NewGuid():N}", "UTC", Guid.NewGuid(), Now);
+        var item = new BingoEvent(Guid.NewGuid(), "Quarantine test", $"quarantine-{Guid.NewGuid():N}", "UTC", Guid.NewGuid(), Now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureInitialSchedule(Now.AddHours(-5), Now.AddHours(-4), null, Now.AddHours(-3), Now.AddHours(1), 10);
 
         if (state is EventState.SignupOpen or EventState.SignupClosed or EventState.Live or EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived)

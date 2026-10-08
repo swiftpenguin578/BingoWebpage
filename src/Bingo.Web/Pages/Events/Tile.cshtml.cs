@@ -45,7 +45,7 @@ public sealed class TileModel(IPublicBoardService boards, IEvidenceAuthority evi
         try
         {
             var scope = await evidenceAuthority.ResolveActorAsync(accountId, eventId, teamId, time.GetUtcNow(), cancellationToken);
-            return scope.Kind is EvidenceActorKind.Participant or EvidenceActorKind.Captain or EvidenceActorKind.EmergencyCaptain;
+            return scope.Kind is EvidenceActorKind.Participant or EvidenceActorKind.Captain;
         }
         catch (InvalidOperationException) { return false; }
     }

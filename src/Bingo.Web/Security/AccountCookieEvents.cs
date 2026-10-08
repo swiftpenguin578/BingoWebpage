@@ -9,9 +9,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Bingo.Web.Security;
 
-public sealed class AccountCookieEvents(ApplicationDbContext dbContext, TimeProvider time)
+public sealed class AccountCookieEvents(ApplicationDbContext dbContext)
     : CookieAuthenticationEvents
 {
+    public AccountCookieEvents(ApplicationDbContext dbContext, TimeProvider time) : this(dbContext) { }
     private const string AccessChangedItemKey = "bingo:access_changed";
 
     public override async Task ValidatePrincipal(CookieValidatePrincipalContext context)
@@ -29,20 +30,13 @@ public sealed class AccountCookieEvents(ApplicationDbContext dbContext, TimeProv
         var method = context.Principal?.FindFirstValue(AccountClaims.AuthenticationMethod);
         var authorizationVersion = context.Principal?.FindFirstValue(AccountClaims.AuthorizationVersion);
         var passwordVersion = context.Principal?.FindFirstValue(AccountClaims.PasswordVersion);
-        if (account is null || !account.Active || authorizationVersion != account.AuthorizationVersion.ToString(System.Globalization.CultureInfo.InvariantCulture) ||
+        if (account is null || !account.Active || account.AccountType != AccountType.WebsiteAccount || authorizationVersion != account.AuthorizationVersion.ToString(System.Globalization.CultureInfo.InvariantCulture) ||
             (method == "password" && passwordVersion != account.PasswordVersion.ToString(System.Globalization.CultureInfo.InvariantCulture)))
         {
             await RejectAsync(context);
             return;
         }
 
-        if (account.AccountType == AccountType.EmergencyCaptain)
-        {
-            var access = await dbContext.AccountEventAccesses.AsNoTracking().SingleOrDefaultAsync(x => x.AccountId == accountId, context.HttpContext.RequestAborted);
-            if (access?.GetAccessMode(time.GetUtcNow()) == AccountAccessMode.Disabled ||
-                access is not null && !await dbContext.Events.AsNoTracking().AnyAsync(x => x.Id == access.EventId && x.HiddenAt == null, context.HttpContext.RequestAborted))
-                await RejectAsync(context);
-        }
     }
 
     private static async Task RejectAsync(CookieValidatePrincipalContext context)

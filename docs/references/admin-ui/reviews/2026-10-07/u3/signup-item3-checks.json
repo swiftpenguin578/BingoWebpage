@@ -1,0 +1,2977 @@
+{
+  "status": "ITEM3_FIRST_WORKING_BINDING_Q11_RESOLVED",
+  "head": "856d421c1c2bc15688abb2dec19f6b8f620fe38a",
+  "date": "2026-10-07",
+  "results": {
+    "postgresql": "107 distinct scoped cases resolved passing: main90+11 named reruns; form4+2 named reruns",
+    "source": "30 resolved passing:29+1 named correction",
+    "browser": "11 groups per engine; Chromium and WebKit",
+    "conformance": "5 widths per engine; Chromium and WebKit",
+    "retained": "participants-ui, participant-edit-dialog and confirmation-navigation(3/engine) passed",
+    "build": "Debug0 warnings/errors",
+    "notRun": [
+      "Release",
+      "full JS runner",
+      "whole .NET suite",
+      "independent review",
+      "manual acceptance"
+    ]
+  },
+  "logs": [
+    {
+      "log": "/tmp/u3-signup-item3-scoped-build.log",
+      "sha256": "3b9a6a01724742eaf2012d407c0c74877dbd58e90d8ccecfd85d4932bac14a75",
+      "resultLines": [
+        "Build succeeded."
+      ],
+      "tail": [
+        "    0 Warning(s)",
+        "    0 Error(s)",
+        "",
+        "Time Elapsed 00:00:07.80"
+      ]
+    },
+    {
+      "log": "/tmp/u3-signup-item3-integration.log",
+      "sha256": "8d7fe735fb0fec30a77b0a04a648ef86256c3ea74a876898f27a3de1a8c48033",
+      "resultLines": [
+        "Failed!  - Failed:    11, Passed:    90, Skipped:     0, Total:   101, Duration: 2 m - Bingo.IntegrationTests.dll (net10.0)"
+      ],
+      "tail": [
+        "   at Bingo.IntegrationTests.SignupQuestionCreationRetryIntegrationTests.ActualHttpFormsBindIdentityBaselineAndEnforceAuthenticationAntiforgery(Boolean account) in /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/tests/Bingo.IntegrationTests/SignupQuestionCreationRetryIntegrationTests.cs:line 281",
+        "--- End of stack trace from previous location ---",
+        "",
+        "Failed!  - Failed:    11, Passed:    90, Skipped:     0, Total:   101, Duration: 2 m - Bingo.IntegrationTests.dll (net10.0)"
+      ]
+    },
+    {
+      "log": "/tmp/u3-signup-item3-corrections.log",
+      "sha256": "b558c522f88a6081b2e7e7214d4a21ff1b266765dda9090f212a40e3b89c64ff",
+      "resultLines": [
+        "Passed!  - Failed:     0, Passed:    11, Skipped:     0, Total:    11, Duration: 37 s - Bingo.IntegrationTests.dll (net10.0)"
+      ],
+      "tail": [
+        "Test run for /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/tests/Bingo.IntegrationTests/bin/Debug/net10.0/Bingo.IntegrationTests.dll (.NETCoreApp,Version=v10.0)",
+        "A total of 1 test files matched the specified pattern.",
+        "",
+        "Passed!  - Failed:     0, Passed:    11, Skipped:     0, Total:    11, Duration: 37 s - Bingo.IntegrationTests.dll (net10.0)"
+      ]
+    },
+    {
+      "log": "/tmp/u3-signup-item3-form-regressions.log",
+      "sha256": "8e73038c9d3e31366941717c6728c12c294f04125dbc24fba3a634c8baf38f0c",
+      "resultLines": [
+        "Failed!  - Failed:     2, Passed:     4, Skipped:     0, Total:     6, Duration: 53 s - Bingo.IntegrationTests.dll (net10.0)"
+      ],
+      "tail": [
+        "   at Bingo.IntegrationTests.Slice4AuthenticatedSignupIntegrationTests.DeleteQuestionRemovesAnswersAndReservationsWithoutResurrectingAccounts(EventCharacterRole role) in /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/tests/Bingo.IntegrationTests/Slice4AuthenticatedSignupIntegrationTests.cs:line 464",
+        "--- End of stack trace from previous location ---",
+        "",
+        "Failed!  - Failed:     2, Passed:     4, Skipped:     0, Total:     6, Duration: 53 s - Bingo.IntegrationTests.dll (net10.0)"
+      ]
+    },
+    {
+      "log": "/tmp/u3-signup-item3-delete-correction.log",
+      "sha256": "770c5f5d58e23b44d50e4944fa2d176679ddabaeb2dff7bdd7b59355713852d3",
+      "resultLines": [
+        "Failed!  - Failed:     2, Passed:     0, Skipped:     0, Total:     2, Duration: 21 s - Bingo.IntegrationTests.dll (net10.0)"
+      ],
+      "tail": [
+        "   at Bingo.IntegrationTests.Slice4AuthenticatedSignupIntegrationTests.DeleteQuestionRemovesAnswersAndReservationsWithoutResurrectingAccounts(EventCharacterRole role) in /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/tests/Bingo.IntegrationTests/Slice4AuthenticatedSignupIntegrationTests.cs:line 466",
+        "--- End of stack trace from previous location ---",
+        "",
+        "Failed!  - Failed:     2, Passed:     0, Skipped:     0, Total:     2, Duration: 21 s - Bingo.IntegrationTests.dll (net10.0)"
+      ]
+    },
+    {
+      "log": "/tmp/u3-signup-item3-delete-current.log",
+      "sha256": "f5b7e74a46c8c9f2bfcd25bb6bdadfc5d13522cc7cc2ffc466257cf977fc8787",
+      "resultLines": [
+        "Passed!  - Failed:     0, Passed:     2, Skipped:     0, Total:     2, Duration: 21 s - Bingo.IntegrationTests.dll (net10.0)"
+      ],
+      "tail": [
+        "Test run for /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/tests/Bingo.IntegrationTests/bin/Debug/net10.0/Bingo.IntegrationTests.dll (.NETCoreApp,Version=v10.0)",
+        "A total of 1 test files matched the specified pattern.",
+        "",
+        "Passed!  - Failed:     0, Passed:     2, Skipped:     0, Total:     2, Duration: 21 s - Bingo.IntegrationTests.dll (net10.0)"
+      ]
+    },
+    {
+      "log": "/tmp/u3-signup-source-tests.log",
+      "sha256": "5f3acfebb0828c856e0aecff8ca7296ba8593d1acc58062b0afe1f2e37f9d478",
+      "resultLines": [
+        "Failed!  - Failed:     1, Passed:    29, Skipped:     0, Total:    30, Duration: 13 s - Bingo.BrowserTests.dll (net10.0)"
+      ],
+      "tail": [
+        "   at System.RuntimeMethodHandle.InvokeMethod(ObjectHandleOnStack target, Void** arguments, ObjectHandleOnStack sig, BOOL isConstructor, ObjectHandleOnStack result)",
+        "   at System.Reflection.RuntimeMethodInfo.Invoke(Object obj, BindingFlags invokeAttr, Binder binder, Object[] parameters, CultureInfo culture)",
+        "",
+        "Failed!  - Failed:     1, Passed:    29, Skipped:     0, Total:    30, Duration: 13 s - Bingo.BrowserTests.dll (net10.0)"
+      ]
+    },
+    {
+      "log": "/tmp/u3-signup-source-correction.log",
+      "sha256": "76d48eed7cc2dcc4e21896378879bdb840bd4dda141436c06ed72de93728fd9d",
+      "resultLines": [
+        "Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration: 1 s - Bingo.BrowserTests.dll (net10.0)"
+      ],
+      "tail": [
+        "Test run for /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/tests/Bingo.BrowserTests/bin/Debug/net10.0/Bingo.BrowserTests.dll (.NETCoreApp,Version=v10.0)",
+        "A total of 1 test files matched the specified pattern.",
+        "",
+        "Passed!  - Failed:     0, Passed:     1, Skipped:     0, Total:     1, Duration: 1 s - Bingo.BrowserTests.dll (net10.0)"
+      ]
+    },
+    {
+      "log": "/tmp/u3-signup-browser-chromium.log",
+      "sha256": "619daebb653c66ce9a000f2835ea507dbf0072fcfd30ba987c26b02439a8e618",
+      "resultLines": [
+        "PASS 11 Signup setup interaction groups"
+      ],
+      "tail": [
+        "PASS 11 Signup setup interaction groups"
+      ]
+    },
+    {
+      "log": "/tmp/u3-signup-browser-webkit.log",
+      "sha256": "619daebb653c66ce9a000f2835ea507dbf0072fcfd30ba987c26b02439a8e618",
+      "resultLines": [
+        "PASS 11 Signup setup interaction groups"
+      ],
+      "tail": [
+        "PASS 11 Signup setup interaction groups"
+      ]
+    },
+    {
+      "log": "/tmp/u3-signup-conformance-chromium.log",
+      "sha256": "76225ad305d5b7e3b1b1b625bbfb147c43013adcb4607831e3a98e1f17374d4f",
+      "resultLines": [
+        "PASS signupsetup 390 normal wrap growth 0",
+        "PASS signupsetup 494 normal wrap growth 0",
+        "PASS signupsetup 860 normal wrap growth 0",
+        "PASS signupsetup 1280 normal wrap growth 0",
+        "PASS signupsetup 1440 normal wrap growth 0",
+        "PASS 5 registered page geometry cases plus frame/style, no-fade, document, update and Danish checks"
+      ],
+      "tail": [
+        "PASS signupsetup 860 normal wrap growth 0",
+        "PASS signupsetup 1280 normal wrap growth 0",
+        "PASS signupsetup 1440 normal wrap growth 0",
+        "PASS 5 registered page geometry cases plus frame/style, no-fade, document, update and Danish checks"
+      ]
+    },
+    {
+      "log": "/tmp/u3-signup-conformance-webkit.log",
+      "sha256": "76225ad305d5b7e3b1b1b625bbfb147c43013adcb4607831e3a98e1f17374d4f",
+      "resultLines": [
+        "PASS signupsetup 390 normal wrap growth 0",
+        "PASS signupsetup 494 normal wrap growth 0",
+        "PASS signupsetup 860 normal wrap growth 0",
+        "PASS signupsetup 1280 normal wrap growth 0",
+        "PASS signupsetup 1440 normal wrap growth 0",
+        "PASS 5 registered page geometry cases plus frame/style, no-fade, document, update and Danish checks"
+      ],
+      "tail": [
+        "PASS signupsetup 860 normal wrap growth 0",
+        "PASS signupsetup 1280 normal wrap growth 0",
+        "PASS signupsetup 1440 normal wrap growth 0",
+        "PASS 5 registered page geometry cases plus frame/style, no-fade, document, update and Danish checks"
+      ]
+    },
+    {
+      "log": "/tmp/u3-signup-retained-confirmation-chromium.log",
+      "sha256": "777661341f50d88cd52618e23a08991e7e5572c7b038cd2d75e05d250da4cf79",
+      "resultLines": [
+        "PASS participant: Back confirmation survives Forward; Cancel preserves URL/values/focus; Discard returns URL/focus and clears exit protection",
+        "PASS participant header: successful POST navigation commits saved baseline before browser exit",
+        "PASS participant redirect: successful POST navigation commits saved baseline before browser exit"
+      ],
+      "tail": [
+        "PASS participant: Back confirmation survives Forward; Cancel preserves URL/values/focus; Discard returns URL/focus and clears exit protection",
+        "PASS participant header: successful POST navigation commits saved baseline before browser exit",
+        "PASS participant redirect: successful POST navigation commits saved baseline before browser exit"
+      ]
+    },
+    {
+      "log": "/tmp/u3-signup-retained-confirmation-webkit.log",
+      "sha256": "777661341f50d88cd52618e23a08991e7e5572c7b038cd2d75e05d250da4cf79",
+      "resultLines": [
+        "PASS participant: Back confirmation survives Forward; Cancel preserves URL/values/focus; Discard returns URL/focus and clears exit protection",
+        "PASS participant header: successful POST navigation commits saved baseline before browser exit",
+        "PASS participant redirect: successful POST navigation commits saved baseline before browser exit"
+      ],
+      "tail": [
+        "PASS participant: Back confirmation survives Forward; Cancel preserves URL/values/focus; Discard returns URL/focus and clears exit protection",
+        "PASS participant header: successful POST navigation commits saved baseline before browser exit",
+        "PASS participant redirect: successful POST navigation commits saved baseline before browser exit"
+      ]
+    },
+    {
+      "log": "/tmp/u3-signup-review-environment.log",
+      "sha256": "eb010c972134d272d9167fbb92c60cb920430c7bbd1772ef8c9229e62206e419",
+      "resultLines": [
+        "Build succeeded."
+      ],
+      "tail": [
+        "- [Former member history](http://127.0.0.1:5310/Account/MyEvents) — sign in: **ReviewFormer**",
+        "",
+        "",
+        "Scenario list: /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/artifacts/ui-review/scenarios.md"
+      ]
+    },
+    {
+      "log": "/tmp/u3-signup-review-check.log",
+      "sha256": "e421ba35453eabb0e42a7295122e4366ee9541ba99cd0f96776659c5dc02b9ed",
+      "resultLines": [
+        "{\"links\":44,\"passed\":42,\"failed\":[{\"url\":\"http://127.0.0.1:5310/Admin/Events/SignupSetup/83c614fb-7e9e-4d00-9831-aa1a25d2ded0?tab=form\",\"status\":500,\"finalUrl\":\"http://127.0.0.1:5310/Admin/Events/SignupSetup/83c614fb-7e9e-4d00-9831-aa1a25d2ded0?tab=form\"},{\"url\":\"http://127.0.0.1:5310/Admin/Events/SignupSetup/c6e05bbe-669d-447a-bf32-a4a0de7da867?tab=form\",\"status\":404,\"finalUrl\":\"http://127.0.0.1:5310/Admin/Events/SignupSetup/c6e05bbe-669d-447a-bf32-a4a0de7da867?tab=form\"}],\"nativeRecovery\":\"PASS\",\"screenshots\":\"captured\"}"
+      ],
+      "tail": [
+        "{\"links\":44,\"passed\":42,\"failed\":[{\"url\":\"http://127.0.0.1:5310/Admin/Events/SignupSetup/83c614fb-7e9e-4d00-9831-aa1a25d2ded0?tab=form\",\"status\":500,\"finalUrl\":\"http://127.0.0.1:5310/Admin/Events/SignupSetup/83c614fb-7e9e-4d00-9831-aa1a25d2ded0?tab=form\"},{\"url\":\"http://127.0.0.1:5310/Admin/Events/SignupSetup/c6e05bbe-669d-447a-bf32-a4a0de7da867?tab=form\",\"status\":404,\"finalUrl\":\"http://127.0.0.1:5310/Admin/Events/SignupSetup/c6e05bbe-669d-447a-bf32-a4a0de7da867?tab=form\"}],\"nativeRecovery\":\"PASS\",\"screenshots\":\"captured\"}"
+      ]
+    }
+  ],
+  "browser": {
+    "chromium": {
+      "engine": "chromium",
+      "checks": [
+        "real capacity/code saves return new versions and preserve other-card draft; stored code never shown",
+        "replaceState tabs, exact account add ID and focused inline rename saved",
+        "custom add drawer dirty outside-click guard and created stable-ID Edit focus",
+        "custom edit and counted deletion retain full inactive-ID definition",
+        "lost capacity response readback matches immutable intent without attributing the write",
+        "uncertain secret replacement cannot be inferred from hash-present bit and requires save again",
+        "uncertain account add exact receipt replay creates only one field",
+        "session-loss transport keeps unsent settings draft",
+        "custom add lost-response exact replay, duplicate labels remain distinct IDs, move focus retained",
+        "changed impact requires a new confirmation showing current answer and release counts",
+        "Live readable locked settings/form with no mutation controls"
+      ],
+      "summaries": [
+        {
+          "language": "en",
+          "width": 390,
+          "height": 39.125,
+          "lineHeight": 19.575,
+          "text": "Dates are on Schedule; opening and closing signups on Overview.",
+          "links": [
+            "/Admin/Events/Schedule/fee04249-a334-4fd2-98a0-b9c920520604",
+            "/Admin/Events/Manage/fee04249-a334-4fd2-98a0-b9c920520604"
+          ]
+        },
+        {
+          "language": "en",
+          "width": 494,
+          "height": 19.5625,
+          "lineHeight": 19.575,
+          "text": "Dates are on Schedule; opening and closing signups on Overview.",
+          "links": [
+            "/Admin/Events/Schedule/fee04249-a334-4fd2-98a0-b9c920520604",
+            "/Admin/Events/Manage/fee04249-a334-4fd2-98a0-b9c920520604"
+          ]
+        },
+        {
+          "language": "en",
+          "width": 860,
+          "height": 19.5625,
+          "lineHeight": 19.575,
+          "text": "Dates are on Schedule; opening and closing signups on Overview.",
+          "links": [
+            "/Admin/Events/Schedule/fee04249-a334-4fd2-98a0-b9c920520604",
+            "/Admin/Events/Manage/fee04249-a334-4fd2-98a0-b9c920520604"
+          ]
+        },
+        {
+          "language": "en",
+          "width": 1280,
+          "height": 19.5625,
+          "lineHeight": 19.575,
+          "text": "Dates are on Schedule; opening and closing signups on Overview.",
+          "links": [
+            "/Admin/Events/Schedule/fee04249-a334-4fd2-98a0-b9c920520604",
+            "/Admin/Events/Manage/fee04249-a334-4fd2-98a0-b9c920520604"
+          ]
+        },
+        {
+          "language": "en",
+          "width": 1440,
+          "height": 19.5625,
+          "lineHeight": 19.575,
+          "text": "Dates are on Schedule; opening and closing signups on Overview.",
+          "links": [
+            "/Admin/Events/Schedule/fee04249-a334-4fd2-98a0-b9c920520604",
+            "/Admin/Events/Manage/fee04249-a334-4fd2-98a0-b9c920520604"
+          ]
+        },
+        {
+          "language": "da",
+          "width": 390,
+          "height": 39.125,
+          "lineHeight": 19.575,
+          "text": "Datoer findes under Tidsplan; åbning og lukning af tilmelding under Oversigt.",
+          "links": [
+            "/Admin/Events/Schedule/fee04249-a334-4fd2-98a0-b9c920520604",
+            "/Admin/Events/Manage/fee04249-a334-4fd2-98a0-b9c920520604"
+          ]
+        },
+        {
+          "language": "da",
+          "width": 494,
+          "height": 39.125,
+          "lineHeight": 19.575,
+          "text": "Datoer findes under Tidsplan; åbning og lukning af tilmelding under Oversigt.",
+          "links": [
+            "/Admin/Events/Schedule/fee04249-a334-4fd2-98a0-b9c920520604",
+            "/Admin/Events/Manage/fee04249-a334-4fd2-98a0-b9c920520604"
+          ]
+        },
+        {
+          "language": "da",
+          "width": 860,
+          "height": 19.5625,
+          "lineHeight": 19.575,
+          "text": "Datoer findes under Tidsplan; åbning og lukning af tilmelding under Oversigt.",
+          "links": [
+            "/Admin/Events/Schedule/fee04249-a334-4fd2-98a0-b9c920520604",
+            "/Admin/Events/Manage/fee04249-a334-4fd2-98a0-b9c920520604"
+          ]
+        },
+        {
+          "language": "da",
+          "width": 1280,
+          "height": 19.5625,
+          "lineHeight": 19.575,
+          "text": "Datoer findes under Tidsplan; åbning og lukning af tilmelding under Oversigt.",
+          "links": [
+            "/Admin/Events/Schedule/fee04249-a334-4fd2-98a0-b9c920520604",
+            "/Admin/Events/Manage/fee04249-a334-4fd2-98a0-b9c920520604"
+          ]
+        },
+        {
+          "language": "da",
+          "width": 1440,
+          "height": 19.5625,
+          "lineHeight": 19.575,
+          "text": "Datoer findes under Tidsplan; åbning og lukning af tilmelding under Oversigt.",
+          "links": [
+            "/Admin/Events/Schedule/fee04249-a334-4fd2-98a0-b9c920520604",
+            "/Admin/Events/Manage/fee04249-a334-4fd2-98a0-b9c920520604"
+          ]
+        }
+      ]
+    },
+    "webkit": {
+      "engine": "webkit",
+      "checks": [
+        "real capacity/code saves return new versions and preserve other-card draft; stored code never shown",
+        "replaceState tabs, exact account add ID and focused inline rename saved",
+        "custom add drawer dirty outside-click guard and created stable-ID Edit focus",
+        "custom edit and counted deletion retain full inactive-ID definition",
+        "lost capacity response readback matches immutable intent without attributing the write",
+        "uncertain secret replacement cannot be inferred from hash-present bit and requires save again",
+        "uncertain account add exact receipt replay creates only one field",
+        "session-loss transport keeps unsent settings draft",
+        "custom add lost-response exact replay, duplicate labels remain distinct IDs, move focus retained",
+        "changed impact requires a new confirmation showing current answer and release counts",
+        "Live readable locked settings/form with no mutation controls"
+      ],
+      "summaries": [
+        {
+          "language": "en",
+          "width": 390,
+          "height": 39.125,
+          "lineHeight": 19.575001,
+          "text": "Dates are on Schedule; opening and closing signups on Overview.",
+          "links": [
+            "/Admin/Events/Schedule/da5d8602-7567-4a79-a232-3a8cbcba4431",
+            "/Admin/Events/Manage/da5d8602-7567-4a79-a232-3a8cbcba4431"
+          ]
+        },
+        {
+          "language": "en",
+          "width": 494,
+          "height": 19.5625,
+          "lineHeight": 19.575001,
+          "text": "Dates are on Schedule; opening and closing signups on Overview.",
+          "links": [
+            "/Admin/Events/Schedule/da5d8602-7567-4a79-a232-3a8cbcba4431",
+            "/Admin/Events/Manage/da5d8602-7567-4a79-a232-3a8cbcba4431"
+          ]
+        },
+        {
+          "language": "en",
+          "width": 860,
+          "height": 19.5625,
+          "lineHeight": 19.575001,
+          "text": "Dates are on Schedule; opening and closing signups on Overview.",
+          "links": [
+            "/Admin/Events/Schedule/da5d8602-7567-4a79-a232-3a8cbcba4431",
+            "/Admin/Events/Manage/da5d8602-7567-4a79-a232-3a8cbcba4431"
+          ]
+        },
+        {
+          "language": "en",
+          "width": 1280,
+          "height": 19.5625,
+          "lineHeight": 19.575001,
+          "text": "Dates are on Schedule; opening and closing signups on Overview.",
+          "links": [
+            "/Admin/Events/Schedule/da5d8602-7567-4a79-a232-3a8cbcba4431",
+            "/Admin/Events/Manage/da5d8602-7567-4a79-a232-3a8cbcba4431"
+          ]
+        },
+        {
+          "language": "en",
+          "width": 1440,
+          "height": 19.5625,
+          "lineHeight": 19.575001,
+          "text": "Dates are on Schedule; opening and closing signups on Overview.",
+          "links": [
+            "/Admin/Events/Schedule/da5d8602-7567-4a79-a232-3a8cbcba4431",
+            "/Admin/Events/Manage/da5d8602-7567-4a79-a232-3a8cbcba4431"
+          ]
+        },
+        {
+          "language": "da",
+          "width": 390,
+          "height": 39.125,
+          "lineHeight": 19.575001,
+          "text": "Datoer findes under Tidsplan; åbning og lukning af tilmelding under Oversigt.",
+          "links": [
+            "/Admin/Events/Schedule/da5d8602-7567-4a79-a232-3a8cbcba4431",
+            "/Admin/Events/Manage/da5d8602-7567-4a79-a232-3a8cbcba4431"
+          ]
+        },
+        {
+          "language": "da",
+          "width": 494,
+          "height": 39.125,
+          "lineHeight": 19.575001,
+          "text": "Datoer findes under Tidsplan; åbning og lukning af tilmelding under Oversigt.",
+          "links": [
+            "/Admin/Events/Schedule/da5d8602-7567-4a79-a232-3a8cbcba4431",
+            "/Admin/Events/Manage/da5d8602-7567-4a79-a232-3a8cbcba4431"
+          ]
+        },
+        {
+          "language": "da",
+          "width": 860,
+          "height": 19.5625,
+          "lineHeight": 19.575001,
+          "text": "Datoer findes under Tidsplan; åbning og lukning af tilmelding under Oversigt.",
+          "links": [
+            "/Admin/Events/Schedule/da5d8602-7567-4a79-a232-3a8cbcba4431",
+            "/Admin/Events/Manage/da5d8602-7567-4a79-a232-3a8cbcba4431"
+          ]
+        },
+        {
+          "language": "da",
+          "width": 1280,
+          "height": 19.5625,
+          "lineHeight": 19.575001,
+          "text": "Datoer findes under Tidsplan; åbning og lukning af tilmelding under Oversigt.",
+          "links": [
+            "/Admin/Events/Schedule/da5d8602-7567-4a79-a232-3a8cbcba4431",
+            "/Admin/Events/Manage/da5d8602-7567-4a79-a232-3a8cbcba4431"
+          ]
+        },
+        {
+          "language": "da",
+          "width": 1440,
+          "height": 19.5625,
+          "lineHeight": 19.575001,
+          "text": "Datoer findes under Tidsplan; åbning og lukning af tilmelding under Oversigt.",
+          "links": [
+            "/Admin/Events/Schedule/da5d8602-7567-4a79-a232-3a8cbcba4431",
+            "/Admin/Events/Manage/da5d8602-7567-4a79-a232-3a8cbcba4431"
+          ]
+        }
+      ]
+    }
+  },
+  "conformance": {
+    "chromium": [
+      {
+        "engine": "chromium",
+        "family": "signupsetup",
+        "width": 390,
+        "presentation": "normal",
+        "loading": {
+          "title": {
+            "x": 16,
+            "y": 74,
+            "width": 141.796875,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 16,
+            "y": 107.59375,
+            "width": 141.796875,
+            "height": 39.140625
+          },
+          "summaryLine": 19.575,
+          "head": {
+            "x": 16,
+            "y": 74,
+            "width": 358,
+            "height": 72.734375
+          },
+          "blocks": {
+            "first": {
+              "x": 16,
+              "y": 218.734375,
+              "width": 358,
+              "height": 327.6875
+            },
+            "tabs": {
+              "x": 16,
+              "y": 166.734375,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": [
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 41,
+                "y": 239.734375,
+                "width": 308,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 41,
+                "y": 244.515625,
+                "width": 80.078125,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            },
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 41,
+                "y": 348.296875,
+                "width": 308,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 41,
+                "y": 353.078125,
+                "width": 61.59375,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            },
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 41,
+                "y": 456.859375,
+                "width": 308,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 41,
+                "y": 461.640625,
+                "width": 55.4375,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            }
+          ]
+        },
+        "loaded": {
+          "title": {
+            "x": 16,
+            "y": 74,
+            "width": 358,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 16,
+            "y": 107.59375,
+            "width": 358,
+            "height": 39.125
+          },
+          "summaryLine": 19.575,
+          "head": {
+            "x": 16,
+            "y": 74,
+            "width": 358,
+            "height": 72.71875
+          },
+          "blocks": {
+            "first": {
+              "x": 16,
+              "y": 218.71875,
+              "width": 358,
+              "height": 489.28125
+            },
+            "tabs": {
+              "x": 16,
+              "y": 166.71875,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        },
+        "delta": -0.015625,
+        "shifts": {
+          "first": {
+            "x": 0,
+            "yBeyondHeader": 0,
+            "width": 0
+          },
+          "tabs": {
+            "x": 0,
+            "yBeyondHeader": 0,
+            "width": 0
+          }
+        },
+        "referenceLoading": {
+          "title": {
+            "x": 16,
+            "y": 74,
+            "width": 358,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 16,
+            "y": 107.59375,
+            "width": 358,
+            "height": 82.25
+          },
+          "summaryLine": 19.575,
+          "head": {
+            "x": 16,
+            "y": 74,
+            "width": 358,
+            "height": 115.84375
+          },
+          "blocks": {
+            "first": {
+              "x": 16,
+              "y": 261.84375,
+              "width": 358,
+              "height": 370
+            },
+            "tabs": {
+              "x": 16,
+              "y": 209.84375,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        },
+        "referenceLoaded": {
+          "title": {
+            "x": 16,
+            "y": 74,
+            "width": 358,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 16,
+            "y": 107.59375,
+            "width": 358,
+            "height": 82.25
+          },
+          "summaryLine": 19.575,
+          "head": {
+            "x": 16,
+            "y": 74,
+            "width": 358,
+            "height": 115.84375
+          },
+          "blocks": {
+            "first": {
+              "x": 16,
+              "y": 261.84375,
+              "width": 358,
+              "height": 489.28125
+            },
+            "tabs": {
+              "x": 16,
+              "y": 209.84375,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        }
+      },
+      {
+        "engine": "chromium",
+        "family": "signupsetup",
+        "width": 494,
+        "presentation": "normal",
+        "loading": {
+          "title": {
+            "x": 16,
+            "y": 74,
+            "width": 141.796875,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 16,
+            "y": 107.59375,
+            "width": 141.796875,
+            "height": 39.140625
+          },
+          "summaryLine": 19.575,
+          "head": {
+            "x": 16,
+            "y": 74,
+            "width": 462,
+            "height": 72.734375
+          },
+          "blocks": {
+            "first": {
+              "x": 16,
+              "y": 218.734375,
+              "width": 462,
+              "height": 327.6875
+            },
+            "tabs": {
+              "x": 16,
+              "y": 166.734375,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": [
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 41,
+                "y": 239.734375,
+                "width": 412,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 41,
+                "y": 244.515625,
+                "width": 107.109375,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            },
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 41,
+                "y": 348.296875,
+                "width": 412,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 41,
+                "y": 353.078125,
+                "width": 82.390625,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            },
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 41,
+                "y": 456.859375,
+                "width": 412,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 41,
+                "y": 461.640625,
+                "width": 74.15625,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            }
+          ]
+        },
+        "loaded": {
+          "title": {
+            "x": 16,
+            "y": 74,
+            "width": 407.359375,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 16,
+            "y": 107.59375,
+            "width": 407.359375,
+            "height": 19.5625
+          },
+          "summaryLine": 19.575,
+          "head": {
+            "x": 16,
+            "y": 74,
+            "width": 462,
+            "height": 53.15625
+          },
+          "blocks": {
+            "first": {
+              "x": 16,
+              "y": 199.15625,
+              "width": 462,
+              "height": 446.15625
+            },
+            "tabs": {
+              "x": 16,
+              "y": 147.15625,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        },
+        "delta": -19.578125,
+        "shifts": {
+          "first": {
+            "x": 0,
+            "yBeyondHeader": 0,
+            "width": 0
+          },
+          "tabs": {
+            "x": 0,
+            "yBeyondHeader": 0,
+            "width": 0
+          }
+        },
+        "referenceLoading": {
+          "title": {
+            "x": 16,
+            "y": 74,
+            "width": 462,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 16,
+            "y": 107.59375,
+            "width": 462,
+            "height": 62.6875
+          },
+          "summaryLine": 19.575,
+          "head": {
+            "x": 16,
+            "y": 74,
+            "width": 462,
+            "height": 96.28125
+          },
+          "blocks": {
+            "first": {
+              "x": 16,
+              "y": 242.28125,
+              "width": 462,
+              "height": 370
+            },
+            "tabs": {
+              "x": 16,
+              "y": 190.28125,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        },
+        "referenceLoaded": {
+          "title": {
+            "x": 16,
+            "y": 74,
+            "width": 462,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 16,
+            "y": 107.59375,
+            "width": 462,
+            "height": 62.6875
+          },
+          "summaryLine": 19.575,
+          "head": {
+            "x": 16,
+            "y": 74,
+            "width": 462,
+            "height": 96.28125
+          },
+          "blocks": {
+            "first": {
+              "x": 16,
+              "y": 242.28125,
+              "width": 462,
+              "height": 446.15625
+            },
+            "tabs": {
+              "x": 16,
+              "y": 190.28125,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        }
+      },
+      {
+        "engine": "chromium",
+        "family": "signupsetup",
+        "width": 860,
+        "presentation": "normal",
+        "loading": {
+          "title": {
+            "x": 16,
+            "y": 74,
+            "width": 141.796875,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 16,
+            "y": 107.59375,
+            "width": 141.796875,
+            "height": 19.5625
+          },
+          "summaryLine": 19.575,
+          "head": {
+            "x": 16,
+            "y": 74,
+            "width": 828,
+            "height": 53.15625
+          },
+          "blocks": {
+            "first": {
+              "x": 16,
+              "y": 199.15625,
+              "width": 760,
+              "height": 327.6875
+            },
+            "tabs": {
+              "x": 16,
+              "y": 147.15625,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": [
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 41,
+                "y": 220.15625,
+                "width": 710,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 41,
+                "y": 224.9375,
+                "width": 184.59375,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            },
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 41,
+                "y": 328.71875,
+                "width": 710,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 41,
+                "y": 333.5,
+                "width": 142,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            },
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 41,
+                "y": 437.28125,
+                "width": 710,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 41,
+                "y": 442.0625,
+                "width": 127.796875,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            }
+          ]
+        },
+        "loaded": {
+          "title": {
+            "x": 16,
+            "y": 74,
+            "width": 407.359375,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 16,
+            "y": 107.59375,
+            "width": 407.359375,
+            "height": 19.5625
+          },
+          "summaryLine": 19.575,
+          "head": {
+            "x": 16,
+            "y": 74,
+            "width": 828,
+            "height": 53.15625
+          },
+          "blocks": {
+            "first": {
+              "x": 16,
+              "y": 199.15625,
+              "width": 760,
+              "height": 339.78125
+            },
+            "tabs": {
+              "x": 16,
+              "y": 147.15625,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        },
+        "delta": 0,
+        "shifts": {
+          "first": {
+            "x": 0,
+            "yBeyondHeader": 0,
+            "width": 0
+          },
+          "tabs": {
+            "x": 0,
+            "yBeyondHeader": 0,
+            "width": 0
+          }
+        },
+        "referenceLoading": {
+          "title": {
+            "x": 16,
+            "y": 74,
+            "width": 828,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 16,
+            "y": 107.59375,
+            "width": 828,
+            "height": 43.125
+          },
+          "summaryLine": 19.575,
+          "head": {
+            "x": 16,
+            "y": 74,
+            "width": 828,
+            "height": 76.71875
+          },
+          "blocks": {
+            "first": {
+              "x": 16,
+              "y": 222.71875,
+              "width": 760,
+              "height": 370
+            },
+            "tabs": {
+              "x": 16,
+              "y": 170.71875,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        },
+        "referenceLoaded": {
+          "title": {
+            "x": 16,
+            "y": 74,
+            "width": 828,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 16,
+            "y": 107.59375,
+            "width": 828,
+            "height": 43.125
+          },
+          "summaryLine": 19.575,
+          "head": {
+            "x": 16,
+            "y": 74,
+            "width": 828,
+            "height": 76.71875
+          },
+          "blocks": {
+            "first": {
+              "x": 16,
+              "y": 222.71875,
+              "width": 760,
+              "height": 339.78125
+            },
+            "tabs": {
+              "x": 16,
+              "y": 170.71875,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        }
+      },
+      {
+        "engine": "chromium",
+        "family": "signupsetup",
+        "width": 1280,
+        "presentation": "normal",
+        "loading": {
+          "title": {
+            "x": 284,
+            "y": 82,
+            "width": 141.796875,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 284,
+            "y": 115.59375,
+            "width": 141.796875,
+            "height": 19.5625
+          },
+          "summaryLine": 19.575,
+          "head": {
+            "x": 284,
+            "y": 82,
+            "width": 964,
+            "height": 53.15625
+          },
+          "blocks": {
+            "first": {
+              "x": 284,
+              "y": 207.15625,
+              "width": 760,
+              "height": 327.6875
+            },
+            "tabs": {
+              "x": 284,
+              "y": 155.15625,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": [
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 309,
+                "y": 228.15625,
+                "width": 710,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 309,
+                "y": 232.9375,
+                "width": 184.59375,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            },
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 309,
+                "y": 336.71875,
+                "width": 710,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 309,
+                "y": 341.5,
+                "width": 142,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            },
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 309,
+                "y": 445.28125,
+                "width": 710,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 309,
+                "y": 450.0625,
+                "width": 127.796875,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            }
+          ]
+        },
+        "loaded": {
+          "title": {
+            "x": 284,
+            "y": 82,
+            "width": 407.359375,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 284,
+            "y": 115.59375,
+            "width": 407.359375,
+            "height": 19.5625
+          },
+          "summaryLine": 19.575,
+          "head": {
+            "x": 284,
+            "y": 82,
+            "width": 964,
+            "height": 53.15625
+          },
+          "blocks": {
+            "first": {
+              "x": 284,
+              "y": 207.15625,
+              "width": 760,
+              "height": 339.78125
+            },
+            "tabs": {
+              "x": 284,
+              "y": 155.15625,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        },
+        "delta": 0,
+        "shifts": {
+          "first": {
+            "x": 0,
+            "yBeyondHeader": 0,
+            "width": 0
+          },
+          "tabs": {
+            "x": 0,
+            "yBeyondHeader": 0,
+            "width": 0
+          }
+        },
+        "referenceLoading": {
+          "title": {
+            "x": 284,
+            "y": 82,
+            "width": 964,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 284,
+            "y": 115.59375,
+            "width": 964,
+            "height": 43.125
+          },
+          "summaryLine": 19.575,
+          "head": {
+            "x": 284,
+            "y": 82,
+            "width": 964,
+            "height": 76.71875
+          },
+          "blocks": {
+            "first": {
+              "x": 284,
+              "y": 230.71875,
+              "width": 760,
+              "height": 370
+            },
+            "tabs": {
+              "x": 284,
+              "y": 178.71875,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        },
+        "referenceLoaded": {
+          "title": {
+            "x": 284,
+            "y": 82,
+            "width": 964,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 284,
+            "y": 115.59375,
+            "width": 964,
+            "height": 43.125
+          },
+          "summaryLine": 19.575,
+          "head": {
+            "x": 284,
+            "y": 82,
+            "width": 964,
+            "height": 76.71875
+          },
+          "blocks": {
+            "first": {
+              "x": 284,
+              "y": 230.71875,
+              "width": 760,
+              "height": 339.78125
+            },
+            "tabs": {
+              "x": 284,
+              "y": 178.71875,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        }
+      },
+      {
+        "engine": "chromium",
+        "family": "signupsetup",
+        "width": 1440,
+        "presentation": "normal",
+        "loading": {
+          "title": {
+            "x": 284,
+            "y": 82,
+            "width": 141.796875,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 284,
+            "y": 115.59375,
+            "width": 141.796875,
+            "height": 19.5625
+          },
+          "summaryLine": 19.575,
+          "head": {
+            "x": 284,
+            "y": 82,
+            "width": 1124,
+            "height": 53.15625
+          },
+          "blocks": {
+            "first": {
+              "x": 284,
+              "y": 207.15625,
+              "width": 760,
+              "height": 327.6875
+            },
+            "tabs": {
+              "x": 284,
+              "y": 155.15625,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": [
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 309,
+                "y": 228.15625,
+                "width": 710,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 309,
+                "y": 232.9375,
+                "width": 184.59375,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            },
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 309,
+                "y": 336.71875,
+                "width": 710,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 309,
+                "y": 341.5,
+                "width": 142,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            },
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 309,
+                "y": 445.28125,
+                "width": 710,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 309,
+                "y": 450.0625,
+                "width": 127.796875,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            }
+          ]
+        },
+        "loaded": {
+          "title": {
+            "x": 284,
+            "y": 82,
+            "width": 407.359375,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 284,
+            "y": 115.59375,
+            "width": 407.359375,
+            "height": 19.5625
+          },
+          "summaryLine": 19.575,
+          "head": {
+            "x": 284,
+            "y": 82,
+            "width": 1124,
+            "height": 53.15625
+          },
+          "blocks": {
+            "first": {
+              "x": 284,
+              "y": 207.15625,
+              "width": 760,
+              "height": 339.78125
+            },
+            "tabs": {
+              "x": 284,
+              "y": 155.15625,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        },
+        "delta": 0,
+        "shifts": {
+          "first": {
+            "x": 0,
+            "yBeyondHeader": 0,
+            "width": 0
+          },
+          "tabs": {
+            "x": 0,
+            "yBeyondHeader": 0,
+            "width": 0
+          }
+        },
+        "referenceLoading": {
+          "title": {
+            "x": 284,
+            "y": 82,
+            "width": 1031.921875,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 284,
+            "y": 115.59375,
+            "width": 1031.921875,
+            "height": 19.5625
+          },
+          "summaryLine": 19.575,
+          "head": {
+            "x": 284,
+            "y": 82,
+            "width": 1124,
+            "height": 53.15625
+          },
+          "blocks": {
+            "first": {
+              "x": 284,
+              "y": 207.15625,
+              "width": 760,
+              "height": 370
+            },
+            "tabs": {
+              "x": 284,
+              "y": 155.15625,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        },
+        "referenceLoaded": {
+          "title": {
+            "x": 284,
+            "y": 82,
+            "width": 1031.921875,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 284,
+            "y": 115.59375,
+            "width": 1031.921875,
+            "height": 19.5625
+          },
+          "summaryLine": 19.575,
+          "head": {
+            "x": 284,
+            "y": 82,
+            "width": 1124,
+            "height": 53.15625
+          },
+          "blocks": {
+            "first": {
+              "x": 284,
+              "y": 207.15625,
+              "width": 760,
+              "height": 339.78125
+            },
+            "tabs": {
+              "x": 284,
+              "y": 155.15625,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        }
+      }
+    ],
+    "webkit": [
+      {
+        "engine": "webkit",
+        "family": "signupsetup",
+        "width": 390,
+        "presentation": "normal",
+        "loading": {
+          "title": {
+            "x": 16,
+            "y": 74,
+            "width": 141.796875,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 16,
+            "y": 107.59375,
+            "width": 141.796875,
+            "height": 39.140625
+          },
+          "summaryLine": 19.575001,
+          "head": {
+            "x": 16,
+            "y": 74,
+            "width": 358,
+            "height": 72.734375
+          },
+          "blocks": {
+            "first": {
+              "x": 16,
+              "y": 218.734375,
+              "width": 358,
+              "height": 327.6875
+            },
+            "tabs": {
+              "x": 16,
+              "y": 166.734375,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": [
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 41,
+                "y": 239.734375,
+                "width": 308,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 41,
+                "y": 244.515625,
+                "width": 80.078125,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            },
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 41,
+                "y": 348.296875,
+                "width": 308,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 41,
+                "y": 353.078125,
+                "width": 61.59375,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            },
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 41,
+                "y": 456.859375,
+                "width": 308,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 41,
+                "y": 461.640625,
+                "width": 55.4375,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            }
+          ]
+        },
+        "loaded": {
+          "title": {
+            "x": 16,
+            "y": 74,
+            "width": 358,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 16,
+            "y": 107.59375,
+            "width": 358,
+            "height": 39.125
+          },
+          "summaryLine": 19.575001,
+          "head": {
+            "x": 16,
+            "y": 74,
+            "width": 358,
+            "height": 72.71875
+          },
+          "blocks": {
+            "first": {
+              "x": 16,
+              "y": 218.71875,
+              "width": 358,
+              "height": 489
+            },
+            "tabs": {
+              "x": 16,
+              "y": 166.71875,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        },
+        "delta": -0.015625,
+        "shifts": {
+          "first": {
+            "x": 0,
+            "yBeyondHeader": 0,
+            "width": 0
+          },
+          "tabs": {
+            "x": 0,
+            "yBeyondHeader": 0,
+            "width": 0
+          }
+        },
+        "referenceLoading": {
+          "title": {
+            "x": 16,
+            "y": 74,
+            "width": 358,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 16,
+            "y": 107.59375,
+            "width": 358,
+            "height": 82.265625
+          },
+          "summaryLine": 19.575001,
+          "head": {
+            "x": 16,
+            "y": 74,
+            "width": 358,
+            "height": 115.859375
+          },
+          "blocks": {
+            "first": {
+              "x": 16,
+              "y": 261.859375,
+              "width": 358,
+              "height": 370
+            },
+            "tabs": {
+              "x": 16,
+              "y": 209.859375,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        },
+        "referenceLoaded": {
+          "title": {
+            "x": 16,
+            "y": 74,
+            "width": 358,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 16,
+            "y": 107.59375,
+            "width": 358,
+            "height": 82.265625
+          },
+          "summaryLine": 19.575001,
+          "head": {
+            "x": 16,
+            "y": 74,
+            "width": 358,
+            "height": 115.859375
+          },
+          "blocks": {
+            "first": {
+              "x": 16,
+              "y": 261.859375,
+              "width": 358,
+              "height": 489
+            },
+            "tabs": {
+              "x": 16,
+              "y": 209.859375,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        }
+      },
+      {
+        "engine": "webkit",
+        "family": "signupsetup",
+        "width": 494,
+        "presentation": "normal",
+        "loading": {
+          "title": {
+            "x": 16,
+            "y": 74,
+            "width": 141.796875,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 16,
+            "y": 107.59375,
+            "width": 141.796875,
+            "height": 39.140625
+          },
+          "summaryLine": 19.575001,
+          "head": {
+            "x": 16,
+            "y": 74,
+            "width": 462,
+            "height": 72.734375
+          },
+          "blocks": {
+            "first": {
+              "x": 16,
+              "y": 218.734375,
+              "width": 462,
+              "height": 327.6875
+            },
+            "tabs": {
+              "x": 16,
+              "y": 166.734375,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": [
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 41,
+                "y": 239.734375,
+                "width": 412,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 41,
+                "y": 244.515625,
+                "width": 107.109375,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            },
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 41,
+                "y": 348.296875,
+                "width": 412,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 41,
+                "y": 353.078125,
+                "width": 82.390625,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            },
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 41,
+                "y": 456.859375,
+                "width": 412,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 41,
+                "y": 461.640625,
+                "width": 74.15625,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            }
+          ]
+        },
+        "loaded": {
+          "title": {
+            "x": 16,
+            "y": 74,
+            "width": 407.328125,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 16,
+            "y": 107.59375,
+            "width": 407.328125,
+            "height": 19.5625
+          },
+          "summaryLine": 19.575001,
+          "head": {
+            "x": 16,
+            "y": 74,
+            "width": 462,
+            "height": 53.15625
+          },
+          "blocks": {
+            "first": {
+              "x": 16,
+              "y": 199.15625,
+              "width": 462,
+              "height": 445.875
+            },
+            "tabs": {
+              "x": 16,
+              "y": 147.15625,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        },
+        "delta": -19.578125,
+        "shifts": {
+          "first": {
+            "x": 0,
+            "yBeyondHeader": 0,
+            "width": 0
+          },
+          "tabs": {
+            "x": 0,
+            "yBeyondHeader": 0,
+            "width": 0
+          }
+        },
+        "referenceLoading": {
+          "title": {
+            "x": 16,
+            "y": 74,
+            "width": 462,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 16,
+            "y": 107.59375,
+            "width": 462,
+            "height": 62.6875
+          },
+          "summaryLine": 19.575001,
+          "head": {
+            "x": 16,
+            "y": 74,
+            "width": 462,
+            "height": 96.28125
+          },
+          "blocks": {
+            "first": {
+              "x": 16,
+              "y": 242.28125,
+              "width": 462,
+              "height": 370
+            },
+            "tabs": {
+              "x": 16,
+              "y": 190.28125,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        },
+        "referenceLoaded": {
+          "title": {
+            "x": 16,
+            "y": 74,
+            "width": 462,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 16,
+            "y": 107.59375,
+            "width": 462,
+            "height": 62.6875
+          },
+          "summaryLine": 19.575001,
+          "head": {
+            "x": 16,
+            "y": 74,
+            "width": 462,
+            "height": 96.28125
+          },
+          "blocks": {
+            "first": {
+              "x": 16,
+              "y": 242.28125,
+              "width": 462,
+              "height": 445.875
+            },
+            "tabs": {
+              "x": 16,
+              "y": 190.28125,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        }
+      },
+      {
+        "engine": "webkit",
+        "family": "signupsetup",
+        "width": 860,
+        "presentation": "normal",
+        "loading": {
+          "title": {
+            "x": 16,
+            "y": 74,
+            "width": 141.796875,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 16,
+            "y": 107.59375,
+            "width": 141.796875,
+            "height": 19.5625
+          },
+          "summaryLine": 19.575001,
+          "head": {
+            "x": 16,
+            "y": 74,
+            "width": 828,
+            "height": 53.15625
+          },
+          "blocks": {
+            "first": {
+              "x": 16,
+              "y": 199.15625,
+              "width": 760,
+              "height": 327.6875
+            },
+            "tabs": {
+              "x": 16,
+              "y": 147.15625,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": [
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 41,
+                "y": 220.15625,
+                "width": 710,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 41,
+                "y": 224.9375,
+                "width": 184.59375,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            },
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 41,
+                "y": 328.71875,
+                "width": 710,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 41,
+                "y": 333.5,
+                "width": 142,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            },
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 41,
+                "y": 437.28125,
+                "width": 710,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 41,
+                "y": 442.0625,
+                "width": 127.796875,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            }
+          ]
+        },
+        "loaded": {
+          "title": {
+            "x": 16,
+            "y": 74,
+            "width": 407.328125,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 16,
+            "y": 107.59375,
+            "width": 407.328125,
+            "height": 19.5625
+          },
+          "summaryLine": 19.575001,
+          "head": {
+            "x": 16,
+            "y": 74,
+            "width": 828,
+            "height": 53.15625
+          },
+          "blocks": {
+            "first": {
+              "x": 16,
+              "y": 199.15625,
+              "width": 760,
+              "height": 339.5
+            },
+            "tabs": {
+              "x": 16,
+              "y": 147.15625,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        },
+        "delta": 0,
+        "shifts": {
+          "first": {
+            "x": 0,
+            "yBeyondHeader": 0,
+            "width": 0
+          },
+          "tabs": {
+            "x": 0,
+            "yBeyondHeader": 0,
+            "width": 0
+          }
+        },
+        "referenceLoading": {
+          "title": {
+            "x": 16,
+            "y": 74,
+            "width": 828,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 16,
+            "y": 107.59375,
+            "width": 828,
+            "height": 43.125
+          },
+          "summaryLine": 19.575001,
+          "head": {
+            "x": 16,
+            "y": 74,
+            "width": 828,
+            "height": 76.71875
+          },
+          "blocks": {
+            "first": {
+              "x": 16,
+              "y": 222.71875,
+              "width": 760,
+              "height": 370
+            },
+            "tabs": {
+              "x": 16,
+              "y": 170.71875,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        },
+        "referenceLoaded": {
+          "title": {
+            "x": 16,
+            "y": 74,
+            "width": 828,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 16,
+            "y": 107.59375,
+            "width": 828,
+            "height": 43.125
+          },
+          "summaryLine": 19.575001,
+          "head": {
+            "x": 16,
+            "y": 74,
+            "width": 828,
+            "height": 76.71875
+          },
+          "blocks": {
+            "first": {
+              "x": 16,
+              "y": 222.71875,
+              "width": 760,
+              "height": 339.5
+            },
+            "tabs": {
+              "x": 16,
+              "y": 170.71875,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        }
+      },
+      {
+        "engine": "webkit",
+        "family": "signupsetup",
+        "width": 1280,
+        "presentation": "normal",
+        "loading": {
+          "title": {
+            "x": 284,
+            "y": 82,
+            "width": 141.796875,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 284,
+            "y": 115.59375,
+            "width": 141.796875,
+            "height": 19.5625
+          },
+          "summaryLine": 19.575001,
+          "head": {
+            "x": 284,
+            "y": 82,
+            "width": 964,
+            "height": 53.15625
+          },
+          "blocks": {
+            "first": {
+              "x": 284,
+              "y": 207.15625,
+              "width": 760,
+              "height": 327.6875
+            },
+            "tabs": {
+              "x": 284,
+              "y": 155.15625,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": [
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 309,
+                "y": 228.15625,
+                "width": 710,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 309,
+                "y": 232.9375,
+                "width": 184.59375,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            },
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 309,
+                "y": 336.71875,
+                "width": 710,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 309,
+                "y": 341.5,
+                "width": 142,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            },
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 309,
+                "y": 445.28125,
+                "width": 710,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 309,
+                "y": 450.0625,
+                "width": 127.796875,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            }
+          ]
+        },
+        "loaded": {
+          "title": {
+            "x": 284,
+            "y": 82,
+            "width": 407.328125,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 284,
+            "y": 115.59375,
+            "width": 407.328125,
+            "height": 19.5625
+          },
+          "summaryLine": 19.575001,
+          "head": {
+            "x": 284,
+            "y": 82,
+            "width": 964,
+            "height": 53.15625
+          },
+          "blocks": {
+            "first": {
+              "x": 284,
+              "y": 207.15625,
+              "width": 760,
+              "height": 339.5
+            },
+            "tabs": {
+              "x": 284,
+              "y": 155.15625,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        },
+        "delta": 0,
+        "shifts": {
+          "first": {
+            "x": 0,
+            "yBeyondHeader": 0,
+            "width": 0
+          },
+          "tabs": {
+            "x": 0,
+            "yBeyondHeader": 0,
+            "width": 0
+          }
+        },
+        "referenceLoading": {
+          "title": {
+            "x": 284,
+            "y": 82,
+            "width": 964,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 284,
+            "y": 115.59375,
+            "width": 964,
+            "height": 43.125
+          },
+          "summaryLine": 19.575001,
+          "head": {
+            "x": 284,
+            "y": 82,
+            "width": 964,
+            "height": 76.71875
+          },
+          "blocks": {
+            "first": {
+              "x": 284,
+              "y": 230.71875,
+              "width": 760,
+              "height": 370
+            },
+            "tabs": {
+              "x": 284,
+              "y": 178.71875,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        },
+        "referenceLoaded": {
+          "title": {
+            "x": 284,
+            "y": 82,
+            "width": 964,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 284,
+            "y": 115.59375,
+            "width": 964,
+            "height": 43.125
+          },
+          "summaryLine": 19.575001,
+          "head": {
+            "x": 284,
+            "y": 82,
+            "width": 964,
+            "height": 76.71875
+          },
+          "blocks": {
+            "first": {
+              "x": 284,
+              "y": 230.71875,
+              "width": 760,
+              "height": 339.5
+            },
+            "tabs": {
+              "x": 284,
+              "y": 178.71875,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        }
+      },
+      {
+        "engine": "webkit",
+        "family": "signupsetup",
+        "width": 1440,
+        "presentation": "normal",
+        "loading": {
+          "title": {
+            "x": 284,
+            "y": 82,
+            "width": 141.796875,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 284,
+            "y": 115.59375,
+            "width": 141.796875,
+            "height": 19.5625
+          },
+          "summaryLine": 19.575001,
+          "head": {
+            "x": 284,
+            "y": 82,
+            "width": 1124,
+            "height": 53.15625
+          },
+          "blocks": {
+            "first": {
+              "x": 284,
+              "y": 207.15625,
+              "width": 760,
+              "height": 327.6875
+            },
+            "tabs": {
+              "x": 284,
+              "y": 155.15625,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": [
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 309,
+                "y": 228.15625,
+                "width": 710,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 309,
+                "y": 232.9375,
+                "width": 184.59375,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            },
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 309,
+                "y": 336.71875,
+                "width": 710,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 309,
+                "y": 341.5,
+                "width": 142,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            },
+            {
+              "className": "ss-sk-line",
+              "row": {
+                "x": 309,
+                "y": 445.28125,
+                "width": 710,
+                "height": 19.5625
+              },
+              "bar": {
+                "x": 309,
+                "y": 450.0625,
+                "width": 127.796875,
+                "height": 10
+              },
+              "expectedLine": 19.575
+            }
+          ]
+        },
+        "loaded": {
+          "title": {
+            "x": 284,
+            "y": 82,
+            "width": 407.328125,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 284,
+            "y": 115.59375,
+            "width": 407.328125,
+            "height": 19.5625
+          },
+          "summaryLine": 19.575001,
+          "head": {
+            "x": 284,
+            "y": 82,
+            "width": 1124,
+            "height": 53.15625
+          },
+          "blocks": {
+            "first": {
+              "x": 284,
+              "y": 207.15625,
+              "width": 760,
+              "height": 339.5
+            },
+            "tabs": {
+              "x": 284,
+              "y": 155.15625,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        },
+        "delta": 0,
+        "shifts": {
+          "first": {
+            "x": 0,
+            "yBeyondHeader": 0,
+            "width": 0
+          },
+          "tabs": {
+            "x": 0,
+            "yBeyondHeader": 0,
+            "width": 0
+          }
+        },
+        "referenceLoading": {
+          "title": {
+            "x": 284,
+            "y": 82,
+            "width": 1031.90625,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 284,
+            "y": 115.59375,
+            "width": 1031.90625,
+            "height": 19.5625
+          },
+          "summaryLine": 19.575001,
+          "head": {
+            "x": 284,
+            "y": 82,
+            "width": 1124,
+            "height": 53.15625
+          },
+          "blocks": {
+            "first": {
+              "x": 284,
+              "y": 207.15625,
+              "width": 760,
+              "height": 370
+            },
+            "tabs": {
+              "x": 284,
+              "y": 155.15625,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        },
+        "referenceLoaded": {
+          "title": {
+            "x": 284,
+            "y": 82,
+            "width": 1031.90625,
+            "height": 27.59375
+          },
+          "summary": {
+            "x": 284,
+            "y": 115.59375,
+            "width": 1031.90625,
+            "height": 19.5625
+          },
+          "summaryLine": 19.575001,
+          "head": {
+            "x": 284,
+            "y": 82,
+            "width": 1124,
+            "height": 53.15625
+          },
+          "blocks": {
+            "first": {
+              "x": 284,
+              "y": 207.15625,
+              "width": 760,
+              "height": 339.5
+            },
+            "tabs": {
+              "x": 284,
+              "y": 155.15625,
+              "width": 182.65625,
+              "height": 36
+            }
+          },
+          "bars": [],
+          "oneLine": null,
+          "wrapGrowth": 0,
+          "lineRows": []
+        }
+      }
+    ]
+  },
+  "liveReview": {
+    "checkedAt": "2026-10-07T13:57:44.515Z",
+    "results": [
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/Schedule/0a9f0a72-907d-421b-aab4-41c58a2ac7d3",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/Schedule/0a9f0a72-907d-421b-aab4-41c58a2ac7d3"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/0a9f0a72-907d-421b-aab4-41c58a2ac7d3",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/0a9f0a72-907d-421b-aab4-41c58a2ac7d3"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/Schedule/70942055-08bd-4fb0-80c0-d3e75d396165",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/Schedule/70942055-08bd-4fb0-80c0-d3e75d396165"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/70942055-08bd-4fb0-80c0-d3e75d396165",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/70942055-08bd-4fb0-80c0-d3e75d396165"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/Schedule/ffaeb4b3-1d89-46e7-8a62-015e40c3a06e",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/Schedule/ffaeb4b3-1d89-46e7-8a62-015e40c3a06e"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/ffaeb4b3-1d89-46e7-8a62-015e40c3a06e",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/ffaeb4b3-1d89-46e7-8a62-015e40c3a06e"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/Schedule/472d3dae-1a62-4130-b528-c1860a194832",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/Schedule/472d3dae-1a62-4130-b528-c1860a194832"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/Schedule/b04fe385-f86a-4b72-b65f-6d008586f87e",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/Schedule/b04fe385-f86a-4b72-b65f-6d008586f87e"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/Schedule/83c614fb-7e9e-4d00-9831-aa1a25d2ded0",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/Schedule/83c614fb-7e9e-4d00-9831-aa1a25d2ded0"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/Schedule/39849e08-09d9-4329-aa75-c00a44e064f1",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/Schedule/39849e08-09d9-4329-aa75-c00a44e064f1"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/Schedule/4fe06a21-3202-496e-9f15-2bbbfb5613fe",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/Schedule/4fe06a21-3202-496e-9f15-2bbbfb5613fe"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/0a9f0a72-907d-421b-aab4-41c58a2ac7d3?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/0a9f0a72-907d-421b-aab4-41c58a2ac7d3?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/70942055-08bd-4fb0-80c0-d3e75d396165?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/70942055-08bd-4fb0-80c0-d3e75d396165?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/ffaeb4b3-1d89-46e7-8a62-015e40c3a06e?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/ffaeb4b3-1d89-46e7-8a62-015e40c3a06e?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/ea89d4c6-38b7-46b9-8f5c-143719757e5f?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/ea89d4c6-38b7-46b9-8f5c-143719757e5f?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/c28a961d-d563-4691-9ef3-4b642e3f3313?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/c28a961d-d563-4691-9ef3-4b642e3f3313?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/e716fc61-9168-46d2-87d7-f13d0ff2f02c?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/e716fc61-9168-46d2-87d7-f13d0ff2f02c?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/448ed576-6a93-4d8f-969f-b0e14fc3f3e0?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/448ed576-6a93-4d8f-969f-b0e14fc3f3e0?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/30640bc7-cddb-47d6-a8e5-a9c4de270b88?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/30640bc7-cddb-47d6-a8e5-a9c4de270b88?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/c38f412a-a6b7-411a-87c5-c57d424cfbc0?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/c38f412a-a6b7-411a-87c5-c57d424cfbc0?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/ff3d3271-ddd4-4bdf-9d5d-233e7bff7493?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/ff3d3271-ddd4-4bdf-9d5d-233e7bff7493?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/dd47ee74-6dda-46c6-ac98-f19cde901556?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/dd47ee74-6dda-46c6-ac98-f19cde901556?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/555634f6-b18a-4f46-b3d7-46bae67c1ae8?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/555634f6-b18a-4f46-b3d7-46bae67c1ae8?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/ca80142f-9a91-428b-9c23-9de6fb15691c?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/ca80142f-9a91-428b-9c23-9de6fb15691c?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/3f93df27-fccc-4fab-bf2b-53bdba8c4699?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/3f93df27-fccc-4fab-bf2b-53bdba8c4699?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/ccf4f1bf-32ec-4e26-a71b-39674a58e5ac?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/ccf4f1bf-32ec-4e26-a71b-39674a58e5ac?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/c9ae1ef0-71a5-4393-9db6-6cfba516d83f?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/c9ae1ef0-71a5-4393-9db6-6cfba516d83f?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/4717caef-ea12-45a0-a789-12a0cf95f368?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/4717caef-ea12-45a0-a789-12a0cf95f368?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/2f771581-7a40-40ad-ae70-de62c7124511?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/2f771581-7a40-40ad-ae70-de62c7124511?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/568b9d3b-dc04-4943-95f1-008861c1fd5e?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/568b9d3b-dc04-4943-95f1-008861c1fd5e?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/4440cf92-c035-4499-9260-eadd6549f7f4?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/4440cf92-c035-4499-9260-eadd6549f7f4?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/efaa097c-7e97-4c26-b5e6-0d8c7c466882?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/efaa097c-7e97-4c26-b5e6-0d8c7c466882?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/07bf0557-8c82-4bbc-ba65-bdabc5bb9a8f?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/07bf0557-8c82-4bbc-ba65-bdabc5bb9a8f?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/4ed3f8ea-5dee-4253-9507-eadccf773937?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/4ed3f8ea-5dee-4253-9507-eadccf773937?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/3483bd34-2b05-44c1-bbc8-6c8af6cc4401?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/3483bd34-2b05-44c1-bbc8-6c8af6cc4401?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/25de7415-b0fb-4030-b2ec-f956dfd141bd?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/25de7415-b0fb-4030-b2ec-f956dfd141bd?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/3d73c91f-d1c4-4841-b240-7aa179280ad8?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/3d73c91f-d1c4-4841-b240-7aa179280ad8?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/802b62e5-7def-49ae-a57a-99db363b88d4?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/802b62e5-7def-49ae-a57a-99db363b88d4?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/472d3dae-1a62-4130-b528-c1860a194832?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/472d3dae-1a62-4130-b528-c1860a194832?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/b04fe385-f86a-4b72-b65f-6d008586f87e?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/b04fe385-f86a-4b72-b65f-6d008586f87e?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/83c614fb-7e9e-4d00-9831-aa1a25d2ded0?tab=form",
+        "status": 500,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/83c614fb-7e9e-4d00-9831-aa1a25d2ded0?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/39849e08-09d9-4329-aa75-c00a44e064f1?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/39849e08-09d9-4329-aa75-c00a44e064f1?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/c6e05bbe-669d-447a-bf32-a4a0de7da867?tab=form",
+        "status": 404,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/c6e05bbe-669d-447a-bf32-a4a0de7da867?tab=form"
+      },
+      {
+        "url": "http://127.0.0.1:5310/Admin/Events/SignupSetup/4fe06a21-3202-496e-9f15-2bbbfb5613fe?tab=form",
+        "status": 200,
+        "finalUrl": "http://127.0.0.1:5310/Admin/Events/SignupSetup/4fe06a21-3202-496e-9f15-2bbbfb5613fe?tab=form"
+      }
+    ],
+    "nativeRecovery": "PASS invalid choices preserve label/type in drawer; no write",
+    "screenshots": [
+      "signup-settings-390.png",
+      "signup-settings-1280.png",
+      "signup-form-1280.png",
+      "signup-drawer-1280.png"
+    ],
+    "interpretation": "42 successful links; imported Archived SignupSetup500 is unresolved product boundary. Discarded404 is expected refusal, erroneous review-catalogue entry fixed in source after capture; guide regeneration deferred until next build/refresh."
+  },
+  "q11": {
+    "decision": "U3-Q11(a), user7 October2026",
+    "command": "dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --no-restore -c Debug --filter FullyQualifiedName~ImportedArchivedWithoutFormIsReadOnlyAndExplicitWithoutCreatingHistory",
+    "result": "PASS1/1; no500, explicit absent Current, stored read-only cap, terminal mutation refused and no historical writes",
+    "log": "/tmp/u3-q11-test.log",
+    "sha256": "89c53deac8f46a11bd72c05f7f8c215208788206da0cdba0d5548fbeb5804e22"
+  }
+}

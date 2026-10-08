@@ -1,0 +1,15 @@
+@using Bingo.Web.UI
+@{
+    var message = TempData["StatusMessage"] as string;
+    var type = message is null ? UiMessageType.Information : UiMessage.Resolve(message, TempData[UiMessage.TypeKey]?.ToString());
+}
+<div class="toasts" data-toast-host aria-live="polite">
+    @if (!string.IsNullOrWhiteSpace(message))
+    {
+        <partial name="_AdminDesignToast" model="new AdminDesignToast(T[message].Value, type == UiMessageType.Error)" />
+    }
+</div>
+<div data-modal-host></div>
+<div data-drawer-host></div>
+
+<partial name="_AdminDesignTemplates" />

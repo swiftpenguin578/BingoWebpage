@@ -1,0 +1,3 @@
+git diff --check -- <four recovery files>: exit 0
+Recovery additions inspected: no secret material; test identifiers only.
+22 of the previous 26 candidate source files are byte-for-byte unchanged; only four assigned files changed.

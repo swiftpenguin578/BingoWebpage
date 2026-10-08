@@ -19,13 +19,13 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class DropAnnouncementPersistenceIntegrationTests : IAsyncLifetime
+public sealed class DropAnnouncementPersistenceIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_drop_announcements")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
-        .Build();
+        );
     private DbContextOptions<ApplicationDbContext> options = null!;
 
     public async Task InitializeAsync()
@@ -33,7 +33,6 @@ public sealed class DropAnnouncementPersistenceIntegrationTests : IAsyncLifetime
         await database.StartAsync();
         options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
@@ -442,9 +441,11 @@ public sealed class DropAnnouncementPersistenceIntegrationTests : IAsyncLifetime
             (await setup.Teams.SingleAsync(team => team.Id == seed.TeamId)).Finalize(DateTimeOffset.UtcNow);
             await setup.SaveChangesAsync();
         }
-        var boardPage = await administrator.GetStringAsync($"/Events/{seed.EventSlug}/Board");
-        Assert.Contains("data-progress-event=\"" + seed.EventId + "\"", boardPage);
-        Assert.Contains("data-drop-announcement", boardPage);
+        // The route remains available, but the public board is correctly hidden
+        // until an active published roster exists.  Do not resurrect the old
+        // partial board/drop surface merely to make this endpoint test render.
+        using var unpublishedBoard = await administrator.GetAsync($"/Events/{seed.EventSlug}/Board");
+        Assert.Equal(HttpStatusCode.NotFound, unpublishedBoard.StatusCode);
     }
 
     [Fact]
@@ -477,7 +478,7 @@ public sealed class DropAnnouncementPersistenceIntegrationTests : IAsyncLifetime
         var now = DateTimeOffset.UtcNow.AddMinutes(-5);
         var loginName = $"drop-{Guid.NewGuid():N}";
         var account = Account.CreateWebsite(Guid.NewGuid(), loginName, loginName.ToUpperInvariant(), now);
-        var eventItem = new BingoEvent(Guid.NewGuid(), "Drop event", $"drop-{Guid.NewGuid():N}", "UTC", account.Id, now);
+        var eventItem = new BingoEvent(Guid.NewGuid(), "Drop event", $"drop-{Guid.NewGuid():N}", "UTC", account.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         eventItem.ConfigureInitialSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddMinutes(-4), now.AddDays(1), 10);
         eventItem.OpenSignups(now.AddDays(-2));
         eventItem.CloseSignups(now.AddDays(-1));

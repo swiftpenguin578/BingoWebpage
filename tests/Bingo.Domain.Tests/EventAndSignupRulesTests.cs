@@ -9,7 +9,22 @@ public sealed class EventAndSignupRulesTests
     private static readonly DateTimeOffset Now = new(2026, 7, 11, 12, 0, 0, TimeSpan.Zero);
 
     [Fact]
-    public void PrivateParticipantCapCanChangeButPublicCapCannotDecrease()
+    public void ParticipantCapacityMaximumAppliesToEveryDomainChangingEntryPoint()
+    {
+        var item = CreateEvent(BingoEvent.MaximumParticipantCap);
+        foreach (var change in new Action[] {
+            () => item.SetParticipantCap(10_001),
+            () => item.IncreaseParticipantCap(10_001),
+            () => item.ConfigureSchedule(item.SignupOpensAt, item.SignupClosesAt, item.DraftAt, item.EventStartsAt, item.EventEndsAt, 10_001),
+            () => CreateEvent(10_001) })
+            Assert.Equal(BingoEvent.ParticipantCapMaximumMessage, Assert.Throws<InvalidOperationException>(change).Message);
+        Assert.Equal(10_000, item.ParticipantCap);
+        item.SetParticipantCap(9_999); item.IncreaseParticipantCap(10_000);
+        Assert.Equal(10_000, item.ParticipantCap);
+    }
+
+    [Fact]
+    public void PreDraftParticipantCapCanChangeAfterPublicExposure()
     {
         var item = CreateEvent(50);
         item.IncreaseParticipantCap(60);
@@ -18,7 +33,9 @@ public sealed class EventAndSignupRulesTests
         Assert.Equal(59, item.ParticipantCap);
         item.MarkFirstPublic(Now);
         item.IncreaseParticipantCap(60);
-        Assert.Throws<InvalidOperationException>(() => item.IncreaseParticipantCap(59));
+        // OS-4: public exposure does not replace the active pre-draft/count guards.
+        item.IncreaseParticipantCap(59);
+        Assert.Equal(59, item.ParticipantCap);
     }
 
     [Fact]

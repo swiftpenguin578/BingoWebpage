@@ -24,8 +24,13 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed partial class C20ObjectiveIdentityIntegrationTests(C20Database fixture) : IClassFixture<C20Database>
+public sealed partial class C20ObjectiveIdentityIntegrationTests(PostgreSqlTestFixture databaseFixture) : IClassFixture<PostgreSqlTestFixture>, IAsyncLifetime
 {
+    private readonly C20Database fixture = new(databaseFixture);
+
+    public Task InitializeAsync() => fixture.InitializeAsync();
+    public Task DisposeAsync() => fixture.DisposeAsync();
+
     [Fact]
     public async Task PublishedAutomaticDescriptionIsPreservedInCaptainDrawerProjection()
     {
@@ -103,9 +108,9 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests(C20Database fix
         var id = await SubmitAsync(player, f);
         await using var db = fixture.Db();
         var service = new SubmissionService(db, fixture.Storage, TimeProvider.System);
-        if (state is SubmissionStatus.Approved or SubmissionStatus.Reversed) await service.ApproveAsync(id, f.Admin.Id);
-        if (state == SubmissionStatus.Reversed) await service.ReverseAsync(id, f.Admin.Id, "Controlled test reversal");
-        if (state == SubmissionStatus.Rejected) await service.RejectAsync(id, f.Admin.Id, "Controlled test rejection");
+        if (state is SubmissionStatus.Approved or SubmissionStatus.Reversed) await service.ApproveCurrentAsync(id, f.Admin.Id);
+        if (state == SubmissionStatus.Reversed) await service.ReverseCurrentAsync(id, f.Admin.Id, "Controlled test reversal");
+        if (state == SubmissionStatus.Rejected) await service.RejectCurrentAsync(id, f.Admin.Id, "Controlled test rejection");
         if (state == SubmissionStatus.Withdrawn) await service.WithdrawAsync(id, f.Owner.Id);
         await StartCorrectionAsync(admin, f);
         var before = await IntegrityAsync(f);
@@ -178,9 +183,19 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests(C20Database fix
         using var admin = await ClientAsync(f.Admin);
         using var player = await ClientAsync(f.Owner);
         await StartCorrectionAsync(admin, f);
+        var afterCorrectionStart = await LeaseStateAsync(f);
         var version = await VersionAsync(f);
         await EditAsync(admin, f, name: "First correction");
+        var afterCommittedEdit = await LeaseStateAsync(f);
+        Assert.True(afterCommittedEdit.Version > afterCorrectionStart.Version);
+        Assert.True(afterCommittedEdit.LeaseExpiresAt > afterCorrectionStart.LeaseExpiresAt);
+        Assert.True(afterCommittedEdit.BoardAuditCount > afterCorrectionStart.BoardAuditCount);
         var before = await IntegrityAsync(f);
+        using (var view = await admin.GetAsync($"/Admin/Events/Board/{f.Event.Id}"))
+        {
+            Assert.Equal(HttpStatusCode.OK, view.StatusCode);
+            Assert.Equal(before, await IntegrityAsync(f));
+        }
         await EditAsync(admin, f, name: "Stale", version: version);
         Assert.Equal(before, await IntegrityAsync(f));
         await EditAsync(admin, f, requirementId: Guid.NewGuid());
@@ -197,6 +212,61 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests(C20Database fix
         Assert.Equal(before, await IntegrityAsync(f));
     }
 
+    [Fact]
+    public async Task ExpiredPublishedCorrectionLeaseCanBeExplicitlyAcquiredBeforeEditing()
+    {
+        var f = await SeedAsync();
+        using var admin = await ClientAsync(f.Admin);
+        await StartCorrectionAsync(admin, f);
+
+        await using (var db = fixture.Db())
+        {
+            var board = await db.Boards.SingleAsync(x => x.Id == f.Board.Id);
+            db.Entry(board).Property(x => x.EditorAccountId).CurrentValue = f.Owner.Id;
+            db.Entry(board).Property(x => x.EditorLeaseExpiresAt).CurrentValue = DateTimeOffset.UtcNow.AddMinutes(-10);
+            await db.SaveChangesAsync();
+        }
+
+        var beforeView = await LeaseStateAsync(f);
+        using (var view = await admin.GetAsync($"/Admin/Events/Board/{f.Event.Id}"))
+        {
+            Assert.Equal(HttpStatusCode.OK, view.StatusCode);
+            var html = await view.Content.ReadAsStringAsync();
+            // A10: was Contains("handler=AcquireEditing") and the "Acquire editing control" markup.
+            // The page now ships the lease in its data-view JSON and admin-board.js offers the
+            // explicit "Start editing" button (posting AcquireEditing) for control.who == "none".
+            // An expired lease is held by nobody, so the owner must not be shown as the editor.
+            var data = BoardPageData.View(html);
+            Assert.Equal("correction", data.GetProperty("mode").GetString());
+            var control = data.GetProperty("control");
+            Assert.Equal("none", control.GetProperty("who").GetString());
+            Assert.Equal(JsonValueKind.Null, control.GetProperty("name").ValueKind);
+            Assert.Equal("Start editing", BoardPageData.Labels(html).GetProperty("Start editing").GetString());
+        }
+        Assert.Equal(beforeView, await LeaseStateAsync(f));
+
+        await PostBoardAsync(admin, f, "AcquireEditing", new());
+        var afterAcquire = await LeaseStateAsync(f);
+        Assert.True(afterAcquire.LeaseExpiresAt > DateTimeOffset.UtcNow);
+        await using (var db = fixture.Db())
+        {
+            var board = await db.Boards.AsNoTracking().SingleAsync(x => x.Id == f.Board.Id);
+            Assert.Equal(f.Admin.Id, board.EditorAccountId);
+            Assert.True(await db.AuditEntries.AnyAsync(x => x.TargetId == f.Board.Id.ToString() && x.Action == "board.editing_acquired"));
+        }
+
+        await EditAsync(admin, f, name: "Acquired published correction");
+        var afterEdit = await LeaseStateAsync(f);
+        Assert.True(afterEdit.Version > afterAcquire.Version);
+        Assert.True(afterEdit.LeaseExpiresAt > afterAcquire.LeaseExpiresAt);
+        await using (var db = fixture.Db())
+        {
+            var board = await db.Boards.AsNoTracking().SingleAsync(x => x.Id == f.Board.Id);
+            Assert.True(board.PublishedCorrectionInProgress);
+            Assert.Equal("Acquired published correction", (await db.BoardTiles.AsNoTracking().SingleAsync(x => x.Id == f.Tile.Id)).NameSnapshot);
+        }
+    }
+
     private async Task<Fixture> SeedAsync(bool manual = false, bool automaticDescription = false, bool captain = false)
     {
         var now = DateTimeOffset.UtcNow;
@@ -209,7 +279,7 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests(C20Database fix
             return account;
         }
         var admin = Website("admin", true); var owner = Website("owner");
-        var ev = new BingoEvent(Guid.NewGuid(), "C20 event " + suffix, "c20-" + suffix, "UTC", admin.Id, now.AddDays(-3));
+        var ev = new BingoEvent(Guid.NewGuid(), "C20 event " + suffix, "c20-" + suffix, "UTC", admin.Id, now.AddDays(-3), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         ev.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddHours(-1), now.AddHours(2), 20);
         ev.OpenSignups(now.AddDays(-2)); ev.CloseSignups(now.AddDays(-1));
         ev.SetDraftRosterPublication(true); ev.SetBoardPublication(true, now.AddHours(-2)); ev.StartEvent(now.AddHours(-1));
@@ -229,8 +299,14 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests(C20Database fix
         var tile = new BoardTile(Guid.NewGuid(), board.Id, template.Id, 0, 0, template.Name, template.Description, "", 5m, descriptionIsAutomatic: automaticDescription);
         var requirement = new BoardRequirementSnapshot(Guid.NewGuid(), tile.Id, 1, 5, true, false, templateRequirement.Description, manual);
         var drop = new BoardRequirementDropSnapshot(Guid.NewGuid(), requirement.Id, source.Id, item.Id, boss.Name, item.Name, source.DisplayRate, source.NumericProbability, null, 1m);
+        var draft = new DraftSession(Guid.NewGuid(), ev.Id, 1);
+        draft.FinalizeDirect(now.AddHours(-2));
+        var publication = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now.AddHours(-2), admin.Id, DraftPublicationMethod.DirectRoster);
+        var publishedRoster = new DraftPublicationRoster(Guid.NewGuid(), publication.Id, team.Id, participant.Id,
+            membership.Role, null, character.DisplayName);
         await using var db = fixture.Db();
-        db.AddRange(admin, owner, ev, team, participant, character, assignment, membership, boss, item, source, template, templateRequirement, board, tile, requirement);
+        db.AddRange(admin, owner, ev, team, participant, character, assignment, membership, draft, publication, publishedRoster,
+            boss, item, source, template, templateRequirement, board, tile, requirement);
         if (!manual) db.AddRange(drop, new TemplateRequirementBoss(Guid.NewGuid(), templateRequirement.Id, boss.Id), new TemplateRequirementDrop(Guid.NewGuid(), templateRequirement.Id, source.Id, null), new BoardRequirementBossSnapshot(Guid.NewGuid(), requirement.Id, boss.Id, boss.Name, 10m));
         await BoardApprovalFixture.PublishAsync(db, board, now.AddHours(-2), [tile], [requirement], manual ? [] : [drop]);
         var approvalReq = await db.BoardApprovalRequirementSnapshots.SingleAsync(x => x.BoardRequirementSnapshotId == requirement.Id);
@@ -289,6 +365,13 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests(C20Database fix
         return fields;
     }
     private async Task<long> VersionAsync(Fixture f) { await using var db = fixture.Db(); return await db.Boards.Where(x => x.Id == f.Board.Id).Select(x => x.Version).SingleAsync(); }
+    private async Task<LeaseState> LeaseStateAsync(Fixture f)
+    {
+        await using var db = fixture.Db();
+        var board = await db.Boards.AsNoTracking().SingleAsync(x => x.Id == f.Board.Id);
+        return new(board.Version, board.EditorLeaseExpiresAt, board.EditControlVersion,
+            await db.AuditEntries.CountAsync(x => x.TargetId == f.Board.Id.ToString()));
+    }
     private static async Task<Guid> SubmitAsync(HttpClient player, Fixture f)
     {
         var path = $"/Captain/Submit/{f.Tile.Id}?handler=Drawer&eventId={f.Event.Id}&teamId={f.Team.Id}";
@@ -311,7 +394,7 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests(C20Database fix
         var path = $"/Admin/Review/Details/{id}";
         var html = await admin.GetStringAsync(path);
         var version = Regex.Match(html, "name=\"Input.ExpectedVersion\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
-        using var result = await admin.PostAsync(path + "?handler=" + handler, new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = Token(html), ["Input.ExpectedVersion"] = version, ["Input.Reason"] = "Controlled fixture" }));
+        using var result = await admin.PostAsync(path + "?handler=" + handler, new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = Token(html), ["Input.ExpectedVersion"] = version, ["confirmed"] = "true" /* RL-1/BR-4 (U8, A10): explicit confirmation */, ["Input.Reason"] = "Controlled fixture" }));
         Assert.Equal(HttpStatusCode.Redirect, result.StatusCode);
     }
     private static async Task AssertOrdinaryReadsAsync(HttpClient player, Fixture f, Guid submissionId, string title)
@@ -338,22 +421,22 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests(C20Database fix
         });
     }
     private static string Token(string html) { var token = Regex.Match(html, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value; Assert.NotEmpty(token); return token; }
+    private sealed record LeaseState(long Version, DateTimeOffset? LeaseExpiresAt, long EditControlVersion, int BoardAuditCount);
     private sealed record Fixture(Account Admin, Account Owner, BingoEvent Event, Team Team, EventParticipant Participant, Board Board, BoardTile Tile, BoardRequirementSnapshot Requirement, BoardRequirementDropSnapshot Drop, BossActivity Boss, Guid ApprovalId);
 }
 
-public sealed class C20Database : IAsyncLifetime
+public sealed class C20Database(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("c20_disposable").WithUsername("bingo").WithPassword("c20_fixture_only").Build();
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("c20_disposable").WithUsername("bingo").WithPassword("c20_fixture_only"));
     public C20Storage Storage { get; } = new();
     public WebApplicationFactory<Program> Factory { get; private set; } = null!;
     public ApplicationDbContext Db() => new(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options);
     public async Task InitializeAsync()
     {
         await database.StartAsync();
-        await using var db = Db(); await db.Database.MigrateAsync();
         Factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()).ConfigureServices(services => { services.RemoveAll<IEvidenceStorage>(); services.AddSingleton<IEvidenceStorage>(Storage); }));
     }
-    public async Task DisposeAsync() { await Factory.DisposeAsync(); await database.DisposeAsync(); }
+    public async Task DisposeAsync() { if (Factory is not null) await Factory.DisposeAsync(); await database.DisposeAsync(); }
 }
 public sealed class C20Storage : IEvidenceStorage
 {

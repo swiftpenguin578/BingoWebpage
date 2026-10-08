@@ -43,7 +43,7 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests
         else
         {
             await using var db = fixture.Db();
-            var replacement = await db.BoardRequirementSnapshots.AsNoTracking().SingleAsync(x => x.BoardTileId == f.Tile.Id && x.Id != f.Requirement.Id);
+            var replacement = await db.BoardRequirementSnapshots.AsNoTracking().SingleAsync(x => x.BoardTileId == f.Tile.Id && x.Id != f.Requirement.Id && !x.DuplicatesAllowed);
             Assert.NotEqual(siblingId, replacement.Id);
             Assert.Equal(5, replacement.TargetContribution);
             Assert.False(replacement.DuplicatesAllowed);

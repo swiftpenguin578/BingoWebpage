@@ -190,23 +190,18 @@ public sealed class TeamFocusService(
         var eventItem = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId, cancellationToken);
         if (eventItem is null || eventItem.HiddenAt is not null) return null;
         var account = await db.Accounts.AsNoTracking().SingleOrDefaultAsync(x => x.Id == viewerAccountId, cancellationToken);
-        if (account is null || !account.Active || account.AccountType is not (AccountType.WebsiteAccount or AccountType.EmergencyCaptain)) return null;
+        if (account is null || !account.Active || account.AccountType != AccountType.WebsiteAccount) return null;
         var membership = await (from item in db.EventParticipants.AsNoTracking()
                                 join member in db.TeamMemberships.AsNoTracking() on item.Id equals member.EventParticipantId
                                 where item.EventId == eventId && item.AccountId == viewerAccountId && member.TeamId == teamId && member.LeftAt == null
                                 select new { member.Role }).SingleOrDefaultAsync(cancellationToken);
         var isMember = membership is not null;
         var isCaptain = membership is { Role: TeamMembershipRole.Captain or TeamMembershipRole.CoCaptain };
-        var emergencyAccess = account.AccountType == AccountType.EmergencyCaptain
-            ? await db.AccountEventAccesses.AsNoTracking()
-                .SingleOrDefaultAsync(x => x.AccountId == viewerAccountId && x.EventId == eventId && x.TeamId == teamId, cancellationToken)
-            : null;
-        var emergency = emergencyAccess?.GetAccessMode(time.GetUtcNow()) == AccountAccessMode.Full;
         var isSuperAdmin = account.GlobalRole == GlobalRole.SuperAdmin;
         var canInspect = isSuperAdmin && !isMember;
         var isInspection = canInspect && inspectEnabled;
-        var visible = isMember || emergency || isInspection;
-        var canMutate = (isCaptain || emergency) &&
+        var visible = isMember || isInspection;
+        var canMutate = isCaptain &&
                         (eventItem.State is EventState.SignupClosed or EventState.Live) &&
                         eventItem.EventEndsAt is { } eventEnd && time.GetUtcNow() < eventEnd;
         return new FocusAccess(visible, isInspection, canInspect, canMutate);

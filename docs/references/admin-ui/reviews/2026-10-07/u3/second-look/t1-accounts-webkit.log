@@ -1,0 +1,20 @@
+AssertionError [ERR_ASSERTION]: saves use shared busy timing
+    at checkSources (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/lib/admin-page-conformance-checks.cjs:144:47)
+    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-page-conformance.cjs:16:74 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: '// Accounts (WA-5). Server-owned directory state through the shared in-page update helper;\n' +
+    '// one account drawer (?account=), alert-dialog confirmations, the transient reset link and\n' +
+    '// the Transfer dialog. The shell owns transport classification (AdminFetch, C-CMP-2), busy\n' +
+    '// timing (AdminUI.busy), layers, history and dirty guards; this module never retries a write.\n' +
+    'let release;\n' +
+    'export function dispose() { release?.(); release = null; }\n' +
+    'export function init(region, ui = window.AdminUI) {\n' +
+    '  dispose();\n' +
+    "  const root = region.querySelector('[data-accounts-directory]');\n" +
+    '  if (!root) return;\n' +
+    '...',
+  expected: /setTimeout\([^;]*(?:600|250)/,
+  operator: 'doesNotMatch',
+  diff: 'simple'
+}

@@ -30,11 +30,10 @@ public sealed class ParticipantLiveService(ApplicationDbContext db, TimeProvider
         Guid viewerAccountId,
         CancellationToken cancellationToken = default)
     {
-        var captain = await IsCurrentCaptainAsync(eventId, teamId, viewerAccountId, cancellationToken);
         var participantIds = await (from membership in db.TeamMemberships.AsNoTracking()
                                     join participant in db.EventParticipants.AsNoTracking() on membership.EventParticipantId equals participant.Id
                                     where membership.TeamId == teamId && membership.LeftAt == null && participant.EventId == eventId &&
-                                          (participant.AccountId == viewerAccountId || (captain && participant.AccountId == null))
+                                          participant.AccountId == viewerAccountId
                                     select participant.Id).Distinct().ToListAsync(cancellationToken);
         var contexts = new List<ParticipantLiveContext>(participantIds.Count);
         foreach (var participantId in participantIds)
@@ -49,11 +48,14 @@ public sealed class ParticipantLiveService(ApplicationDbContext db, TimeProvider
         ParticipantCharacterSwapRequest request,
         CancellationToken cancellationToken = default)
     {
+        await using var attributionLock = await ParticipantAttributionLock.AcquireAsync(db, request.ParticipantId, cancellationToken);
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
         try
         {
-            var now = time.GetUtcNow().ToUniversalTime();
-            await LockParticipantAsync(request.ParticipantId, cancellationToken);
+            // Share event ordering with submission creation, lifecycle and membership changes.
+            await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {request.EventId} FOR UPDATE")
+                .AsNoTracking().ToListAsync(cancellationToken);
+            var now = ParticipantAttributionLock.AtDatabasePrecision(time.GetUtcNow());
             var row = await LoadParticipantAsync(request.EventId, request.ParticipantId, cancellationToken);
             if (row is null || !await MayViewAsync(row, request.ActorAccountId, cancellationToken))
                 return new(false, "You are not allowed to change this participant's active account.");
@@ -69,7 +71,7 @@ public sealed class ParticipantLiveService(ApplicationDbContext db, TimeProvider
 
             if (await db.EventParticipantCharacterSwaps.AnyAsync(
                     x => x.EventParticipantId == row.Participant.Id && x.EffectiveAtUtc > now, cancellationToken))
-                return new(false, "A future account swap is already pending.");
+                return new(false, "A previously scheduled account switch is still pending. Wait until it takes effect before switching again.");
 
             var current = await db.ActiveCharacterAtAsync(row.Event.Id, row.Participant.Id, now, cancellationToken);
             if (current is null)
@@ -79,13 +81,16 @@ public sealed class ParticipantLiveService(ApplicationDbContext db, TimeProvider
             if (current.OsrsCharacterId == request.NextCharacterId)
                 return new(false, "Choose a different Playing account.");
 
-            var effectiveAt = NextWholeUtcMinute(now);
+            var effectiveAt = now;
+            var sequence = 1 + (await db.EventParticipantCharacterSwaps
+                .Where(x => x.EventParticipantId == row.Participant.Id)
+                .MaxAsync(x => (long?)x.Sequence, cancellationToken) ?? 0);
             db.EventParticipantCharacterSwaps.Add(new EventParticipantCharacterSwap(
                 Guid.NewGuid(), row.Event.Id, row.Participant.Id, current.OsrsCharacterId,
-                request.NextCharacterId, effectiveAt, now, request.ActorAccountId, null));
+                request.NextCharacterId, effectiveAt, now, request.ActorAccountId, null, sequence));
             await db.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
-            return new(true, EffectiveAtUtc: effectiveAt);
+            return new(true, EffectiveAtUtc: effectiveAt, CharacterName: target.Character.DisplayName);
         }
         catch (DbUpdateConcurrencyException)
         {
@@ -115,19 +120,8 @@ public sealed class ParticipantLiveService(ApplicationDbContext db, TimeProvider
             x => x.Id == viewerAccountId && x.Active && x.AccountType == AccountType.WebsiteAccount,
             cancellationToken);
         if (!viewer) return false;
-        if (row.Participant.AccountId == viewerAccountId) return true;
-        return row.Participant.AccountId is null && row.Team.FormationType == TeamFormationType.Preformed &&
-               await IsCurrentCaptainAsync(row.Event.Id, row.Team.Id, viewerAccountId, cancellationToken);
+        return row.Participant.AccountId == viewerAccountId;
     }
-
-    private async Task<bool> IsCurrentCaptainAsync(Guid eventId, Guid teamId, Guid accountId, CancellationToken cancellationToken) =>
-        await (from membership in db.TeamMemberships.AsNoTracking()
-               join participant in db.EventParticipants.AsNoTracking() on membership.EventParticipantId equals participant.Id
-               join account in db.Accounts.AsNoTracking() on participant.AccountId equals account.Id
-               where participant.EventId == eventId && membership.TeamId == teamId && membership.LeftAt == null &&
-                     participant.AccountId == accountId && account.Active && account.AccountType == AccountType.WebsiteAccount &&
-                     (membership.Role == TeamMembershipRole.Captain || membership.Role == TeamMembershipRole.CoCaptain)
-               select membership.Id).AnyAsync(cancellationToken);
 
     private async Task<ParticipantLiveContext> BuildContextAsync(
         ParticipantRow row,
@@ -136,7 +130,18 @@ public sealed class ParticipantLiveService(ApplicationDbContext db, TimeProvider
         CancellationToken cancellationToken)
     {
         var assignments = await PlayingAssignmentsAsync(row.Participant.Id, cancellationToken);
-        var planned = assignments.OrderBy(x => x.Assignment.RegistrationOrder).FirstOrDefault();
+        // Before Live, the built-in PrimaryRegularAccount slot is the planned
+        // account for every source, including AdminCreated participants. Fall
+        // back to registration order only for retained legacy rows without that
+        // mapping, matching the PrimaryCharacters authority query.
+        var plannedPrimaryId = await db.PrimaryCharacters()
+            .Where(x => x.EventId == row.Event.Id && x.ParticipantId == row.Participant.Id)
+            .Select(x => (Guid?)x.OsrsCharacterId)
+            .SingleOrDefaultAsync(cancellationToken);
+        var planned = plannedPrimaryId is { } primaryId
+            ? assignments.FirstOrDefault(x => x.Assignment.OsrsCharacterId == primaryId)
+            : null;
+        planned ??= assignments.OrderBy(x => x.Assignment.RegistrationOrder).FirstOrDefault();
         var active = await db.ActiveCharacterAtAsync(row.Event.Id, row.Participant.Id, now, cancellationToken);
         var activeId = row.Event.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed
             ? planned?.Assignment.OsrsCharacterId
@@ -161,15 +166,6 @@ public sealed class ParticipantLiveService(ApplicationDbContext db, TimeProvider
                where assignment.EventParticipantId == participantId && assignment.ReleasedAt == null && assignment.EventRole == EventCharacterRole.Playing
                orderby assignment.RegistrationOrder
                select new AssignmentRow(assignment, character)).ToListAsync(cancellationToken);
-
-    private Task<int> LockParticipantAsync(Guid participantId, CancellationToken cancellationToken) =>
-        db.Database.ExecuteSqlInterpolatedAsync($"SELECT pg_advisory_xact_lock(7303005, hashtext({participantId}::text))", cancellationToken);
-
-    private static DateTimeOffset NextWholeUtcMinute(DateTimeOffset instantUtc)
-    {
-        var instant = instantUtc.ToUniversalTime();
-        return new DateTimeOffset(instant.Year, instant.Month, instant.Day, instant.Hour, instant.Minute, 0, TimeSpan.Zero).AddMinutes(1);
-    }
 
     private sealed record ParticipantRow(BingoEvent Event, EventParticipant Participant, TeamMembership Membership, Team Team);
     private sealed record AssignmentRow(EventParticipantCharacter Assignment, OsrsCharacter Character);

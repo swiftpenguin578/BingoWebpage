@@ -107,9 +107,14 @@ public sealed class OsrsWikiImageCacheTests
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => first);
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => second);
 
+            // Observe the existing shared task after both original waiters have
+            // cancelled. A handler response is not the cache's failure completion:
+            // recording RetryAt and removing the in-flight entry happen afterwards.
+            var completion = cache.GetAsync(source);
             release.SetResult();
-            await handler.ResponseReturned.Task;
-            await Task.Delay(50);
+            var failure = await Assert.ThrowsAsync<HttpRequestException>(() => completion);
+            Assert.Equal(System.Net.HttpStatusCode.ServiceUnavailable, failure.StatusCode);
+            Assert.Equal(1, handler.RequestCount);
             clock.Advance(TimeSpan.FromSeconds(2));
             handler.Status = System.Net.HttpStatusCode.OK;
             handler.RetryAfterSeconds = null;

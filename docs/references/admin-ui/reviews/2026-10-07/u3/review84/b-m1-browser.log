@@ -1,0 +1,1 @@
+PASS 11 refused save paths: capacity, code, add-playing, add-alt, rename, move, co-off, co-on, delete, drawer-add, drawer-edit; exact server reason, one read, read-only state, retained entries, no uncertain/replay path.

@@ -1,0 +1,84 @@
+[
+  {
+    "file": "au08-focused.trx",
+    "results": [
+      {
+        "name": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.MissingAndPartialStaleBaselinesFailClosedWithoutAdvancingLegacyVersion",
+        "outcome": "Passed"
+      },
+      {
+        "name": "Bingo.IntegrationTests.Slice3CreationIdentityPersistenceIntegrationTests.CreationHttpAcceptsOnlyNameAndTimezoneAndCreatesAtomicDefaultAggregate",
+        "outcome": "Passed"
+      },
+      {
+        "name": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.ActualLiveAndFinalReviewTransportAllowsTextButNeverTimezoneChanges",
+        "outcome": "Passed"
+      },
+      {
+        "name": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.ActualTransportPreservesUnicodeAndUtf16LimitsAndPermanentSlug",
+        "outcome": "Failed"
+      },
+      {
+        "name": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.ConflictResolutionIsExplicitAtomicAndMustMatchReviewedCurrentField(choice: \"KeepMine\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.ScheduleOnlyChangeRequiresFreshTimezoneReviewAtPersistedMicrosecondPrecision",
+        "outcome": "Passed"
+      },
+      {
+        "name": "Bingo.IntegrationTests.Slice3CreationIdentityPersistenceIntegrationTests.IdentityTreatsWrappedProviderConflictsAsStale",
+        "outcome": "Passed"
+      },
+      {
+        "name": "Bingo.IntegrationTests.Slice3CreationIdentityPersistenceIntegrationTests.IdentityShowsExplicitUtcFallbackForRetainedUnresolvableTimezone",
+        "outcome": "Passed"
+      },
+      {
+        "name": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.ActualConcurrentClientsMergeDisjointEditsAndRejectSameField(sameField: True)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.ConflictResolutionIsExplicitAtomicAndMustMatchReviewedCurrentField(choice: \"UseCurrent\")",
+        "outcome": "Passed"
+      },
+      {
+        "name": "Bingo.IntegrationTests.Slice3CreationIdentityPersistenceIntegrationTests.IdentityHandlerPreservesUtcAndSupportsLiveContentEditsButLocksSlugAndPostLiveTimezone",
+        "outcome": "Passed"
+      },
+      {
+        "name": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.NonAdminActualTransportCannotReadOrSaveIdentity",
+        "outcome": "Passed"
+      },
+      {
+        "name": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.AlreadyMatchingAndUnchangedFieldsAreNoOpsAndRetainOtherAdminsChanges",
+        "outcome": "Passed"
+      },
+      {
+        "name": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.ActualConcurrentClientsMergeDisjointEditsAndRejectSameField(sameField: False)",
+        "outcome": "Passed"
+      }
+    ]
+  },
+  {
+    "file": "au08-corrections.trx",
+    "results": [
+      {
+        "name": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.ActualTransportPreservesUnicodeAndUtf16LimitsAndPermanentSlug",
+        "outcome": "Passed"
+      },
+      {
+        "name": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.ActualConcurrentClientsMergeDisjointEditsAndRejectSameField(sameField: True)",
+        "outcome": "Passed"
+      },
+      {
+        "name": "Bingo.IntegrationTests.Slice3CreationIdentityPersistenceIntegrationTests.IdentityTreatsWrappedProviderConflictsAsStale",
+        "outcome": "Passed"
+      },
+      {
+        "name": "Bingo.IntegrationTests.IdentityFieldConflictIntegrationTests.ActualConcurrentClientsMergeDisjointEditsAndRejectSameField(sameField: False)",
+        "outcome": "Passed"
+      }
+    ]
+  }
+]

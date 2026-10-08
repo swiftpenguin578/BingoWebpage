@@ -14,7 +14,7 @@ public sealed class TileTemplate
     public void SetActive(bool active) => Active = active;
     private static void ValidateEstimate(ObjectiveType objectiveType, decimal? manualEhbOverride)
     {
-        if (objectiveType != ObjectiveType.Manual && manualEhbOverride is not null)
-            throw new ArgumentException("Only a manual tile accepts a manual EHB estimate.", nameof(manualEhbOverride));
+        if (manualEhbOverride is < 0.0001m or > 100000m)
+            throw new ArgumentOutOfRangeException(nameof(manualEhbOverride), "A manual total EHB estimate must be between 0.0001 and 100000.");
     }
 }

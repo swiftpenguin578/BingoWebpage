@@ -11,71 +11,50 @@ public sealed class EvidenceWorkflowUiTests
         var detail = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Review", "Details.cshtml"));
         var styles = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "css", "site.transitional.application.css"));
 
-        Assert.Contains("admin-review-queue-page", queue);
-        Assert.Contains("admin-review-table", queue);
-        Assert.Contains("data-admin-review-filter-form", queue);
-        Assert.Contains("data-admin-review-search", queue);
-        Assert.Contains("data-admin-review-status", queue);
-        Assert.Contains("data-review-team", queue);
-        Assert.Contains("data-review-tile", queue);
-        Assert.Contains("data-review-player", queue);
-        Assert.Contains("name=\"status\"", queue);
+        // U8 (A10): the queue is a new-layout page (Review.dc.html); the same bindings are checked on its markup.
+        Assert.Contains("ViewData[\"PageFamily\"] = \"review\";", queue);
+        Assert.Contains("[AdminDesign]", queueModel);
+        Assert.Contains("data-review-search", queue);
+        Assert.Contains("data-review-status", queue);
         Assert.Contains("Model.Status", queue);
         Assert.Contains("public string Search", queueModel);
+        Assert.Contains("ReviewList.Filter(AllRows, Search, Status)", queueModel);
         Assert.DoesNotContain("EventOption", queueModel);
         Assert.DoesNotContain("TeamOption", queueModel);
         Assert.DoesNotContain("TileOption", queueModel);
-        Assert.Contains("No submissions match these filters", queue);
-        Assert.Contains("After event end", queue);
-        Assert.Contains("Details", queue);
-        Assert.Contains("asp-route-eventId", queue);
-        Assert.Contains("asp-route-search", queue);
-        Assert.Contains("asp-route-status", queue);
-        Assert.Contains("admin-review-queue.js", queue);
-        Assert.DoesNotContain("Administration", queue);
+        Assert.Contains("No submissions match", queue);
+        Assert.Contains("After end", queue);
+        Assert.Contains("Model.DetailsUrl(row.Id)", queue);
+        Assert.DoesNotContain("Reverse approval", queue);
+        Assert.Contains("admin-review.js", queue);
+        Assert.DoesNotContain("admin-review-queue.js", queue);
+        Assert.DoesNotContain(".admin-shell-body .admin-review", styles); // U8 1d: transitional Review CSS retired
         Assert.DoesNotContain("Apply filters", queue);
         Assert.DoesNotContain("name=\"teamId\"", queue);
         Assert.DoesNotContain("name=\"tileId\"", queue);
-        Assert.DoesNotContain("table-page", queue);
-        Assert.DoesNotContain("class=\"panel", queue);
-        Assert.DoesNotContain("class=\"form-select", queue);
 
-        Assert.Contains("admin-review-detail-page", detail);
-        Assert.Contains("admin-review-detail-workspace", detail);
-        Assert.Contains("admin-review-facts", detail);
-        Assert.Contains("admin-review-evidence-trigger", detail);
-        Assert.Contains("<dialog id=\"evidence-lightbox\"", detail);
-        Assert.Contains("Open original asset", detail);
-        Assert.Contains("data-admin-reject-reveal", detail);
-        Assert.Contains("data-admin-reject-panel", detail);
-        Assert.Contains("data-admin-reject-cancel", detail);
-        Assert.Contains("admin-review-secondary-grid", detail);
-        Assert.Contains("Possible duplicate screenshot", detail);
-        Assert.Contains("asp-page-handler=\"Approve\"", detail);
-        Assert.Contains("asp-page-handler=\"Reject\"", detail);
-        Assert.Contains("asp-page-handler=\"Reverse\"", detail);
-        Assert.Contains("asp-page-handler=\"Edit\"", detail);
-        Assert.Contains("Model.ReviewOpen && Model.Details.Status == SubmissionStatus.Pending", detail);
-        Assert.Contains("var reversible = Model.ReviewOpen && Model.Details.Status == SubmissionStatus.Approved", detail);
-        Assert.Contains("Input.ExpectedVersion", detail);
-        Assert.Contains("data-correction-requirement", detail);
-        Assert.Contains("data-correction-drop-catalogue", detail);
-        Assert.Contains("syncCorrectionDropSelector(this)", detail);
-        Assert.Contains("action-danger-outline", detail);
-        Assert.Contains("asp-route-eventId", detail);
-        Assert.Contains("asp-route-search", detail);
-        Assert.Contains("asp-route-status", detail);
-        Assert.Contains("No active evidence asset", detail);
-        Assert.Contains("No evidence assets are attached", detail);
-        Assert.DoesNotContain("class=\"table-page", detail);
-        Assert.DoesNotContain("class=\"panel", detail);
-        Assert.DoesNotContain("class=\"btn", detail);
-
-        Assert.Contains(".admin-shell-body .admin-review-table", styles);
-        Assert.Contains("@media (max-width: 1100px)", styles);
-        Assert.Contains(".admin-shell-body .admin-review-table td::before", styles);
-        Assert.Contains(".admin-shell-body .admin-review-detail-grid", styles);
-        Assert.Contains(".admin-shell-body .admin-review-lightbox", styles);
+        // U8 (A10): the workspace is a new-layout page; decisions answer in place, and the same server bindings stay.
+        var workspace = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Review", "_ReviewWorkspace.cshtml"));
+        Assert.Contains("ViewData[\"PageFamily\"] = \"review\";", detail);
+        Assert.Contains("<partial name=\"_ReviewWorkspace\" model=\"Model\" />", detail);
+        Assert.Contains("asp-page-handler=\"Approve\"", workspace);
+        Assert.Contains("asp-page-handler=\"Reject\"", workspace);
+        Assert.Contains("asp-page-handler=\"Reverse\"", workspace);
+        Assert.Contains("asp-page-handler=\"Edit\"", workspace);
+        Assert.Contains("var pendingOpen = Model.ReviewOpen && d.Status == SubmissionStatus.Pending;", workspace);
+        Assert.Contains("var approvedOpen = Model.ReviewOpen && d.Status == SubmissionStatus.Approved;", workspace);
+        Assert.Contains("Input.ExpectedVersion", workspace);
+        Assert.Contains("name=\"confirmed\" value=\"true\"", workspace);
+        Assert.Contains("asp-route-eventId", workspace);
+        Assert.Contains("asp-route-search", workspace);
+        Assert.Contains("asp-route-status", workspace);
+        Assert.Contains("No screenshot available", workspace);
+        Assert.Contains("No files are attached.", workspace);
+        Assert.Contains("The same image is on another submission.", workspace);
+        Assert.DoesNotContain("window.confirm", workspace);
+        Assert.DoesNotContain("<script>", detail + workspace); // no inline script; the module is admin-review.js
+        Assert.DoesNotContain("<dialog", workspace);
+        Assert.DoesNotContain("TempData", detail + workspace);
     }
 
     [Fact]
@@ -88,6 +67,7 @@ public sealed class EvidenceWorkflowUiTests
         var submissionDetail = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Captain", "_SubmissionDetail.cshtml"));
         var upload = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Captain", "_EvidenceUpload.cshtml"));
         var review = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Review", "Details.cshtml"));
+        var howTo = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "HowTo.cshtml"));
         var site = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "js", "site.js"));
         var teamBoardScript = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "js", "team-board-drawer.js"));
 
@@ -96,19 +76,21 @@ public sealed class EvidenceWorkflowUiTests
         Assert.Contains("data-submission-history-link", teamBoard);
         Assert.Contains("<partial name=\"_EvidenceUpload\" model=\"@(\"Input.Evidence\")\" />", forms);
         Assert.Contains("<partial name=\"/Pages/Captain/_SubmissionDetail.cshtml\" model=\"Model\" />", submission);
-        Assert.Contains("<partial name=\"/Pages/Captain/_EvidenceUpload.cshtml\" model=\"@(\"Resubmission.Evidence\")\" />", submissionDetail);
+        Assert.DoesNotContain("Resubmission.Evidence", submissionDetail);
+        Assert.Contains("every later attempt is a new ordinary submission", howTo);
+        Assert.DoesNotContain("linked resubmission", howTo);
         Assert.Contains("data-submission-drawer", teamBoardScript);
         Assert.Contains("window.history.pushState", teamBoardScript);
-        Assert.Contains("Model.Details.SubmittedAt.UtcDateTime.ToString(\"yyyy-MM-dd HH:mm 'UTC'\")", review);
-        Assert.Contains("data-requirement-id=\"@drop.RequirementId\"", review);
-        Assert.Contains("Model.Drops.Where(x => x.RequirementId == Model.Input.RequirementId)", review);
-        Assert.Contains("data-correction-drop-catalogue", review);
-        Assert.Contains("<script src=\"~/js/public-evidence.js\" asp-append-version=\"true\"></script>", review);
+        Assert.Contains("ReviewTime.UtcFull(d.SubmittedAt)", File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Review", "_ReviewWorkspace.cshtml"))); // U8-Q1: UTC first
+        // U8 (A10): the review correction scopes its drops to the chosen objective in the page module.
+        var reviewWorkspace = File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "Pages", "Admin", "Review", "_ReviewWorkspace.cshtml"));
+        Assert.Contains("data-requirement=\"@drop.RequirementId\"", reviewWorkspace);
+        Assert.Contains("item.dataset.requirement !== req.value", File.ReadAllText(Path.Combine(repositoryRoot, "src", "Bingo.Web", "wwwroot", "js", "admin-review.js")));
+        Assert.Contains("_ReviewWorkspace", review);
         Assert.Contains("initializeCorrectionDropSelectors", site);
         Assert.Contains("DOMContentLoaded", site);
         Assert.Contains("bingo:content-updated", site);
         Assert.Contains("syncCorrectionDropSelector", site);
-        Assert.Contains("onchange=\"syncCorrectionDropSelector(this)\"", review);
         Assert.Contains("window.syncCorrectionDropSelector", site);
         Assert.Contains("group.querySelectorAll(\"option\")", site);
         Assert.DoesNotContain("options: [...group.options]", site);

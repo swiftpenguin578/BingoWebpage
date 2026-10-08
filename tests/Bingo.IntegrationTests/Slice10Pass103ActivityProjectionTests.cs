@@ -29,13 +29,13 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
+public sealed class Slice10Pass103ActivityProjectionTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_slice10_pass103")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
-        .Build();
+        );
     private DbContextOptions<ApplicationDbContext> options = null!;
 
     public async Task InitializeAsync()
@@ -44,7 +44,6 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
         options = new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql(database.GetConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
@@ -336,8 +335,17 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
             ["__RequestVerificationToken"] = Regex.Match(login, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value
         }))) Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
         var manage = await client.GetStringAsync($"/Admin/Events/Manage/{liveId}");
-        Assert.Contains("Dev Activity Secondary", manage, StringComparison.Ordinal);
-        Assert.Contains("Partial", manage, StringComparison.Ordinal);
+        var workspaceRoute = $"/Admin/Events/WiseOldMan/{liveId}";
+        var workspace = await client.GetStringAsync(workspaceRoute);
+        Assert.Contains("Dev Activity Secondary", workspace, StringComparison.Ordinal);
+        // A10 (U9 WOM rebind): the old "Fetch state: Unavailable" status line no longer exists on the
+        // rebuilt page. The cached fetch state now shows as the issue banner derived from the stored
+        // LastErrorKind ("Unavailable"), which promises that previously fetched data is retained; the
+        // Fetch now control is a POST form, so merely rendering the page still makes no provider call.
+        Assert.Contains("id=\"wm-issue\"", workspace, StringComparison.Ordinal);
+        Assert.Contains("Wise Old Man isn", workspace, StringComparison.Ordinal); // apostrophe is HTML-encoded
+        Assert.Contains("t responding.", workspace, StringComparison.Ordinal);
+        Assert.Contains("Previously fetched data is retained.", workspace, StringComparison.Ordinal);
         Assert.Equal(0, fake.Calls);
 
         await using (var db = new ApplicationDbContext(options))
@@ -360,7 +368,9 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
     [Fact]
     public async Task DevelopmentTest15DueControlIsIdempotentAndResetRemainsCachedOnly()
     {
-        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var current = DateTimeOffset.UtcNow;
+        var seededNow = new DateTimeOffset(current.Year, current.Month, current.Day, current.Hour, current.Minute < 30 ? 0 : 30, 0, TimeSpan.Zero);
+        var clock = new TestClock(seededNow);
         const string owner = "slice10-pass103-control-owner";
         await using (var db = new ApplicationDbContext(options))
         {
@@ -420,16 +430,17 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
             ["__RequestVerificationToken"] = Regex.Match(login, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value
         }))) Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
 
-        var manageRoute = $"/Admin/Events/Manage/{liveId}";
-        var manage = await client.GetStringAsync(manageRoute);
-        using (var due = await client.PostAsync($"{manageRoute}?handler=MakeDevelopmentCompetitionDue", new FormUrlEncodedContent(new Dictionary<string, string>
+        var overviewRoute = $"/Admin/Events/Manage/{liveId}";
+        var workspaceRoute = $"/Admin/Events/WiseOldMan/{liveId}";
+        var manage = await client.GetStringAsync(workspaceRoute);
+        using (var due = await client.PostAsync($"{workspaceRoute}?handler=MakeDevelopmentCompetitionDue", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["__RequestVerificationToken"] = Regex.Match(manage, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value
         }))) Assert.Equal(HttpStatusCode.Redirect, due.StatusCode);
         Assert.Equal(0, fake.Calls);
 
-        var refreshPage = await client.GetStringAsync(manageRoute);
-        using (var refreshed = await client.PostAsync($"{manageRoute}?handler=RefreshCompetition", new FormUrlEncodedContent(new Dictionary<string, string>
+        var refreshPage = await client.GetStringAsync(workspaceRoute);
+        using (var refreshed = await client.PostAsync($"{workspaceRoute}?handler=FetchCompetition", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["__RequestVerificationToken"] = Regex.Match(refreshPage, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value
         }))) Assert.Equal(HttpStatusCode.Redirect, refreshed.StatusCode);
@@ -446,41 +457,22 @@ public sealed class Slice10Pass103ActivityProjectionTests : IAsyncLifetime
             Assert.Equal(expectedNames.Count, await verify.EventCompetitionCharacterActivities.CountAsync(value => value.EventId == state.EventId && value.Generation == state.Generation));
         }
 
-        Assert.DoesNotContain("handler=ClearCompetition", manage, StringComparison.Ordinal);
-        Assert.DoesNotContain("name=\"ConfirmCompetitionClear\"", manage, StringComparison.Ordinal);
-        using (var rejectedClear = await client.PostAsync($"{manageRoute}?handler=ClearCompetition", new FormUrlEncodedContent(new Dictionary<string, string>
+        Assert.DoesNotContain("asp-page-handler=\"DisconnectCompetition\"", manage, StringComparison.Ordinal);
+        var overview = await client.GetStringAsync(overviewRoute);
+        using (var rejectedClear = await client.PostAsync($"{overviewRoute}?handler=ClearCompetition", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["EventVersion"] = Regex.Match(manage, "name=\"EventVersion\"[^>]*value=\"([^\"]+)\"").Groups[1].Value,
-            ["__RequestVerificationToken"] = Regex.Match(manage, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value
-        }))) Assert.Equal(HttpStatusCode.Redirect, rejectedClear.StatusCode);
-        Assert.Contains("competition cannot be cleared.", await client.GetStringAsync(manageRoute), StringComparison.Ordinal);
+            ["EventVersion"] = Regex.Match(overview, "name=\"EventVersion\"[^>]*value=\"([^\"]+)\"").Groups[1].Value,
+            ["__RequestVerificationToken"] = Regex.Match(overview, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value
+        }))) Assert.False(rejectedClear.IsSuccessStatusCode);
         await using (var verifyRejectedClear = new ApplicationDbContext(options))
             Assert.Equal(1515, (await verifyRejectedClear.EventCompetitionSynchronizations.SingleAsync(value => value.EventId == liveId)).CompetitionId);
-
-        var clearPage = await client.GetStringAsync(manageRoute);
-        using (var cleared = await client.PostAsync($"{manageRoute}?handler=ClearCompetition", new FormUrlEncodedContent(new Dictionary<string, string>
-        {
-            ["EventVersion"] = Regex.Match(clearPage, "name=\"EventVersion\"[^>]*value=\"([^\"]+)\"").Groups[1].Value,
-            ["ConfirmCompetitionClear"] = "true",
-            ["CompetitionClearReason"] = "Correct the live event window before relinking Wise Old Man.",
-            ["__RequestVerificationToken"] = Regex.Match(clearPage, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value
-        }))) Assert.Equal(HttpStatusCode.Redirect, cleared.StatusCode);
-        await using (var verifyCleared = new ApplicationDbContext(options))
-        {
-            var retained = await verifyCleared.EventCompetitionSynchronizations.SingleAsync(value => value.EventId == liveId);
-            Assert.Equal(1515, retained.CompetitionId);
-            Assert.True(retained.LatestComplete);
-            Assert.NotNull(retained.LastSuccessfulAt);
-            Assert.Equal(expectedNames.Count, await verifyCleared.EventCompetitionCharacterActivities.CountAsync(value => value.EventId == liveId && value.Generation == retained.Generation));
-            Assert.False(await verifyCleared.AuditEntries.AnyAsync(value => value.EventId == liveId && value.Action == "event.competition_cleared"));
-        }
 
         Guid lookupId;
         await using (var ids = new ApplicationDbContext(options))
             lookupId = await ids.Events.Where(value => value.Slug == "test-16-signup-lookup").Select(value => value.Id).SingleAsync();
-        var lookupRoute = $"/Admin/Events/Manage/{lookupId}";
+        var lookupRoute = $"/Admin/Events/WiseOldMan/{lookupId}";
         var lookupPage = await client.GetStringAsync(lookupRoute);
-        using (var rejected = await client.PostAsync($"{lookupRoute}?handler=RefreshCompetition", new FormUrlEncodedContent(new Dictionary<string, string>
+        using (var rejected = await client.PostAsync($"{lookupRoute}?handler=FetchCompetition", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["__RequestVerificationToken"] = Regex.Match(lookupPage, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value
         }))) Assert.Equal(HttpStatusCode.Redirect, rejected.StatusCode);

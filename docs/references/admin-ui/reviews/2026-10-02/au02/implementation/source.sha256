@@ -1,0 +1,3 @@
+845dd59e01a90c22de602878aadf1130a7d6e9ca67b47a07837d19bed0064acc  src/Bingo.Web/Pages/Admin/Events/Participants.cshtml
+3feca88e31c981527da6ab542649993651a8fbd785c47dec89db3799384f7da7  src/Bingo.Web/Pages/Admin/Events/Participants.cshtml.cs
+293f35d719167617125aac75a10773d95d7a72da6546a9e79e515402d72caeca  tests/Bingo.IntegrationTests/SignupCodeValidationIntegrationTests.cs

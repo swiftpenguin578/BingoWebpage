@@ -1,5 +1,6 @@
 using Bingo.Domain.Boards;
 using Bingo.Domain.Events;
+using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Events;
 using Bingo.Web.UI;
@@ -17,19 +18,27 @@ public sealed class IndexModel(ApplicationDbContext db, IHostEnvironment environ
 
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
+        var activeRosterEventIds =
+            from cycle in db.DraftPublicationCycles.AsNoTracking()
+            join draft in db.DraftSessions.AsNoTracking() on cycle.DraftSessionId equals draft.Id
+            where draft.State == DraftState.Finalized
+                  && cycle.SupersededAt == null
+                  && db.DraftPublicationRosters.Any(roster => roster.DraftPublicationCycleId == cycle.Id)
+            select draft.EventId;
+
         var candidates = await (from bingoEvent in db.Events.AsNoTracking()
                                 join board in db.Boards.AsNoTracking() on bingoEvent.Id equals board.EventId into boards
                                 from board in boards.DefaultIfEmpty()
                                 where
-                                      bingoEvent.HiddenAt == null && bingoEvent.State != EventState.Discarded && bingoEvent.State != EventState.Cancelled && bingoEvent.State != EventState.Archived &&
+                                      bingoEvent.HiddenAt == null && bingoEvent.State != EventState.Discarded && bingoEvent.State != EventState.Cancelled && bingoEvent.State != EventState.Archived && bingoEvent.State != EventState.Finalized &&
                                       ((bingoEvent.State == EventState.SignupOpen && bingoEvent.FirstPublicAt != null) ||
-                                       db.DraftPublicationCycles.Any(cycle => cycle.SupersededAt == null && db.DraftSessions.Any(draft => draft.Id == cycle.DraftSessionId && draft.EventId == bingoEvent.Id)) ||
+                                       activeRosterEventIds.Contains(bingoEvent.Id) ||
                                        db.Boards.Any(candidate => candidate.EventId == bingoEvent.Id && candidate.State == BoardState.Published))
                                 orderby bingoEvent.State == EventState.Live descending, bingoEvent.EventStartsAt descending
                                 select new
                                 {
                                     bingoEvent,
-                                    RosterPublished = db.DraftPublicationCycles.Any(cycle => cycle.SupersededAt == null && db.DraftSessions.Any(draft => draft.Id == cycle.DraftSessionId && draft.EventId == bingoEvent.Id)),
+                                    RosterPublished = activeRosterEventIds.Contains(bingoEvent.Id),
                                     BoardPublished = board != null && board.State == BoardState.Published,
                                     Rows = board == null ? (int?)null : board.Rows,
                                     Columns = board == null ? (int?)null : board.Columns
@@ -43,8 +52,8 @@ public sealed class IndexModel(ApplicationDbContext db, IHostEnvironment environ
 
         PreviousEvents = await (from bingoEvent in db.Events.AsNoTracking()
                                 join board in db.Boards.AsNoTracking() on bingoEvent.Id equals board.EventId
-                                where bingoEvent.HiddenAt == null && bingoEvent.State == EventState.Archived && board.State == BoardState.Published
-                                orderby bingoEvent.ArchivedAt descending
+                                where bingoEvent.HiddenAt == null && (bingoEvent.State == EventState.Archived || bingoEvent.State == EventState.Finalized) && board.State == BoardState.Published
+                                orderby (bingoEvent.ArchivedAt ?? bingoEvent.FinalizedAt) descending
                                 select new PublicEventLink(bingoEvent.Name, bingoEvent.Slug, bingoEvent.State,
                                     bingoEvent.EventStartsAt, bingoEvent.EventEndsAt, board.Rows, board.Columns, EventDestination.Board, EventDisplayPhase.Lifecycle, bingoEvent.Timezone))
             .ToListAsync(cancellationToken);

@@ -19,10 +19,10 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class EventSignupWarningRemediationIntegrationTests : IAsyncLifetime
+public sealed class EventSignupWarningRemediationIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
-        .WithDatabase("bingo_signup_warning_remediation").WithUsername("bingo").WithPassword("bingo_test_password").Build();
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
+        .WithDatabase("bingo_signup_warning_remediation").WithUsername("bingo").WithPassword("bingo_test_password"));
     private readonly DateTimeOffset now = new(2026, 7, 27, 12, 0, 0, TimeSpan.Zero);
     private DbContextOptions<ApplicationDbContext> options = null!;
 
@@ -31,7 +31,6 @@ public sealed class EventSignupWarningRemediationIntegrationTests : IAsyncLifeti
         await database.StartAsync();
         options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
@@ -39,7 +38,7 @@ public sealed class EventSignupWarningRemediationIntegrationTests : IAsyncLifeti
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task TransactionalOpeningRejectsWarningsOutsideTheAcknowledgedScope(bool reopening)
+    public async Task TransactionalOpeningUsesSharedConfirmationAndTreatsWarningsAsInformational(bool reopening)
     {
         var eventId = await SeedAsync(reopening, publicText: false);
         await using var db = new ApplicationDbContext(options);
@@ -50,55 +49,48 @@ public sealed class EventSignupWarningRemediationIntegrationTests : IAsyncLifeti
         }).Build();
         var evaluator = new EventReadinessEvaluator(db, configuration);
         var displayed = await evaluator.GetSignupReadinessAsync(eventId, reopening ? SignupOpeningMode.Reopen : SignupOpeningMode.OpenNow, now);
-        var acknowledged = displayed!.Warnings.Select(warning => warning.Code).ToArray();
+        Assert.NotNull(displayed);
         await AddTextAsync(eventId);
         var item = await db.Events.AsNoTracking().SingleAsync(item => item.Id == eventId);
         var service = new EventSignupLifecycleService(db, evaluator, new FixedTimeProvider(now));
         var actor = new LifecycleActor(item.CreatedByAccountId, "warning-admin");
-        var rejected = reopening
-            ? await service.ReopenAsync(eventId, item.Version, acknowledged, false, actor)
-            : await service.OpenAsync(eventId, item.Version, acknowledged, false, actor);
-        Assert.False(rejected.Succeeded);
-        Assert.Equal("Acknowledge the active signup warnings before continuing.", rejected.Error);
+        var unconfirmed = reopening
+            ? await service.ReopenAsync(eventId, item.Version, [], false, actor)
+            : await service.OpenAsync(eventId, item.Version, [], false, actor);
+        Assert.False(unconfirmed.Succeeded);
+        Assert.Equal("Confirm that you want to change the signup lifecycle.", unconfirmed.Error);
         Assert.Equal(item.State, (await db.Events.AsNoTracking().SingleAsync(item => item.Id == eventId)).State);
         Assert.Empty(await db.EventStateTransitions.ToListAsync());
         Assert.Empty(await db.AuditEntries.ToListAsync());
+        var confirmed = reopening
+            ? await service.ReopenAsync(eventId, item.Version, [], true, actor)
+            : await service.OpenAsync(eventId, item.Version, [], true, actor);
+        Assert.True(confirmed.Succeeded, confirmed.Error);
     }
 
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task FirstWarningConfirmationFromStalePageCannotAcceptNewTextWarning(bool reopening)
+    public async Task LegacySignupConfirmationHandlerCannotBypassSharedConfirmation(bool reopening)
     {
         var eventId = await SeedAsync(reopening, publicText: false);
         await using var factory = Factory();
         using var client = await LoginAsync(factory);
         var route = $"/Admin/Events/Manage/{eventId}";
-        var originalPage = await client.GetStringAsync(route + "?confirm=signup");
-        var posted = ConfirmationFields(originalPage);
-        posted.Add(new("AcknowledgeSignupWarnings", "true"));
-        await AddTextAsync(eventId);
+        var page = await client.GetStringAsync(route);
+        var posted = new List<KeyValuePair<string, string>>
+        {
+            new("__RequestVerificationToken", InputValue(page, "__RequestVerificationToken")),
+            new("EventVersion", InputValue(page, "EventVersion"))
+        };
 
         using var rejected = await client.PostAsync(route + "?handler=ConfirmSignup", new FormUrlEncodedContent(posted));
-        Assert.Equal(HttpStatusCode.Redirect, rejected.StatusCode);
-        await using (var verify = new ApplicationDbContext(options))
-        {
-            var item = await verify.Events.SingleAsync(item => item.Id == eventId);
-            Assert.Equal(reopening ? EventState.SignupClosed : EventState.Draft, item.State);
-            Assert.Empty(await verify.EventStateTransitions.ToListAsync());
-            Assert.Empty(await verify.AuditEntries.ToListAsync());
-        }
-        var currentPage = WebUtility.HtmlDecode(await client.GetStringAsync(route + "?confirm=signup"));
-        Assert.Contains("Answers to text questions will be public on the signup table.", currentPage);
-        var currentFields = ConfirmationFields(currentPage);
-        Assert.Contains(currentFields, pair => pair.Key == "SignupWarningCodes" && pair.Value == "PUBLIC_FREE_TEXT");
-        currentFields.Add(new("AcknowledgeSignupWarnings", "true"));
-        using var accepted = await client.PostAsync(route + "?handler=ConfirmSignup", new FormUrlEncodedContent(currentFields));
-        Assert.Equal(HttpStatusCode.Redirect, accepted.StatusCode);
-        await using var saved = new ApplicationDbContext(options);
-        Assert.Equal(EventState.SignupOpen, (await saved.Events.SingleAsync(item => item.Id == eventId)).State);
-        Assert.Single(await saved.EventStateTransitions.ToListAsync());
-        Assert.Contains("PUBLIC_FREE_TEXT", (await saved.AuditEntries.SingleAsync()).Details);
+        Assert.Equal(HttpStatusCode.BadRequest, rejected.StatusCode);
+        await using var verify = new ApplicationDbContext(options);
+        var item = await verify.Events.SingleAsync(item => item.Id == eventId);
+        Assert.Equal(reopening ? EventState.SignupClosed : EventState.Draft, item.State);
+        Assert.Empty(await verify.EventStateTransitions.ToListAsync());
+        Assert.Empty(await verify.AuditEntries.ToListAsync());
     }
 
     [Theory]
@@ -112,7 +104,9 @@ public sealed class EventSignupWarningRemediationIntegrationTests : IAsyncLifeti
         client.DefaultRequestHeaders.AcceptLanguage.ParseAdd("da");
         var route = scheduled ? $"/Admin/Events/Schedule/{eventId}" : $"/Admin/Events/Manage/{eventId}?confirm=signup";
         var page = WebUtility.HtmlDecode(await client.GetStringAsync(route));
-        Assert.Contains("Svar på tekstspørgsmål vil være offentlige i tilmeldingsoversigten.", page);
+        // U3-Q2: Schedule no longer repeats Signup warnings; Overview retains them.
+        if (scheduled) Assert.DoesNotContain("Svar på tekstspørgsmål vil være offentlige i tilmeldingsoversigten.", page);
+        else Assert.Contains("Svar på tekstspørgsmål vil være offentlige i tilmeldingsoversigten.", page);
         Assert.DoesNotContain("Answers to text questions will be public on the signup table.", page);
     }
 
@@ -122,11 +116,11 @@ public sealed class EventSignupWarningRemediationIntegrationTests : IAsyncLifeti
         var admin = Account.CreateWebsite(Guid.NewGuid(), "warning-admin", "WARNING-ADMIN", now);
         admin.SetGlobalRole(GlobalRole.Admin);
         admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "warning-test-password"), false, now, incrementVersion: false);
-        var item = new BingoEvent(Guid.NewGuid(), "Warning fixture", "warning-fixture", "UTC", admin.Id, now);
+        var item = new BingoEvent(Guid.NewGuid(), "Warning fixture", "warning-fixture", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.UpdateIdentity(item.Name, item.Slug, "Public fixture description", "UTC");
         item.ConfigureSchedule(now.AddHours(1), now.AddDays(1), null, now.AddDays(2), now.AddDays(3), 20);
-        item.ConfigureSignup(false, false, null);
-        item.ConfigureScheduledSignupOpening(true, ["WAITING_LIST_DISABLED"]);
+        item.ConfigureSignup(true, false, null);
+        item.ConfigureScheduledSignupOpening(true, []);
         if (reopening)
         {
             item.OpenSignups(now);
@@ -174,18 +168,6 @@ public sealed class EventSignupWarningRemediationIntegrationTests : IAsyncLifeti
         }));
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         return client;
-    }
-
-    private static List<KeyValuePair<string, string>> ConfirmationFields(string page)
-    {
-        var fields = new List<KeyValuePair<string, string>>
-        {
-            new("__RequestVerificationToken", InputValue(page, "__RequestVerificationToken")),
-            new("EventVersion", InputValue(page, "EventVersion"))
-        };
-        fields.AddRange(Regex.Matches(page, "<input[^>]*name=\"SignupWarningCodes\"[^>]*value=\"([^\"]*)\"[^>]*>")
-            .Select(match => new KeyValuePair<string, string>("SignupWarningCodes", WebUtility.HtmlDecode(match.Groups[1].Value))));
-        return fields;
     }
 
     private static string InputValue(string page, string name)

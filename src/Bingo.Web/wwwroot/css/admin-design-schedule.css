@@ -1,0 +1,23 @@
+/* Reference Schedule composition; tokens and shared components remain authoritative. */
+:where([data-page-family="schedule"]) .sc-owners{color:var(--dk-text-3)}
+:where([data-page-family="schedule"]) .sc-owners .text-btn{color:var(--dk-text-2);font-weight:500}
+:where([data-page-family="schedule"]) .sc-owners .text-btn:hover{color:var(--dk-text)}
+:where([data-page-family="schedule"]) .sc-pair{display:grid;grid-template-columns:repeat(2,minmax(0,300px));gap:20px 28px}
+:where([data-page-family="schedule"]) .sc-pair.is-single{grid-template-columns:minmax(0,300px)}
+:where([data-page-family="schedule"]) .sc-field .ro-value{min-height:34px;display:flex;align-items:center;font-variant-numeric:tabular-nums}
+:where([data-page-family="schedule"]) .sc-field .ro-value.is-empty{color:var(--dk-text-3)}
+:where([data-page-family="schedule"]) .sc-warn{display:flex;align-items:flex-start;gap:6px;margin-top:6px;font-size:var(--dk-fs-small);color:var(--dk-warning-fg);line-height:1.45}
+:where([data-page-family="schedule"]) .sc-derived{display:flex;align-items:center;gap:8px;margin-top:18px;padding:10px 12px;border-radius:var(--dk-radius-lg);background:var(--dk-surface-2);border:1px solid var(--dk-border-subtle);font-size:var(--dk-fs-control-sm);color:var(--dk-text-2)}
+:where([data-page-family="schedule"]) .sc-derived .ic{width:14px;height:14px;color:var(--dk-text-3);flex:none}
+:where([data-page-family="schedule"]) .sc-derived b{color:var(--dk-text);font-weight:600;font-variant-numeric:tabular-nums}
+:where([data-page-family="schedule"]) .sk-block{padding:var(--dk-space-5) var(--dk-space-6);border-bottom:1px solid var(--dk-border-subtle)}
+:where([data-page-family="schedule"]) .schedule-sk-title{font-size:var(--dk-fs-control);line-height:var(--dk-lh-body);min-height:1lh;display:flex;align-items:center}
+:where([data-page-family="schedule"]) .schedule-sk-pair{display:flex;gap:28px;margin-top:16px}
+:where([data-page-family="schedule"]) .schedule-sk-pair .sk{width:260px;max-width:100%;height:34px;border-radius:var(--dk-radius-lg)}
+:where([data-page-family="schedule"]) .form-banners:not(:has(> :not([hidden]))){display:none}
+:where([data-page-family="schedule"]) .page-banner,:where([data-page-family="schedule"]) .fade-in{animation:none}
+@media(max-width:720px){:where([data-page-family="schedule"]) .sc-pair{grid-template-columns:minmax(0,1fr)}}
+@media(min-width:1200px){:where([data-page-family="schedule"]) .card.form-card{margin-bottom:40px}}
+@media(max-width:640px){:where([data-page-family="schedule"]) .form-bar .btn-primary{flex:1}}
+
+:where([data-page-family="schedule"]) .sc-reason{min-height:92px}

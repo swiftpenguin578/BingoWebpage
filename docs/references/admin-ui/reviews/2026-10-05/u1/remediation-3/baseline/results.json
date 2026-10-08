@@ -1,0 +1,2253 @@
+{
+  "passed": 0,
+  "failed": 60,
+  "results": [
+    {
+      "name": "chromium-desktop-light",
+      "passed": false,
+      "differences": [
+        {
+          "element": "brand-name svg",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "ev-meta dot",
+          "property": "width",
+          "actual": 0,
+          "expected": 7
+        },
+        {
+          "element": "ev-meta dot",
+          "property": "height",
+          "actual": 16,
+          "expected": 7
+        },
+        {
+          "element": "crumb first",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "crumb sep",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "crumb mid",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "crumb cur",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "theme-opt on",
+          "property": "paddingTop",
+          "actual": "1px",
+          "expected": "0px"
+        },
+        {
+          "element": "theme-opt on",
+          "property": "paddingRight",
+          "actual": "6px",
+          "expected": "0px"
+        },
+        {
+          "element": "theme-opt on",
+          "property": "paddingBottom",
+          "actual": "1px",
+          "expected": "0px"
+        },
+        {
+          "element": "theme-opt on",
+          "property": "paddingLeft",
+          "actual": "6px",
+          "expected": "0px"
+        },
+        {
+          "element": "summary",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "form-banners",
+          "property": "presence",
+          "actual": true,
+          "expected": false
+        },
+        {
+          "element": "form-sec-sub",
+          "property": "text",
+          "actual": "The event's name and the text players read about it.",
+          "expected": "The event’s name and the text players read about it."
+        },
+        {
+          "element": "lbl desc",
+          "property": "text",
+          "actual": "Description",
+          "expected": "Description · optional"
+        },
+        {
+          "element": "lbl .opt",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "field-hint buyin",
+          "property": "text",
+          "actual": "Explain the entry payment in words: how much, and how to pay. It is not a price field and takes no payments; payments are tracked on Participants.",
+          "expected": "Explain the entry payment in words: how much, and how to pay. It isn’t a price field and takes no payments; payments are tracked on Participants."
+        },
+        {
+          "element": "select-wrap",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "select chevron",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "link title",
+          "property": "text",
+          "actual": "Permanent event link",
+          "expected": "Event link"
+        },
+        {
+          "element": "link field",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "mono",
+          "property": "fontFamily",
+          "actual": "ui-monospace, SFMono-Regular, Consolas, monospace",
+          "expected": "\"Geist Mono\", ui-monospace, monospace"
+        },
+        {
+          "element": "copy btn",
+          "property": "icon geometry",
+          "actual": null,
+          "expected": [
+            {
+              "tag": "rect",
+              "attrs": {
+                "x": "5.5",
+                "y": "5.5",
+                "width": "8",
+                "height": "8",
+                "rx": "1.5"
+              }
+            },
+            {
+              "tag": "path",
+              "attrs": {
+                "d": "M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"
+              }
+            }
+          ]
+        },
+        {
+          "element": "copy btn svg",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "link hint",
+          "property": "text",
+          "actual": "The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it is not publicly available.",
+          "expected": "The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it isn’t publicly available."
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "chromium-desktop-light",
+      "passed": false,
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'Identity - DK Legacy'\n- 'Identity · DK Legacy Admin'\n            ^\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:39:57\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:32:126"
+    },
+    {
+      "name": "chromium-desktop-dark",
+      "passed": false,
+      "differences": [
+        {
+          "element": "brand-name svg",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "ev-meta dot",
+          "property": "width",
+          "actual": 0,
+          "expected": 7
+        },
+        {
+          "element": "ev-meta dot",
+          "property": "height",
+          "actual": 16,
+          "expected": 7
+        },
+        {
+          "element": "crumb first",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "crumb sep",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "crumb mid",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "crumb cur",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "theme-opt on",
+          "property": "paddingTop",
+          "actual": "1px",
+          "expected": "0px"
+        },
+        {
+          "element": "theme-opt on",
+          "property": "paddingRight",
+          "actual": "6px",
+          "expected": "0px"
+        },
+        {
+          "element": "theme-opt on",
+          "property": "paddingBottom",
+          "actual": "1px",
+          "expected": "0px"
+        },
+        {
+          "element": "theme-opt on",
+          "property": "paddingLeft",
+          "actual": "6px",
+          "expected": "0px"
+        },
+        {
+          "element": "summary",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "form-banners",
+          "property": "presence",
+          "actual": true,
+          "expected": false
+        },
+        {
+          "element": "form-sec-sub",
+          "property": "text",
+          "actual": "The event's name and the text players read about it.",
+          "expected": "The event’s name and the text players read about it."
+        },
+        {
+          "element": "lbl desc",
+          "property": "text",
+          "actual": "Description",
+          "expected": "Description · optional"
+        },
+        {
+          "element": "lbl .opt",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "field-hint buyin",
+          "property": "text",
+          "actual": "Explain the entry payment in words: how much, and how to pay. It is not a price field and takes no payments; payments are tracked on Participants.",
+          "expected": "Explain the entry payment in words: how much, and how to pay. It isn’t a price field and takes no payments; payments are tracked on Participants."
+        },
+        {
+          "element": "select-wrap",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "select chevron",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "link title",
+          "property": "text",
+          "actual": "Permanent event link",
+          "expected": "Event link"
+        },
+        {
+          "element": "link field",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "mono",
+          "property": "fontFamily",
+          "actual": "ui-monospace, SFMono-Regular, Consolas, monospace",
+          "expected": "\"Geist Mono\", ui-monospace, monospace"
+        },
+        {
+          "element": "copy btn",
+          "property": "icon geometry",
+          "actual": null,
+          "expected": [
+            {
+              "tag": "rect",
+              "attrs": {
+                "x": "5.5",
+                "y": "5.5",
+                "width": "8",
+                "height": "8",
+                "rx": "1.5"
+              }
+            },
+            {
+              "tag": "path",
+              "attrs": {
+                "d": "M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"
+              }
+            }
+          ]
+        },
+        {
+          "element": "copy btn svg",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "link hint",
+          "property": "text",
+          "actual": "The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it is not publicly available.",
+          "expected": "The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it isn’t publicly available."
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "chromium-desktop-dark",
+      "passed": false,
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'Identity - DK Legacy'\n- 'Identity · DK Legacy Admin'\n            ^\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:39:57\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:32:126"
+    },
+    {
+      "name": "chromium-phone-light",
+      "passed": false,
+      "error": "locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-theme=\"light\"]')\u001b[22m\n\u001b[2m    - locator resolved to <button class=\"theme-opt\" data-theme=\"light\" title=\"Light theme\" aria-pressed=\"false\" aria-label=\"Light theme\">…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m    - element is visible, enabled and stable\u001b[22m\n\u001b[2m    - scrolling into view if needed\u001b[22m\n\u001b[2m    - done scrolling\u001b[22m\n\u001b[2m    - <button tabindex=\"-1\" data-side-scrim=\"\" class=\"nav-scrim is-on\" aria-label=\"Close navigation\"></button> intercepts pointer events\u001b[22m\n\u001b[2m  - retrying click action\u001b[22m\n\u001b[2m    - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m    - element is visible, enabled and stable\u001b[22m\n\u001b[2m    - scrolling into view if needed\u001b[22m\n\u001b[2m    - done scrolling\u001b[22m\n\u001b[2m    - <button data-side-toggle=\"\" aria-expanded=\"true\" class=\"icon-btn collapse-btn\" aria-label=\"Close navigation\">…</button> from <aside data-shell-sidebar=\"\" id=\"admin-design-sidebar\" class=\"side is-mobile-open\" aria-label=\"Administration\">…</aside> subtree intercepts pointer events\u001b[22m\n\u001b[2m  - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <button title=\"Account\" class=\"account-btn\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-menu-target=\"admin-account-menu\">…</button> from <aside data-shell-sidebar=\"\" id=\"admin-design-sidebar\" class=\"side is-mobile-open\" aria-label=\"Administration\">…</aside> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    19 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <button title=\"Account\" class=\"account-btn\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-menu-target=\"admin-account-menu\">…</button> from <aside data-shell-sidebar=\"\" id=\"admin-design-sidebar\" class=\"side is-mobile-open\" aria-label=\"Administration\">…</aside> subtree intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:34:108\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:32:126"
+    },
+    {
+      "name": "chromium-mobile-preferences",
+      "passed": false,
+      "error": "page.waitForFunction: Timeout 10000ms exceeded.\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:45:15\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:43:4"
+    },
+    {
+      "name": "chromium-dirty",
+      "passed": false,
+      "differences": [
+        {
+          "element": "save",
+          "property": "width",
+          "actual": 122.40625,
+          "expected": 196.828125
+        },
+        {
+          "element": "dirty",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "saved",
+          "property": "presence",
+          "actual": true,
+          "expected": false
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "chromium-dirty-discard",
+      "passed": false,
+      "error": "locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.crumb-btn')\u001b[22m\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:68:37\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:65:4"
+    },
+    {
+      "name": "chromium-timezone-note",
+      "passed": false,
+      "differences": [
+        {
+          "element": "timezone note",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "chromium-timezone-dialog",
+      "passed": false,
+      "differences": [
+        {
+          "element": "dialog body",
+          "property": "text",
+          "actual": "Autumn Bingo 2027 has been public, so players may already have seen its times. Every scheduled moment stays the same; only how it’s shown changes. ScheduledNow · Europe/CopenhagenAfter · UTC Signups openNow01 Jun 2027, 18:00 (+02:00)After01 Jun 2027, 16:00 (+00:00) Signups closeNow15 Jun 2027, 20:00 (+02:00)After15 Jun 2027, 18:00 (+00:00) Team draftNow20 Jun 2027, 19:00 (+02:00)After20 Jun 2027, 17:00 (+00:00) Event startsNow27 Jun 2027, 18:00 (+02:00)After27 Jun 2027, 16:00 (+00:00) Event endsNow06 Jul 2027, 22:00 (+02:00)After06 Jul 2027, 20:00 (+00:00)",
+          "expected": "Autumn Bingo 2027 has been public, so players may already have seen its times. Every scheduled moment stays the same; only how it’s shown changes. Your other changes (event name) are saved at the same time."
+        },
+        {
+          "element": "compare header",
+          "property": "presence",
+          "actual": true,
+          "expected": false
+        },
+        {
+          "element": "scheduled row 0 .compare-label",
+          "property": "fontWeight",
+          "actual": "400",
+          "expected": "550"
+        },
+        {
+          "element": "scheduled row 0 .compare-label",
+          "property": "lineHeight",
+          "actual": "20.15px",
+          "expected": "18.85px"
+        },
+        {
+          "element": "scheduled row 0 .compare-label",
+          "property": "color",
+          "actual": "rgb(84, 86, 91)",
+          "expected": "rgb(28, 29, 31)"
+        },
+        {
+          "element": "scheduled row 0 .compare-old",
+          "property": "lineHeight",
+          "actual": "20.15px",
+          "expected": "18.85px"
+        },
+        {
+          "element": "scheduled row 0 .compare-old",
+          "property": "text",
+          "actual": "Now01 Jun 2027, 18:00 (+02:00)",
+          "expected": "Now1 Jun 2027, 18:00UTC+02:00"
+        },
+        {
+          "element": "scheduled row 0 .compare-new",
+          "property": "lineHeight",
+          "actual": "20.15px",
+          "expected": "18.85px"
+        },
+        {
+          "element": "scheduled row 0 .compare-new",
+          "property": "text",
+          "actual": "After01 Jun 2027, 16:00 (+00:00)",
+          "expected": "After1 Jun 2027, 16:00UTC+00:00"
+        },
+        {
+          "element": "scheduled row 1 .compare-label",
+          "property": "fontWeight",
+          "actual": "400",
+          "expected": "550"
+        },
+        {
+          "element": "scheduled row 1 .compare-label",
+          "property": "lineHeight",
+          "actual": "20.15px",
+          "expected": "18.85px"
+        },
+        {
+          "element": "scheduled row 1 .compare-label",
+          "property": "color",
+          "actual": "rgb(84, 86, 91)",
+          "expected": "rgb(28, 29, 31)"
+        },
+        {
+          "element": "scheduled row 1 .compare-old",
+          "property": "lineHeight",
+          "actual": "20.15px",
+          "expected": "18.85px"
+        },
+        {
+          "element": "scheduled row 1 .compare-old",
+          "property": "text",
+          "actual": "Now15 Jun 2027, 20:00 (+02:00)",
+          "expected": "Now15 Jun 2027, 20:00UTC+02:00"
+        },
+        {
+          "element": "scheduled row 1 .compare-new",
+          "property": "lineHeight",
+          "actual": "20.15px",
+          "expected": "18.85px"
+        },
+        {
+          "element": "scheduled row 1 .compare-new",
+          "property": "text",
+          "actual": "After15 Jun 2027, 18:00 (+00:00)",
+          "expected": "After15 Jun 2027, 18:00UTC+00:00"
+        },
+        {
+          "element": "scheduled row 2 .compare-label",
+          "property": "fontWeight",
+          "actual": "400",
+          "expected": "550"
+        },
+        {
+          "element": "scheduled row 2 .compare-label",
+          "property": "lineHeight",
+          "actual": "20.15px",
+          "expected": "18.85px"
+        },
+        {
+          "element": "scheduled row 2 .compare-label",
+          "property": "color",
+          "actual": "rgb(84, 86, 91)",
+          "expected": "rgb(28, 29, 31)"
+        },
+        {
+          "element": "scheduled row 2 .compare-old",
+          "property": "lineHeight",
+          "actual": "20.15px",
+          "expected": "18.85px"
+        },
+        {
+          "element": "scheduled row 2 .compare-old",
+          "property": "text",
+          "actual": "Now20 Jun 2027, 19:00 (+02:00)",
+          "expected": "Now20 Jun 2027, 19:00UTC+02:00"
+        },
+        {
+          "element": "scheduled row 2 .compare-new",
+          "property": "lineHeight",
+          "actual": "20.15px",
+          "expected": "18.85px"
+        },
+        {
+          "element": "scheduled row 2 .compare-new",
+          "property": "text",
+          "actual": "After20 Jun 2027, 17:00 (+00:00)",
+          "expected": "After20 Jun 2027, 17:00UTC+00:00"
+        },
+        {
+          "element": "scheduled row 3 .compare-label",
+          "property": "fontWeight",
+          "actual": "400",
+          "expected": "550"
+        },
+        {
+          "element": "scheduled row 3 .compare-label",
+          "property": "lineHeight",
+          "actual": "20.15px",
+          "expected": "18.85px"
+        },
+        {
+          "element": "scheduled row 3 .compare-label",
+          "property": "color",
+          "actual": "rgb(84, 86, 91)",
+          "expected": "rgb(28, 29, 31)"
+        },
+        {
+          "element": "scheduled row 3 .compare-old",
+          "property": "lineHeight",
+          "actual": "20.15px",
+          "expected": "18.85px"
+        },
+        {
+          "element": "scheduled row 3 .compare-old",
+          "property": "text",
+          "actual": "Now27 Jun 2027, 18:00 (+02:00)",
+          "expected": "Now27 Jun 2027, 18:00UTC+02:00"
+        },
+        {
+          "element": "scheduled row 3 .compare-new",
+          "property": "lineHeight",
+          "actual": "20.15px",
+          "expected": "18.85px"
+        },
+        {
+          "element": "scheduled row 3 .compare-new",
+          "property": "text",
+          "actual": "After27 Jun 2027, 16:00 (+00:00)",
+          "expected": "After27 Jun 2027, 16:00UTC+00:00"
+        },
+        {
+          "element": "scheduled row 4 .compare-label",
+          "property": "fontWeight",
+          "actual": "400",
+          "expected": "550"
+        },
+        {
+          "element": "scheduled row 4 .compare-label",
+          "property": "lineHeight",
+          "actual": "20.15px",
+          "expected": "18.85px"
+        },
+        {
+          "element": "scheduled row 4 .compare-label",
+          "property": "color",
+          "actual": "rgb(84, 86, 91)",
+          "expected": "rgb(28, 29, 31)"
+        },
+        {
+          "element": "scheduled row 4 .compare-old",
+          "property": "lineHeight",
+          "actual": "20.15px",
+          "expected": "18.85px"
+        },
+        {
+          "element": "scheduled row 4 .compare-old",
+          "property": "text",
+          "actual": "Now06 Jul 2027, 22:00 (+02:00)",
+          "expected": "Now6 Jul 2027, 22:00UTC+02:00"
+        },
+        {
+          "element": "scheduled row 4 .compare-new",
+          "property": "lineHeight",
+          "actual": "20.15px",
+          "expected": "18.85px"
+        },
+        {
+          "element": "scheduled row 4 .compare-new",
+          "property": "text",
+          "actual": "After06 Jul 2027, 20:00 (+00:00)",
+          "expected": "After6 Jul 2027, 20:00UTC+00:00"
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "chromium-validation",
+      "passed": false,
+      "differences": [
+        {
+          "element": "name error",
+          "property": "icon geometry",
+          "actual": null,
+          "expected": [
+            {
+              "tag": "circle",
+              "attrs": {
+                "cx": "8",
+                "cy": "8",
+                "r": "6"
+              }
+            },
+            {
+              "tag": "path",
+              "attrs": {
+                "d": "M8 5v3.5M8 11h.01"
+              }
+            }
+          ]
+        },
+        {
+          "element": "description error",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "counter",
+          "property": "color",
+          "actual": "rgb(116, 118, 124)",
+          "expected": "rgb(162, 61, 51)"
+        },
+        {
+          "element": "counter",
+          "property": "text",
+          "actual": "4000 / 4000",
+          "expected": "4,001 / 4,000"
+        },
+        {
+          "element": "validation banner",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "field-validation-error",
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "chromium-busy",
+      "passed": false,
+      "differences": [
+        {
+          "element": "save",
+          "property": "color",
+          "actual": "rgb(116, 118, 124)",
+          "expected": "rgb(255, 255, 255)"
+        },
+        {
+          "element": "save",
+          "property": "backgroundColor",
+          "actual": "rgb(234, 234, 229)",
+          "expected": "rgb(43, 96, 105)"
+        },
+        {
+          "element": "save",
+          "property": "text",
+          "actual": "Save changes",
+          "expected": "Saving…"
+        },
+        {
+          "element": "save",
+          "property": "width",
+          "actual": 122.40625,
+          "expected": 324
+        },
+        {
+          "element": "saved",
+          "property": "presence",
+          "actual": true,
+          "expected": false
+        },
+        {
+          "element": "spinner",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "chromium-saved-toast",
+      "passed": false,
+      "differences": [
+        {
+          "element": "save",
+          "property": "width",
+          "actual": 122.40625,
+          "expected": 254.578125
+        },
+        {
+          "element": "saved",
+          "property": "icon geometry",
+          "actual": null,
+          "expected": [
+            {
+              "tag": "path",
+              "attrs": {
+                "d": "M3.8 8.4 6.6 11.2 12.2 5"
+              }
+            }
+          ]
+        },
+        {
+          "element": "toast",
+          "property": "text",
+          "actual": "Event identity updated.×",
+          "expected": "Identity saved."
+        },
+        {
+          "element": "toast",
+          "property": "icon geometry",
+          "actual": null,
+          "expected": [
+            {
+              "tag": "path",
+              "attrs": {
+                "d": "M3.8 8.4 6.6 11.2 12.2 5"
+              }
+            }
+          ]
+        },
+        {
+          "element": "toast icon",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "dismiss",
+          "property": "text",
+          "actual": "×",
+          "expected": ""
+        },
+        {
+          "element": "dismiss",
+          "property": "icon geometry",
+          "actual": null,
+          "expected": [
+            {
+              "tag": "path",
+              "attrs": {
+                "d": "M4.5 4.5l7 7M11.5 4.5l-7 7"
+              }
+            }
+          ]
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "chromium-busy-saved-toast",
+      "passed": false,
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n\nfalse !== true\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:90:12\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:83:4"
+    },
+    {
+      "name": "chromium-finalized",
+      "passed": false,
+      "differences": [
+        {
+          "element": "readonly banner",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "empty value",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "chromium-archived",
+      "passed": false,
+      "differences": [
+        {
+          "element": "readonly banner",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "empty value",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "chromium-cancelled",
+      "passed": false,
+      "differences": [
+        {
+          "element": "readonly banner",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "empty value",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "chromium-live",
+      "passed": false,
+      "differences": [
+        {
+          "element": "live lock",
+          "property": "marginBottom",
+          "actual": "12.5px",
+          "expected": "0px"
+        },
+        {
+          "element": "live lock",
+          "property": "text",
+          "actual": "The timezone cannot change after the event first goes Live.",
+          "expected": "Locked because the event has gone Live. It stays locked in every later phase."
+        },
+        {
+          "element": "live lock",
+          "property": "icon geometry",
+          "actual": null,
+          "expected": [
+            {
+              "tag": "rect",
+              "attrs": {
+                "x": "3.5",
+                "y": "7",
+                "width": "9",
+                "height": "6.5",
+                "rx": "1.5"
+              }
+            },
+            {
+              "tag": "path",
+              "attrs": {
+                "d": "M5.5 7V5a2.5 2.5 0 0 1 5 0v2"
+              }
+            }
+          ]
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "chromium-collapsed-menus",
+      "passed": false,
+      "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.collapse-btn')\u001b[22m\n\u001b[2m    - locator resolved to <button data-dc-tpl=\"18\" aria-expanded=\"false\" title=\"Close navigation\" class=\"icon-btn collapse-btn\" aria-label=\"Close navigation\">…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    58 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is not visible\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:100:113\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:99:4"
+    },
+    {
+      "name": "chromium-uncertain",
+      "passed": false,
+      "differences": [
+        {
+          "element": "save",
+          "property": "width",
+          "actual": 112.578125,
+          "expected": 196.828125
+        },
+        {
+          "element": "dirty",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "saved",
+          "property": "presence",
+          "actual": true,
+          "expected": false
+        },
+        {
+          "element": "uncertain banner",
+          "property": "text",
+          "actual": "The save outcome is uncertain. Check again to read the current values; your draft is retained.",
+          "expected": "We couldn’t confirm whether your changes were saved. Check before saving again, so you don’t overwrite anything by mistake."
+        },
+        {
+          "element": "uncertain banner",
+          "property": "icon geometry",
+          "actual": null,
+          "expected": [
+            {
+              "tag": "circle",
+              "attrs": {
+                "cx": "8",
+                "cy": "8",
+                "r": "6"
+              }
+            },
+            {
+              "tag": "path",
+              "attrs": {
+                "d": "M8 4.8v3.6M8 11h.01"
+              }
+            }
+          ]
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "chromium-uncertain-checking",
+      "passed": false,
+      "error": "locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.crumb-btn')\u001b[22m\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:114:37\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:110:4"
+    },
+    {
+      "name": "chromium-up-to-date",
+      "passed": false,
+      "differences": [
+        {
+          "element": "save",
+          "property": "width",
+          "actual": 122.40625,
+          "expected": 230.546875
+        },
+        {
+          "element": "saved",
+          "property": "icon geometry",
+          "actual": null,
+          "expected": [
+            {
+              "tag": "path",
+              "attrs": {
+                "d": "M3.8 8.4 6.6 11.2 12.2 5"
+              }
+            }
+          ]
+        },
+        {
+          "element": "up-to-date toast",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "no banner",
+          "property": "presence",
+          "actual": true,
+          "expected": false
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "chromium-conflict",
+      "passed": false,
+      "differences": [
+        {
+          "element": "stale banner",
+          "property": "text",
+          "actual": "Another admin saved this event while you were editing. Where you both changed a field, yours is kept and theirs is shown beside it. Review, then save again.",
+          "expected": "Another admin saved this event while you were editing. Where you both changed a field, yours is kept and theirs is shown beside it. Nothing has been saved yet; review, then save again."
+        },
+        {
+          "element": "stale banner",
+          "property": "icon geometry",
+          "actual": null,
+          "expected": [
+            {
+              "tag": "path",
+              "attrs": {
+                "d": "M8 2.5 14 13H2z"
+              }
+            },
+            {
+              "tag": "path",
+              "attrs": {
+                "d": "M8 6.5v3M8 11.2h.01"
+              }
+            }
+          ]
+        },
+        {
+          "element": "conflict note",
+          "property": "text",
+          "actual": "Their value: Their saved version Use theirs",
+          "expected": "You both changed this. Their saved version: “Their saved version”. Yours is kept until you choose. Use theirs"
+        },
+        {
+          "element": "conflict note",
+          "property": "icon geometry",
+          "actual": null,
+          "expected": [
+            {
+              "tag": "circle",
+              "attrs": {
+                "cx": "8",
+                "cy": "8",
+                "r": "6"
+              }
+            },
+            {
+              "tag": "path",
+              "attrs": {
+                "d": "M8 7.2v3.8M8 5h.01"
+              }
+            }
+          ]
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "chromium-phone-toast",
+      "passed": false,
+      "differences": [
+        {
+          "element": "toast",
+          "property": "text",
+          "actual": "Identity saved.×",
+          "expected": "Identity saved."
+        },
+        {
+          "element": "toast",
+          "property": "icon geometry",
+          "actual": null,
+          "expected": [
+            {
+              "tag": "path",
+              "attrs": {
+                "d": "M3.8 8.4 6.6 11.2 12.2 5"
+              }
+            }
+          ]
+        },
+        {
+          "element": "save",
+          "property": "width",
+          "actual": 208.828125,
+          "expected": 196.828125
+        },
+        {
+          "element": "dirty",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "saved",
+          "property": "presence",
+          "actual": true,
+          "expected": false
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "chromium-phone-toast-save",
+      "passed": false,
+      "error": "AssertionError [ERR_ASSERTION]: Q5 toast never covers Save\n\nfalse !== true\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:136:78\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:132:4"
+    },
+    {
+      "name": "chromium-skeleton",
+      "passed": false,
+      "differences": [
+        {
+          "element": "loading heading",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "loading card",
+          "property": "marginBottom",
+          "actual": "40px",
+          "expected": "0px"
+        },
+        {
+          "element": "shimmer",
+          "property": "width",
+          "actual": 166.75,
+          "expected": 67.75
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "chromium-loading-failure",
+      "passed": false,
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'Autumn Bingo 2027'\n- 'Winter Bingo 2027'\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:145:12\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:140:4"
+    },
+    {
+      "name": "chromium-copied",
+      "passed": false,
+      "differences": [
+        {
+          "element": "copy state",
+          "property": "text",
+          "actual": "Copy",
+          "expected": "Copied"
+        },
+        {
+          "element": "copy state",
+          "property": "icon geometry",
+          "actual": null,
+          "expected": [
+            {
+              "tag": "rect",
+              "attrs": {
+                "x": "5.5",
+                "y": "5.5",
+                "width": "8",
+                "height": "8",
+                "rx": "1.5"
+              }
+            },
+            {
+              "tag": "path",
+              "attrs": {
+                "d": "M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"
+              }
+            }
+          ]
+        },
+        {
+          "element": "copy toast",
+          "property": "text",
+          "actual": "Link copied×",
+          "expected": "Event link copied."
+        },
+        {
+          "element": "copy toast",
+          "property": "icon geometry",
+          "actual": null,
+          "expected": [
+            {
+              "tag": "path",
+              "attrs": {
+                "d": "M3.8 8.4 6.6 11.2 12.2 5"
+              }
+            }
+          ]
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "chromium-copy-failed",
+      "passed": false,
+      "differences": [
+        {
+          "element": "copy failure toast",
+          "property": "text",
+          "actual": "The link could not be copied. Select and copy it manually.×",
+          "expected": "Couldn’t copy automatically. The link is selected so you can copy it."
+        },
+        {
+          "element": "copy failure toast",
+          "property": "icon geometry",
+          "actual": null,
+          "expected": [
+            {
+              "tag": "circle",
+              "attrs": {
+                "cx": "8",
+                "cy": "8",
+                "r": "6"
+              }
+            },
+            {
+              "tag": "path",
+              "attrs": {
+                "d": "M8 5v3.5M8 11h.01"
+              }
+            }
+          ]
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "chromium-copy",
+      "passed": false,
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ ''\n- 'http://127.0.0.1:59500/Events/autumn-bingo-2027/Signups'\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:153:186\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:148:4"
+    },
+    {
+      "name": "chromium-served-language",
+      "passed": false,
+      "error": "locator.waitFor: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('alertdialog') to be visible\u001b[22m\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:158:134\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:155:4"
+    },
+    {
+      "name": "chromium-served-navigation",
+      "passed": false,
+      "error": "AssertionError [ERR_ASSERTION]: fingerprinted layout swaps without full reload\n+ actual - expected\n\n+ undefined\n- 'retained'\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:167:248\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:164:4"
+    },
+    {
+      "name": "webkit-desktop-light",
+      "passed": false,
+      "differences": [
+        {
+          "element": "brand-name svg",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "ev-meta dot",
+          "property": "width",
+          "actual": 0,
+          "expected": 7
+        },
+        {
+          "element": "ev-meta dot",
+          "property": "height",
+          "actual": 15.60003662109375,
+          "expected": 7
+        },
+        {
+          "element": "crumb first",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "crumb sep",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "crumb mid",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "crumb cur",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "theme-opt on",
+          "property": "paddingTop",
+          "actual": "2px",
+          "expected": "0px"
+        },
+        {
+          "element": "theme-opt on",
+          "property": "paddingRight",
+          "actual": "6px",
+          "expected": "0px"
+        },
+        {
+          "element": "theme-opt on",
+          "property": "paddingBottom",
+          "actual": "3px",
+          "expected": "0px"
+        },
+        {
+          "element": "theme-opt on",
+          "property": "paddingLeft",
+          "actual": "6px",
+          "expected": "0px"
+        },
+        {
+          "element": "summary",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "form-banners",
+          "property": "presence",
+          "actual": true,
+          "expected": false
+        },
+        {
+          "element": "form-sec-sub",
+          "property": "text",
+          "actual": "The event's name and the text players read about it.",
+          "expected": "The event’s name and the text players read about it."
+        },
+        {
+          "element": "lbl desc",
+          "property": "text",
+          "actual": "Description",
+          "expected": "Description · optional"
+        },
+        {
+          "element": "lbl .opt",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "field-hint buyin",
+          "property": "text",
+          "actual": "Explain the entry payment in words: how much, and how to pay. It is not a price field and takes no payments; payments are tracked on Participants.",
+          "expected": "Explain the entry payment in words: how much, and how to pay. It isn’t a price field and takes no payments; payments are tracked on Participants."
+        },
+        {
+          "element": "select-wrap",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "select chevron",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "link title",
+          "property": "text",
+          "actual": "Permanent event link",
+          "expected": "Event link"
+        },
+        {
+          "element": "link field",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "mono",
+          "property": "fontFamily",
+          "actual": "ui-monospace, SFMono-Regular, Consolas, monospace",
+          "expected": "Geist Mono, ui-monospace, monospace"
+        },
+        {
+          "element": "copy btn",
+          "property": "icon geometry",
+          "actual": null,
+          "expected": [
+            {
+              "tag": "rect",
+              "attrs": {
+                "x": "5.5",
+                "y": "5.5",
+                "width": "8",
+                "height": "8",
+                "rx": "1.5"
+              }
+            },
+            {
+              "tag": "path",
+              "attrs": {
+                "d": "M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"
+              }
+            }
+          ]
+        },
+        {
+          "element": "copy btn svg",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "link hint",
+          "property": "text",
+          "actual": "The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it is not publicly available.",
+          "expected": "The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it isn’t publicly available."
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "webkit-desktop-light",
+      "passed": false,
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'Identity - DK Legacy'\n- 'Identity · DK Legacy Admin'\n            ^\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:39:57\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:32:126"
+    },
+    {
+      "name": "webkit-desktop-dark",
+      "passed": false,
+      "differences": [
+        {
+          "element": "brand-name svg",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "ev-meta dot",
+          "property": "width",
+          "actual": 0,
+          "expected": 7
+        },
+        {
+          "element": "ev-meta dot",
+          "property": "height",
+          "actual": 15.60003662109375,
+          "expected": 7
+        },
+        {
+          "element": "crumb first",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "crumb sep",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "crumb mid",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "crumb cur",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "theme-opt on",
+          "property": "paddingTop",
+          "actual": "2px",
+          "expected": "0px"
+        },
+        {
+          "element": "theme-opt on",
+          "property": "paddingRight",
+          "actual": "6px",
+          "expected": "0px"
+        },
+        {
+          "element": "theme-opt on",
+          "property": "paddingBottom",
+          "actual": "3px",
+          "expected": "0px"
+        },
+        {
+          "element": "theme-opt on",
+          "property": "paddingLeft",
+          "actual": "6px",
+          "expected": "0px"
+        },
+        {
+          "element": "summary",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "form-banners",
+          "property": "presence",
+          "actual": true,
+          "expected": false
+        },
+        {
+          "element": "form-sec-sub",
+          "property": "text",
+          "actual": "The event's name and the text players read about it.",
+          "expected": "The event’s name and the text players read about it."
+        },
+        {
+          "element": "lbl desc",
+          "property": "text",
+          "actual": "Description",
+          "expected": "Description · optional"
+        },
+        {
+          "element": "lbl .opt",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "field-hint buyin",
+          "property": "text",
+          "actual": "Explain the entry payment in words: how much, and how to pay. It is not a price field and takes no payments; payments are tracked on Participants.",
+          "expected": "Explain the entry payment in words: how much, and how to pay. It isn’t a price field and takes no payments; payments are tracked on Participants."
+        },
+        {
+          "element": "select-wrap",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "select chevron",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "link title",
+          "property": "text",
+          "actual": "Permanent event link",
+          "expected": "Event link"
+        },
+        {
+          "element": "link field",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "mono",
+          "property": "fontFamily",
+          "actual": "ui-monospace, SFMono-Regular, Consolas, monospace",
+          "expected": "Geist Mono, ui-monospace, monospace"
+        },
+        {
+          "element": "copy btn",
+          "property": "icon geometry",
+          "actual": null,
+          "expected": [
+            {
+              "tag": "rect",
+              "attrs": {
+                "x": "5.5",
+                "y": "5.5",
+                "width": "8",
+                "height": "8",
+                "rx": "1.5"
+              }
+            },
+            {
+              "tag": "path",
+              "attrs": {
+                "d": "M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"
+              }
+            }
+          ]
+        },
+        {
+          "element": "copy btn svg",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "link hint",
+          "property": "text",
+          "actual": "The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it is not publicly available.",
+          "expected": "The one link to share. It opens the signup list, which moves visitors on to teams and the board as the event is published. While the event is private, it isn’t publicly available."
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "webkit-desktop-dark",
+      "passed": false,
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'Identity - DK Legacy'\n- 'Identity · DK Legacy Admin'\n            ^\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:39:57\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:32:126"
+    },
+    {
+      "name": "webkit-phone-light",
+      "passed": false,
+      "error": "locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-theme=\"light\"]')\u001b[22m\n\u001b[2m    - locator resolved to <button class=\"theme-opt\" data-theme=\"light\" title=\"Light theme\" aria-pressed=\"false\" aria-label=\"Light theme\">…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m    - element is visible, enabled and stable\u001b[22m\n\u001b[2m    - scrolling into view if needed\u001b[22m\n\u001b[2m    - done scrolling\u001b[22m\n\u001b[2m    - <button tabindex=\"-1\" data-side-scrim=\"\" class=\"nav-scrim is-on\" aria-label=\"Close navigation\"></button> intercepts pointer events\u001b[22m\n\u001b[2m  - retrying click action\u001b[22m\n\u001b[2m    - waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m    - element is visible, enabled and stable\u001b[22m\n\u001b[2m    - scrolling into view if needed\u001b[22m\n\u001b[2m    - done scrolling\u001b[22m\n\u001b[2m    - <button data-side-toggle=\"\" aria-expanded=\"true\" class=\"icon-btn collapse-btn\" aria-label=\"Close navigation\">…</button> from <aside data-shell-sidebar=\"\" id=\"admin-design-sidebar\" class=\"side is-mobile-open\" aria-label=\"Administration\">…</aside> subtree intercepts pointer events\u001b[22m\n\u001b[2m  - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is visible, enabled and stable\u001b[22m\n\u001b[2m      - scrolling into view if needed\u001b[22m\n\u001b[2m      - done scrolling\u001b[22m\n\u001b[2m      - <button title=\"Account\" class=\"account-btn\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-menu-target=\"admin-account-menu\">…</button> from <aside data-shell-sidebar=\"\" id=\"admin-design-sidebar\" class=\"side is-mobile-open\" aria-label=\"Administration\">…</aside> subtree intercepts pointer events\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    19 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is visible, enabled and stable\u001b[22m\n\u001b[2m       - scrolling into view if needed\u001b[22m\n\u001b[2m       - done scrolling\u001b[22m\n\u001b[2m       - <button title=\"Account\" class=\"account-btn\" aria-haspopup=\"menu\" aria-expanded=\"false\" data-menu-target=\"admin-account-menu\">…</button> from <aside data-shell-sidebar=\"\" id=\"admin-design-sidebar\" class=\"side is-mobile-open\" aria-label=\"Administration\">…</aside> subtree intercepts pointer events\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:34:108\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:32:126"
+    },
+    {
+      "name": "webkit-mobile-preferences",
+      "passed": false,
+      "error": "page.waitForFunction: Timeout 10000ms exceeded.\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:45:15\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:43:4"
+    },
+    {
+      "name": "webkit-dirty",
+      "passed": false,
+      "differences": [
+        {
+          "element": "save",
+          "property": "width",
+          "actual": 122.40625,
+          "expected": 196.828125
+        },
+        {
+          "element": "dirty",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "saved",
+          "property": "presence",
+          "actual": true,
+          "expected": false
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "webkit-dirty-discard",
+      "passed": false,
+      "error": "locator.click: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.crumb-btn')\u001b[22m\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:68:37\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:65:4"
+    },
+    {
+      "name": "webkit-timezone-note",
+      "passed": false,
+      "differences": [
+        {
+          "element": "timezone note",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "webkit-timezone",
+      "passed": false,
+      "error": "locator.waitFor: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('alertdialog') to be visible\u001b[22m\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:75:129\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:71:4"
+    },
+    {
+      "name": "webkit-validation",
+      "passed": false,
+      "differences": [
+        {
+          "element": "name error",
+          "property": "icon geometry",
+          "actual": null,
+          "expected": [
+            {
+              "tag": "circle",
+              "attrs": {
+                "cx": "8",
+                "cy": "8",
+                "r": "6"
+              }
+            },
+            {
+              "tag": "path",
+              "attrs": {
+                "d": "M8 5v3.5M8 11h.01"
+              }
+            }
+          ]
+        },
+        {
+          "element": "description error",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "counter",
+          "property": "color",
+          "actual": "rgb(116, 118, 124)",
+          "expected": "rgb(162, 61, 51)"
+        },
+        {
+          "element": "counter",
+          "property": "text",
+          "actual": "4000 / 4000",
+          "expected": "4,001 / 4,000"
+        },
+        {
+          "element": "validation banner",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "field-validation-error",
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "webkit-busy-saved-toast",
+      "passed": false,
+      "error": "locator.waitFor: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('[data-identity-save][aria-busy=true]') to be visible\u001b[22m\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:86:113\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:83:4"
+    },
+    {
+      "name": "webkit-finalized",
+      "passed": false,
+      "differences": [
+        {
+          "element": "readonly banner",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "empty value",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "webkit-archived",
+      "passed": false,
+      "differences": [
+        {
+          "element": "readonly banner",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "empty value",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "webkit-cancelled",
+      "passed": false,
+      "differences": [
+        {
+          "element": "readonly banner",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "empty value",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "webkit-live",
+      "passed": false,
+      "differences": [
+        {
+          "element": "live lock",
+          "property": "marginBottom",
+          "actual": "12.5px",
+          "expected": "0px"
+        },
+        {
+          "element": "live lock",
+          "property": "text",
+          "actual": "The timezone cannot change after the event first goes Live.",
+          "expected": "Locked because the event has gone Live. It stays locked in every later phase."
+        },
+        {
+          "element": "live lock",
+          "property": "icon geometry",
+          "actual": null,
+          "expected": [
+            {
+              "tag": "rect",
+              "attrs": {
+                "x": "3.5",
+                "y": "7",
+                "width": "9",
+                "height": "6.5",
+                "rx": "1.5"
+              }
+            },
+            {
+              "tag": "path",
+              "attrs": {
+                "d": "M5.5 7V5a2.5 2.5 0 0 1 5 0v2"
+              }
+            }
+          ]
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "webkit-collapsed-menus",
+      "passed": false,
+      "error": "locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('.collapse-btn')\u001b[22m\n\u001b[2m    - locator resolved to <button data-dc-tpl=\"18\" aria-expanded=\"false\" title=\"Close navigation\" class=\"icon-btn collapse-btn\" aria-label=\"Close navigation\">…</button>\u001b[22m\n\u001b[2m  - attempting click action\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m    - waiting 20ms\u001b[22m\n\u001b[2m    2 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m      - element is not visible\u001b[22m\n\u001b[2m    - retrying click action\u001b[22m\n\u001b[2m      - waiting 100ms\u001b[22m\n\u001b[2m    58 × waiting for element to be visible, enabled and stable\u001b[22m\n\u001b[2m       - element is not visible\u001b[22m\n\u001b[2m     - retrying click action\u001b[22m\n\u001b[2m       - waiting 500ms\u001b[22m\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:100:113\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:99:4"
+    },
+    {
+      "name": "webkit-uncertain-checking",
+      "passed": false,
+      "error": "locator.waitFor: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Check again', exact: true }) to be visible\u001b[22m\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:112:278\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:110:4"
+    },
+    {
+      "name": "webkit-readback-states",
+      "passed": false,
+      "error": "locator.waitFor: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: 'Check again', exact: true }) to be visible\u001b[22m\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:121:177\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:118:4"
+    },
+    {
+      "name": "webkit-phone-toast",
+      "passed": false,
+      "differences": [
+        {
+          "element": "toast",
+          "property": "text",
+          "actual": "Identity saved.×",
+          "expected": "Identity saved."
+        },
+        {
+          "element": "toast",
+          "property": "icon geometry",
+          "actual": null,
+          "expected": [
+            {
+              "tag": "path",
+              "attrs": {
+                "d": "M3.8 8.4 6.6 11.2 12.2 5"
+              }
+            }
+          ]
+        },
+        {
+          "element": "save",
+          "property": "width",
+          "actual": 208.828125,
+          "expected": 196.828125
+        },
+        {
+          "element": "dirty",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "saved",
+          "property": "presence",
+          "actual": true,
+          "expected": false
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "webkit-phone-toast-save",
+      "passed": false,
+      "error": "AssertionError [ERR_ASSERTION]: Q5 toast never covers Save\n\nfalse !== true\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:136:78\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:132:4"
+    },
+    {
+      "name": "webkit-skeleton",
+      "passed": false,
+      "differences": [
+        {
+          "element": "loading heading",
+          "property": "presence",
+          "actual": false,
+          "expected": true
+        },
+        {
+          "element": "loading card",
+          "property": "marginBottom",
+          "actual": "40px",
+          "expected": "0px"
+        },
+        {
+          "element": "shimmer",
+          "property": "width",
+          "actual": 166.75,
+          "expected": 67.75
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "webkit-loading-failure",
+      "passed": false,
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ 'Autumn Bingo 2027'\n- 'Winter Bingo 2027'\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:145:12\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:140:4"
+    },
+    {
+      "name": "webkit-copied",
+      "passed": false,
+      "differences": [
+        {
+          "element": "copy state",
+          "property": "text",
+          "actual": "Copy",
+          "expected": "Copied"
+        },
+        {
+          "element": "copy state",
+          "property": "icon geometry",
+          "actual": null,
+          "expected": [
+            {
+              "tag": "rect",
+              "attrs": {
+                "x": "5.5",
+                "y": "5.5",
+                "width": "8",
+                "height": "8",
+                "rx": "1.5"
+              }
+            },
+            {
+              "tag": "path",
+              "attrs": {
+                "d": "M10.5 5.5V4a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5"
+              }
+            }
+          ]
+        },
+        {
+          "element": "copy toast",
+          "property": "text",
+          "actual": "Link copied×",
+          "expected": "Event link copied."
+        },
+        {
+          "element": "copy toast",
+          "property": "icon geometry",
+          "actual": null,
+          "expected": [
+            {
+              "tag": "path",
+              "attrs": {
+                "d": "M3.8 8.4 6.6 11.2 12.2 5"
+              }
+            }
+          ]
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "webkit-copy-failed",
+      "passed": false,
+      "differences": [
+        {
+          "element": "copy failure toast",
+          "property": "text",
+          "actual": "The link could not be copied. Select and copy it manually.×",
+          "expected": "Couldn’t copy automatically. The link is selected so you can copy it."
+        },
+        {
+          "element": "copy failure toast",
+          "property": "icon geometry",
+          "actual": null,
+          "expected": [
+            {
+              "tag": "circle",
+              "attrs": {
+                "cx": "8",
+                "cy": "8",
+                "r": "6"
+              }
+            },
+            {
+              "tag": "path",
+              "attrs": {
+                "d": "M8 5v3.5M8 11h.01"
+              }
+            }
+          ]
+        },
+        {
+          "element": "shipped CSS",
+          "property": "undefined classes",
+          "actual": [
+            "sk-block"
+          ],
+          "expected": []
+        }
+      ]
+    },
+    {
+      "name": "webkit-copy",
+      "passed": false,
+      "error": "AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:\n+ actual - expected\n\n+ ''\n- 'http://127.0.0.1:59500/Events/autumn-bingo-2027/Signups'\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:153:186\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:148:4"
+    },
+    {
+      "name": "webkit-served-language",
+      "passed": false,
+      "error": "locator.waitFor: Timeout 10000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('alertdialog') to be visible\u001b[22m\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:158:134\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:155:4"
+    },
+    {
+      "name": "webkit-served-navigation",
+      "passed": false,
+      "error": "AssertionError [ERR_ASSERTION]: fingerprinted layout swaps without full reload\n+ actual - expected\n\n+ undefined\n- 'retained'\n\n    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:167:248\n    at async scenario (/Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:31:255)\n    at async /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/scripts/check-admin-design-parity.cjs:164:4"
+    }
+  ]
+}

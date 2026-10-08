@@ -22,6 +22,7 @@ public sealed class EventParticipantCharacterSwapConfiguration : IEntityTypeConf
         builder.Property(x => x.NextOsrsCharacterId).HasColumnName("next_osrs_character_id");
         builder.Property(x => x.EffectiveAtUtc).HasColumnName("effective_at_utc");
         builder.Property(x => x.RecordedAtUtc).HasColumnName("recorded_at_utc");
+        builder.Property(x => x.Sequence).HasColumnName("sequence");
         builder.Property(x => x.RecordedByAccountId).HasColumnName("recorded_by_account_id");
         builder.Property(x => x.Reason).HasColumnName("reason").HasMaxLength(2_000);
         builder.HasIndex(x => new { x.EventParticipantId, x.EffectiveAtUtc, x.RecordedAtUtc, x.Id });

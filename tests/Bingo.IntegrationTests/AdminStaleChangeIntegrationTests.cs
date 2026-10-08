@@ -23,10 +23,10 @@ using CatalogueModel = Bingo.Web.Pages.Admin.Catalogue.IndexModel;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class AdminStaleChangeIntegrationTests : IAsyncLifetime
+public sealed class AdminStaleChangeIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
-        .WithDatabase("bingo_admin_stale_change").WithUsername("bingo").WithPassword("bingo_test_password").Build();
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
+        .WithDatabase("bingo_admin_stale_change").WithUsername("bingo").WithPassword("bingo_test_password"));
     private DbContextOptions<ApplicationDbContext> options = null!;
     private const string StaleMessage = "This record was changed by another administrator.";
 
@@ -35,7 +35,6 @@ public sealed class AdminStaleChangeIntegrationTests : IAsyncLifetime
         await database.StartAsync();
         options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
@@ -52,6 +51,7 @@ public sealed class AdminStaleChangeIntegrationTests : IAsyncLifetime
         var stale = await DropForm(firstClient, first);
         var current = await DropForm(secondClient, second);
         Assert.Equal("1", stale["expectedItemVersion"]);
+        current["sharedItemConfirmationActivityIds"] = first.BossActivityId.ToString();
         current["itemName"] = "Shared renamed item";
         current["imageUrl"] = "https://oldschool.runescape.wiki/images/Abyssal_whip.png";
         using (var response = await PostDrop(secondClient, second, current)) Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
@@ -99,12 +99,12 @@ public sealed class AdminStaleChangeIntegrationTests : IAsyncLifetime
     [Fact]
     public async Task SharedItemAndDropRollBackWhenAuditPersistenceFails()
     {
-        var (admin, first, _, item) = await SeedCatalogue();
+        var (admin, first, second, item) = await SeedCatalogue();
         var before = await CatalogueState();
         var failing = new DbContextOptionsBuilder<ApplicationDbContext>(options).AddInterceptors(new ThrowOnAuditInsert()).Options;
         await using var db = new ApplicationDbContext(failing);
         var page = CataloguePage(db, admin);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => UpdateDrop(page, first, item.Version, "Changed item"));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => UpdateDrop(page, first, item.Version, "Changed item", [second.BossActivityId]));
         Assert.Equal(before, await CatalogueState());
     }
 
@@ -151,15 +151,30 @@ public sealed class AdminStaleChangeIntegrationTests : IAsyncLifetime
         await Login(secondClient, owner);
         await Login(targetClient, target);
         if (action == "Restore") await ConfirmAccount(secondClient, target.Id, "Disable");
-        var openedPage = await firstClient.GetStringAsync($"/Admin/Accounts/Manage/{target.Id}?overlay=1");
+        // A10 (T1): the account drawer on /Admin/Accounts?account= replaced the Manage overlay route.
+        var openedPage = await firstClient.GetStringAsync($"/Admin/Accounts?account={target.Id}");
         Capture(action, "opened", openedPage);
         var opened = ReadForm(openedPage, action);
         opened["Reason"] = "test reason";
         if (changeRole)
         {
-            var firstAction = target.GlobalRole == GlobalRole.Admin ? "RevokeAdmin" : "GrantAdmin";
-            await ConfirmAccount(secondClient, target.Id, firstAction);
-            await ConfirmAccount(secondClient, target.Id, firstAction == "GrantAdmin" ? "RevokeAdmin" : "GrantAdmin");
+            if (action == "Restore")
+            {
+                // GrantAdmin is intentionally available only for an active User. Restore the
+                // disabled target, make the role changes while it is active, then disable it
+                // again so the originally opened Restore form remains stale without changing
+                // the final state used by the fresh-action assertion below.
+                await ConfirmAccount(secondClient, target.Id, "Restore");
+                await ConfirmAccount(secondClient, target.Id, "GrantAdmin");
+                await ConfirmAccount(secondClient, target.Id, "RevokeAdmin");
+                await ConfirmAccount(secondClient, target.Id, "Disable");
+            }
+            else
+            {
+                var firstAction = target.GlobalRole == GlobalRole.Admin ? "RevokeAdmin" : "GrantAdmin";
+                await ConfirmAccount(secondClient, target.Id, firstAction);
+                await ConfirmAccount(secondClient, target.Id, firstAction == "GrantAdmin" ? "RevokeAdmin" : "GrantAdmin");
+            }
         }
         else
         {
@@ -240,21 +255,24 @@ public sealed class AdminStaleChangeIntegrationTests : IAsyncLifetime
         using var adminClient = Client(factory);
         await Login(adminClient, admin);
         var protectedId = action is "Disable" or "Restore" ? admin.Id : target.Id;
-        var manage = await adminClient.GetStringAsync($"/Admin/Accounts/Manage/{protectedId}?overlay=1");
+        var manage = await adminClient.GetStringAsync($"/Admin/Accounts?account={protectedId}");
         await using var db = new ApplicationDbContext(options);
         var protectedAccount = await db.Accounts.AsNoTracking().SingleAsync(x => x.Id == protectedId);
         var forbiddenForm = new Dictionary<string, string>
         {
             ["ExpectedAuthorizationVersion"] = protectedAccount.AuthorizationVersion.ToString(CultureInfo.InvariantCulture),
             ["__RequestVerificationToken"] = Token(manage),
-            ["overlay"] = "1",
             ["Reason"] = "test reason"
         };
         var protectedBefore = await AccountState(protectedId);
         using (var forbidden = await PostAccount(adminClient, protectedId, action, forbiddenForm))
         {
             Assert.Equal(HttpStatusCode.OK, forbidden.StatusCode);
-            Assert.Contains("The account change could not be saved.", await forbidden.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+            var page = await forbidden.Content.ReadAsStringAsync();
+            var expected = action is "Disable" or "Restore"
+                ? "You cannot disable or restore your own account."
+                : "Only the active Super Admin can perform this action.";
+            Assert.Contains(expected, page, StringComparison.Ordinal);
         }
         Assert.Equal(protectedBefore, await AccountState(protectedId));
         Assert.Equal(before, await AccountState(target.Id));
@@ -264,7 +282,14 @@ public sealed class AdminStaleChangeIntegrationTests : IAsyncLifetime
         using (var forbidden = await PostAccount(client, owner.Id, action, form))
         {
             Assert.Equal(HttpStatusCode.OK, forbidden.StatusCode);
-            Assert.Contains("The account change could not be saved.", await forbidden.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+            var page = await forbidden.Content.ReadAsStringAsync();
+            var expected = action switch
+            {
+                "GrantAdmin" => "Only a User can be granted Admin access.",
+                "RevokeAdmin" => "Only an Admin can be revoked.",
+                _ => "You cannot disable or restore your own account."
+            };
+            Assert.Contains(expected, page, StringComparison.Ordinal);
         }
         Assert.Equal(ownerBefore, await AccountState(owner.Id));
         if (action is "Disable" or "Restore") await ConfirmAccount(adminClient, target.Id, action);
@@ -350,21 +375,37 @@ public sealed class AdminStaleChangeIntegrationTests : IAsyncLifetime
         return values;
     }
     private static Dictionary<string, string> ReadForm(string page, string handler) => Inputs(Regex.Match(page, $"<form[^>]*action=\"[^\"]*handler={handler}(?:&[^\"]*)?\"[^>]*>.*?</form>", RegexOptions.Singleline).Value);
+    // A10 (T2 Catalogue binding): the drop editor is the drawer's per-drop template; the same fields
+    // (ids, versions, name, rate, image) are read from it instead of the retired route-editor form.
     private static async Task<Dictionary<string, string>> DropForm(HttpClient client, SourceDrop drop)
     {
-        var page = await client.GetStringAsync($"/Admin/Catalogue?bossId={drop.BossActivityId}");
-        return Inputs(Regex.Match(page, $"<form[^>]*id=\"catalogue-drop-form-{drop.Id}\".*?</form>", RegexOptions.Singleline).Value);
+        var page = await client.GetStringAsync($"/Admin/Catalogue?activity={drop.BossActivityId}");
+        var tag = Regex.Match(page, $"<template data-catalogue-drop-editor=\"{drop.Id}\"[^>]*>").Value;
+        Assert.NotEmpty(tag);
+        string Attribute(string name) => WebUtility.HtmlDecode(Regex.Match(tag, $"\\b{name}=\"([^\"]*)\"").Groups[1].Value);
+        return new Dictionary<string, string>
+        {
+            ["recordId"] = drop.Id.ToString(),
+            ["expectedVersion"] = Attribute("data-version"),
+            ["expectedItemVersion"] = Attribute("data-item-version"),
+            ["itemName"] = Attribute("data-item-name"),
+            ["displayRate"] = Attribute("data-rate"),
+            ["originalDisplayRate"] = Attribute("data-rate"),
+            ["imageUrl"] = Attribute("data-image"),
+            ["useExistingItem"] = "false",
+            ["__RequestVerificationToken"] = Token(page)
+        };
     }
     private static Task<HttpResponseMessage> PostDrop(HttpClient client, SourceDrop drop, Dictionary<string, string> form) => client.PostAsync($"/Admin/Catalogue?bossId={drop.BossActivityId}&handler=UpdateDrop", new FormUrlEncodedContent(form));
     private static async Task<Dictionary<string, string>> AccountForm(HttpClient client, Guid id, string handler)
     {
-        var page = await client.GetStringAsync($"/Admin/Accounts/Manage/{id}?overlay=1");
+        var page = await client.GetStringAsync($"/Admin/Accounts?account={id}");
         var form = ReadForm(page, handler);
         Assert.NotEmpty(form["ExpectedAuthorizationVersion"]);
         form["Reason"] = "test reason";
         return form;
     }
-    private static Task<HttpResponseMessage> PostAccount(HttpClient client, Guid id, string handler, Dictionary<string, string> form) => client.PostAsync($"/Admin/Accounts/Manage/{id}?handler={handler}&overlay=1", new FormUrlEncodedContent(form));
+    private static Task<HttpResponseMessage> PostAccount(HttpClient client, Guid id, string handler, Dictionary<string, string> form) => client.PostAsync($"/Admin/Accounts?account={id}&handler={handler}", new FormUrlEncodedContent(form));
     private static async Task ConfirmAccount(HttpClient client, Guid id, string handler)
     {
         var form = await AccountForm(client, id, handler);
@@ -376,7 +417,7 @@ public sealed class AdminStaleChangeIntegrationTests : IAsyncLifetime
         var context = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(new[] { new Claim(ClaimTypes.NameIdentifier, admin.Id.ToString()), new Claim(ClaimTypes.Name, admin.LoginName), new Claim(ClaimTypes.Role, "Admin") }, "test")) };
         return new CatalogueModel(db, TimeProvider.System) { PageContext = new PageContext { HttpContext = context }, TempData = new TempDataDictionary(context, new EmptyTempDataProvider()) };
     }
-    private static Task<IActionResult> UpdateDrop(CatalogueModel page, SourceDrop drop, long itemVersion, string name) => page.OnPostUpdateDropAsync(drop.Id, drop.Version, itemVersion, name, "1/50", "1/100", .01m, .01m, DropProbabilityScope.Participant, false, null, 1, 1, "default", null, null, false, CancellationToken.None);
+    private static Task<IActionResult> UpdateDrop(CatalogueModel page, SourceDrop drop, long itemVersion, string name, Guid[]? confirmedActivities = null) => page.OnPostUpdateDropAsync(drop.Id, drop.Version, itemVersion, name, "1/50", "1/100", .01m, .01m, DropProbabilityScope.Participant, false, null, 1, 1, "default", null, null, false, CancellationToken.None, confirmedActivities);
     private sealed class EmptyTempDataProvider : ITempDataProvider
     {
         public IDictionary<string, object> LoadTempData(HttpContext context) => new Dictionary<string, object>();

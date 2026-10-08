@@ -7,11 +7,13 @@ public sealed class BingoEvent
     private BingoEvent() { }
 
     /// <summary>Creates the smallest permitted private event draft.</summary>
-    public BingoEvent(Guid id, string name, string slug, string timezone, Guid createdByAccountId, DateTimeOffset createdAt)
+    public BingoEvent(Guid id, string name, string slug, string timezone, Guid createdByAccountId, DateTimeOffset createdAt, PlacementRule placementRule)
     {
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("An event name is required.", nameof(name));
         if (string.IsNullOrWhiteSpace(slug)) throw new ArgumentException("An event slug is required.", nameof(slug));
         if (string.IsNullOrWhiteSpace(timezone)) throw new ArgumentException("A timezone is required.", nameof(timezone));
+        if (!Enum.IsDefined(placementRule)) throw new ArgumentOutOfRangeException(nameof(placementRule));
+        PlacementRule = placementRule;
         Id = id;
         Name = name.Trim();
         Slug = slug.Trim();
@@ -56,7 +58,7 @@ public sealed class BingoEvent
         DateTimeOffset? signupOpensAt, DateTimeOffset? signupClosesAt, DateTimeOffset? eventStartsAt,
         DateTimeOffset? eventEndsAt, DateTimeOffset? submissionCutoffAt, int? participantCap,
         Guid createdByAccountId, DateTimeOffset createdAt)
-        : this(id, name, slug, timezone, createdByAccountId, createdAt)
+        : this(id, name, slug, timezone, createdByAccountId, createdAt, PlacementRule.LegacyScoreTimeThenEhb)
     {
         Description = Clean(description);
         SignupOpensAt = Utc(signupOpensAt);
@@ -65,6 +67,7 @@ public sealed class BingoEvent
         EventEndsAt = Utc(eventEndsAt);
         SetNormalSubmissionCutoff(eventEndsAt);
         if (participantCap is < 1) throw new ArgumentOutOfRangeException(nameof(participantCap));
+        ValidateParticipantCapMaximum(participantCap);
         ParticipantCap = participantCap;
     }
 
@@ -74,11 +77,11 @@ public sealed class BingoEvent
     public string? Description { get; private set; }
     public string Timezone { get; private set; } = string.Empty;
     public EventState State { get; private set; }
+    public PlacementRule PlacementRule { get; private set; }
     public DateTimeOffset? HiddenAt { get; private set; }
     public Guid? HiddenByAccountId { get; private set; }
     public string? HiddenReason { get; private set; }
     public bool IsHidden => HiddenAt is not null;
-    public Guid? BannerAssetId { get; private set; }
     public DateTimeOffset? FirstPublicAt { get; private set; }
     public DateTimeOffset? SignupOpensAt { get; private set; }
     public DateTimeOffset? SignupClosesAt { get; private set; }
@@ -89,6 +92,16 @@ public sealed class BingoEvent
     public DateTimeOffset? ActualSignupOpenedAt { get; private set; }
     public DateTimeOffset? ActualSignupClosedAt { get; private set; }
     public DateTimeOffset? ActualStartedAt { get; private set; }
+    /// <summary>
+    /// Indicates that the event has crossed the actual Live boundary at least
+    /// once.  ActualStartedAt is retained when a premature end is resumed, so
+    /// this remains true even while the event is back in Live play.
+    /// </summary>
+    public bool HasEverBeenLive => ActualStartedAt is not null || ActualEndedAt is not null
+        || State is EventState.Live or EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived;
+
+    /// <summary>Compatibility spelling for consumers that describe this as an ever-Live predicate.</summary>
+    public bool EverLive => HasEverBeenLive;
     public DateTimeOffset? ItemPricesCapturedAt { get; private set; }
 
     public void MarkItemPricesCaptured()
@@ -146,8 +159,17 @@ public sealed class BingoEvent
     public bool AcceptsSignups(DateTimeOffset now) =>
         !IsHidden && State == EventState.SignupOpen && SignupClosesAt is { } closing && now.ToUniversalTime() < closing;
 
+    /// <summary>
+    /// Waiting is part of the active pre-draft signup model.  The persisted
+    /// flag is retained for historical rows, but a legacy false value must not
+    /// disable admission while signups are open or while an Admin is correcting
+    /// a still-unlocked signup.
+    /// </summary>
+    public bool AcceptsWaitingList =>
+        !IsHidden && !DraftLocked && State is (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed);
+
     public bool CanCorrectFinalizedRoster(DraftState? draftState, DateTimeOffset now) =>
-        !IsHidden && State == EventState.SignupClosed && DraftLocked && ActualStartedAt is null
+        !IsHidden && State == EventState.SignupClosed && DraftLocked && !HasEverBeenLive
         && draftState == DraftState.Finalized && EventEndsAt is { } end && now.ToUniversalTime() < end;
 
     public bool AcceptsNewSubmissions(DateTimeOffset now) =>
@@ -156,12 +178,9 @@ public sealed class BingoEvent
         && now.ToUniversalTime() >= ActualStartedAt
         && now.ToUniversalTime() <= ActiveSubmissionCutoff();
 
-    /// <summary>Emergency credentials stop exactly at the cutoff; ordinary evidence is inclusive.</summary>
-    public bool AcceptsEmergencySubmissions(DateTimeOffset now) =>
-        !IsHidden && State is (EventState.Live or EventState.AwaitingFinalReview)
-        && ActualStartedAt is not null
-        && now.ToUniversalTime() >= ActualStartedAt
-        && now.ToUniversalTime() < ActiveSubmissionCutoff();
+    /// <summary>Retained compatibility query; emergency authority is retired.</summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static", Justification = "Preserves the fail-closed instance API for retained callers.")]
+    public bool AcceptsEmergencySubmissions(DateTimeOffset now) => false;
 
     public void AdvanceVersion() => Version++;
 
@@ -173,23 +192,20 @@ public sealed class BingoEvent
 
     public long ReserveAnnouncementOrdinal() => checked(++AnnouncementSequence);
 
-    public void Hide(Guid actorId, DateTimeOffset hiddenAt, string confirmation, string reason)
+    public void Hide(Guid actorId, DateTimeOffset hiddenAt, string? confirmation, string? reason)
     {
         if (IsHidden) throw new InvalidOperationException("The event is already hidden.");
         if (State is not (EventState.AwaitingFinalReview or EventState.Finalized or EventState.Archived))
             throw new InvalidOperationException("Only events after Live play can be hidden.");
-        RequireNameConfirmation(confirmation);
         var validatedReason = RequiredReason(reason, nameof(reason));
         HiddenAt = hiddenAt.ToUniversalTime();
         HiddenByAccountId = actorId;
         HiddenReason = validatedReason;
     }
 
-    public void Restore(string confirmation, string reason)
+    public void Restore(string? confirmation, string? reason)
     {
         if (!IsHidden) throw new InvalidOperationException("The event is not hidden.");
-        RequireNameConfirmation(confirmation);
-        _ = RequiredReason(reason, nameof(reason));
         HiddenAt = null;
         HiddenByAccountId = null;
         HiddenReason = null;
@@ -199,9 +215,23 @@ public sealed class BingoEvent
     {
         EnsureCapability(EventCapability.ConfigureSignup);
         if (DraftLocked) throw new InvalidOperationException("Signup settings are locked because the draft has started.");
-        WaitingListEnabled = waitingListEnabled;
+        // Waiting-list disablement is retired.  Keep the old column readable,
+        // but any current configuration writes make the active model enabled.
+        WaitingListEnabled = true;
         RequireSignupCode = requireCode;
+        // Keep malformed legacy/configuration rows representable so readiness
+        // checks can report the missing hash without making fixture repair or
+        // migration reads throw.  The admin settings workflow rejects a new
+        // required-code configuration without a usable hash before calling us.
         SignupCodeHash = requireCode ? codeHash : null;
+    }
+
+    /// <summary>Adopts the current always-enabled waiting-list behavior for a legacy event row.</summary>
+    public void EnableWaitingList()
+    {
+        EnsureCapability(EventCapability.ConfigureSignup);
+        if (DraftLocked) throw new InvalidOperationException("Signup settings are locked because the draft has started.");
+        WaitingListEnabled = true;
     }
 
     public void ConfigurePlanning(string? publicRules, string? buyInDescription, string? prizeDescription,
@@ -219,7 +249,6 @@ public sealed class BingoEvent
         ExpectedBoardColumns = expectedBoardColumns;
     }
 
-    public void SetBannerAsset(Guid? bannerAssetId) { EnsureIdentityEditable(); BannerAssetId = bannerAssetId; }
     public void SetDraftAt(DateTimeOffset? draftAt) { EnsureCapability(EventCapability.ConfigureIdentityOrSchedule); DraftAt = Utc(draftAt); }
     public void MarkFirstPublic(DateTimeOffset exposedAt) { EnsureNotHidden(); if (FirstPublicAt is null) FirstPublicAt = exposedAt.ToUniversalTime(); }
 
@@ -233,19 +262,38 @@ public sealed class BingoEvent
             : string.Empty;
     }
 
+    /// <summary>
+    /// Retained source-compatible identity update. Buy-in remains unchanged for
+    /// callers that have not moved to the explicit identity command yet.
+    /// </summary>
     public void UpdateIdentity(string name, string? slug, string? description, string timezone)
+        => UpdateIdentity(name, slug, description, BuyInDescription, timezone);
+
+    public void UpdateIdentity(string name, string? slug, string? description, string? buyInDescription, string timezone)
     {
         EnsureNotHidden();
-        if (State == EventState.Live) throw new InvalidOperationException("Event identity and timezone are read-only while the event is Live.");
         EnsureIdentityEditable();
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("An event name is required.", nameof(name));
         if (string.IsNullOrWhiteSpace(timezone)) throw new ArgumentException("A timezone is required.", nameof(timezone));
-        if (FirstPublicAt is not null && !string.IsNullOrWhiteSpace(slug) && !string.Equals(Slug, slug.Trim(), StringComparison.Ordinal))
-            throw new InvalidOperationException("The public event link is locked after first publication.");
+        var normalizedSlug = slug?.Trim();
+        if (!string.IsNullOrWhiteSpace(normalizedSlug) && !string.Equals(Slug, normalizedSlug, StringComparison.Ordinal))
+            throw new InvalidOperationException("The public event link is permanent and cannot be changed.");
+        var normalizedTimezone = timezone.Trim();
+        if (HasEverBeenLive && !string.Equals(Timezone, normalizedTimezone, StringComparison.Ordinal))
+            throw new InvalidOperationException("The timezone cannot change after the event first goes Live.");
         Name = name.Trim();
-        if (FirstPublicAt is null && !string.IsNullOrWhiteSpace(slug)) Slug = slug.Trim();
         Description = Clean(description);
-        Timezone = timezone.Trim();
+        BuyInDescription = Clean(buyInDescription);
+        Timezone = normalizedTimezone;
+    }
+
+    /// <summary>Changes only the temporary pre-live team-size planning value.</summary>
+    public void SetExpectedTeamSize(int expectedTeamSize)
+    {
+        EnsureCapability(EventCapability.ConfigureIdentityOrSchedule);
+        ArgumentOutOfRangeException.ThrowIfLessThan(expectedTeamSize, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan(expectedTeamSize, 100);
+        ExpectedTeamSize = expectedTeamSize;
     }
 
     public void ConfigureInitialSchedule(DateTimeOffset? signupOpensAt, DateTimeOffset? signupClosesAt, DateTimeOffset? draftAt,
@@ -256,22 +304,34 @@ public sealed class BingoEvent
         DateTimeOffset? eventStartsAt, DateTimeOffset? eventEndsAt, int? participantCap)
     {
         EnsureCapability(EventCapability.ConfigureIdentityOrSchedule);
-        if (DraftLocked) throw new InvalidOperationException("The schedule is locked because the draft has started.");
+        var normalizedSignupOpening = Utc(signupOpensAt);
+        var normalizedSignupClosing = Utc(signupClosesAt);
+        var normalizedDraft = Utc(draftAt);
+        var normalizedEventStart = Utc(eventStartsAt);
+        var normalizedEventEnd = Utc(eventEndsAt);
+        var eventWindowOnly = DraftLocked
+            && !HasEverBeenLive
+            && SignupOpensAt == normalizedSignupOpening
+            && SignupClosesAt == normalizedSignupClosing
+            && DraftAt == normalizedDraft
+            && ParticipantCap == participantCap;
+        if (DraftLocked && !eventWindowOnly) throw new InvalidOperationException("The schedule is locked because the draft has started.");
         if (participantCap is < 1) throw new ArgumentOutOfRangeException(nameof(participantCap));
-        if (FirstPublicAt is not null && ParticipantCap is { } current && (participantCap is null || participantCap < current))
-            throw new InvalidOperationException("The participant cap cannot be lowered after signup has first been public.");
-        if (eventStartsAt is { } starts && eventEndsAt is { } ends && ends <= starts)
+        ValidateParticipantCapMaximum(participantCap);
+        // OS-4: Schedule carries the stored capacity through unchanged. Capacity
+        // edits belong to Signup setup and its confirmed-count guard.
+        if (normalizedEventStart is { } starts && normalizedEventEnd is { } ends && ends <= starts)
             throw new InvalidOperationException("Event end must be after event start.");
-        if (signupClosesAt is { } closing && eventStartsAt is { } eventStart && closing > eventStart)
+        if (normalizedSignupClosing is { } closing && normalizedEventStart is { } eventStart && closing > eventStart)
             throw new InvalidOperationException("Signup closing must be no later than event start.");
-        if ((ActualSignupOpenedAt ?? signupOpensAt) is { } opening && signupClosesAt is { } closes && closes <= opening)
+        if ((ActualSignupOpenedAt ?? normalizedSignupOpening) is { } opening && normalizedSignupClosing is { } closes && closes <= opening)
             throw new InvalidOperationException("Signup closing must be after signup opening.");
-        SignupOpensAt = Utc(signupOpensAt);
-        SignupClosesAt = Utc(signupClosesAt);
-        DraftAt = Utc(draftAt);
-        EventStartsAt = Utc(eventStartsAt);
-        EventEndsAt = Utc(eventEndsAt);
-        SetNormalSubmissionCutoff(eventEndsAt);
+        SignupOpensAt = normalizedSignupOpening;
+        SignupClosesAt = normalizedSignupClosing;
+        DraftAt = normalizedDraft;
+        EventStartsAt = normalizedEventStart;
+        EventEndsAt = normalizedEventEnd;
+        SetNormalSubmissionCutoff(normalizedEventEnd);
         ParticipantCap = participantCap;
     }
 
@@ -316,6 +376,10 @@ public sealed class BingoEvent
         if (State == EventState.SignupClosed && DraftLocked) throw new InvalidOperationException("Signups cannot reopen after the draft is locked.");
         if (actualOpenedAt is { } opened) ActualSignupOpenedAt ??= opened.ToUniversalTime();
         State = EventState.SignupOpen;
+        // Legacy rows may have persisted waiting_list_enabled = false.  Opening
+        // signups adopts the current always-enabled waiting-list model without
+        // promoting anyone as a side effect.
+        WaitingListEnabled = true;
         ScheduledSignupOpeningEnabled = false;
     }
 
@@ -351,12 +415,24 @@ public sealed class BingoEvent
         State = EventState.Live;
     }
 
+    public void EndEarly(DateTimeOffset clickedAt)
+    {
+        clickedAt = clickedAt.ToUniversalTime();
+        EndEvent(clickedAt);
+        var remainder = clickedAt.Ticks % TimeSpan.TicksPerMinute;
+        EventEndsAt = remainder == 0 ? clickedAt : clickedAt.AddTicks(TimeSpan.TicksPerMinute - remainder);
+    }
+
     public void EndEvent() => EndEvent(EventEndsAt ?? throw new InvalidOperationException("An event end time is required."));
     public void EndEvent(DateTimeOffset effectiveEndedAt)
     {
         EnsureNotHidden();
         if (!EventStatePolicy.CanTransition(State, EventState.AwaitingFinalReview)) throw TransitionException(EventState.AwaitingFinalReview);
         ActualEndedAt = effectiveEndedAt.ToUniversalTime();
+        // Upload grace is anchored to the actual end, including an early
+        // manual end.  The prior implementation retained the configured end
+        // cutoff, which could close uploads before the promised grace period.
+        SubmissionCutoffAt = ActualEndedAt.Value.AddMinutes(30);
         State = EventState.AwaitingFinalReview;
     }
 
@@ -409,6 +485,23 @@ public sealed class BingoEvent
         ArchivedAt = null;
     }
 
+    /// <summary>
+    /// Publishes the immutable official result and closes the event in one
+    /// lifecycle transition. The legacy Finalized state remains readable for
+    /// historical rows, but is not a destination for new publication.
+    /// </summary>
+    public void PublishOfficialResults(DateTimeOffset now)
+    {
+        EnsureCapability(EventCapability.Finalize);
+        if (!EventStatePolicy.CanTransition(State, EventState.Archived) || State != EventState.AwaitingFinalReview)
+            throw TransitionException(EventState.Archived);
+        now = now.ToUniversalTime();
+        State = EventState.Archived;
+        ResultsPublished = true;
+        FinalizedAt = now;
+        ArchivedAt = now;
+    }
+
     public void Unfinalize(string reason)
     {
         EnsureCapability(EventCapability.Unfinalize);
@@ -446,7 +539,6 @@ public sealed class BingoEvent
         State = EventState.Discarded;
         DiscardedByAccountId = actorId;
         DiscardedAt = discardedAt.ToUniversalTime();
-        BannerAssetId = null;
         Description = null;
         SignupOpensAt = null;
         SignupClosesAt = null;
@@ -478,10 +570,25 @@ public sealed class BingoEvent
 
     public void IncreaseParticipantCap(int newCap)
     {
+        // OS-4: retain the legacy entry point without the obsolete first-public
+        // prohibition. Its service caller enforces confirmed count and increases only.
+        SetParticipantCap(newCap);
+    }
+
+    public const int MaximumParticipantCap = 10_000;
+    public const string ParticipantCapMaximumMessage = "Maximum players cannot exceed 10,000.";
+    private static void ValidateParticipantCapMaximum(int? cap)
+    {
+        if (cap > MaximumParticipantCap) throw new InvalidOperationException(ParticipantCapMaximumMessage);
+    }
+
+    /// <summary>Sets the pre-draft participant cap; callers enforce the current confirmed count.</summary>
+    public void SetParticipantCap(int newCap)
+    {
         EnsureNotHidden();
         if (State is not (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed) || DraftLocked) throw new InvalidOperationException("The participant cap cannot change in this event state.");
-        if (FirstPublicAt is not null && ParticipantCap is { } current && newCap < current) throw new InvalidOperationException("The participant cap cannot be lowered after signup has first been public.");
         ArgumentOutOfRangeException.ThrowIfLessThan(newCap, 1);
+        ValidateParticipantCapMaximum(newCap);
         ParticipantCap = newCap;
     }
 
@@ -501,11 +608,13 @@ public sealed class BingoEvent
         SignupClosesAt = newClosing.ToUniversalTime();
     }
 
-    public void SetDraftLocked(bool locked)
+    public void SetDraftLocked(bool locked, DateTimeOffset? lockedAt = null)
     {
         EnsureNotHidden();
         if (EventStatePolicy.IsTerminal(State)) throw new InvalidOperationException("The draft lock is unavailable in this event state.");
         if (!locked && State is not (EventState.SignupOpen or EventState.SignupClosed)) throw new InvalidOperationException("A locked draft cannot reopen after live play begins.");
+        if (locked && !DraftLocked)
+            DraftAt = (lockedAt ?? DateTimeOffset.UtcNow).ToUniversalTime();
         DraftLocked = locked;
     }
 
@@ -553,9 +662,7 @@ public sealed class BingoEvent
 
     private void EnsureIdentityEditable()
     {
-        EnsureNotHidden();
-        if (State is not (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed))
-            throw new InvalidOperationException("Event identity cannot change in this event state.");
+        EnsureCapability(EventCapability.ConfigureIdentity);
     }
 
     private void EnsureNotHidden()
@@ -563,13 +670,7 @@ public sealed class BingoEvent
         if (IsHidden) throw new InvalidOperationException("The event is hidden and must be restored before it can be changed.");
     }
 
-    private void RequireNameConfirmation(string confirmation)
-    {
-        if (!string.Equals(confirmation, Name, StringComparison.Ordinal))
-            throw new InvalidOperationException("Enter the exact event name to confirm this action.");
-    }
-
-    private static string RequiredReason(string reason, string parameterName)
+    private static string RequiredReason(string? reason, string parameterName)
     {
         if (string.IsNullOrWhiteSpace(reason)) throw new ArgumentException("A reason is required.", parameterName);
         var trimmed = reason.Trim();

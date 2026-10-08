@@ -1,0 +1,453 @@
+[
+  {
+    "kind": "layer-mutation",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111",
+    "length": 3,
+    "state": {
+      "adminDesignIndex": 1
+    },
+    "layers": [
+      {
+        "title": "Show this eventâ€™s times in Europe/Copenhagen?",
+        "connected": true,
+        "hidden": false,
+        "display": "block",
+        "classes": "modal is-wide"
+      }
+    ]
+  },
+  {
+    "kind": "layer-mutation",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111",
+    "length": 3,
+    "state": {
+      "adminDesignIndex": 1
+    },
+    "layers": [
+      {
+        "title": "Show this eventâ€™s times in Europe/Copenhagen?",
+        "connected": true,
+        "hidden": false,
+        "display": "block",
+        "classes": "modal is-wide is-closing"
+      }
+    ]
+  },
+  {
+    "kind": "layer-mutation",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111",
+    "length": 3,
+    "state": {
+      "adminDesignIndex": 1
+    },
+    "layers": []
+  },
+  {
+    "kind": "layer-mutation",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111",
+    "length": 3,
+    "state": {
+      "adminDesignIndex": 1
+    },
+    "layers": [
+      {
+        "title": "Discard unsaved changes?",
+        "connected": true,
+        "hidden": false,
+        "display": "block",
+        "classes": "modal"
+      }
+    ]
+  },
+  {
+    "kind": "layer-mutation",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111",
+    "length": 3,
+    "state": {
+      "adminDesignIndex": 1
+    },
+    "layers": [
+      {
+        "title": "Discard unsaved changes?",
+        "connected": true,
+        "hidden": false,
+        "display": "block",
+        "classes": "modal is-closing"
+      }
+    ]
+  },
+  {
+    "kind": "layer-mutation",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111",
+    "length": 3,
+    "state": {
+      "adminDesignIndex": 1
+    },
+    "layers": []
+  },
+  {
+    "kind": "layer-mutation",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111",
+    "length": 3,
+    "state": {
+      "adminDesignIndex": 1
+    },
+    "layers": [
+      {
+        "title": "Discard unsaved changes?",
+        "connected": true,
+        "hidden": false,
+        "display": "block",
+        "classes": "modal"
+      }
+    ]
+  },
+  {
+    "kind": "layer-mutation",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111",
+    "length": 3,
+    "state": {
+      "adminDesignIndex": 1
+    },
+    "layers": [
+      {
+        "title": "Discard unsaved changes?",
+        "connected": true,
+        "hidden": false,
+        "display": "block",
+        "classes": "modal is-closing"
+      }
+    ]
+  },
+  {
+    "kind": "layer-mutation",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111",
+    "length": 3,
+    "state": {
+      "adminDesignIndex": 1
+    },
+    "layers": []
+  },
+  {
+    "kind": "layer-mutation",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 3
+    },
+    "layers": [
+      {
+        "title": "Show this event’s times in Europe/Copenhagen?",
+        "connected": true,
+        "hidden": false,
+        "display": "block",
+        "classes": "modal is-wide"
+      }
+    ]
+  },
+  {
+    "kind": "layer-mutation",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 3
+    },
+    "layers": [
+      {
+        "title": "Show this event’s times in Europe/Copenhagen?",
+        "connected": true,
+        "hidden": false,
+        "display": "block",
+        "classes": "modal is-wide is-closing"
+      }
+    ]
+  },
+  {
+    "kind": "layer-mutation",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 3
+    },
+    "layers": []
+  },
+  {
+    "kind": "popstate",
+    "url": "http://127.0.0.1:57747/before",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 2
+    },
+    "layers": []
+  },
+  {
+    "kind": "after-popstate",
+    "url": "http://127.0.0.1:57747/before",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 2
+    },
+    "layers": []
+  },
+  {
+    "kind": "popstate",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 3
+    },
+    "layers": []
+  },
+  {
+    "kind": "layer-mutation",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 3
+    },
+    "layers": [
+      {
+        "title": "Discard unsaved changes?",
+        "connected": true,
+        "hidden": false,
+        "display": "block",
+        "classes": "modal"
+      }
+    ]
+  },
+  {
+    "kind": "after-popstate",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 3
+    },
+    "layers": [
+      {
+        "title": "Discard unsaved changes?",
+        "connected": true,
+        "hidden": false,
+        "display": "block",
+        "classes": "modal"
+      }
+    ]
+  },
+  {
+    "kind": "layer-mutation",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 3
+    },
+    "layers": [
+      {
+        "title": "Discard unsaved changes?",
+        "connected": true,
+        "hidden": false,
+        "display": "block",
+        "classes": "modal is-closing"
+      }
+    ]
+  },
+  {
+    "kind": "layer-mutation",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 3
+    },
+    "layers": []
+  },
+  {
+    "kind": "popstate",
+    "url": "http://127.0.0.1:57747/before",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 2
+    },
+    "layers": []
+  },
+  {
+    "kind": "after-popstate",
+    "url": "http://127.0.0.1:57747/before",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 2
+    },
+    "layers": []
+  },
+  {
+    "kind": "popstate",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 3
+    },
+    "layers": []
+  },
+  {
+    "kind": "layer-mutation",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 3
+    },
+    "layers": [
+      {
+        "title": "Discard unsaved changes?",
+        "connected": true,
+        "hidden": false,
+        "display": "block",
+        "classes": "modal"
+      }
+    ]
+  },
+  {
+    "kind": "after-popstate",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 3
+    },
+    "layers": [
+      {
+        "title": "Discard unsaved changes?",
+        "connected": true,
+        "hidden": false,
+        "display": "block",
+        "classes": "modal"
+      }
+    ]
+  },
+  {
+    "kind": "layer-mutation",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 3
+    },
+    "layers": [
+      {
+        "title": "Discard unsaved changes?",
+        "connected": true,
+        "hidden": false,
+        "display": "block",
+        "classes": "modal is-closing"
+      }
+    ]
+  },
+  {
+    "kind": "layer-mutation",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 3
+    },
+    "layers": []
+  },
+  {
+    "kind": "popstate",
+    "url": "http://127.0.0.1:57747/before",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 2
+    },
+    "layers": []
+  },
+  {
+    "kind": "after-popstate",
+    "url": "http://127.0.0.1:57747/before",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 2
+    },
+    "layers": []
+  },
+  {
+    "kind": "layer-mutation",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111?mode=ordinary",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 4
+    },
+    "layers": [
+      {
+        "title": "Discard unsaved changes?",
+        "connected": true,
+        "hidden": false,
+        "display": "block",
+        "classes": "modal"
+      }
+    ]
+  },
+  {
+    "kind": "layer-mutation",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111?mode=ordinary",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 4
+    },
+    "layers": [
+      {
+        "title": "Discard unsaved changes?",
+        "connected": true,
+        "hidden": false,
+        "display": "block",
+        "classes": "modal is-closing"
+      }
+    ]
+  },
+  {
+    "kind": "layer-mutation",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111?mode=ordinary",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 4
+    },
+    "layers": []
+  },
+  {
+    "kind": "before-final-back",
+    "url": "http://127.0.0.1:57747/Admin/Events/Identity/11111111-1111-1111-1111-111111111111?mode=ordinary",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 4
+    },
+    "layers": []
+  },
+  {
+    "kind": "popstate",
+    "url": "http://127.0.0.1:57747/before",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 2
+    },
+    "layers": []
+  },
+  {
+    "kind": "after-popstate",
+    "url": "http://127.0.0.1:57747/before",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 2
+    },
+    "layers": []
+  },
+  {
+    "kind": "timeout",
+    "url": "http://127.0.0.1:57747/before",
+    "length": 5,
+    "state": {
+      "adminDesignIndex": 2
+    },
+    "layers": []
+  }
+]
+locator.waitFor: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for getByRole('alertdialog') to be visible[22m
+
+    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/tests/Bingo.BrowserTests/identity-timezone-confirmation.browser.js:59:21 {
+  log: [ "  - waiting for getByRole('alertdialog') to be visible" ],
+  name: 'TimeoutError'
+}

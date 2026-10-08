@@ -8,12 +8,61 @@ on:
 permissions: {}
 
 jobs:
+  javascript-tests:
+    name: JavaScript and Playwright tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    env:
+      BINGO_ADMIN_STALE_EVIDENCE_DIRECTORY: ${{ github.workspace }}/artifacts/js-fixtures
+      PLAYWRIGHT_CHANNEL: chromium
+      SIXLABORS_LICENSE_KEY: ${{ secrets.SIXLABORS_LICENSE_KEY }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Set up .NET
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          global-json-file: global.json
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+      - name: Install pinned package manager and dependencies
+        run: |
+          npm install --global pnpm@11.25.0
+          pnpm install --frozen-lockfile
+      - name: Install Playwright browsers
+        # One unchanged legacy test explicitly selects Chrome.
+        run: pnpm exec playwright install --with-deps chromium chrome webkit
+      - name: Generate controlled account HTML fixtures
+        run: dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --filter FullyQualifiedName~AccountConfirmationRejectsCompletedInterveningChangesThenAcceptsFreshAction
+      - name: Build controlled real-layout fixture
+        run: dotnet build tests/AdminDesignParityFixture/AdminDesignParityFixture.csproj --configuration Release
+      - name: Run every JavaScript test
+        run: pnpm test:js
+      - name: Compare rendered reference and real layout in both engines
+        run: pnpm test:parity
+      - name: Upload JavaScript results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: javascript-results-${{ github.run_id }}
+          path: |
+            artifacts/js-tests/
+            artifacts/admin-parity/
+          if-no-files-found: warn
+          retention-days: 7
+
   other-tests:
     name: Other tests
     runs-on: ubuntu-latest
     timeout-minutes: 60
     permissions:
       contents: read
+    env:
+      SIXLABORS_LICENSE_KEY: ${{ secrets.SIXLABORS_LICENSE_KEY }}
 
     services:
       postgres:
@@ -142,6 +191,8 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: read
+    env:
+      SIXLABORS_LICENSE_KEY: ${{ secrets.SIXLABORS_LICENSE_KEY }}
 
     services:
       postgres:
@@ -253,6 +304,8 @@ jobs:
           platforms: linux/amd64
           push: true
           provenance: false
+          secrets: |
+            sixlabors_license_key=${{ secrets.SIXLABORS_LICENSE_KEY }}
           tags: ${{ steps.image.outputs.name }}:sha-${{ github.sha }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}

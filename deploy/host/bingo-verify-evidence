@@ -15,7 +15,7 @@ export AWS_DEFAULT_REGION=auto
 
 objects=$(mktemp /tmp/bingo-evidence-objects.XXXXXX)
 trap 'rm -f "$objects"' EXIT
-query="SELECT storage_key, checksum FROM evidence_assets UNION ALL SELECT storage_key, checksum FROM event_banner_assets UNION ALL SELECT storage_key, checksum FROM team_image_assets UNION ALL SELECT storage_key, checksum FROM board_tile_image_assets ORDER BY storage_key;"
+query="SELECT storage_key, checksum FROM evidence_assets UNION ALL SELECT storage_key, checksum FROM team_image_assets UNION ALL SELECT storage_key, checksum FROM board_tile_image_assets ORDER BY storage_key;"
 capture_logged "database evidence inventory" "$objects" compose exec -T postgres psql -X -A -t -F $'\t' -v ON_ERROR_STOP=1 -U "$BINGO_POSTGRES_USER" -d "$BINGO_POSTGRES_DB" -c "$query"
 count=0
 while IFS=$'\t' read -r key expected; do

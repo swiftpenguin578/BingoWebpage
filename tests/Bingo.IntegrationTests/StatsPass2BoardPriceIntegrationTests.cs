@@ -3,6 +3,7 @@ using Bingo.Domain.Access;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Catalogue;
 using Bingo.Domain.Events;
+using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Events;
 using Bingo.Infrastructure.Persistence;
@@ -45,7 +46,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
             await PublishPriceBoardAsync(eventId, actor.Id);
             Assert.Equal(BoardState.Published, await verify.Boards.Where(x => x.EventId == eventId).Select(x => x.State).SingleAsync());
             if (scenario == "objective") Assert.Empty(await verify.BoardApprovalRequirementDropSnapshots.ToListAsync());
-            await StartPriceBoardAsync(eventId);
+            await StartPriceBoardAsync(eventId, actor.Id);
             Assert.Equal(EventState.Live, await verify.Events.Where(x => x.Id == eventId).Select(x => x.State).SingleAsync());
         }
     }
@@ -110,7 +111,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
             await using var before = new ApplicationDbContext(options); before.Add(late); await before.SaveChangesAsync();
         }
         await CreatePriceBoardTileAsync(eventId, actor.Id, boss.Id, drops);
-        await ApprovePriceBoardAsync(eventId, actor.Id); await PublishPriceBoardAsync(eventId, actor.Id); await StartPriceBoardAsync(eventId);
+        await ApprovePriceBoardAsync(eventId, actor.Id); await PublishPriceBoardAsync(eventId, actor.Id); await StartPriceBoardAsync(eventId, actor.Id);
         var introducedAt = DateTimeOffset.UtcNow;
         introducedAt = introducedAt.AddTicks(-(introducedAt.Ticks % TimeSpan.TicksPerMicrosecond));
         var lateDrop = new SourceDrop(Guid.NewGuid(), boss.Id, late.Id, "1/20", .05m, 2, introducedAt);
@@ -145,7 +146,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
     {
         var (actor, _, boss, drops, eventId) = await PriceBoardFixtureAsync();
         await CreatePriceBoardTileAsync(eventId, actor.Id, boss.Id, drops);
-        await ApprovePriceBoardAsync(eventId, actor.Id); await PublishPriceBoardAsync(eventId, actor.Id); await StartPriceBoardAsync(eventId);
+        await ApprovePriceBoardAsync(eventId, actor.Id); await PublishPriceBoardAsync(eventId, actor.Id); await StartPriceBoardAsync(eventId, actor.Id);
         var late = new CatalogueItem(Guid.NewGuid(), "Concurrent late", "CONCURRENT LATE"); late.SetPrice(123, CataloguePriceSource.Manual, DateTimeOffset.UtcNow);
         var lateDrop = new SourceDrop(Guid.NewGuid(), boss.Id, late.Id, "1/20", .05m, 2, DateTimeOffset.UtcNow);
         await using (var setup = new ApplicationDbContext(options)) { setup.AddRange(late, lateDrop); await setup.SaveChangesAsync(); }
@@ -183,7 +184,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
     {
         var (actor, _, boss, drops, eventId) = await PriceBoardFixtureAsync();
         await CreatePriceBoardTileAsync(eventId, actor.Id, boss.Id, drops);
-        await ApprovePriceBoardAsync(eventId, actor.Id); await PublishPriceBoardAsync(eventId, actor.Id); await StartPriceBoardAsync(eventId);
+        await ApprovePriceBoardAsync(eventId, actor.Id); await PublishPriceBoardAsync(eventId, actor.Id); await StartPriceBoardAsync(eventId, actor.Id);
         var late = new CatalogueItem(Guid.NewGuid(), "Missing late", "MISSING LATE");
         var lateDrop = new SourceDrop(Guid.NewGuid(), boss.Id, late.Id, "1/20", .05m, 2, DateTimeOffset.UtcNow);
         await using (var setup = new ApplicationDbContext(options)) { setup.AddRange(late, lateDrop); await setup.SaveChangesAsync(); }
@@ -222,12 +223,12 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         {
             var service = new EventLifecycleService(db, null!, TimeProvider.System);
             var version = await db.Events.Where(x => x.Id == eventId).Select(x => x.Version).SingleAsync();
-            var result = await service.StartNowAsync(eventId, version, true, "Start", new(Guid.NewGuid(), "admin"));
+            var result = await service.StartNowAsync(eventId, version, true, "Start", new(actor.Id, actor.LoginName));
             Assert.False(result.Succeeded); Assert.Contains(result.Blockers!, x => x.Code == "DROP_PRICE_MISSING");
             Assert.Empty(await db.EventItemPrices.ToListAsync());
             Assert.Null(await db.Events.Where(x => x.Id == eventId).Select(x => x.ActualStartedAt).SingleAsync());
         }
-        await SetBoardFixturePriceAsync(item.Id, 0); await StartPriceBoardAsync(eventId);
+        await SetBoardFixturePriceAsync(item.Id, 0); await StartPriceBoardAsync(eventId, actor.Id);
     }
 
     [Fact]
@@ -267,11 +268,11 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         page.BoardVersion = await db.Boards.Select(x => x.Version).SingleAsync(); page.TileDraft = PriceTileInput(bossId, drops);
         await page.OnPostCreateTileAsync(eventId, default); Assert.Equal("committed", page.TempData["BoardTileOutcome"]);
     }
-    private async Task StartPriceBoardAsync(Guid eventId)
+    private async Task StartPriceBoardAsync(Guid eventId, Guid actorId)
     {
         await using var db = new ApplicationDbContext(options);
         var version = await db.Events.Where(x => x.Id == eventId).Select(x => x.Version).SingleAsync();
-        var result = await new EventLifecycleService(db, null!, TimeProvider.System).StartNowAsync(eventId, version, true, "Early price fixture start", new(Guid.NewGuid(), "admin"));
+        var result = await new EventLifecycleService(db, null!, TimeProvider.System).StartNowAsync(eventId, version, true, "Early price fixture start", new(actorId, "admin"));
         Assert.True(result.Succeeded, result.Error);
     }
     private async Task PreparePriceCorrectionAsync(Guid eventId, Guid actorId, Guid bossId, Guid[] drops)
@@ -308,7 +309,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         }
     }
 
-    private async Task<(Account Actor, CatalogueItem Item, BossActivity Boss, Guid[] Drops, Guid EventId)> PriceBoardFixtureAsync()
+    private async Task<(Account Actor, CatalogueItem Item, BossActivity Boss, Guid[] Drops, Guid EventId)> PriceBoardFixtureAsync(bool includeParticipant = true)
     {
         var now = DateTimeOffset.UtcNow;
         var actor = Website($"price-board-{Guid.NewGuid():N}", now); actor.SetGlobalRole(GlobalRole.SuperAdmin);
@@ -317,13 +318,27 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         var boss = new BossActivity(Guid.NewGuid(), "Price gate source", "price-gate-source", "Boss", 10, now);
         var first = new SourceDrop(Guid.NewGuid(), boss.Id, other.Id, "1/10", .1m, 1, now);
         var second = new SourceDrop(Guid.NewGuid(), boss.Id, item.Id, "1/10", .1m, 1, now);
-        var e = new BingoEvent(Guid.NewGuid(), "Price board", $"price-board-{Guid.NewGuid():N}", "UTC", actor.Id, now);
-        e.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddHours(2), now.AddDays(2), 10);
+        var e = new BingoEvent(Guid.NewGuid(), "Price board", $"price-board-{Guid.NewGuid():N}", "UTC", actor.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
+        e.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddHours(2), now.AddDays(4), 10);
         e.OpenSignups(now.AddDays(-2)); e.CloseSignups(now.AddDays(-1)); e.SetDraftRosterPublication(true);
         var draft = new DraftSession(Guid.NewGuid(), e.Id, 1); draft.Start(now); draft.Finalize(now);
         var board = new Board(Guid.NewGuid(), e.Id, "Price board", 1, 1); board.AcquireEditing(actor.Id, now, TimeSpan.FromMinutes(30));
         await using var db = new ApplicationDbContext(options);
-        db.AddRange(actor, item, other, boss, first, second, e, draft, board); await db.SaveChangesAsync();
+        db.AddRange(actor, item, other, boss, first, second, e, draft, board);
+        if (includeParticipant)
+        {
+            var team = new Team(Guid.NewGuid(), e.Id, "Price team", $"price-team-{Guid.NewGuid():N}", TeamFormationType.Drafted, null, true);
+            team.Finalize(now);
+            var participant = new EventParticipant(Guid.NewGuid(), e.Id, SignupStatus.Confirmed, 1, now, SignupSource.AdminCreated);
+            var character = new OsrsCharacter(Guid.NewGuid(), "Price player", "PRICE PLAYER", now);
+            var assignment = new EventParticipantCharacter(Guid.NewGuid(), e.Id, participant.Id, character.Id, 0, now, actor.Id, null,
+                EventCharacterRole.Playing, 1, EhbSource.Manual, null);
+            var membership = new TeamMembership(Guid.NewGuid(), team.Id, participant.Id, TeamMembershipRole.Participant, now, null, "Price fixture");
+            var publication = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now, actor.Id);
+            var roster = new DraftPublicationRoster(Guid.NewGuid(), publication.Id, team.Id, participant.Id, TeamMembershipRole.Participant, null, character.DisplayName);
+            db.AddRange(team, participant, character, assignment, membership, publication, roster);
+        }
+        await db.SaveChangesAsync();
         return (actor, item, boss, [first.Id, second.Id], e.Id);
     }
 

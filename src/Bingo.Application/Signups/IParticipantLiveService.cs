@@ -53,4 +53,5 @@ public sealed record ParticipantCharacterSwapRequest(
 public sealed record ParticipantCharacterSwapResult(
     bool Succeeded,
     string? Error = null,
-    DateTimeOffset? EffectiveAtUtc = null);
+    DateTimeOffset? EffectiveAtUtc = null,
+    string? CharacterName = null);

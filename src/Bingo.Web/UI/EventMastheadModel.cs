@@ -73,20 +73,28 @@ public sealed class EventMastheadModel
                 team.TeamId, team.TeamName, participant.ParticipantId, participant.ParticipantName,
                 participant.PlayingAccountNames is { Count: > 0 } ? participant.PlayingAccountNames : [participant.ParticipantName])))
             .ToList();
-        var activityParticipantsById = Activity.Teams
-            .SelectMany(team => team.Participants)
-            .ToDictionary(participant => participant.ParticipantId);
-        var dropPlayersById = (board.DropEhbTeams ?? Array.Empty<PublicDropEhbTeam>())
-            .SelectMany(team => team.Players)
-            .ToDictionary(player => player.PlayerId);
-        var playerRows = rosterPlayers
+        var activityParticipantsByTeam = Activity.Teams
+            .SelectMany(team => team.Participants.Select(participant => (team.TeamId, Participant: participant)))
+            .ToDictionary(value => (value.TeamId, value.Participant.ParticipantId), value => value.Participant);
+        var dropTeams = board.DropEhbTeams ?? Array.Empty<PublicDropEhbTeam>();
+        var dropPlayersByTeam = dropTeams
+            .SelectMany(team => team.Players.Select(player => (team.TeamId, Player: player)))
+            .ToDictionary(value => (value.TeamId, value.Player.PlayerId), value => value.Player);
+        var rosterKeys = rosterPlayers.Select(player => (player.TeamId, player.PlayerId)).ToHashSet();
+        // Retained credit is displayed on its owning team, without changing the roster
+        // or borrowing activity from the participant's current team.
+        var displayPlayers = rosterPlayers.Concat(dropTeams.SelectMany(team => team.Players
+            .Where(player => !rosterKeys.Contains((team.TeamId, player.PlayerId)))
+            .Select(player => new PublicRosterPlayer(team.TeamId, team.TeamName, player.PlayerId,
+                player.PlayerName, player.PlayingAccountNames ?? [player.PlayerName]))));
+        var playerRows = displayPlayers
             .Select(roster =>
             {
-                var participant = activityParticipantsById.GetValueOrDefault(roster.PlayerId);
+                var participant = activityParticipantsByTeam.GetValueOrDefault((roster.TeamId, roster.PlayerId));
                 var hasActivity = Activity.HasRankings && participant is not null;
                 var displayParticipant = participant ?? new EventCompetitionParticipantActivity(
                     roster.PlayerId, roster.PlayerName, 0m, [], PlayingAccountNames: roster.PlayingAccountNames);
-                var dropPlayer = dropPlayersById.GetValueOrDefault(roster.PlayerId);
+                var dropPlayer = dropPlayersByTeam.GetValueOrDefault((roster.TeamId, roster.PlayerId));
                 return new
                 {
                     roster.TeamName,

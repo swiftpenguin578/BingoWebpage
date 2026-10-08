@@ -51,6 +51,11 @@ public static class EventParticipantAuthorityQueries
                                                question.SystemField == SignupSystemField.PrimaryRegularAccount &&
                                                question.AccountAnswerRole == EventCharacterRole.Playing &&
                                                assignment.ReleasedAt == null && assignment.EventRole == EventCharacterRole.Playing &&
+                                               !db.SignupQuestions.Any(other =>
+                                                   other.Id != question.Id && other.SignupFormId == form.Id && other.EventId == participant.EventId &&
+                                                   other.Active && other.Type == SignupQuestionType.Account &&
+                                                   other.SystemField == SignupSystemField.PrimaryRegularAccount &&
+                                                   other.AccountAnswerRole == EventCharacterRole.Playing) &&
                                                !db.EventParticipantCharacters.Any(other =>
                                                    other.Id != assignment.Id && other.EventParticipantId == participant.Id &&
                                                    other.ReleasedAt == null && other.EventRole == EventCharacterRole.Playing &&
@@ -101,43 +106,58 @@ public static class EventParticipantAuthorityQueries
     }
 
     public static IQueryable<EventParticipantAuthority> AdminPrimaryCharacters(this ApplicationDbContext db)
-        => (from participant in db.EventParticipants
-            join assignment in db.EventParticipantCharacters on participant.Id equals assignment.EventParticipantId
-            join character in db.OsrsCharacters on assignment.OsrsCharacterId equals character.Id
-            where assignment.EventRole == EventCharacterRole.Playing &&
-                  (((participant.SignupStatus == SignupStatus.Confirmed || participant.SignupStatus == SignupStatus.WaitingList) &&
-                    assignment.ReleasedAt == null &&
-                    !db.EventParticipantCharacters.Any(other =>
-                        other.EventParticipantId == participant.Id &&
-                        other.EventRole == EventCharacterRole.Playing &&
-                        other.ReleasedAt == null &&
-                        other.RegistrationOrder < assignment.RegistrationOrder))
-                   ||
-                   (participant.SignupStatus == SignupStatus.Withdrawn &&
-                    !db.EventParticipantCharacters.Any(reserved => reserved.EventParticipantId == participant.Id &&
-                        reserved.ReleasedAt == null && reserved.EventRole == EventCharacterRole.Playing) &&
-                    assignment.ReleasedAt != null &&
-                    !db.EventParticipantCharacters.Any(other =>
-                        other.EventParticipantId == participant.Id &&
-                        other.EventRole == EventCharacterRole.Playing &&
-                        other.ReleasedAt != null &&
-                        (other.ReleasedAt > assignment.ReleasedAt ||
-                         (other.ReleasedAt == assignment.ReleasedAt &&
-                          (other.RegistrationOrder > assignment.RegistrationOrder ||
-                           (other.RegistrationOrder == assignment.RegistrationOrder &&
-                            other.Id.CompareTo(assignment.Id) > 0)))))))
-            select new EventParticipantAuthority
-            {
-                ParticipantId = participant.Id,
-                EventId = participant.EventId,
-                OsrsCharacterId = assignment.OsrsCharacterId,
-                Name = character.DisplayName,
-                NormalizedName = character.NormalizedName,
-                Ehb = assignment.EhbSnapshot!.Value,
-                AssignmentId = assignment.Id
-            })
-           .Concat(db.PrimaryCharacters().Where(primary => db.EventParticipants.Any(participant =>
-               participant.Id == primary.ParticipantId && participant.SignupStatus == SignupStatus.Withdrawn)));
+    {
+        // Any participant with a current PrimaryRegularAccount linkage has an
+        // authoritative slot mapping, including AdminCreated rows. Keep the
+        // registration-order projection below only as a display fallback for
+        // legacy rows which do not have that linkage.
+        var authoritativeCurrent = db.PrimaryCharacters()
+            .Where(primary => db.EventParticipants.Any(participant =>
+                participant.Id == primary.ParticipantId &&
+                (participant.SignupStatus == SignupStatus.Confirmed || participant.SignupStatus == SignupStatus.WaitingList)));
+
+        var displayFallback = from participant in db.EventParticipants
+                              join assignment in db.EventParticipantCharacters on participant.Id equals assignment.EventParticipantId
+                              join character in db.OsrsCharacters on assignment.OsrsCharacterId equals character.Id
+                              where assignment.EventRole == EventCharacterRole.Playing &&
+                                    (((participant.SignupStatus == SignupStatus.Confirmed || participant.SignupStatus == SignupStatus.WaitingList) &&
+                                      assignment.ReleasedAt == null &&
+                                      !authoritativeCurrent.Any(primary => primary.ParticipantId == participant.Id) &&
+                                      !db.EventParticipantCharacters.Any(other =>
+                                          other.EventParticipantId == participant.Id &&
+                                          other.EventRole == EventCharacterRole.Playing &&
+                                          other.ReleasedAt == null &&
+                                          other.RegistrationOrder < assignment.RegistrationOrder))
+                                     ||
+                                     (participant.SignupStatus == SignupStatus.Withdrawn &&
+                                      !db.EventParticipantCharacters.Any(reserved => reserved.EventParticipantId == participant.Id &&
+                                          reserved.ReleasedAt == null && reserved.EventRole == EventCharacterRole.Playing) &&
+                                      assignment.ReleasedAt != null &&
+                                      !db.EventParticipantCharacters.Any(other =>
+                                          other.EventParticipantId == participant.Id &&
+                                          other.EventRole == EventCharacterRole.Playing &&
+                                          other.ReleasedAt != null &&
+                                          (other.ReleasedAt > assignment.ReleasedAt ||
+                                           (other.ReleasedAt == assignment.ReleasedAt &&
+                                            (other.RegistrationOrder > assignment.RegistrationOrder ||
+                                             (other.RegistrationOrder == assignment.RegistrationOrder &&
+                                              other.Id.CompareTo(assignment.Id) > 0)))))))
+                              select new EventParticipantAuthority
+                              {
+                                  ParticipantId = participant.Id,
+                                  EventId = participant.EventId,
+                                  OsrsCharacterId = assignment.OsrsCharacterId,
+                                  Name = character.DisplayName,
+                                  NormalizedName = character.NormalizedName,
+                                  Ehb = assignment.EhbSnapshot!.Value,
+                                  AssignmentId = assignment.Id
+                              };
+
+        return authoritativeCurrent
+            .Concat(displayFallback)
+            .Concat(db.PrimaryCharacters().Where(primary => db.EventParticipants.Any(participant =>
+                participant.Id == primary.ParticipantId && participant.SignupStatus == SignupStatus.Withdrawn)));
+    }
 
 }
 

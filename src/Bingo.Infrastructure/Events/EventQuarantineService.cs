@@ -21,18 +21,30 @@ public sealed class EventQuarantineService(ApplicationDbContext db, TimeProvider
 
     private async Task<EventQuarantineResult> ExecuteAsync(Guid eventId, long expectedVersion, string? confirmation, string? reason, LifecycleActor actor, bool hide, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(confirmation) || string.IsNullOrWhiteSpace(reason))
-            return new(false, "An exact event-name confirmation and reason are required.");
-
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
             var authorized = await db.Accounts.AsNoTracking().AnyAsync(account => account.Id == actor.Id && account.Active && account.AccountType == AccountType.WebsiteAccount && account.GlobalRole == GlobalRole.SuperAdmin, ct);
-            if (!authorized) return new(false, "Only a SuperAdmin can hide or restore an event.");
+            if (!authorized) return new(false, "Only a SuperAdmin can hide or restore an event.") { Outcome = EventQuarantineOutcome.Forbidden };
+
+            if (!hide) await EventCurrentBoundary.LockAsync(db, ct);
 
             var item = await db.Events.FromSqlInterpolated($"SELECT * FROM events WHERE id = {eventId} FOR UPDATE").SingleOrDefaultAsync(ct);
-            if (item is null || item.State == EventState.Discarded) return new(false, "The event was not found.");
-            if (item.Version != expectedVersion) return new(false, "The event changed while you were working. Review the latest values and try again.");
+            if (item is null || item.State == EventState.Discarded) return new(false, "The event was not found.") { Outcome = EventQuarantineOutcome.NotFound };
+            if (item.Version != expectedVersion) return Stale();
+            if (hide && string.IsNullOrWhiteSpace(reason))
+                return new(false, "Enter a reason for hiding the event.")
+                { Outcome = EventQuarantineOutcome.ValidationFailed, FieldErrors = new Dictionary<string, string> { ["reason"] = "Enter a reason for hiding the event." } };
+
+            if (!hide && item.IsHidden && EventCurrentBoundary.IsCurrentState(item.State))
+            {
+                var current = await EventCurrentBoundary.OtherCurrentEvents(db, item.Id)
+                    .OrderBy(x => x.Name).Select(x => new ReadinessSubject(x.Id, x.Name, x.State)).FirstOrDefaultAsync(ct);
+                // U4-E5: same wording as the Open/Resume refusals (U4-Q4/Q5).
+                if (current is not null)
+                    return new(false, EventLifecycleService.CurrentEventRefusal(current))
+                    { Outcome = EventQuarantineOutcome.InvalidState };
+            }
 
             var now = timeProvider.GetUtcNow();
             var before = new { item.State, item.Version, item.HiddenAt, item.HiddenByAccountId, item.HiddenReason };
@@ -41,7 +53,7 @@ public sealed class EventQuarantineService(ApplicationDbContext db, TimeProvider
             var action = hide ? "event.hidden" : "event.restored";
             await db.SaveChangesAsync(ct);
             var after = new { item.State, item.Version, item.HiddenAt, item.HiddenByAccountId, item.HiddenReason };
-            db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, actor.Id, actor.Username, action, "event", item.Id.ToString(), reason.Trim(), item.Id, JsonSerializer.Serialize(before), JsonSerializer.Serialize(after)));
+            db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, actor.Id, actor.Username, action, "event", item.Id.ToString(), string.IsNullOrWhiteSpace(reason) ? null : reason.Trim(), item.Id, JsonSerializer.Serialize(before), JsonSerializer.Serialize(after)));
             await db.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
             if (collaboration is not null)
@@ -49,27 +61,36 @@ public sealed class EventQuarantineService(ApplicationDbContext db, TimeProvider
                 try { await collaboration.NotifyEventsControlChangedAsync(ct); }
                 catch (Exception) { /* The committed quarantine remains authoritative. */ }
             }
-            return new(true);
+            return new(true) { Hidden = item.HiddenAt is not null, Version = item.Version };
         }
         catch (DbUpdateConcurrencyException)
         {
             await transaction.RollbackAsync(ct);
-            return new(false, "The event changed while you were working. Review the latest values and try again.");
+            return Stale();
         }
         catch (PostgresException exception) when (exception.SqlState is PostgresErrorCodes.SerializationFailure or PostgresErrorCodes.DeadlockDetected)
         {
             await transaction.RollbackAsync(ct);
-            return new(false, "The event changed while you were working. Review the latest values and try again.");
+            return Stale();
+        }
+        catch (DbUpdateException exception) when (exception.InnerException is PostgresException { SqlState: PostgresErrorCodes.SerializationFailure or PostgresErrorCodes.DeadlockDetected })
+        {
+            await transaction.RollbackAsync(ct);
+            db.ChangeTracker.Clear();
+            return Stale();
         }
         catch (InvalidOperationException exception)
         {
             await transaction.RollbackAsync(ct);
-            return new(false, exception.Message);
+            return new(false, exception.Message) { Outcome = EventQuarantineOutcome.InvalidState };
         }
         catch (ArgumentException exception)
         {
             await transaction.RollbackAsync(ct);
-            return new(false, exception.Message);
+            return new(false, exception.Message) { Outcome = EventQuarantineOutcome.ValidationFailed };
         }
     }
+
+    private static EventQuarantineResult Stale() => new(false, "The event changed while you were working. Review the latest values and try again.")
+    { Outcome = EventQuarantineOutcome.Stale };
 }

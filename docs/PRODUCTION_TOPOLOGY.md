@@ -86,8 +86,8 @@ credentials are not part of this topology.
   the private web container and starts Caddy only after web is healthy.
 - `--migrate` is the only explicit migration command. Normal Production
   startup never migrates. `--production-preflight` is read-only and requires
-  no pending migrations, usable R2, a complete catalogue baseline, and exactly
-  one active Super Admin. Wise Old Man requests do not gate readiness.
+  no pending migrations, usable R2, at least one active activity/item/drop, and
+  exactly one active Super Admin. Wise Old Man requests do not gate readiness.
 
 ## Candidate publication and promotion
 
@@ -121,25 +121,29 @@ root-only `BINGO_BOOTSTRAP_STATE_FILE` marker must contain exactly `new`,
 with `new`; a failed first bootstrap leaves `interrupted` so the same path can
 resume; `completed` means retained production even when it has zero accounts.
 
-For a genuinely new database, an operator with the real environment file should:
+For a genuinely new database, an operator with the real environment file should
+understand that the new-database branch is a schema/owner bootstrap only; it
+leaves the catalogue empty and is not a supported production rebuild because
+D10 preflight requires at least one active activity, item, and drop. To rebuild
+production, first use the existing restore procedure with a reviewed backup,
+then run the normal retained deployment. The new-database branch itself should:
 
 1. Start only PostgreSQL and wait for its health check.
 2. Run the reviewed image once with `--migrate`.
-3. Run the reviewed image once with `--apply-catalogue-snapshot`; migrations
-   must already be applied.
-4. Run the reviewed image once with
+3. Do not restore after `--migrate` through `bingo-deploy`; it has no restore
+   step and does not apply `--apply-catalogue-snapshot`.
+4. For a controlled bootstrap rehearsal only, run the reviewed image once with
    `--slice1-bootstrap-owner --username <owner> --confirm-username <owner>`.
    `bingo-deploy` supplies `Slice1__BootstrapOwnerPassword` only to this
    one-shot container from the temporary root-only password file; the persistent
    `web` service never receives it.
-5. Run the read-only `--production-preflight` with the reviewed image.
-6. Start `web` and `caddy`, then run the release smoke checks. Catalogue-image
-   prewarming, if selected, uses the existing `--sync-catalogue-images`
-   command after the application is configured.
+5. Run the read-only `--production-preflight` with the reviewed image. It must
+   fail closed on the empty catalogue; do not start `web` or continue this path.
 
-For `interrupted`, resume the same migration/catalogue/owner path; if the owner
-was already created, the host state check skips only that completed owner
-command. For `completed` retained data, run the existing
+For `interrupted`, resume the same migration/owner path; if the owner was
+already created, the host state check skips only that completed owner command.
+The empty-catalogue new-database path still is not a production rebuild. For
+`completed` retained data, run the existing
 `--slice1-migration-preflight` only when crossing that legacy boundary, then
 `--migrate`, `--production-preflight`, and replace `web`. Never apply the
 catalogue snapshot to retained data; it deactivates records absent from the

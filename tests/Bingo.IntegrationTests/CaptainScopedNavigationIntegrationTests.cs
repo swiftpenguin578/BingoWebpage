@@ -16,9 +16,9 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLifetime
+public sealed partial class CaptainScopedNavigationIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("bingo_captain_scoped_navigation").WithUsername("bingo").WithPassword("bingo_test_password").Build();
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("bingo_captain_scoped_navigation").WithUsername("bingo").WithPassword("bingo_test_password"));
     private DbContextOptions<ApplicationDbContext> options = null!;
 
     public async Task InitializeAsync()
@@ -26,7 +26,6 @@ public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLife
         await database.StartAsync();
         options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
@@ -118,6 +117,14 @@ public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLife
         var overlappingOwnerSubmission = new Submission(Guid.NewGuid(), live.Id, team.Id, tile.Id, requirement.Id, null, captainParticipant.Id, captainCharacter.Id, captainCharacter.DisplayName, captain.Id, 1, now, null, null);
         var notification = new PersonalNotification(Guid.NewGuid(), participantOwner.Id, "evidence.rejected", "Please review the submission.", $"/Submissions/{submission.Id}", now);
         var coCaptainNotification = new PersonalNotification(Guid.NewGuid(), coCaptain.Id, "evidence.rejected", "Please review the submission.", $"/Submissions/{submission.Id}", now);
+        var draft = new DraftSession(Guid.NewGuid(), live.Id, 1);
+        draft.FinalizeDirect(now.AddMinutes(-2));
+        var publication = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, 1, now.AddMinutes(-2), participantOwner.Id, DraftPublicationMethod.DirectRoster);
+        var publishedRosters = new[]
+        {
+            new DraftPublicationRoster(Guid.NewGuid(), publication.Id, team.Id, participant.Id, participantMembership.Role, null, character.DisplayName),
+            new DraftPublicationRoster(Guid.NewGuid(), publication.Id, team.Id, captainParticipant.Id, captainMembership.Role, null, captainCharacter.DisplayName)
+        };
 
         await using (var db = new ApplicationDbContext(options))
         {
@@ -125,7 +132,8 @@ public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLife
                 participant, captainParticipant, coCaptainParticipant, formerParticipant, crossTeamParticipant,
                 participantMembership, captainMembership, coCaptainMembership, formerMembership, crossTeamMembership,
                 emergencyAccess, character, captainCharacter, assignment, captainAssignment, board, tile, requirement,
-                submission, overlappingOwnerSubmission, notification, coCaptainNotification);
+                submission, overlappingOwnerSubmission, notification, coCaptainNotification, draft, publication);
+            db.AddRange(publishedRosters);
             await db.SaveChangesAsync();
             await BoardApprovalFixture.PublishAsync(db, board, now, [tile], [requirement]);
         }
@@ -141,7 +149,7 @@ public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLife
         await LoginAsync(participantClient, participantOwner.LoginName);
         await LoginAsync(captainClient, captain.LoginName);
         await LoginAsync(coCaptainClient, coCaptain.LoginName);
-        await LoginAsync(emergencyClient, emergency.LoginName);
+
         await LoginAsync(formerClient, former.LoginName);
         await LoginAsync(unrelatedClient, unrelated.LoginName);
         await LoginAsync(globalOnlyClient, globalOnly.LoginName);
@@ -191,7 +199,7 @@ public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLife
         Assert.DoesNotContain("Withdraw mistaken submission", teammateHtml, StringComparison.Ordinal);
         Assert.DoesNotContain("Submit linked resubmission", teammateHtml, StringComparison.Ordinal);
         Assert.Equal(HttpStatusCode.OK, (await coCaptainClient.GetAsync($"/Submissions/{submission.Id}{scope}")).StatusCode);
-        Assert.Equal(HttpStatusCode.OK, (await emergencyClient.GetAsync($"/Submissions/{submission.Id}{scope}")).StatusCode);
+        Assert.Equal(HttpStatusCode.Redirect, (await emergencyClient.GetAsync($"/Submissions/{submission.Id}{scope}")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await formerClient.GetAsync($"/Submissions/{submission.Id}{scope}")).StatusCode);
 
         using var overlappingOwnerRoute = await captainClient.GetAsync($"/Captain/Submissions/{overlappingOwnerSubmission.Id}{scope}");
@@ -515,6 +523,23 @@ public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLife
         foreach (var publishedTeam in new[] { liveTeam, awaitingTeam, finalizedTeam, archivedTeam, ambiguousTeamOne, ambiguousTeamTwo })
             publishedTeam.Finalize(now);
 
+        var publishedRosters = new List<(DraftSession Draft, DraftPublicationCycle Cycle, DraftPublicationRoster[] Rosters)>();
+        void AddPublishedRoster(BingoEvent eventItem, Team team, IEnumerable<TeamMembership> memberships)
+        {
+            var draftSession = new DraftSession(Guid.NewGuid(), eventItem.Id, 1);
+            draftSession.FinalizeDirect(now.AddMinutes(-2));
+            var cycle = new DraftPublicationCycle(Guid.NewGuid(), draftSession.Id, 1, now.AddMinutes(-2), eventItem.CreatedByAccountId, DraftPublicationMethod.DirectRoster);
+            var rosters = memberships.Select((membership, index) => new DraftPublicationRoster(Guid.NewGuid(), cycle.Id,
+                team.Id, membership.EventParticipantId, membership.Role, null, $"Header player {index + 1}")).ToArray();
+            publishedRosters.Add((draftSession, cycle, rosters));
+        }
+        AddPublishedRoster(live, liveTeam, liveMemberships);
+        AddPublishedRoster(awaiting, awaitingTeam, [awaitingCaptainMembership, awaitingOrdinaryMembership]);
+        AddPublishedRoster(finalized, finalizedTeam, [finalizedCaptainMembership, finalizedOrdinaryMembership]);
+        AddPublishedRoster(archived, archivedTeam, [archivedCaptainMembership, archivedOrdinaryMembership]);
+        AddPublishedRoster(ambiguousLiveOne, ambiguousTeamOne, [ambiguousMembershipOne]);
+        AddPublishedRoster(ambiguousLiveTwo, ambiguousTeamTwo, [ambiguousMembershipTwo]);
+
         await using (var db = new ApplicationDbContext(options))
         {
             db.AddRange(captain, coCaptain, participant, admin, emergency, awaitingCaptain, awaitingParticipant, ambiguousParticipant, awaitingEmergency, draftCaptain,
@@ -525,6 +550,11 @@ public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLife
                 awaiting, awaitingTeam, awaitingCaptainParticipant, awaitingOrdinaryParticipant, awaitingCaptainMembership, awaitingOrdinaryMembership, awaitingEmergencyAccess,
                 ambiguousLiveOne, ambiguousTeamOne, ambiguousParticipantOne, ambiguousMembershipOne, ambiguousLiveTwo, ambiguousTeamTwo, ambiguousParticipantTwo, ambiguousMembershipTwo,
                 draft, draftTeam, draftParticipant, draftMembership);
+            foreach (var (draftSession, cycle, rosters) in publishedRosters)
+            {
+                db.AddRange(draftSession, cycle);
+                db.AddRange(rosters);
+            }
             await db.SaveChangesAsync();
             foreach (var eventItem in new[] { live, awaiting, finalized, archived, ambiguousLiveOne, ambiguousLiveTwo })
             {
@@ -556,7 +586,7 @@ public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLife
             .Count(match => match.Value.Contains($"/Events/{selectedLive.Slug}/Board")));
 
         var expectedHref = $"/Submissions?eventId={live.Id}&amp;teamId={liveTeam.Id}";
-        foreach (var account in new[] { captain, coCaptain, emergency, participant })
+        foreach (var account in new[] { captain, coCaptain, participant })
         {
             var html = await LoggedInHtml(account);
             var nav = ContextNavigation(html);
@@ -567,7 +597,7 @@ public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLife
             var otherNav = ContextNavigation(await LoggedInHtml(account, awaiting.Slug));
             Assert.DoesNotContain("/Submissions?", otherNav);
         }
-        foreach (var account in new[] { awaitingCaptain, awaitingParticipant, awaitingEmergency })
+        foreach (var account in new[] { awaitingCaptain, awaitingParticipant })
         {
             var nav = ContextNavigation(await LoggedInHtml(account, awaiting.Slug));
             Assert.Contains($"/Submissions?eventId={awaiting.Id}&amp;teamId={awaitingTeam.Id}", nav);
@@ -601,7 +631,7 @@ public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLife
     }
 
     [Fact]
-    public async Task SubmissionDetailsExposeLinkedHistoryAndOnlyUnlinkedRejectionsCanResubmit()
+    public async Task SubmissionDetailsExposeLegacyLinkedHistoryWithoutFutureResubmissionWorkflow()
     {
         var now = DateTimeOffset.UtcNow;
         var owner = Website("submission-chain-participant", now);
@@ -646,7 +676,7 @@ public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLife
 
         var unlinkedRejectedHtml = await client.GetStringAsync($"/Submissions/{unlinkedRejected.Id}{query}");
         Assert.Contains("captain-ledger-status--rejected", unlinkedRejectedHtml, StringComparison.Ordinal);
-        Assert.Contains("handler=Resubmit", unlinkedRejectedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("handler=Resubmit", unlinkedRejectedHtml, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -683,13 +713,13 @@ public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLife
         var search = "Admin review player";
         var queueUrl = $"/Admin/Review?eventId={live.Id}&search={Uri.EscapeDataString(search)}&status=Pending";
         var queueHtml = await client.GetStringAsync(queueUrl);
-        var detailsUrl = WebUtility.HtmlDecode(Regex.Match(queueHtml, $"<a class=\"admin-review-cell-value admin-review-submission-link\"[^>]*href=\"([^\"]*/Admin/Review/Details/{child.Id}[^\"]*)\"").Groups[1].Value);
+        var detailsUrl = WebUtility.HtmlDecode(Regex.Match(queueHtml, $"<a class=\"name-btn rv-when\"[^>]*href=\"([^\"]*/Admin/Review/Details/{child.Id}[^\"]*)\"").Groups[1].Value);
         Assert.NotEmpty(detailsUrl);
         var detailsHtml = await client.GetStringAsync(detailsUrl);
         AssertContext(detailsHtml);
 
         var rejectForm = Regex.Matches(detailsHtml, @"<form\b[\s\S]*?</form>")
-            .Select(match => match.Value).Single(form => form.Contains("data-admin-review-reject-form", StringComparison.Ordinal));
+            .Select(match => match.Value).Single(form => form.Contains("data-review-form=\"reject\"", StringComparison.Ordinal));
         var action = WebUtility.HtmlDecode(Regex.Match(rejectForm, "action=\"([^\"]+)\"").Groups[1].Value);
         var fields = Regex.Matches(rejectForm, @"<input\b[^>]*>").Select(match => match.Value)
             .Where(input => input.Contains("type=\"hidden\"", StringComparison.Ordinal))
@@ -703,7 +733,7 @@ public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLife
         var resolvedHtml = await client.GetStringAsync(redirect);
         AssertContext(resolvedHtml);
         Assert.Contains("Journey rejection reason.", resolvedHtml, StringComparison.Ordinal);
-        var backUrl = WebUtility.HtmlDecode(Regex.Match(resolvedHtml, "<a[^>]*class=\"[^\"]*admin-review-back-link[^\"]*\"[^>]*href=\"([^\"]+)\"").Groups[1].Value);
+        var backUrl = WebUtility.HtmlDecode(Regex.Match(resolvedHtml, "<a[^>]*id=\"back-btn\"[^>]*href=\"([^\"]+)\"").Groups[1].Value);
         var backQuery = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(client.BaseAddress!, backUrl).Query);
         Assert.Equal(live.Id.ToString(), backQuery["eventId"].ToString());
         Assert.Equal(search, backQuery["search"].ToString());
@@ -744,11 +774,12 @@ public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLife
         Assert.DoesNotContain("Admin review player", hiddenHtml, StringComparison.Ordinal);
         Assert.DoesNotContain("data-admin-event-navigation", hiddenHtml, StringComparison.Ordinal);
 
+        // U8 (A10): new-layout shell; the selected event comes from the submission (A2), whatever eventId the link carries.
         void AssertContext(string html)
         {
-            Assert.Contains($"<span class=\"admin-selected-event-name\">{live.Name}</span>", html, StringComparison.Ordinal);
-            Assert.Contains($"data-admin-event-section=\"overview\" href=\"/Admin/Events/Manage/{live.Id}\"", html, StringComparison.Ordinal);
-            Assert.Contains("data-admin-review-detail", html, StringComparison.Ordinal);
+            Assert.Contains($"href=\"/Admin/Events/Manage/{live.Id}\"", html, StringComparison.Ordinal);
+            Assert.Contains(live.Name, WebUtility.HtmlDecode(html), StringComparison.Ordinal);
+            Assert.Contains("data-review-workspace", html, StringComparison.Ordinal);
         }
     }
 
@@ -759,10 +790,8 @@ public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLife
         var admin = Website("admin-review-event-scope", now);
         admin.SetGlobalRole(GlobalRole.Admin);
         admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "password"), false, now, false);
-        var emptyDraft = new BingoEvent(Guid.NewGuid(), "Admin review empty draft", "admin-review-empty-draft", "UTC", admin.Id, now);
-        var selected = LiveEvent(admin.Id, "Admin review finalized", "admin-review-finalized", now);
-        selected.EndEvent(now.AddHours(-1));
-        selected.FinalizeResults(now.AddMinutes(-30));
+        var emptyDraft = new BingoEvent(Guid.NewGuid(), "Admin review empty draft", "admin-review-empty-draft", "UTC", admin.Id, now, Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
+        var selected = LiveEvent(admin.Id, "Admin review selected", "admin-review-selected", now);
         var other = LiveEvent(admin.Id, "Admin review other", "admin-review-other", now);
         var hidden = LiveEvent(admin.Id, "Admin review hidden", "admin-review-hidden", now);
         hidden.EndEvent(now.AddHours(-1));
@@ -811,7 +840,7 @@ public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLife
         var emptyHtml = await emptyResponse.Content.ReadAsStringAsync();
         Assert.Equal(HttpStatusCode.OK, emptyResponse.StatusCode);
         Assert.Contains($"data-event-id=\"{emptyDraft.Id}\"", emptyHtml, StringComparison.Ordinal);
-        Assert.Contains("No submissions match these filters", emptyHtml, StringComparison.Ordinal);
+        Assert.Contains("No submissions yet", emptyHtml, StringComparison.Ordinal); // U8 (A10): Review.dc.html empty state
 
         var selectedResponse = await client.GetAsync($"/Admin/Review?eventId={selected.Id}");
         var selectedHtml = await selectedResponse.Content.ReadAsStringAsync();
@@ -820,25 +849,39 @@ public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLife
         Assert.Contains("Selected review team", selectedHtml, StringComparison.Ordinal);
         Assert.Contains("Selected review player", selectedHtml, StringComparison.Ordinal);
         Assert.Contains("Selected review tile", selectedHtml, StringComparison.Ordinal);
-        Assert.DoesNotContain("data-review-team=\"Other review team\"", selectedHtml, StringComparison.Ordinal);
-        Assert.DoesNotContain("data-review-player=\"Other review player\"", selectedHtml, StringComparison.Ordinal);
+        // U8 (A10): new-layout queue rows (Review.dc.html); decisions are only in the workspace.
+        Assert.DoesNotContain("Other review team", selectedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Other review player", selectedHtml, StringComparison.Ordinal);
         Assert.Contains($"/Admin/Review/Details/{selectedSubmission.Id}", selectedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Reverse approval", selectedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-review-action=\"reverse\"", selectedHtml, StringComparison.Ordinal);
 
-        var renderedSubmissionIds = Regex.Matches(selectedHtml, @"<tr data-admin-review-row[^>]*>[\s\S]*?/Admin/Review/Details/([0-9a-f-]+)")
+        var renderedSubmissionIds = Regex.Matches(selectedHtml, "data-review-row=\"([0-9a-f-]+)\"")
             .Select(match => Guid.Parse(match.Groups[1].Value)).ToArray();
         Assert.Equal(new[] { newerPending.Id, selectedSubmission.Id, rejected.Id, approved.Id }, renderedSubmissionIds);
 
+        // C-CMP-1 (U8, A10): a hidden or unknown event is Not Found (before: 200 with an empty queue); never another event's rows.
         var hiddenResponse = await client.GetAsync($"/Admin/Review?eventId={hidden.Id}");
         var hiddenHtml = await hiddenResponse.Content.ReadAsStringAsync();
-        Assert.Equal(HttpStatusCode.OK, hiddenResponse.StatusCode);
-        Assert.Contains("data-event-id=\"\"", hiddenHtml, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.NotFound, hiddenResponse.StatusCode);
         Assert.DoesNotContain("Selected review team", hiddenHtml, StringComparison.Ordinal);
 
         var invalidResponse = await client.GetAsync($"/Admin/Review?eventId={Guid.NewGuid()}");
         var invalidHtml = await invalidResponse.Content.ReadAsStringAsync();
-        Assert.Equal(HttpStatusCode.OK, invalidResponse.StatusCode);
-        Assert.Contains("data-event-id=\"\"", invalidHtml, StringComparison.Ordinal);
+        Assert.Equal(HttpStatusCode.NotFound, invalidResponse.StatusCode);
         Assert.DoesNotContain("Selected review team", invalidHtml, StringComparison.Ordinal);
+
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var item = await db.Events.SingleAsync(value => value.Id == selected.Id);
+            item.EndEvent(now);
+            item.FinalizeResults(now);
+            await db.SaveChangesAsync();
+        }
+        var closedReviewHtml = await client.GetStringAsync($"/Admin/Review?eventId={selected.Id}");
+        Assert.Contains($"data-review-row=\"{approved.Id}\"", closedReviewHtml, StringComparison.Ordinal);
+        Assert.Contains("Finished · review is read-only", WebUtility.HtmlDecode(closedReviewHtml), StringComparison.Ordinal);
+        Assert.DoesNotContain("Reverse approval", closedReviewHtml, StringComparison.Ordinal);
 
         await using (var db = new ApplicationDbContext(options))
         {
@@ -847,7 +890,8 @@ public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLife
             await db.SaveChangesAsync();
         }
         var finalizeHtml = await client.GetStringAsync($"/Admin/Events/Finalize/{selected.Id}");
-        var pendingBlocker = Assert.Single(Regex.Matches(finalizeHtml, @"<article\b[\s\S]*?</article>"),
+        // A10: readiness rows use the shared check-list markup; scoped Review routing is unchanged.
+        var pendingBlocker = Assert.Single(Regex.Matches(finalizeHtml, @"<li\b[\s\S]*?</li>"),
             match => match.Value.Contains("Pending submissions", StringComparison.Ordinal));
         var pendingLink = WebUtility.HtmlDecode(Regex.Match(pendingBlocker.Value, "href=\"([^\"]+)\"").Groups[1].Value);
         Assert.Equal($"/Admin/Review?eventId={selected.Id}&status=Pending", pendingLink);
@@ -858,12 +902,11 @@ public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLife
         Assert.Contains("<option value=\"Pending\" selected=\"selected\">", pendingHtml, StringComparison.Ordinal);
         Assert.Contains($"/Admin/Review/Details/{selectedSubmission.Id}", pendingHtml, StringComparison.Ordinal);
         Assert.Contains($"/Admin/Review/Details/{newerPending.Id}", pendingHtml, StringComparison.Ordinal);
-        var pendingQueueRows = string.Join("", Regex.Matches(pendingHtml, @"<tr data-admin-review-row\b[\s\S]*?</tr>").Select(match => match.Value));
-        Assert.DoesNotContain($"/Admin/Review/Details/{otherSubmission.Id}", pendingQueueRows, StringComparison.Ordinal);
-        Assert.DoesNotContain("data-review-team=\"Other review team\"", pendingHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain($"/Admin/Review/Details/{otherSubmission.Id}", pendingHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("Other review team", pendingHtml, StringComparison.Ordinal);
         var unscopedHtml = await client.GetStringAsync("/Admin/Review?status=Pending");
-        Assert.Contains("data-event-id=\"\"", unscopedHtml, StringComparison.Ordinal);
-        Assert.DoesNotContain("data-admin-review-row", unscopedHtml, StringComparison.Ordinal);
+        Assert.Contains("Choose an event", unscopedHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-review-row", unscopedHtml, StringComparison.Ordinal);
         using var anonymous = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var denied = await anonymous.GetAsync(pendingLink);
         Assert.Equal(HttpStatusCode.Redirect, denied.StatusCode);
@@ -872,7 +915,7 @@ public sealed partial class CaptainScopedNavigationIntegrationTests : IAsyncLife
 
     private static BingoEvent LiveEvent(Guid ownerId, string name, string slug, DateTimeOffset now)
     {
-        var item = new BingoEvent(Guid.NewGuid(), name, slug, "UTC", ownerId, now.AddDays(-2));
+        var item = new BingoEvent(Guid.NewGuid(), name, slug, "UTC", ownerId, now.AddDays(-2), Bingo.Domain.Events.PlacementRule.LegacyScoreTimeThenEhb);
         item.ConfigureSchedule(now.AddDays(-2), now.AddDays(-1), null, now.AddHours(-1), now.AddHours(2), 20);
         item.OpenSignups(now.AddDays(-2));
         item.CloseSignups(now.AddDays(-1));

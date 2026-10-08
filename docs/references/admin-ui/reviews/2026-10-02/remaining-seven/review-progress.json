@@ -1,0 +1,77 @@
+{
+  "scope": [
+    "Board",
+    "Audit",
+    "Review",
+    "FinalReview",
+    "Wom",
+    "Catalogue",
+    "Accounts"
+  ],
+  "mode": "independent source review only",
+  "visual_acceptance": "pending for every page",
+  "runtime_checks": "unexecuted",
+  "numbered_findings_total": 47,
+  "repository_edits": "none by this assignment",
+  "completed": [
+    {
+      "page": "Board",
+      "disposition": "changes required",
+      "numbered_findings": 7,
+      "report": "/private/tmp/admin-reference-review-20261002/board-audit-review.md",
+      "report_sha256": "4aeb7945576fd9febc5e57b11fd91797233a1199090d7c6bdf069602a22ac21a",
+      "production_manifest": "/private/tmp/admin-reference-review-20261002/board-audit-production-sha256.json"
+    },
+    {
+      "page": "Audit",
+      "disposition": "changes required",
+      "numbered_findings": 4,
+      "report": "/private/tmp/admin-reference-review-20261002/board-audit-review.md",
+      "report_sha256": "4aeb7945576fd9febc5e57b11fd91797233a1199090d7c6bdf069602a22ac21a",
+      "production_manifest": "/private/tmp/admin-reference-review-20261002/board-audit-production-sha256.json"
+    },
+    {
+      "page": "Review",
+      "disposition": "changes required",
+      "numbered_findings": 8,
+      "report": "/private/tmp/admin-reference-review-20261002/review-finalreview-review.md",
+      "report_sha256": "18706e0db1218129f984c7d9c8ca79df604c3531de1029100050c6ed7843fc39",
+      "production_manifest": "/private/tmp/admin-reference-review-20261002/review-finalreview-production-sha256.json"
+    },
+    {
+      "page": "FinalReview",
+      "disposition": "changes required",
+      "numbered_findings": 6,
+      "report": "/private/tmp/admin-reference-review-20261002/review-finalreview-review.md",
+      "report_sha256": "18706e0db1218129f984c7d9c8ca79df604c3531de1029100050c6ed7843fc39",
+      "production_manifest": "/private/tmp/admin-reference-review-20261002/review-finalreview-production-sha256.json"
+    },
+    {
+      "page": "Wom",
+      "disposition": "changes required",
+      "numbered_findings": 6,
+      "report": "/private/tmp/admin-reference-review-20261002/wom-catalogue-review.md",
+      "report_sha256": "d2a4b3d8a57bb21c4daaf7f573f424760e0558d92caa6c2c3cbc02af0c246dc2",
+      "production_manifest": "/private/tmp/admin-reference-review-20261002/wom-catalogue-production-sha256.json"
+    },
+    {
+      "page": "Catalogue",
+      "disposition": "changes required",
+      "numbered_findings": 8,
+      "report": "/private/tmp/admin-reference-review-20261002/wom-catalogue-review.md",
+      "report_sha256": "d2a4b3d8a57bb21c4daaf7f573f424760e0558d92caa6c2c3cbc02af0c246dc2",
+      "production_manifest": "/private/tmp/admin-reference-review-20261002/wom-catalogue-production-sha256.json"
+    },
+    {
+      "page": "Accounts",
+      "disposition": "changes required",
+      "numbered_findings": 8,
+      "report": "/private/tmp/admin-reference-review-20261002/accounts-review.md",
+      "report_sha256": "9fe0e913e74e5fdc407561de8d8ea75c8a2a46396bcff3e7bbf90354997ef9e4",
+      "production_manifest": "/private/tmp/admin-reference-review-20261002/accounts-production-sha256.json"
+    }
+  ],
+  "reference_manifest": "/private/tmp/admin-reference-review-20261002/reference-sha256.json",
+  "final_drift": "/private/tmp/admin-reference-review-20261002/final-drift-check.json",
+  "remaining": []
+}

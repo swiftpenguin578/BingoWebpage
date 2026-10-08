@@ -1,0 +1,16 @@
+PASS readonly signupsetup 390
+PASS readonly signupsetup 494
+PASS readonly signupsetup 860
+PASS readonly signupsetup 1280
+PASS readonly signupsetup 1440
+PASS readonly schedule 390
+PASS readonly schedule 494
+PASS readonly schedule 860
+PASS readonly schedule 1280
+PASS readonly schedule 1440
+PASS readonly identity 390
+PASS readonly identity 494
+PASS readonly identity 860
+PASS readonly identity 1280
+PASS readonly identity 1440
+PASS shared drawer readonly value

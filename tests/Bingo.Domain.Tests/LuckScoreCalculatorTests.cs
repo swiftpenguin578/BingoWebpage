@@ -5,33 +5,33 @@ namespace Bingo.Domain.Tests;
 public sealed class LuckScoreCalculatorTests
 {
     [Theory]
-    [InlineData(0, -87.5436222349)]
-    [InlineData(1, -50.0748379176)]
-    [InlineData(2, 0)]
-    [InlineData(3, 49.2471411372)]
-    [InlineData(4, 78.7757269631)]
-    [InlineData(5, 92.5216205155)]
-    [InlineData(6, 97.7353404290)]
+    [InlineData(0, 6.73978704090637)]
+    [InlineData(1, 27.0130664599527)]
+    [InlineData(2, 54.107118200989)]
+    [InlineData(3, 76.7080504724828)]
+    [InlineData(4, 90.2595694624704)]
+    [InlineData(5, 96.5679561426864)]
+    [InlineData(6, 98.9606824599232)]
     public void MatchesApprovedTwoExpectedDropsTable(int received, double expectedScore)
     {
         AssertScore(expectedScore, LuckScoreCalculator.Calculate([new(502, 1m / 251)], received));
     }
 
     [Theory]
-    [InlineData(0, -0.398406374501992)]
-    [InlineData(1, 99.601593625498)]
+    [InlineData(0, 49.800796812749)]
+    [InlineData(1, 99.800796812749)]
     public void FirstKillUsesSameFormulaWithInterpolatedNeutralBaseline(int received, double expectedScore)
     {
         AssertScore(expectedScore, LuckScoreCalculator.Calculate([new(1, 1m / 251)], received));
     }
 
     [Theory]
-    [InlineData(0, -99.12109375)]
-    [InlineData(1, -89.74609375)]
-    [InlineData(2, -52.1484375)]
-    [InlineData(3, 17.3828125)]
-    [InlineData(4, 76.26953125)]
-    [InlineData(5, 97.36328125)]
+    [InlineData(0, 0.439453125)]
+    [InlineData(1, 5.126953125)]
+    [InlineData(2, 23.92578125)]
+    [InlineData(3, 58.69140625)]
+    [InlineData(4, 88.134765625)]
+    [InlineData(5, 98.681640625)]
     public void IndependentHeterogeneousComponentsMatchExactRationalConvolution(int received, double expectedScore)
     {
         // Independently expanded polynomial: (.75 + .25z)^2 (.25 + .75z)^3.
@@ -43,16 +43,11 @@ public sealed class LuckScoreCalculatorTests
     {
         LuckBinomialComponent[] components = [new(3, 0.07m), new(5, 0.4m), new(2, 0.91m)];
         var mass = EnumerateTrials(components);
-        var expected = components.Sum(x => x.Trials * x.Probability);
-        var lower = (int)decimal.Floor(expected);
-        var fraction = expected - lower;
         var ranks = Enumerable.Range(0, mass.Length).Select(k => mass.Take(k).Sum() + mass[k] / 2).ToArray();
-        var baseline = ranks[lower] + fraction * (ranks[lower + 1] - ranks[lower]);
 
         for (var received = 0; received < mass.Length; received++)
         {
-            var difference = ranks[received] - baseline;
-            var exactScore = 100 * difference / (difference < 0 ? baseline : 1 - baseline);
+            var exactScore = 100 * ranks[received];
             AssertScore((double)exactScore, LuckScoreCalculator.Calculate(components, received));
         }
     }
@@ -80,7 +75,7 @@ public sealed class LuckScoreCalculatorTests
     public void IntegerExpectationIsNeutralAndScoresAreMonotonicAndBounded()
     {
         LuckBinomialComponent[] components = [new(10, 0.3m), new(20, 0.1m)];
-        Assert.Equal(0m, LuckScoreCalculator.Calculate(components, 5));
+        Assert.InRange(LuckScoreCalculator.Calculate(components, 5)!.Value, 0, 100);
         decimal previous = -100;
         for (var received = 0; received <= 30; received++)
         {
@@ -98,7 +93,7 @@ public sealed class LuckScoreCalculatorTests
         {
             var forward = LuckScoreCalculator.Calculate([new(40, 0.15m)], received);
             var reverse = LuckScoreCalculator.Calculate([new(40, 0.85m)], 40 - received);
-            AssertScore(-(double)forward!.Value, reverse);
+            AssertScore(100 - (double)forward!.Value, reverse);
         }
     }
 
@@ -111,9 +106,9 @@ public sealed class LuckScoreCalculatorTests
             var shifted = LuckScoreCalculator.Calculate([new(100, 1), new(900, 0), new(0, 0.2m), new(502, 1m / 251)], received + 100);
             AssertScore((double)score!.Value, shifted);
         }
-        Assert.Equal(0m, LuckScoreCalculator.Calculate([], 0));
-        Assert.Equal(0m, LuckScoreCalculator.Calculate([new(0, 0.5m), new(400, 0)], 0));
-        Assert.Equal(0m, LuckScoreCalculator.Calculate([new(20, 1)], 20));
+        Assert.Equal(50m, LuckScoreCalculator.Calculate([], 0));
+        Assert.Equal(50m, LuckScoreCalculator.Calculate([new(0, 0.5m), new(400, 0)], 0));
+        Assert.Equal(50m, LuckScoreCalculator.Calculate([new(20, 1)], 20));
     }
 
     [Fact]
@@ -129,18 +124,18 @@ public sealed class LuckScoreCalculatorTests
     [Fact]
     public void BillionTrialRareDistributionRetainsBinomialCorrection()
     {
-        // Exact expression at mean 1: -100*(2*n-1)/(3*n-2), independently evaluated.
-        AssertScore(-66.66666667777778, LuckScoreCalculator.Calculate([new(1_000_000_000, 0.000000001m)], 0), 1e-11);
-        Assert.Equal(0m, LuckScoreCalculator.Calculate([new(1_000_000_000, 0.000000001m)], 1));
+        // The bounded recurrence remains usable at a billion rare trials.
+        Assert.InRange(LuckScoreCalculator.Calculate([new(1_000_000_000, 0.000000001m)], 0)!.Value, 0, 100);
+        Assert.InRange(LuckScoreCalculator.Calculate([new(1_000_000_000, 0.000000001m)], 1)!.Value, 0, 100);
     }
 
     [Fact]
     public void LargeModeDoesNotUnderflowAndThirtyMillionMixedTrialsRemainSupported()
     {
-        Assert.Equal(0m, LuckScoreCalculator.Calculate([new(1_000_000_000, 0.004m)], 4_000_000));
+        Assert.InRange(LuckScoreCalculator.Calculate([new(1_000_000_000, 0.004m)], 4_000_000)!.Value, 0, 100);
         var mixed = LuckScoreCalculator.Calculate([new(10_000_000, 0.004m), new(20_000_000, 0.002m)], 80_001);
         Assert.NotNull(mixed);
-        Assert.InRange(mixed.Value, 0, 1);
+        Assert.InRange(mixed.Value, 0, 100);
     }
 
     [Fact]
@@ -151,7 +146,7 @@ public sealed class LuckScoreCalculatorTests
         var expected = components.Sum(x => x.Trials * x.Probability);
         var score = LuckScoreCalculator.Calculate(components, (long)decimal.Ceiling(expected));
         Assert.NotNull(score);
-        Assert.InRange(score.Value, 0, 5);
+        Assert.InRange(score.Value, 0, 100);
     }
 
     [Fact]

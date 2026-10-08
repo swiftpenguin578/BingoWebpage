@@ -6,7 +6,16 @@ public sealed class Team
     public Team(Guid id, Guid eventId, string name, string slug, TeamFormationType formationType, string? affiliationName, bool includedInDraft, DateTimeOffset? createdAt = null)
     {
         Id = id; EventId = eventId; Name = name; Slug = slug; FormationType = formationType; AffiliationName = affiliationName; IncludedInDraft = includedInDraft; Active = true; CreatedAt = (createdAt ?? DateTimeOffset.UtcNow).ToUniversalTime();
-        if (formationType == TeamFormationType.Preformed && includedInDraft) throw new InvalidOperationException("Pre-formed teams cannot receive draft turns.");
+    }
+
+    /// <summary>
+    /// Creates a team using the current product model.  FormationType is retained on
+    /// the entity only for tolerant reads of older rows; IncludedInDraft is the
+    /// authoritative participation flag for all new mutations.
+    /// </summary>
+    public Team(Guid id, Guid eventId, string name, string slug, string? affiliationName, bool includedInDraft, DateTimeOffset? createdAt = null)
+        : this(id, eventId, name, slug, includedInDraft ? TeamFormationType.Drafted : TeamFormationType.Preformed, affiliationName, includedInDraft, createdAt)
+    {
     }
     public Guid Id { get; private set; }
     public Guid EventId { get; private set; }
@@ -28,7 +37,14 @@ public sealed class Team
     public void SetActiveImage(Guid? assetId) => ActiveImageAssetId = assetId;
     public void LockMetadata(DateTimeOffset now) => MetadataLockedAt = now.ToUniversalTime();
     public void AdvanceVersion() => Version++;
-    public void SetDraftPosition(int? position) { if (!IncludedInDraft && position is not null) throw new InvalidOperationException("A pre-formed team cannot be placed in draft order."); DraftPosition = position; }
+    public void SetDraftPosition(int? position) { if (!IncludedInDraft && position is not null) throw new InvalidOperationException("A team excluded from the website draft cannot be placed in draft order."); DraftPosition = position; }
+    public void SetIncludedInDraft(bool included)
+    {
+        IncludedInDraft = included;
+        // FormationType is historical/descriptive data. Do not rewrite it when
+        // current draft participation changes; callers must use IncludedInDraft.
+        if (!included) DraftPosition = null;
+    }
     public void Finalize(DateTimeOffset now) => FinalizedAt = now.ToUniversalTime();
     public void SetActive(bool active) => Active = active;
 }

@@ -37,15 +37,12 @@ public sealed class SubmissionModel(
     public IReadOnlyList<RequirementView> Requirements { get; private set; } = [];
     public IReadOnlyList<DropView> Drops { get; private set; } = [];
     public IReadOnlyList<TargetView> TargetOptions { get; private set; } = [];
-    public bool CanResubmit { get; private set; }
     [BindProperty] public EditInput Input { get; set; } = new();
-    [BindProperty] public ResubmitInput Resubmission { get; set; } = new();
 
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
     {
         if (!await Load(id, ct)) return NotFound();
         Input = new() { BoardTileId = Details.TileId, RequirementId = Details.RequirementId, DropSnapshotId = Details.DropId, CreditedParticipantId = Details.PlayerId, ClaimedWeight = Details.ClaimedWeight, Note = Details.CaptainNote, ExpectedVersion = Details.Version };
-        Resubmission = new() { BoardTileId = Details.TileId, RequirementId = Details.RequirementId, DropSnapshotId = Details.DropId, Note = Details.CaptainNote, ExpectedVersion = Details.Version };
         return Page();
     }
 
@@ -64,22 +61,6 @@ public sealed class SubmissionModel(
             TempData["StatusMessage"] = text["Submission updated and returned to review."].Value;
             TempData[Bingo.Web.UI.UiMessage.TypeKey] = Bingo.Web.UI.UiMessageType.Success.ToString();
             return RedirectToPage(new { id, eventId = EventId, teamId = TeamId, handler = (string?)null });
-        }
-        catch (InvalidOperationException ex) { ModelState.AddModelError(string.Empty, SafeUserFailure.Message(text, logger, ex)); return Page(); }
-    }
-
-    public async Task<IActionResult> OnPostResubmitAsync(Guid id, CancellationToken ct)
-    {
-        if (!await Load(id, ct)) return NotFound();
-        if (Resubmission.Evidence is null) ModelState.AddModelError("Resubmission.Evidence", text["Paste, drag, or choose one screenshot."]);
-        if (!ModelState.IsValid) return Page();
-        try
-        {
-            await using var stream = Resubmission.Evidence!.OpenReadStream();
-            var result = await service.ResubmitAsync(new(id, User.GetAccountId()!.Value, Resubmission.BoardTileId, Resubmission.RequirementId, Resubmission.DropSnapshotId, Resubmission.Note, Resubmission.Evidence.FileName, stream, Resubmission.ExpectedVersion, false), ct);
-            TempData["StatusMessage"] = text["Linked resubmission created and returned to review."].Value;
-            TempData[Bingo.Web.UI.UiMessage.TypeKey] = Bingo.Web.UI.UiMessageType.Success.ToString();
-            return RedirectToPage(new { id = result.SubmissionId, eventId = EventId, teamId = TeamId, handler = (string?)null });
         }
         catch (InvalidOperationException ex) { ModelState.AddModelError(string.Empty, SafeUserFailure.Message(text, logger, ex)); return Page(); }
     }
@@ -113,7 +94,7 @@ public sealed class SubmissionModel(
         EvidenceActorScope? scope = null;
         try { scope = await evidenceAuthority.ResolveActorAsync(accountId.Value, submission.EventId, submission.TeamId, time.GetUtcNow(), ct); }
         catch (InvalidOperationException) { }
-        var currentTeamActor = scope is { Kind: EvidenceActorKind.Participant or EvidenceActorKind.Captain or EvidenceActorKind.EmergencyCaptain };
+        var currentTeamActor = scope is { Kind: EvidenceActorKind.Participant or EvidenceActorKind.Captain };
         if (!currentTeamActor && !await IsArchivedFormerOwnerAsync(accountId.Value, submission, ct)) return false;
         IsArchivedFormerOwner = !currentTeamActor;
 
@@ -141,19 +122,15 @@ public sealed class SubmissionModel(
             .Select(x => (Guid?)x.Id)
             .SingleOrDefaultAsync(ct);
         var eventItem = await db.Events.AsNoTracking().SingleAsync(x => x.Id == submission.EventId && x.HiddenAt == null, ct);
-        var windowOpen = currentTeamActor && scope!.Kind == EvidenceActorKind.EmergencyCaptain
-            ? eventItem.AcceptsEmergencySubmissions(time.GetUtcNow())
-            : currentTeamActor && eventItem.AcceptsNewSubmissions(time.GetUtcNow());
-        var canMutate = currentTeamActor && (scope!.Kind is EvidenceActorKind.Captain or EvidenceActorKind.EmergencyCaptain ||
+        var windowOpen = currentTeamActor && eventItem.AcceptsNewSubmissions(time.GetUtcNow());
+        var canMutate = currentTeamActor && (scope!.Kind is EvidenceActorKind.Captain ||
                         scope.Kind == EvidenceActorKind.Participant && scope.CreditedParticipantId == submission.CreditedParticipantId);
         Details = new(submission.Id, submission.BoardTileId, submission.RequirementId, submission.DropSnapshotId, submission.CreditedParticipantId,
             tile.NameSnapshot, requirement.Description, drop is null ? null : $"{drop.ItemName} ({drop.DisplayRate})", submission.CreditedCharacterName,
             submission.Status, submission.ClaimedWeight, submission.ApprovedContribution, submission.SubmittedAt, submission.CaptainNote,
             submission.CurrentReviewerNote, submission.ExpectedEvidenceCode, asset?.Id,
             canMutate && windowOpen && submission.Status == SubmissionStatus.Pending,
-            canMutate && windowOpen && submission.Status is (SubmissionStatus.Rejected or SubmissionStatus.Reversed) && replacementId is null,
             submission.ResubmissionOfSubmissionId, replacementId, submission.Version);
-        CanResubmit = Details.Resubmittable;
 
         var board = await db.Boards.AsNoTracking().SingleAsync(x => x.EventId == submission.EventId, ct);
         var tiles = publication.Tiles;
@@ -192,17 +169,7 @@ public sealed class SubmissionModel(
         public int? ExpectedVersion { get; set; }
     }
 
-    public sealed class ResubmitInput
-    {
-        [Required] public Guid BoardTileId { get; set; }
-        [Required] public Guid RequirementId { get; set; }
-        public Guid? DropSnapshotId { get; set; }
-        [StringLength(4000)] public string? Note { get; set; }
-        public IFormFile? Evidence { get; set; }
-        public int? ExpectedVersion { get; set; }
-    }
-
-    public sealed record DetailsView(Guid Id, Guid TileId, Guid RequirementId, Guid? DropId, Guid PlayerId, string Tile, string Requirement, string? Drop, string Player, SubmissionStatus Status, int ClaimedWeight, int Approved, DateTimeOffset SubmittedAt, string? CaptainNote, string? Feedback, string? ExpectedCode, Guid? AssetId, bool Editable, bool Resubmittable, Guid? PriorSubmissionId, Guid? ReplacementSubmissionId, int Version = 1)
+    public sealed record DetailsView(Guid Id, Guid TileId, Guid RequirementId, Guid? DropId, Guid PlayerId, string Tile, string Requirement, string? Drop, string Player, SubmissionStatus Status, int ClaimedWeight, int Approved, DateTimeOffset SubmittedAt, string? CaptainNote, string? Feedback, string? ExpectedCode, Guid? AssetId, bool Editable, Guid? PriorSubmissionId, Guid? ReplacementSubmissionId, int Version = 1)
     {
         public string DisplayStatus => ReplacementSubmissionId is not null ? "Replaced" : Status.ToString();
     }

@@ -5,16 +5,21 @@ public sealed class AdminShellUiTests
     [Fact]
     public void AdminPagesUseTheDedicatedShellAndRealNavigationDestinations()
     {
+        // A10 (U10 part 2): the old _AdminLayout and its fallback are retired; every Admin page renders in the
+        // redesigned shell, so the old-layout markup/CSS assertions are replaced by the same contract on the new shell.
         var root = FindRepositoryRoot();
         var adminRoot = Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin");
+        var shared = Path.Combine(root, "src", "Bingo.Web", "Pages", "Shared");
         var viewStart = File.ReadAllText(Path.Combine(adminRoot, "_ViewStart.cshtml"));
-        var layout = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Shared", "_AdminLayout.cshtml"));
+        var sidebar = File.ReadAllText(Path.Combine(shared, "_AdminDesignSidebar.cshtml"));
         var shellService = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Navigation", "SharedShellService.cs"));
         var questions = File.ReadAllText(Path.Combine(adminRoot, "Events", "Questions.cshtml"));
-        var overlayLayout = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Shared", "_AdminOverlayLayout.cshtml"));
-        var styles = BrowserTestFiles.ReadActiveStyles(root);
 
-        Assert.Contains("Layout = \"_AdminLayout\"", viewStart);
+        Assert.Contains("Layout = \"_AdminDesignLayout\"", viewStart);
+        Assert.DoesNotContain("_AdminLayout\"", viewStart);
+        Assert.DoesNotContain("AdminDesignAttribute", viewStart);
+        foreach (var name in new[] { "_AdminLayout.cshtml", "_AdminOverlayLayout.cshtml", "_AdminConfirmation.cshtml" })
+            Assert.False(File.Exists(Path.Combine(shared, name)), name);
         foreach (var page in Directory.EnumerateFiles(adminRoot, "*.cshtml", SearchOption.AllDirectories))
         {
             var markup = File.ReadAllText(page);
@@ -24,85 +29,29 @@ public sealed class AdminShellUiTests
                 Assert.DoesNotContain("Layout =", markup);
         }
 
-        foreach (var destination in new[] { "/Admin", "/Admin/Events/Index", "/Admin/Catalogue/Index", "/Admin/Accounts/Index", "/Admin/Audit/Index" })
-            Assert.Contains(destination, layout);
-        Assert.Contains("href=\"/Admin\" aria-current=\"@(isCurrent(\"/Admin\") ? \"page\" : null)\"><svg class=\"admin-nav-icon\"", layout);
-        Assert.Contains("data-admin-menu-toggle", layout);
-        Assert.Contains("data-admin-menu-scrim", layout);
-        Assert.Contains("aria-current", layout);
-        Assert.Contains("data-notification-inbox", layout);
-        Assert.Contains("Exit Admin", layout);
-        Assert.DoesNotContain("class=\"admin-nav-label\"", layout);
-        Assert.Contains("data-admin-event-navigation", layout);
-        Assert.Contains("admin-header-blockers", layout);
-        Assert.Contains("eventContext?.BlockerCount ?? 0", layout);
-        Assert.Contains("blockerHref", layout);
-        Assert.Contains("GetAdminEventBlockerCountAsync", shellService);
-        Assert.Contains("IEventReadinessEvaluator", shellService);
-        Assert.Contains("admin-event-item", layout);
-        Assert.Contains("data-admin-event-section=\"participants\"", layout);
-        Assert.Contains("data-admin-event-section=\"schedule\"", layout);
-        Assert.Contains("@T[\"Identity\"]", layout);
-        Assert.Contains("href=\"/Admin/Events/Participants/@eventContext.Id\"", layout);
-        Assert.Contains("href=\"/Admin/Events/Schedule/@eventContext.Id\"", layout);
-        Assert.Contains("@T[\"Review\"]", layout);
-        Assert.Contains("data-admin-event-section=\"evidence\"", layout);
-        Assert.Contains("/Admin/Review?eventId=", layout);
-        Assert.Contains("admin-brand-mark", layout);
-        Assert.Contains("DK Legacy", layout);
-        Assert.Contains("~/images/branding/dk-legacy-admin-mark.png", layout);
-        Assert.Contains("class=\"admin-brand\" asp-page=\"/Index\"", layout);
-        Assert.Contains("admin-account-avatar", layout);
-        Assert.Contains("admin-selected-event-empty", layout);
-        Assert.Contains("Select an event", layout);
-        Assert.Contains("admin-event-selector-chevron", layout);
-        Assert.Contains("m6 9 6 6 6-6", layout);
-        Assert.Contains("summary::marker", styles);
-        Assert.DoesNotContain("details[open] .admin-event-selector-chevron", styles);
-        Assert.DoesNotContain("@eventContext.Name (@eventContext.StatusLabel)", layout);
-        Assert.DoesNotContain("admin-selected-event-state-slot", layout);
-        Assert.DoesNotContain("admin-state admin-state-@eventContext.State", layout);
-        Assert.Contains("flex: 0 0 25px", styles);
-        Assert.Contains("width: 25px; height: 25px", styles);
-        Assert.Contains("padding: 0.125rem 0.5rem", styles);
-        Assert.Contains("margin-left: auto; flex: 0 0 auto", styles);
-        Assert.Contains("min-height: 2.25rem", styles);
-        Assert.Contains("border-radius: 999px", styles);
-        Assert.Contains("data-admin-event-selector", layout);
-        Assert.Contains("admin-event-option", layout);
-        Assert.Contains("asp-page=\"/Admin/Events/Manage\"", layout);
-        Assert.Contains("asp-route-id=\"@option.Id\"", layout);
-        Assert.Contains("role=\"option\"", layout);
-        Assert.Contains("admin-event-selector", File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "js", "site.js")));
-        var siteJs = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "js", "site.js"));
-        Assert.Contains("previouslyFocused", siteJs);
-        Assert.Contains("event.key === \"Tab\"", siteJs);
-        Assert.Contains("event.shiftKey && (!sidebar.contains(document.activeElement)", siteJs);
-        Assert.Contains("!event.shiftKey && (!sidebar.contains(document.activeElement)", siteJs);
-        Assert.Contains("setOpen(false, true)", siteJs);
-        Assert.Contains("window.innerWidth > 900", siteJs);
-        Assert.Contains("stroke=\"currentColor\"", layout);
-        Assert.DoesNotContain(">⌂<", layout);
-        Assert.Contains("--admin-page: #181818", styles);
-        Assert.Contains("--admin-surface: #1d1d1d", styles);
-        Assert.Contains("border-right: 1px solid var(--admin-divider)", styles);
-        Assert.DoesNotContain(".admin-event-nav::before", styles);
-        Assert.DoesNotContain("--admin-event-spine-center:", styles);
-        Assert.DoesNotContain("--admin-event-branch-length:", styles);
-        Assert.DoesNotContain("--admin-event-connector-gap:", styles);
-        Assert.Contains("--admin-event-link-left", styles);
-        Assert.DoesNotContain("var(--admin-event-branch-end)", styles);
-        Assert.DoesNotContain(".admin-sidebar-footer::before { display: block", styles);
-        Assert.DoesNotContain("breadcrumb-bar", layout);
-        Assert.DoesNotContain("shell.Breadcrumbs", layout);
-        Assert.DoesNotContain("BreadcrumbAction", layout);
+        foreach (var destination in new[] { "href=\"/Admin\"", "href=\"/Admin/Events/Index\"", "href=\"/Admin/Catalogue/Index\"", "href=\"/Admin/Accounts/Index\"", "href=\"/Admin/Audit/Index\"" })
+            Assert.Contains(destination, sidebar);
+        Assert.Contains("data-shell-event-context", sidebar);
+        Assert.Contains("aria-current", sidebar);
+        // U4 (brief 85 "Retired"; 42c §1.3): the header blocker count and #readiness anchor are gone.
+        Assert.DoesNotContain("admin-header-blockers", sidebar);
+        Assert.DoesNotContain("#readiness", sidebar);
+        Assert.DoesNotContain("GetAdminEventBlockerCountAsync", shellService);
+        Assert.DoesNotContain("initializeAdminMenu", File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "js", "site.js")));
 
-        Assert.Contains("Layout = \"_AdminOverlayLayout\"", questions);
-        Assert.Contains("if (!Model.IsOverlay)", questions);
+        Assert.DoesNotContain("_AdminOverlayLayout", questions);
         Assert.DoesNotContain("ViewData[\"Layout\"]", questions);
-        Assert.DoesNotContain("admin-header", overlayLayout);
-        Assert.DoesNotContain("admin-sidebar", overlayLayout);
-        Assert.Contains("@RenderBody()", overlayLayout);
+    }
+
+    [Fact]
+    public void RetiredAdminScriptsAreGone()
+    {
+        // U10 item 2: no page loads these any more (rg proof in review-notes/98e-u10-evidence.md).
+        var js = Path.Combine(FindRepositoryRoot(), "src", "Bingo.Web", "wwwroot", "js");
+        // U10 part 2 item 3: the old layout's confirmation, lifecycle and editor-guard scripts went with it.
+        foreach (var name in new[] { "draft-scramble.js", "event-manage.js", "admin-collaboration.js", "event-create-datetime.js", "event-create-validation.js", "admin-confirmation.js", "admin-lifecycle-confirm.js", "admin-editor-guard.js" })
+            Assert.False(File.Exists(Path.Combine(js, name)), name);
+        Assert.DoesNotContain("initializeAdminAccountSearch", File.ReadAllText(Path.Combine(js, "site.js")));
     }
 
     [Fact]
@@ -113,7 +62,6 @@ public sealed class AdminShellUiTests
         var publicLayout = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Shared", "_Layout.cshtml"));
         var board = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Events", "Board.cshtml"));
         var teamBoard = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Events", "TeamBoard.cshtml"));
-        var adminLayout = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Shared", "_AdminLayout.cshtml"));
         var siteCss = BrowserTestFiles.ReadActiveStyles(root);
 
         Assert.Contains("Layout = \"_Layout\"", publicViewStart);
@@ -157,8 +105,7 @@ public sealed class AdminShellUiTests
         Assert.Contains("body.public-ui-page-canvas .landing-shell-link", siteCss);
         Assert.Contains(".landing-shell-menu-panel", siteCss);
         Assert.Contains(".landing-shell-header :is(a, summary, button):focus-visible", siteCss);
-        Assert.Contains("admin-shell", adminLayout);
-        Assert.DoesNotContain("app-nav", adminLayout);
+        Assert.False(File.Exists(Path.Combine(root, "src", "Bingo.Web", "Pages", "Shared", "_AdminLayout.cshtml"))); // U10 part 2 (A10)
         Assert.Contains("ViewData[\"BodyClass\"] = \"public-event-shell public-ui-pass1 public-board-page public-board-overview\"", board);
         Assert.DoesNotContain("public-board-page", teamBoard);
         Assert.Contains("public-ui-header-context-nav", publicLayout);

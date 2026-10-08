@@ -12,14 +12,22 @@ using Npgsql;
 
 namespace Bingo.Infrastructure.Events;
 
-public sealed class EventDestructiveLifecycleService(ApplicationDbContext db, TimeProvider time, IEventBannerCleanupService? cleanup = null) : IEventDestructiveLifecycleService
+public sealed class EventDestructiveLifecycleService(ApplicationDbContext db, TimeProvider time) : IEventDestructiveLifecycleService
 {
     public async Task<LifecycleMutationResult> DiscardAsync(Guid eventId, long version, bool confirmed, LifecycleActor actor, CancellationToken ct = default)
     {
-        if (!confirmed) return new(false, "Confirm that you want to permanently discard this empty event setup.");
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
+            var authorizedActor = await EventMutationAuthorization.GetAuthorizedActorAsync(db, actor, ct);
+            if (authorizedActor is null)
+            {
+                await tx.RollbackAsync(ct);
+                return new(false, EventMutationAuthorization.UnauthorizedMessage);
+            }
+            actor = authorizedActor;
+            if (!confirmed) return new(false, "Confirm that you want to permanently discard this empty event setup.");
+
             var item = await LockedEventAsync(eventId, version, ct);
             var protectedCategory = await FirstProtectedCategoryAsync(eventId, ct);
             if (protectedCategory is not null)
@@ -27,15 +35,12 @@ public sealed class EventDestructiveLifecycleService(ApplicationDbContext db, Ti
 
             var now = time.GetUtcNow();
             var from = item.State;
-            var bannerKeys = await db.EventBannerAssets.Where(x => x.EventId == eventId).Select(x => x.StorageKey).ToListAsync(ct);
-            db.EventBannerCleanups.AddRange(bannerKeys.Distinct(StringComparer.Ordinal).Select(key => new EventBannerCleanup(Guid.NewGuid(), eventId, key, now)));
             item.Discard(actor.Id, now, false);
             await db.SaveChangesAsync(ct);
             await DeleteDisposableSetupAsync(eventId, ct);
             AddHistory(item, from, actor, "event.discarded", "Empty event setup discarded", now);
             await db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
-            if (cleanup is not null) await cleanup.ProcessEventAsync(eventId, ct);
             return new(true);
         }
         catch (DbUpdateConcurrencyException) { await tx.RollbackAsync(ct); return new(false, "This event changed while it was being discarded. Review it and try again."); }
@@ -45,11 +50,19 @@ public sealed class EventDestructiveLifecycleService(ApplicationDbContext db, Ti
 
     public async Task<LifecycleMutationResult> CancelAsync(Guid eventId, long version, bool confirmed, string? reason, LifecycleActor actor, CancellationToken ct = default)
     {
-        if (!confirmed) return new(false, "Confirm that you want to cancel this event.");
-        if (string.IsNullOrWhiteSpace(reason)) return new(false, "Enter a reason for cancelling the event.");
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
         try
         {
+            var authorizedActor = await EventMutationAuthorization.GetAuthorizedActorAsync(db, actor, ct);
+            if (authorizedActor is null)
+            {
+                await tx.RollbackAsync(ct);
+                return new(false, EventMutationAuthorization.UnauthorizedMessage);
+            }
+            actor = authorizedActor;
+            if (!confirmed) return new(false, "Confirm that you want to cancel this event.");
+            if (string.IsNullOrWhiteSpace(reason)) return new(false, "Enter a reason for cancelling the event.");
+
             var item = await LockedEventAsync(eventId, version, ct);
             var protectedHistory = await FirstProtectedCategoryAsync(eventId, ct) is not null;
             var now = time.GetUtcNow();
@@ -108,6 +121,8 @@ public sealed class EventDestructiveLifecycleService(ApplicationDbContext db, Ti
         await db.BoardTileImageAssets.Where(x => tileIds.Contains(x.BoardTileId)).ExecuteDeleteAsync(ct);
         await db.BoardTiles.Where(x => boardIds.Contains(x.BoardId)).ExecuteDeleteAsync(ct);
         await db.Boards.Where(x => x.EventId == eventId).ExecuteDeleteAsync(ct);
+        // Retain committed field-add identities with the event tombstone. Their scalar
+        // question IDs deliberately do not prevent disposable setup deletion.
         await db.SignupQuestions.Where(x => x.EventId == eventId).ExecuteDeleteAsync(ct);
         await db.SignupForms.Where(x => x.EventId == eventId).ExecuteDeleteAsync(ct);
         await db.DraftSessions.Where(x => x.EventId == eventId).ExecuteDeleteAsync(ct);
@@ -116,7 +131,6 @@ public sealed class EventDestructiveLifecycleService(ApplicationDbContext db, Ti
         await db.ScheduledSignupOpeningAttempts.Where(x => x.EventId == eventId).ExecuteDeleteAsync(ct);
         await db.FinalReviewResolutions.Where(x => x.EventId == eventId).ExecuteDeleteAsync(ct);
         await db.TeamCompletionCorrections.Where(x => x.EventId == eventId).ExecuteDeleteAsync(ct);
-        await db.EventBannerAssets.Where(x => x.EventId == eventId).ExecuteDeleteAsync(ct);
     }
 
     private void AddHistory(BingoEvent item, EventState from, LifecycleActor actor, string action, string detail, DateTimeOffset now)

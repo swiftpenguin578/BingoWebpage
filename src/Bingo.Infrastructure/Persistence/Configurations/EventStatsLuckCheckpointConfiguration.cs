@@ -10,7 +10,7 @@ public sealed class EventStatsLuckCheckpointConfiguration : IEntityTypeConfigura
     {
         builder.ToTable("event_stats_luck_checkpoints", table =>
         {
-            table.HasCheckConstraint("ck_stats_checkpoint_payload", "schema_version = 1 AND evidence_revision >= 0 AND octet_length(payload::text) <= 8388608 AND jsonb_typeof(payload) = 'object'");
+            table.HasCheckConstraint("ck_stats_checkpoint_payload", "schema_version IN (1, 2) AND evidence_revision >= 0 AND octet_length(payload::text) <= 8388608 AND jsonb_typeof(payload) = 'object'");
         });
         builder.HasKey(x => x.EventId);
         builder.Property(x => x.EventId).HasColumnName("event_id");
@@ -25,6 +25,9 @@ public sealed class EventStatsLuckCheckpointConfiguration : IEntityTypeConfigura
         builder.Property(x => x.CalculatedAt).HasColumnName("calculated_at");
         builder.Property(x => x.FetchedAt).HasColumnName("fetched_at");
         builder.Property(x => x.UpstreamUpdatedAt).HasColumnName("upstream_updated_at");
+        builder.Property(x => x.AlgorithmVersion).HasColumnName("algorithm_version").HasMaxLength(80);
+        builder.Property(x => x.ConvertedFromSchemaVersion).HasColumnName("converted_from_schema_version");
+        builder.Property(x => x.ConvertedAt).HasColumnName("converted_at");
         builder.Property(x => x.Payload).HasColumnName("payload").HasColumnType("jsonb");
         builder.HasOne<BingoEvent>().WithMany().HasForeignKey(x => x.EventId).OnDelete(DeleteBehavior.Restrict);
     }

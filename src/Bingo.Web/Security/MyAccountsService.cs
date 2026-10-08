@@ -43,6 +43,7 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
         var cleanName = RequireCharacterName(characterName);
         savedEhb = NormalizeEhb(savedEhb);
         await RequireWebsiteAccountAsync(accountId, ct);
+        RequireRsn(cleanName);
         await ValidateAsync(accountId, "my-accounts.add", null, null, cleanName, ct);
         await using var transaction = await BeginAccountTransactionAsync(accountId, ct);
         var now = time.GetUtcNow();
@@ -76,6 +77,7 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
         savedEhb = NormalizeEhb(savedEhb);
         await RequireWebsiteAccountAsync(accountId, ct);
         await RequireActiveLinkVersionAsync(accountId, linkId, expectedVersion, ct);
+        await RequireRenamedRsnAsync(accountId, linkId, cleanName, ct);
         await ValidateAsync(accountId, "my-accounts.edit", null, expectedVersion, cleanName, ct);
         await using var transaction = await BeginAccountTransactionAsync(accountId, ct);
         var link = await ActiveLinkAsync(accountId, linkId, ct);
@@ -144,6 +146,7 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
         var cleanName = RequireCharacterName(correctedName);
         await RequireWebsiteAccountAsync(accountId, ct);
         await RequireActiveLinkAsync(accountId, linkId, ct);
+        await RequireRenamedRsnAsync(accountId, linkId, cleanName, ct);
         await ValidateAsync(accountId, "my-accounts.correct", null, null, cleanName, ct);
         await using var transaction = await BeginAccountTransactionAsync(accountId, ct);
         await LockCharacterAsync(cleanName, ct);
@@ -314,6 +317,21 @@ public sealed class MyAccountsService(ApplicationDbContext db, TimeProvider time
             db.ChangeTracker.Clear();
             throw new InvalidOperationException("Your My Accounts changes conflicted with another update. Please reload and try again.");
         }
+    }
+
+    // U5-Q4: typed names follow the shared RSN rule; an unchanged stored name is never re-validated.
+    private static void RequireRsn(string name)
+    {
+        if (!RsnRule.IsValid(name)) throw new InvalidOperationException(RsnRule.Message);
+    }
+
+    private async Task RequireRenamedRsnAsync(Guid accountId, Guid linkId, string name, CancellationToken ct)
+    {
+        var current = await (from link in db.AccountOsrsCharacters
+                             join character in db.OsrsCharacters on link.OsrsCharacterId equals character.Id
+                             where link.Id == linkId && link.AccountId == accountId
+                             select character.DisplayName).SingleOrDefaultAsync(ct);
+        if (current is null || AccountIdentityService.NormalizeOsrsCharacterName(current) != AccountIdentityService.NormalizeOsrsCharacterName(name)) RequireRsn(name);
     }
 
     private static string RequireCharacterName(string value)

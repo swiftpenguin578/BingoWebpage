@@ -1,0 +1,43 @@
+  Bingo.Domain -> /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Domain/bin/Release/net10.0/Bingo.Domain.dll
+  Bingo.Application -> /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Application/bin/Release/net10.0/Bingo.Application.dll
+  Bingo.Infrastructure -> /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Infrastructure/bin/Release/net10.0/Bingo.Infrastructure.dll
+  Bingo.Web -> /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Web/bin/Release/net10.0/Bingo.Web.dll
+  Bingo.Web -> /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/src/Bingo.Web/bin/Release/net10.0/Bingo.Web.Views.dll
+  Bingo.IntegrationTests -> /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/tests/Bingo.IntegrationTests/bin/Release/net10.0/Bingo.IntegrationTests.dll
+Test run for /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/tests/Bingo.IntegrationTests/bin/Release/net10.0/Bingo.IntegrationTests.dll (.NETCoreApp,Version=v10.0)
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:13.52]     Bingo.IntegrationTests.AdminDesignShellIntegrationTests.RememberedEventIsRevalidatedAndDroppedOnEveryRender(change: "hidden") [FAIL]
+  Failed Bingo.IntegrationTests.AdminDesignShellIntegrationTests.RememberedEventIsRevalidatedAndDroppedOnEveryRender(change: "hidden") [344 ms]
+  Error Message:
+   Microsoft.EntityFrameworkCore.DbUpdateException : An error occurred while saving the entity changes. See the inner exception for details.
+---- Npgsql.PostgresException : 23514: new row for relation "events" violates check constraint "ck_events_hidden_metadata"
+
+DETAIL: Detail redacted as it may contain sensitive data. Specify 'Include Error Detail' in the connection string to include this information.
+  Stack Trace:
+     at Microsoft.EntityFrameworkCore.Update.ReaderModificationCommandBatch.ExecuteAsync(IRelationalConnection connection, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.ExecuteAsync(IEnumerable`1 commandBatches, IRelationalConnection connection, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.ExecuteAsync(IEnumerable`1 commandBatches, IRelationalConnection connection, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.ExecuteAsync(IEnumerable`1 commandBatches, IRelationalConnection connection, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChangesAsync(IList`1 entries, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChangesAsync(IList`1 entriesToSave, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChangesAsync(StateManager stateManager, Boolean acceptAllChangesOnSuccess, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.DbContext.SaveChangesAsync(Boolean acceptAllChangesOnSuccess, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.DbContext.SaveChangesAsync(Boolean acceptAllChangesOnSuccess, CancellationToken cancellationToken)
+   at Bingo.IntegrationTests.AdminDesignShellIntegrationTests.RememberedEventIsRevalidatedAndDroppedOnEveryRender(String change) in /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/tests/Bingo.IntegrationTests/AdminDesignShellIntegrationTests.RememberedEvent.cs:line 69
+   at Bingo.IntegrationTests.AdminDesignShellIntegrationTests.RememberedEventIsRevalidatedAndDroppedOnEveryRender(String change) in /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/tests/Bingo.IntegrationTests/AdminDesignShellIntegrationTests.RememberedEvent.cs:line 69
+   at Bingo.IntegrationTests.AdminDesignShellIntegrationTests.RememberedEventIsRevalidatedAndDroppedOnEveryRender(String change) in /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/tests/Bingo.IntegrationTests/AdminDesignShellIntegrationTests.RememberedEvent.cs:line 76
+--- End of stack trace from previous location ---
+----- Inner Stack Trace -----
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Update.ReaderModificationCommandBatch.ExecuteAsync(IRelationalConnection connection, CancellationToken cancellationToken)
+
+Failed!  - Failed:     1, Passed:     4, Skipped:     0, Total:     5, Duration: 18 s - Bingo.IntegrationTests.dll (net10.0)

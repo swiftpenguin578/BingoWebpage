@@ -1,0 +1,229 @@
+{
+  "engine": "chromium",
+  "records": [
+    {
+      "language": "en",
+      "width": 390,
+      "input": {
+        "width": 324,
+        "max": "none",
+        "parent": 324
+      },
+      "count": "0 of 20"
+    },
+    {
+      "language": "en",
+      "width": 494,
+      "input": {
+        "width": 428,
+        "max": "none",
+        "parent": 428
+      },
+      "count": "0 of 20"
+    },
+    {
+      "language": "en",
+      "width": 860,
+      "input": {
+        "width": 180,
+        "max": "180px",
+        "parent": 476
+      },
+      "count": "0 of 20"
+    },
+    {
+      "language": "en",
+      "width": 1280,
+      "input": {
+        "width": 180,
+        "max": "180px",
+        "parent": 476
+      },
+      "count": "0 of 20"
+    },
+    {
+      "language": "en",
+      "width": 1440,
+      "input": {
+        "width": 180,
+        "max": "180px",
+        "parent": 476
+      },
+      "count": "0 of 20"
+    },
+    {
+      "language": "en",
+      "event": "autumn-bingo-2027",
+      "dates": [
+        "1 Jun 2027, 18:00",
+        "Signups opened 1 Jun 2027, 18:00.",
+        "6 Jul 2027, 22:30"
+      ]
+    },
+    {
+      "language": "en",
+      "event": "clan-cup-pvm-week",
+      "dates": [
+        "20 May 2027, 18:00",
+        "Signups opened 20 May 2027, 18:00.",
+        "10 Jun 2027, 18:00",
+        "Signups closed 10 Jun 2027, 18:00. To set a new closing time, reopen signups on Overview.",
+        "20 Jun 2027, 22:30"
+      ]
+    },
+    {
+      "language": "en",
+      "event": "midsummer-skilling-sprint",
+      "dates": [
+        "10 May 2027, 18:00",
+        "Signups opened 10 May 2027, 18:00.",
+        "25 May 2027, 20:00",
+        "Signups closed 25 May 2027, 20:00.",
+        "26 May 2027, 19:00",
+        "28 May 2027, 18:00",
+        "Started 28 May 2027, 18:00.",
+        "6 Jun 2027, 22:30"
+      ]
+    },
+    {
+      "language": "en",
+      "event": "spring-finalized",
+      "dates": [
+        "15 Feb 2027, 18:00",
+        "Signups opened 15 Feb 2027, 18:00.",
+        "1 Mar 2027, 20:00",
+        "Signups closed 1 Mar 2027, 20:00.",
+        "5 Mar 2027, 19:00",
+        "12 Mar 2027, 18:00",
+        "Started 12 Mar 2027, 18:00.",
+        "21 Mar 2027, 22:00",
+        "Ended 21 Mar 2027, 22:00.",
+        "21 Mar 2027, 22:30"
+      ]
+    },
+    {
+      "language": "en",
+      "event": "spring-cancelled",
+      "dates": [
+        "15 Feb 2027, 18:00",
+        "1 Mar 2027, 20:00",
+        "5 Mar 2027, 19:00",
+        "12 Mar 2027, 18:00",
+        "21 Mar 2027, 22:00",
+        "21 Mar 2027, 22:30"
+      ]
+    },
+    {
+      "language": "da",
+      "width": 390,
+      "input": {
+        "width": 324,
+        "max": "none",
+        "parent": 324
+      },
+      "count": "0 af 20"
+    },
+    {
+      "language": "da",
+      "width": 494,
+      "input": {
+        "width": 428,
+        "max": "none",
+        "parent": 428
+      },
+      "count": "0 af 20"
+    },
+    {
+      "language": "da",
+      "width": 860,
+      "input": {
+        "width": 180,
+        "max": "180px",
+        "parent": 476
+      },
+      "count": "0 af 20"
+    },
+    {
+      "language": "da",
+      "width": 1280,
+      "input": {
+        "width": 180,
+        "max": "180px",
+        "parent": 476
+      },
+      "count": "0 af 20"
+    },
+    {
+      "language": "da",
+      "width": 1440,
+      "input": {
+        "width": 180,
+        "max": "180px",
+        "parent": 476
+      },
+      "count": "0 af 20"
+    },
+    {
+      "language": "da",
+      "event": "autumn-bingo-2027",
+      "dates": [
+        "1 jun. 2027, 18:00",
+        "Tilmelding åbnede 1 jun. 2027, 18:00.",
+        "6 jul. 2027, 22:30"
+      ]
+    },
+    {
+      "language": "da",
+      "event": "clan-cup-pvm-week",
+      "dates": [
+        "20 maj 2027, 18:00",
+        "Tilmelding åbnede 20 maj 2027, 18:00.",
+        "10 jun. 2027, 18:00",
+        "Tilmelding lukkede 10 jun. 2027, 18:00. Genåbn tilmelding på Overblik for at angive et nyt sluttidspunkt.",
+        "20 jun. 2027, 22:30"
+      ]
+    },
+    {
+      "language": "da",
+      "event": "midsummer-skilling-sprint",
+      "dates": [
+        "10 maj 2027, 18:00",
+        "Tilmelding åbnede 10 maj 2027, 18:00.",
+        "25 maj 2027, 20:00",
+        "Tilmelding lukkede 25 maj 2027, 20:00.",
+        "26 maj 2027, 19:00",
+        "28 maj 2027, 18:00",
+        "Startede 28 maj 2027, 18:00.",
+        "6 jun. 2027, 22:30"
+      ]
+    },
+    {
+      "language": "da",
+      "event": "spring-finalized",
+      "dates": [
+        "15 feb. 2027, 18:00",
+        "Tilmelding åbnede 15 feb. 2027, 18:00.",
+        "1 mar. 2027, 20:00",
+        "Tilmelding lukkede 1 mar. 2027, 20:00.",
+        "5 mar. 2027, 19:00",
+        "12 mar. 2027, 18:00",
+        "Startede 12 mar. 2027, 18:00.",
+        "21 mar. 2027, 22:00",
+        "Sluttede 21 mar. 2027, 22:00.",
+        "21 mar. 2027, 22:30"
+      ]
+    },
+    {
+      "language": "da",
+      "event": "spring-cancelled",
+      "dates": [
+        "15 feb. 2027, 18:00",
+        "1 mar. 2027, 20:00",
+        "5 mar. 2027, 19:00",
+        "12 mar. 2027, 18:00",
+        "21 mar. 2027, 22:00",
+        "21 mar. 2027, 22:30"
+      ]
+    }
+  ]
+}

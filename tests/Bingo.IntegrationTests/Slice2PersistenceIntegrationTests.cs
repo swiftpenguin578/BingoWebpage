@@ -25,13 +25,13 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
+public sealed class Slice2PersistenceIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine")
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_slice2_persistence")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
-        .Build();
+        );
 
     private DbContextOptions<ApplicationDbContext> options = null!;
 
@@ -40,7 +40,6 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         await database.StartAsync();
         options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
@@ -157,15 +156,15 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         await db.SaveChangesAsync();
         var service = new MyAccountsService(db, TimeProvider.System, new SuccessfulWiseOldManAccountValidation());
 
-        await service.AddOrReactivateAsync(first.Id, "Shared Account", "Main", 11m, CancellationToken.None);
+        await service.AddOrReactivateAsync(first.Id, "Shared Acct", "Main", 11m, CancellationToken.None);
         var original = await db.AccountOsrsCharacters.AsNoTracking().SingleAsync(item => item.AccountId == first.Id);
         await service.UnlinkAsync(first.Id, original.Id, true, CancellationToken.None);
         Assert.Empty(await db.AccountOsrsCharacters.AsNoTracking().Where(item => item.AccountId == first.Id && item.Active).ToListAsync());
-        await service.AddOrReactivateAsync(first.Id, " shared account ", "Relinked", 12m, CancellationToken.None);
+        await service.AddOrReactivateAsync(first.Id, " shared acct ", "Relinked", 12m, CancellationToken.None);
         var afterReactivate = await db.AccountOsrsCharacters.AsNoTracking().Where(item => item.AccountId == first.Id && item.Active).ToListAsync();
         Assert.Single(afterReactivate);
         Assert.True(afterReactivate[0].Preferred);
-        await service.AddOrReactivateAsync(first.Id, "Second Account", null, 3000.09582m, CancellationToken.None);
+        await service.AddOrReactivateAsync(first.Id, "Second Acct", null, 3000.09582m, CancellationToken.None);
         var beforeMove = await db.AccountOsrsCharacters.AsNoTracking().Where(item => item.AccountId == first.Id && item.Active).OrderBy(item => item.Position).ToListAsync();
         Assert.Equal(0, beforeMove[0].Position);
         Assert.Equal(1, beforeMove[1].Position);
@@ -174,7 +173,7 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         Assert.True(beforeMove[0].Preferred);
         Assert.False(beforeMove[1].Preferred);
         await service.MoveAsync(first.Id, beforeMove[1].Id, -1, CancellationToken.None);
-        await service.AddOrReactivateAsync(second.Id, "SHARED ACCOUNT", "Borrowed", 99m, CancellationToken.None);
+        await service.AddOrReactivateAsync(second.Id, "SHARED ACCT", "Borrowed", 99m, CancellationToken.None);
 
         var firstLinks = await db.AccountOsrsCharacters.AsNoTracking().Where(item => item.AccountId == first.Id && item.Active).OrderBy(item => item.Position).ToListAsync();
         Assert.Equal(2, firstLinks.Count);
@@ -204,10 +203,10 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         db.AddRange(owner, other);
         await db.SaveChangesAsync();
         var service = new MyAccountsService(db, TimeProvider.System, new SuccessfulWiseOldManAccountValidation());
-        await service.AddOrReactivateAsync(owner.Id, "Scoped Character", "Owner", 10m, CancellationToken.None);
+        await service.AddOrReactivateAsync(owner.Id, "Scoped Char", "Owner", 10m, CancellationToken.None);
         var link = await db.AccountOsrsCharacters.SingleAsync(item => item.AccountId == owner.Id);
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() => service.UpdateAsync(other.Id, link.Id, link.Version, "Scoped Character", "Attempted", 20m, CancellationToken.None));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => service.UpdateAsync(other.Id, link.Id, link.Version, "Scoped Char", "Attempted", 20m, CancellationToken.None));
 
         var unchanged = await db.AccountOsrsCharacters.AsNoTracking().SingleAsync(item => item.Id == link.Id);
         Assert.Equal("Owner", unchanged.PersonalLabel);
@@ -293,27 +292,27 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         var newerPage = await client.GetStringAsync(route);
         var oldVersion = Value(EditForm(olderPage, linkId), "Edit.Version");
         Assert.NotEmpty(oldVersion);
-        using var winner = await Post("Update", newerPage, "Current Character", "Current label", "22");
+        using var winner = await Post("Update", newerPage, "Current Char", "Current label", "22");
         Assert.Equal(HttpStatusCode.Redirect, winner.StatusCode);
         Assert.Equal("/Account/Settings", winner.Headers.Location?.OriginalString);
 
-        using var fetched = await Post("Fetch", olderPage, "Stale Character", "My <entered> label", "99");
+        using var fetched = await Post("Fetch", olderPage, "Stale Char", "My <entered> label", "99");
         Assert.Equal(HttpStatusCode.OK, fetched.StatusCode);
         var fetchedPage = await fetched.Content.ReadAsStringAsync();
         Assert.Equal(oldVersion, Value(EditForm(fetchedPage, linkId), "Edit.Version"));
         var enteredEhb = culture == "da-DK" ? "55,25" : "55.25";
         Assert.Equal(enteredEhb, Value(EditForm(fetchedPage, linkId), "Edit.SavedEhb"));
-        using var stale = await Post("Update", fetchedPage, "Stale Character", "My <entered> label", enteredEhb);
+        using var stale = await Post("Update", fetchedPage, "Stale Char", "My <entered> label", enteredEhb);
         Assert.Equal(HttpStatusCode.OK, stale.StatusCode);
         var rejectedPage = await stale.Content.ReadAsStringAsync();
         Assert.Contains(culture == "da-DK" ? "Dine ændringer i Mine konti var i konflikt med en anden opdatering." : "Your My Accounts changes conflicted with another update.", WebUtility.HtmlDecode(rejectedPage));
         var rejectedForm = EditForm(rejectedPage, linkId);
-        Assert.Equal("Stale Character", Value(rejectedForm, "Edit.CharacterName"));
+        Assert.Equal("Stale Char", Value(rejectedForm, "Edit.CharacterName"));
         Assert.Equal("My <entered> label", Value(rejectedForm, "Edit.PersonalLabel"));
         Assert.Equal(enteredEhb, Value(rejectedForm, "Edit.SavedEhb"));
         Assert.Equal(oldVersion, Value(rejectedForm, "Edit.Version"));
         Assert.Equal(otherLinkId.ToString(), Value(EditForm(rejectedPage, otherLinkId), "Edit.LinkId"));
-        using var repeated = await Post("Update", rejectedPage, "Stale Character", "My <entered> label", enteredEhb);
+        using var repeated = await Post("Update", rejectedPage, "Stale Char", "My <entered> label", enteredEhb);
         Assert.Equal(HttpStatusCode.OK, repeated.StatusCode);
 
         await using (var verify = new ApplicationDbContext(options))
@@ -322,8 +321,8 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
             Assert.NotEqual(int.Parse(oldVersion, CultureInfo.InvariantCulture), current.Version);
             Assert.Equal("Current label", current.PersonalLabel);
             Assert.Equal(22m, current.SavedEhb);
-            Assert.Equal("CURRENT CHARACTER", await verify.OsrsCharacters.Where(character => character.Id == current.OsrsCharacterId).Select(character => character.NormalizedName).SingleAsync());
-            Assert.False(await verify.OsrsCharacters.AnyAsync(character => character.NormalizedName == "STALE CHARACTER"));
+            Assert.Equal("CURRENT CHAR", await verify.OsrsCharacters.Where(character => character.Id == current.OsrsCharacterId).Select(character => character.NormalizedName).SingleAsync());
+            Assert.False(await verify.OsrsCharacters.AnyAsync(character => character.NormalizedName == "STALE CHAR"));
             Assert.Equal(current.OsrsCharacterId, await verify.EventParticipantCharacters.Where(item => item.Id == openAssignmentId).Select(item => item.OsrsCharacterId).SingleAsync());
             Assert.Equal(originalCharacterId, await verify.EventParticipantCharacters.Where(item => item.Id == closedAssignmentId).Select(item => item.OsrsCharacterId).SingleAsync());
             Assert.Equal(2, await verify.AccountOsrsCharacters.CountAsync(link => link.AccountId == accountId && link.Active));
@@ -335,16 +334,16 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         var reloadLink = Regex.Match(WebUtility.HtmlDecode(rejectedPage), $"<a(?=[^>]*href=\"([^\"]+)\")[^>]*>{Regex.Escape(reloadLabel)}</a>");
         Assert.True(reloadLink.Success);
         var reloaded = await client.GetStringAsync(reloadLink.Groups[1].Value);
-        Assert.Equal("Current Character", Value(EditForm(reloaded, linkId), "Edit.CharacterName"));
+        Assert.Equal("Current Char", Value(EditForm(reloaded, linkId), "Edit.CharacterName"));
         Assert.NotEqual(oldVersion, Value(EditForm(reloaded, linkId), "Edit.Version"));
-        using var recovered = await Post("Update", reloaded, "Recovered Character", "Recovered label", "33");
+        using var recovered = await Post("Update", reloaded, "Recovered", "Recovered label", "33");
         Assert.Equal(HttpStatusCode.Redirect, recovered.StatusCode);
         Assert.Equal("/Account/Settings", recovered.Headers.Location?.OriginalString);
         await using var final = new ApplicationDbContext(options);
         var saved = await final.AccountOsrsCharacters.SingleAsync(link => link.Id == linkId);
         Assert.Equal("Recovered label", saved.PersonalLabel);
         Assert.Equal(33m, saved.SavedEhb);
-        Assert.Equal("RECOVERED CHARACTER", await final.OsrsCharacters.Where(character => character.Id == saved.OsrsCharacterId).Select(character => character.NormalizedName).SingleAsync());
+        Assert.Equal("RECOVERED", await final.OsrsCharacters.Where(character => character.Id == saved.OsrsCharacterId).Select(character => character.NormalizedName).SingleAsync());
         Assert.Equal(saved.OsrsCharacterId, await final.EventParticipantCharacters.Where(item => item.Id == openAssignmentId).Select(item => item.OsrsCharacterId).SingleAsync());
         Assert.Equal(originalCharacterId, await final.EventParticipantCharacters.Where(item => item.Id == closedAssignmentId).Select(item => item.OsrsCharacterId).SingleAsync());
 
@@ -542,7 +541,7 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         using var completed = await client.PostAsync("/Account/Onboarding", new FormUrlEncodedContent(new Dictionary<string, string>
         {
             ["Input.Username"] = "browser-public-username",
-            ["Input.OsrsCharacterName"] = "Browser exact character",
+            ["Input.OsrsCharacterName"] = "Brw Exact",
             ["Input.Password"] = "long-browser-password",
             ["Input.ConfirmPassword"] = "long-browser-password",
             ["__RequestVerificationToken"] = onboardingToken
@@ -550,18 +549,18 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         Assert.Equal(System.Net.HttpStatusCode.Redirect, completed.StatusCode);
 
         var accounts = await client.GetStringAsync("/Account/MyAccounts");
-        Assert.Contains("Browser exact character", accounts, StringComparison.Ordinal);
+        Assert.Contains("Brw Exact", accounts, StringComparison.Ordinal);
         var addToken = AntiforgeryToken(accounts);
         using var added = await client.PostAsync("/Account/MyAccounts?handler=Add", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Add.CharacterName"] = "Browser second character",
+            ["Add.CharacterName"] = "Browser Two",
             ["Add.PersonalLabel"] = "Alt",
             ["Add.SavedEhb"] = "44.5",
             ["__RequestVerificationToken"] = addToken
         }));
         Assert.Equal(System.Net.HttpStatusCode.Redirect, added.StatusCode);
         var updated = await client.GetStringAsync("/Account/MyAccounts");
-        Assert.Contains("Browser second character", updated, StringComparison.Ordinal);
+        Assert.Contains("Browser Two", updated, StringComparison.Ordinal);
         Assert.Contains("Alt", updated, StringComparison.Ordinal);
         Assert.Contains("44.5", updated, StringComparison.Ordinal);
 
@@ -612,7 +611,7 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         using var completed = await EnhancedPostAsync(client, "/Account/Onboarding", new Dictionary<string, string>
         {
             ["Input.Username"] = "enhanced-browser-public-username",
-            ["Input.OsrsCharacterName"] = "Enhanced browser first character",
+            ["Input.OsrsCharacterName"] = "Enhanced One",
             ["Input.Password"] = "long-enhanced-browser-password",
             ["Input.ConfirmPassword"] = "long-enhanced-browser-password",
             ["__RequestVerificationToken"] = AntiforgeryToken(onboarding)
@@ -627,7 +626,7 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         var accounts = await client.GetStringAsync("/Account/MyAccounts");
         using var firstMutation = await EnhancedPostAsync(client, "/Account/MyAccounts?handler=Add", new Dictionary<string, string>
         {
-            ["Add.CharacterName"] = "Enhanced browser second character",
+            ["Add.CharacterName"] = "Enhanced Two",
             ["Add.PersonalLabel"] = "Alt",
             ["Add.SavedEhb"] = "44.5",
             ["__RequestVerificationToken"] = AntiforgeryToken(accounts)
@@ -637,11 +636,11 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
 
         var afterFirstMutation = await client.GetStringAsync("/Account/MyAccounts");
         Assert.Contains("Character added to My Accounts.", afterFirstMutation, StringComparison.Ordinal);
-        Assert.Contains("Enhanced browser second character", afterFirstMutation, StringComparison.Ordinal);
+        Assert.Contains("Enhanced Two", afterFirstMutation, StringComparison.Ordinal);
 
         using var secondMutation = await EnhancedPostAsync(client, "/Account/MyAccounts?handler=Add", new Dictionary<string, string>
         {
-            ["Add.CharacterName"] = "Enhanced browser third character",
+            ["Add.CharacterName"] = "Enhanced Thr",
             ["Add.PersonalLabel"] = "Third",
             ["Add.SavedEhb"] = "45.5",
             ["__RequestVerificationToken"] = AntiforgeryToken(afterFirstMutation)
@@ -651,8 +650,8 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
 
         var afterSecondMutation = await client.GetStringAsync("/Account/MyAccounts");
         Assert.Contains("Character added to My Accounts.", afterSecondMutation, StringComparison.Ordinal);
-        Assert.Contains("Enhanced browser second character", afterSecondMutation, StringComparison.Ordinal);
-        Assert.Contains("Enhanced browser third character", afterSecondMutation, StringComparison.Ordinal);
+        Assert.Contains("Enhanced Two", afterSecondMutation, StringComparison.Ordinal);
+        Assert.Contains("Enhanced Thr", afterSecondMutation, StringComparison.Ordinal);
 
         var sharedNavigation = await client.GetStringAsync("/js/site.js");
         Assert.Contains("window.location.replace(destination);", sharedNavigation, StringComparison.Ordinal);
@@ -669,12 +668,12 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
 
         await Task.WhenAll(
             new AccountIdentityService(first, passwords, TimeProvider.System, new SuccessfulWiseOldManAccountValidation())
-                .CompleteOnboardingAsync("concurrent-discord-one", "One", "concurrent-user-one", "Concurrent Shared", "long-password-one", CancellationToken.None),
+                .CompleteOnboardingAsync("concurrent-discord-one", "One", "concurrent-user-one", "Conc Shared", "long-password-one", CancellationToken.None),
             new AccountIdentityService(second, passwords, TimeProvider.System, new SuccessfulWiseOldManAccountValidation())
-                .CompleteOnboardingAsync("concurrent-discord-two", "Two", "concurrent-user-two", "Concurrent Shared", "long-password-two", CancellationToken.None));
+                .CompleteOnboardingAsync("concurrent-discord-two", "Two", "concurrent-user-two", "Conc Shared", "long-password-two", CancellationToken.None));
 
         await using var verification = new ApplicationDbContext(options);
-        var character = await verification.OsrsCharacters.SingleAsync(item => item.NormalizedName == "CONCURRENT SHARED");
+        var character = await verification.OsrsCharacters.SingleAsync(item => item.NormalizedName == "CONC SHARED");
         Assert.Equal(2, await verification.Accounts.CountAsync(item => item.NormalizedLoginName == "CONCURRENT-USER-ONE" || item.NormalizedLoginName == "CONCURRENT-USER-TWO"));
         Assert.Equal(2, await verification.AccountOsrsCharacters.CountAsync(item => item.OsrsCharacterId == character.Id));
     }
@@ -689,10 +688,10 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         await db.SaveChangesAsync();
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            new MyAccountsService(db, TimeProvider.System).AddOrReactivateAsync(owner.Id, "Unverified Account", null, null, CancellationToken.None));
+            new MyAccountsService(db, TimeProvider.System).AddOrReactivateAsync(owner.Id, "Unverified", null, null, CancellationToken.None));
 
         Assert.Empty(await db.AccountOsrsCharacters.AsNoTracking().Where(item => item.AccountId == owner.Id).ToListAsync());
-        Assert.False(await db.OsrsCharacters.AsNoTracking().AnyAsync(item => item.NormalizedName == "UNVERIFIED ACCOUNT"));
+        Assert.False(await db.OsrsCharacters.AsNoTracking().AnyAsync(item => item.NormalizedName == "UNVERIFIED"));
     }
 
     [Fact]
@@ -702,10 +701,10 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
             new AccountIdentityService(db, new PasswordHasher<Account>(), TimeProvider.System)
-                .CompleteOnboardingAsync("no-validator-discord", "No validator", "no-validator-user", "Unverified Account", "long-password-one", CancellationToken.None));
+                .CompleteOnboardingAsync("no-validator-discord", "No validator", "no-validator-user", "Unverified", "long-password-one", CancellationToken.None));
 
         Assert.False(await db.Accounts.AsNoTracking().AnyAsync(item => item.DiscordUserId == "no-validator-discord"));
-        Assert.False(await db.OsrsCharacters.AsNoTracking().AnyAsync(item => item.NormalizedName == "UNVERIFIED ACCOUNT"));
+        Assert.False(await db.OsrsCharacters.AsNoTracking().AnyAsync(item => item.NormalizedName == "UNVERIFIED"));
     }
 
     [Fact]
@@ -739,19 +738,18 @@ public sealed class Slice2PersistenceIntegrationTests : IAsyncLifetime
         var lifecycle = new Bingo.Infrastructure.Events.EventLifecycleService(db, signup, TimeProvider.System);
         var destructive = new Bingo.Infrastructure.Events.EventDestructiveLifecycleService(db, TimeProvider.System);
         var participants = new Bingo.Web.Pages.Admin.Events.ParticipantsModel(db, null!);
-        Assert.IsType<Microsoft.AspNetCore.Mvc.RazorPages.PageResult>(await participants.OnGetAsync(seed.EventId, CancellationToken.None));
+        Assert.IsType<Microsoft.AspNetCore.Mvc.RazorPages.PageResult>(await participants.OnGetAsync(seed.EventId, tab: "all", ct: CancellationToken.None));
         Assert.Contains(participants.Participants, row => row.Id == withdrawnId && row.Name == "Withdrawn Main" && row.Ehb == 111m);
         Assert.Contains(participants.Participants, row => row.Id == removedId && row.Name == "Removed Main" && row.Ehb == 222m);
 
-        var participant = new Bingo.Web.Pages.Admin.Events.ParticipantModel(db, characters)
-        {
-            PageContext = new PageContext(new ActionContext(new DefaultHttpContext(), new RouteData(), new PageActionDescriptor())),
-            TempData = new TempDataDictionary(new DefaultHttpContext(), new EmptyTempDataProvider())
-        };
-        Assert.IsType<Microsoft.AspNetCore.Mvc.RazorPages.PageResult>(await participant.OnGetAsync(seed.EventId, withdrawnId, CancellationToken.None));
-        Assert.Equal("Withdrawn Main", participant.Name);
-        Assert.IsType<Microsoft.AspNetCore.Mvc.RazorPages.PageResult>(await participant.OnGetAsync(seed.EventId, removedId, CancellationToken.None));
-        Assert.Equal("Removed Main", participant.Name);
+        // A10 (U5 item 1b): the old detail page now redirects to the Participants drawer;
+        // the drawer's current-state read keeps the same released Playing authority.
+        var bingoEvent = await db.Events.AsNoTracking().SingleAsync(item => item.Id == seed.EventId);
+        var drawer = new Bingo.Web.Pages.Admin.Events.ParticipantDrawerReader(db, (key, arguments) => string.Format(System.Globalization.CultureInfo.InvariantCulture, key, arguments));
+        var withdrawnView = await drawer.ReadAsync(bingoEvent, withdrawnId, CancellationToken.None);
+        Assert.Equal(("Withdrawn Main", 111m, true), Assert.Single(withdrawnView!.Accounts) is var w ? (w.Name, w.Ehb, w.Primary) : default);
+        var removedView = await drawer.ReadAsync(bingoEvent, removedId, CancellationToken.None);
+        Assert.Equal(("Removed Main", 222m, true), Assert.Single(removedView!.Accounts) is var r ? (r.Name, r.Ehb, r.Primary) : default);
     }
 
     [Fact]

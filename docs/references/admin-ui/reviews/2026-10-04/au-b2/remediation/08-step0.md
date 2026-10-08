@@ -1,0 +1,5 @@
+# Item 8 — Step 0 / 19d documentation corrections
+
+Corrected the named cleanup handoff passages and runbook execution state: 6b8331d was not user-approved; the user approved the H4-2 procedure/coverage only on 4 October after Claude’s review; 5cf9081 was not authorized then or approved after the fact. The existing durable copy of 16-cleanup-recheck.md records Claude’s completed recheck. Tooling, R3 and deployment remain separately authorized work. RC05/RC07/RC08 are proposed in the functionality register. AU18 evidence now records D2’s later user approval from the supplied Claude-chat decisions while retaining the original planner technical-resolution attribution.
+
+Executed scoped changed-text consistency, relative-link existence and diff checks: passed. Production build evidence from item 7 remains applicable (Release, zero warnings/errors); this item changes only the four named documentation owners and this evidence, so no additional .NET execution is needed. CURRENT_STATUS and SharedResource remain untouched. This is implementer verification, not Claude’s remediation recheck; that recheck is still pending for all eight new commits.

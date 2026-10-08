@@ -15,6 +15,7 @@ public static class EventParticipantActiveCharacterQueries
                from transition in db.EventParticipantCharacterSwaps
                    .Where(candidate => candidate.EventParticipantId == participant.Id && candidate.EffectiveAtUtc <= instant)
                    .OrderByDescending(candidate => candidate.EffectiveAtUtc)
+                   .ThenByDescending(candidate => candidate.Sequence)
                    .ThenByDescending(candidate => candidate.RecordedAtUtc)
                    .ThenByDescending(candidate => candidate.Id)
                    .Take(1)
