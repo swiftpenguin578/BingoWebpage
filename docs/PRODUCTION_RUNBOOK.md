@@ -375,6 +375,21 @@ approval does not authorize harness implementation, backup transfer or execution
    authorization. Require every isolated stage and release-gate check to pass on
    the exact final candidate. R-1 conversion failure still blocks deployment.
    Procedure approval is not a rehearsal pass or Claude independent-review PASS.
+   For this release the user chose the lighter local rehearsal; see
+   "Lighter local rehearsal" below.
+9. **Host scripts must be reinstalled before the deploy (release-specific).** This
+   branch changes the root-owned host copies of `deploy/host/bingo-deploy` (the
+   catalogue-snapshot step is replaced by `--convert-luck-checkpoints`) and
+   `deploy/host/bingo-verify-evidence` (the banner table is removed from evidence
+   verification). Install both on the host, as root-owned mode `0750` under
+   `/usr/local/sbin/`, following step 4 of "One-time host bootstrap", before the
+   deploy; otherwise the old sequence runs.
+10. **CI and image build need the GitHub secret `SIXLABORS_LICENSE_KEY`** (ImageSharp
+    4.1.2 license check fails every Release build without it). The user set it on
+    8 October 2026; confirm it is still present before the push.
+11. **Rollback relies on the prior image digest.** `main` no longer restores because
+    NuGet reports ImageSharp 3.1.12 advisories as errors, so a rollback must use the
+    already-built prior image digest and never a rebuild of `main`.
 
 ## R-3 isolated rehearsal procedure — approved 4 October 2026
 
@@ -504,6 +519,37 @@ under a later assignment before any R3 execution.
    migration lists, counts, command outcomes and isolation checks. Retain/dispose
    private backup data only under operator retention authority; no automatic
    destructive cleanup of user data. Re-run after relevant final-candidate changes.
+
+### Lighter local rehearsal — user decision 8 October 2026 (option b)
+
+For this release only, the user chose option (b) (08-decisions "R-3 scope"): a lighter
+local rehearsal on the planner's Mac **replaces the VM procedure above**. It does not
+change the VM procedure for later releases and is not a pass of that procedure.
+
+- **What it runs:** the harness `scripts/rehearsal/local-rehearsal.sh` (branch
+  `claude/local-rehearsal`; usage, stages and cleanup in `scripts/rehearsal/README.md`).
+  On the exact candidate SHA it builds the production image, starts a disposable
+  Docker Compose project (PostgreSQL 17, HTTPS S3 fixture, WOM refusal fixture) on an
+  `internal: true` network, then runs: restore of the supplied dump and ordered
+  migration history; gate counts including the AU20 Final Review count and the
+  historical-import audit-record check; `--migrate` (all branch migrations, including
+  the Luck v2 checkpoint migration, `ClearLegacyDropTileEhbOverrides` with its
+  pre-count, and the banner retirement); `--convert-luck-checkpoints`;
+  `--production-preflight`; web start with workers and health probes. It writes a
+  redacted report; the planner records the results. The AU20 gate stopped the first
+  real run on a leftover production test event; the user published and re-hid it, and
+  the rehearsal is rerun on the candidate SHA once it is pushed and CI is green.
+- **Dump export used:** the backup's own command, `pg_dump --format=custom
+  --no-owner --no-privileges`, run through the host compose wrapper on the production
+  host, copied off the host over SSH/scp into a private directory outside the
+  repository, and then deleted on the host. The dump contains real participant data:
+  it is never committed and is deleted (with `--cleanup`) after the rehearsal.
+- **Accepted coverage limits (user, 8 October 2026):** no VM (isolation is Docker's
+  internal network only); no G4 clone-only Down/re-Up check; no real R2, Wise Old Man,
+  restic, GHCR, host `bingo-deploy`/`bingo-backup`/`bingo-restore` wrapper, Caddy or
+  public DNS/TLS; fresh Data Protection keys. Local health is not public HTTPS or
+  external-provider verification. A failed stage blocks the release as in the VM
+  procedure; a relevant candidate change requires a new run.
 
 ### Completion and release boundary
 
