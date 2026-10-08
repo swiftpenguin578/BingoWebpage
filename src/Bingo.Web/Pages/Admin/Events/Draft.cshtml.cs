@@ -118,8 +118,10 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
             await audit.WriteAndSaveAsync(AdminId, User.Identity?.Name ?? "Admin", "team.created", "team", team.Id.ToString(), JsonSerializer.Serialize(new { team.IncludedInDraft, team.AffiliationName }), ct);
             await db.SaveChangesAsync(ct); await tx.CommitAsync(ct);
         }
-        catch (DbUpdateException) { await tx.RollbackAsync(ct); SetStatus(Localize("Another team already has this name."), UiMessageType.Error); return Finish(new { id }); }
+        // Only the unique (event, slug) violation means a duplicate name; other failures are not reported as one.
+        catch (DbUpdateException ex) when (ex.InnerException is PostgresException { SqlState: PostgresErrorCodes.UniqueViolation }) { await tx.RollbackAsync(ct); SetStatus(Localize("Another team already has this name."), UiMessageType.Error); return Finish(new { id }); }
         catch (Exception ex) when (IsDraftConflict(ex)) { return DraftConflict(id, ex); }
+        catch (DbUpdateException) { await tx.RollbackAsync(ct); SetStatus(Localize("The team could not be created. Nothing was saved."), UiMessageType.Error); return Finish(new { id }); }
         SetOutcomeData(new { teamId = team.Id, team.Version });
         SetStatus(Localize("{0} created.", team.Name), UiMessageType.Success); await NotifyDraft(id, ct); return Finish(new { id });
     }

@@ -5525,4 +5525,7 @@
   <data name="the selected team" xml:space="preserve">
     <value>det valgte hold</value>
   </data>
+  <data name="The team could not be created. Nothing was saved." xml:space="preserve">
+    <value>Holdet kunne ikke oprettes. Intet blev gemt.</value>
+  </data>
 </root>
