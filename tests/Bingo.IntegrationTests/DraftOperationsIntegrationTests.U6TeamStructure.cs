@@ -309,4 +309,32 @@ public sealed partial class DraftOperationsIntegrationTests
         }
     }
 
+    // U6 review L3: setup MoveMember locks the event row, then the draft row, like AddMember and
+    // RemoveDraftTeam, so a move into a team being removed never leaves a membership on an inactive team.
+    [Fact]
+    public async Task U6MoveMemberIntoATeamBeingRemovedLeavesNoMembershipOnTheInactiveTeam()
+    {
+        foreach (var moveFirst in new[] { true, false })
+        {
+            var setup = await SeedAsync();
+            await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddTeamAsync(setup.EventId, "Manual A", null, null, CancellationToken.None, false, false));
+            await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddTeamAsync(setup.EventId, "Manual B", null, null, CancellationToken.None, false, false));
+            var manualA = await TeamIdAsync(setup.EventId, "Manual A");
+            var manualB = await TeamIdAsync(setup.EventId, "Manual B");
+            await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddMemberAsync(setup.EventId, manualA, setup.PlayerIds[2], "Seed", CancellationToken.None));
+            Guid membershipId;
+            await using (var read = new ApplicationDbContext(options)) membershipId = await read.TeamMemberships.Where(value => value.TeamId == manualA && value.LeftAt == null).Select(value => value.Id).SingleAsync();
+            Func<DraftModel, Task<Microsoft.AspNetCore.Mvc.IActionResult>> move = page => page.OnPostMoveMemberAsync(setup.EventId, membershipId, manualB, CancellationToken.None);
+            Func<DraftModel, Task<Microsoft.AspNetCore.Mvc.IActionResult>> remove = page => page.OnPostRemoveDraftTeamAsync(setup.EventId, manualB, CancellationToken.None, confirmRemoveMembers: true);
+            await RunBlockedPairAsync(setup, moveFirst ? move : remove, moveFirst ? remove : move);
+
+            await using var verify = new ApplicationDbContext(options);
+            Assert.False((await verify.Teams.SingleAsync(value => value.Id == manualB)).Active);
+            Assert.Empty(await verify.TeamMemberships.Where(value => value.TeamId == manualB && value.LeftAt == null).ToListAsync());
+            var active = await verify.TeamMemberships.Where(value => value.EventParticipantId == setup.PlayerIds[2] && value.LeftAt == null).ToListAsync();
+            // Move first: the removal ends the moved membership. Remove first: the move is refused and the player stays.
+            if (moveFirst) Assert.Empty(active); else Assert.Equal(manualA, Assert.Single(active).TeamId);
+        }
+    }
+
 }

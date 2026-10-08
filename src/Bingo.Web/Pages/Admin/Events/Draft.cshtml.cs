@@ -420,14 +420,17 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
             SetStatus(Localize("Finalized roster movement is retired. Remove the participant, then add them to the other team."), UiMessageType.Error);
             return Finish(new { id, rosterTeamId });
         }
-        await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
-        var ev = await db.Events.SingleOrDefaultAsync(x => x.Id == id, ct); var membership = await db.TeamMemberships.SingleOrDefaultAsync(x => x.Id == membershipId && x.LeftAt == null, ct);
+        // L3/TD-8: event row, then draft row, as AddMember and RemoveDraftTeam; Read Committed, so every
+        // read after the lock sees a team removal that committed first (a removed target is NotFound).
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        var ev = await LockEventAsync(id, ct);
+        var draft = await LockDraftAsync(id, ct);
+        var membership = await db.TeamMemberships.SingleOrDefaultAsync(x => x.Id == membershipId && x.LeftAt == null, ct);
         if (ev is null || membership is null) return NotFound();
         var source = await db.Teams.SingleOrDefaultAsync(x => x.Id == membership.TeamId && x.EventId == id && x.Active, ct);
         var target = await db.Teams.SingleOrDefaultAsync(x => x.Id == targetTeamId && x.EventId == id && x.Active, ct);
         if (source is null || target is null || !await db.EventParticipants.AnyAsync(x => x.Id == membership.EventParticipantId && x.EventId == id, ct)) return NotFound();
         if (!CanDirectPreEventRosterMutation(ev) || source.IncludedInDraft || target.IncludedInDraft) { SetStatus(Localize("Direct roster movement is available only between manually assembled teams before the event starts and before its configured end."), UiMessageType.Error); return Finish(new { id, rosterTeamId }); }
-        var draft = await db.DraftSessions.SingleOrDefaultAsync(x => x.EventId == id, ct);
         if (draft?.State == DraftState.Finalized)
         {
             SetStatus(Localize("Finalized roster movement is retired. Remove the participant, then add them to the other team."), UiMessageType.Error);
