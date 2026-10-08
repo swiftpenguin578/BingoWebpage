@@ -10,8 +10,8 @@ Priority: **High** = most likely will be done · **Normal** · **Maybe** = decid
 
 | Item | Priority | Notes |
 | --- | --- | --- |
-| Draft page scales up on large screens (clamp) | High | Draft only: keep today's size as the minimum and grow to a maximum width. |
-| Admin pages scale up on large screens (clamp) | Maybe | Decide after using production on a large monitor. Cheapest route: one shared `zoom` rule on the admin shell between today's size and a max width (~1 day); rem/`clamp` across the frozen tokens is several days. |
+| Draft page uses large screens better | High | Readable at 1080p (user check, 8 October 2026) but much of the screen is empty. Draft only: larger player chips and team cards, or a scale-up between today's size and a max width. |
+| Admin pages scale up on large screens (clamp) | Not needed for now | User check on a 1080p monitor (8 October 2026): all pages look fine; Schedule and Identity a bit small but acceptable. Revisit only if that changes. |
 | Public pages: fixes from the last bingo's feedback | Normal | Mainly text that is too small. |
 | Playing account in the header | Normal | Move the account switcher from its current place into the site header, shown only while the event is Live. It always names the account you are playing on; players with one account see it without a switch option (today they can see "Not active"). Possibly a How To section on switching. |
 | Public page CSS cleanup | Normal | Leftover transitional CSS on the public pages (U10-E2, 8 October 2026). |
@@ -22,3 +22,5 @@ Priority: **High** = most likely will be done · **Normal** · **Maybe** = decid
 
 | Bug | Where | Noticed | Notes |
 | --- | --- | --- | --- |
+| Team removal audit can still grow with team size | Teams/Draft — remove a team | 8 October 2026 (review 109 F1) | Ended membership ids are listed; ~4,000 chars only at ~90 members or max-length names. Cap or hash above a threshold. |
+| Audit label missing a name | Audit page — finalized roster removal | 8 October 2026 (review 109 F2) | Removing someone not on the published roster shows "Membership ·" without a name; fall back to the character name. |
