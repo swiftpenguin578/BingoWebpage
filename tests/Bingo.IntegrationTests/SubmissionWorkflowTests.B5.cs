@@ -100,14 +100,16 @@ public sealed partial class SubmissionWorkflowTests
     [Fact]
     public async Task B5CorrectionRefusesCharacterRoleChangedAfterPickerLoad()
     {
-        var setup = await SeedAsync(3, true);
+        var setup = await SeedAsync(3, true, createAlternateWeightDrop: true);
         await using var db = new ApplicationDbContext(options);
         var created = await Service(db).CreateAsync(Command(setup));
         var choice = Assert.Single(await Service(db).GetCorrectionCharactersAsync(created.SubmissionId, setup.AdminId));
         var submission = await db.Submissions.AsNoTracking().SingleAsync(x => x.Id == created.SubmissionId);
         await db.Database.ExecuteSqlInterpolatedAsync($"UPDATE event_participant_characters SET event_role = 'Informational', ehb_snapshot = NULL, ehb_source = NULL WHERE osrs_character_id = {choice.CharacterId}");
         var baseline = await B5EvidenceStateAsync();
-        await Assert.ThrowsAsync<InvalidOperationException>(() => Service(db).EditMetadataAsync(new(submission.Id, setup.AdminId, setup.TileId, setup.RequirementId, setup.DropId, choice.CharacterId, "Stale account", submission.Version)));
+        // A real change (the alternate drop) so the no-op refusal cannot answer first; the role refusal is what must fire.
+        var refusal = await Assert.ThrowsAsync<InvalidOperationException>(() => Service(db).EditMetadataAsync(new(submission.Id, setup.AdminId, setup.TileId, setup.RequirementId, setup.AlternateDropId, choice.CharacterId, "Stale account", submission.Version)));
+        Assert.Equal("Choose an unambiguous Playing character assigned in this event to a current or former member of this submission's team.", refusal.Message);
         Assert.Equal(baseline, await B5EvidenceStateAsync());
     }
 
