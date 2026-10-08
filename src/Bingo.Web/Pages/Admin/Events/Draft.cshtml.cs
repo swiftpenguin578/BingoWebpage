@@ -149,7 +149,9 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
             return Finish(new { id });
         }
         var endedIds = memberships.Select(x => x.Id).ToList();
-        var before = TeamRemovalAuditState(team, endedIds);
+        // The ended membership ids are recorded once, in the after state; listing them in both
+        // states doubled a payload that grows with the team's size (4,000-character audit column).
+        var before = TeamAuditState(team);
         var now = time.GetUtcNow();
         foreach (var membership in memberships)
         {
