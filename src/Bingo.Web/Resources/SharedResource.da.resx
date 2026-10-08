@@ -4492,6 +4492,11 @@
   <data name="{0} versions" xml:space="preserve"><value>{0} versioner</value></data>
   <data name="1 version" xml:space="preserve"><value>1 version</value></data>
   <data name="Not found" xml:space="preserve"><value>Ikke fundet</value></data>
+  <data name="The event ends {0}. These standings are live and change as evidence is approved." xml:space="preserve"><value>Eventet slutter {0}. Disse stillinger er live og ændres, efterhånden som beviser godkendes.</value></data>
+  <data name="Calculated now from approved evidence." xml:space="preserve"><value>Beregnet nu ud fra godkendte beviser.</value></data>
+  <data name="Correct official results" xml:space="preserve"><value>Ret officielle resultater</value></data>
+  <data name="Reopen results…" xml:space="preserve"><value>Genåbn resultater…</value></data>
+  <data name="Manage the connection" xml:space="preserve"><value>Administrér tilknytningen</value></data>
   <data name="Version summary" xml:space="preserve"><value>Versionsoversigt</value></data>
   <data name="Results as published" xml:space="preserve"><value>Resultater som offentliggjort</value></data>
   <data name="Results of this version" xml:space="preserve"><value>Resultater for denne version</value></data>
