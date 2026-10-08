@@ -62,7 +62,7 @@ public sealed class AdminShellUiTests
         Assert.DoesNotContain("admin-state admin-state-@eventContext.State", layout);
         Assert.Contains("flex: 0 0 25px", styles);
         Assert.Contains("width: 25px; height: 25px", styles);
-        Assert.Contains("padding: 0.125rem 0.5rem", styles);
+        Assert.DoesNotContain(".admin-badge {", styles); // U10 item 1b: the string was only satisfied by the unused .admin-badge rule
         Assert.Contains("margin-left: auto; flex: 0 0 auto", styles);
         Assert.Contains("min-height: 2.25rem", styles);
         Assert.Contains("border-radius: 999px", styles);
