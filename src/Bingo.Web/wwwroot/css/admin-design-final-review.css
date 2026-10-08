@@ -71,5 +71,10 @@
 
 :where([data-page-family="final-review"]) .fr-effects{display:flex;flex-direction:column;gap:6px;margin:12px 0;padding-left:20px;line-height:1.5}
 :where([data-page-family="final-review"]) .fr-top{display:flex;flex-direction:column;gap:8px;margin:12px 0;padding-left:0;list-style:none}
-:where([data-page-family="final-review"]) .dr-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
-:where([data-page-family="final-review"]) .ro-row{flex-wrap:wrap;gap:12px}
+:where([data-page-family="final-review"]) .fr-tbl.is-compact{--table-cols:minmax(200px,2fr) 128px 52px 52px 96px 128px;--table-min:720px}
+:where([data-page-family="final-review"]) .fr-tbl.is-compact .td{padding-top:9px;padding-bottom:9px}
+:where([data-page-family="final-review"]) .fr-kv{margin-top:0;grid-template-columns:96px minmax(0,1fr)}
+:where([data-page-family="final-review"]) .fr-kv dd{margin:0}
+:where([data-page-family="final-review"]) .fr-dr-reason{margin-top:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+:where([data-page-family="final-review"]) .fr-dr-wrap{border:1px solid var(--dk-border-subtle);border-radius:var(--dk-radius-lg)}
+:where([data-page-family="final-review"]) .fr-dr-note{margin:10px 0 0;font-size:var(--dk-fs-small);color:var(--dk-text-3)}

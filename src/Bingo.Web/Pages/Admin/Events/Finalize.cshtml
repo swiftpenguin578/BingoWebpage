@@ -99,12 +99,32 @@
     {
         var sharedPlaces = version.Placements.GroupBy(x => x.Placement).Where(x => x.Count() > 1).Select(x => x.Key).ToHashSet();
         <template data-final-history="@version.Version">
-            <p class="choice-sub">@T[version.Active ? "Official" : "Retained"] · @T["Published {0} by {1}", Model.Fmt(version.FinalizedAt), version.FinalizedByUsername ?? "—"]</p>
-            @if (version.UnfinalizedAt is { } reopened) { <p>@T["Version {0} reopened", version.Version] · @Model.Fmt(reopened) · @T["Reopened by {0}", version.UnfinalizedByUsername ?? "—"]</p><p class="tl-reason">@version.UnfinalizeReason</p> }
-            @if (version.FinalWomRefresh is { Status: not FinalWomRefreshStatus.Succeeded } outcome) { <p class="banner is-warning">@T[FinalizeModel.FinalWomRefreshDescription(outcome)]</p> }
-            <div class="ro-list">@foreach (var row in version.Placements) { <div class="ro-row"><div><span class="place">@(sharedPlaces.Contains(row.Placement) ? "=" : "")@row.Placement</span> <strong>@row.TeamName</strong></div><span>@T["Lines"]: @row.CompletedLines · @T["Tiles"]: @row.CompletedTiles · @T["Credited EHB"]: @row.EhbTiebreak.ToString("0.####")<br />@T["Full board"]: @(row.BoardComplete ? Model.Fmt(row.BoardCompletedAt) : T["Not completed"]) · @T["Score reached"]: @(row.CurrentScoreReachedAt is null ? "—" : Model.Fmt(row.CurrentScoreReachedAt))</span></div> }</div>
+            <div class="dr-head"><div class="grow"><div class="eyebrow">@r.EventName</div><h2 class="dr-title">@T["Version {0}", version.Version]</h2><div class="dr-badges"><span class="badge @(version.Active ? "badge-success" : "badge-neutral")">@T[version.Active ? "Official" : "Retained"]</span></div></div><button class="icon-btn" type="button" data-final-close aria-label="@T["Close"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button></div>
+            <div class="dr-body">
+                <section class="sec" aria-label="@T["Version summary"]">
+                    <dl class="kv fr-kv"><dt>@T["Published"]</dt><dd>@Model.Fmt(version.FinalizedAt) · @@@(version.FinalizedByUsername ?? "—")</dd>@if (version.UnfinalizedAt is { } reopened) { <dt>@T["Reopened"]</dt><dd>@Model.Fmt(reopened) · @@@(version.UnfinalizedByUsername ?? "—")</dd> }</dl>
+                    @if (version.UnfinalizedAt is not null) { <div class="quote fr-dr-reason">@version.UnfinalizeReason</div> }
+                    @if (version.FinalWomRefresh is { Status: not FinalWomRefreshStatus.Succeeded } outcome) { <p class="fr-official-note"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("warning")' /><span>@T[FinalizeModel.FinalWomRefreshDescription(outcome)]</span></p> }
+                </section>
+                <section class="sec is-last" aria-labelledby="dr-res">
+                    <div class="sec-head"><h3 class="sec-title" id="dr-res">@T["Results as published"]</h3><span class="sec-aside">@T["{0} teams", version.Placements.Count]</span></div>
+                    <div class="tbl-wrap is-scroll fr-dr-wrap"><div class="tbl fr-tbl is-compact" role="table" aria-label="@T["Results of this version"]">
+                        <div class="tr th-row" role="row"><div class="th c-name" role="columnheader">@T["Place and team"]</div><div class="th" role="columnheader">@T["Full board"]</div><div class="th fr-num" role="columnheader">@T["Lines"]</div><div class="th fr-num" role="columnheader">@T["Tiles"]</div><div class="th fr-num" role="columnheader">@T["Credited EHB"]</div><div class="th" role="columnheader">@T["Score reached"]</div></div>
+                        <div class="rows" role="rowgroup">@foreach (var row in version.Placements) { var shared = sharedPlaces.Contains(row.Placement);
+                            <div class="tr row" role="row"><div class="td c-name" role="cell"><div class="fr-team"><span class="place @(row.Placement <= 3 ? "is-top is-" + row.Placement : "") @(shared ? "is-shared" : "")">@(shared ? "=" : "")@row.Placement</span><span class="cell-main fr-team-name">@row.TeamName</span></div></div><div class="td" role="cell"><span class="tval @(row.BoardComplete ? "" : "is-muted")">@(row.BoardComplete ? Model.Fmt(row.BoardCompletedAt) : T["Not completed"])</span></div><div class="td fr-num" role="cell">@row.CompletedLines</div><div class="td fr-num" role="cell">@row.CompletedTiles</div><div class="td fr-num" role="cell">@row.EhbTiebreak.ToString("0.####")</div><div class="td" role="cell"><span class="tval">@(row.CurrentScoreReachedAt is null ? "—" : Model.Fmt(row.CurrentScoreReachedAt))</span></div></div>
+                        }</div>
+                    </div></div>
+                    <p class="fr-dr-note">@T["Stored snapshot: placements and order exactly as published. Later rule or data changes don’t alter it."]</p>
+                </section>
+            </div>
+            <div class="dr-foot"><div class="spacer"></div><button class="btn" type="button" data-final-close>@T["Close"]</button></div>
         </template>
     }
+    <template data-final-history-missing>
+        <div class="dr-head"><div class="grow"><div class="eyebrow">@r.EventName</div><h2 class="dr-title" data-final-missing-title></h2><div class="dr-badges"><span class="badge badge-neutral">@T["Not found"]</span></div></div><button class="icon-btn" type="button" data-final-close aria-label="@T["Close"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button></div>
+        <div class="dr-body"><div class="empty"><div class="empty-title">@T["This version isn’t available"]</div><div class="empty-text">@T["The link may be incomplete. Retained versions are never deleted."]</div></div></div>
+        <div class="dr-foot"><div class="spacer"></div><button class="btn" type="button" data-final-close>@T["Close"]</button></div>
+    </template>
 </div>
 @section Styles { <link rel="stylesheet" href="~/css/admin-design-final-review.css" asp-append-version="true" data-admin-page-style /> }
 @section Scripts { <script type="module" src="~/js/admin-final-review.js" asp-append-version="true" data-admin-page-script></script> }
