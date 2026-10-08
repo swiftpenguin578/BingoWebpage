@@ -2559,9 +2559,12 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         }
         Dictionary<string, string> Save(System.Text.Json.JsonElement view, bool paid, string note) => new()
         {
-            ["participantId"] = participant.Id.ToString(), ["expectedResponseVersion"] = view.GetProperty("responseVersion").GetInt32().ToString(CultureInfo.InvariantCulture),
-            ["expectedPaid"] = view.GetProperty("paid").GetBoolean() ? "true" : "false", ["expectedNote"] = view.GetProperty("adminNote").GetString() ?? string.Empty,
-            ["paid"] = paid ? "true" : "false", ["note"] = note
+            ["participantId"] = participant.Id.ToString(),
+            ["expectedResponseVersion"] = view.GetProperty("responseVersion").GetInt32().ToString(CultureInfo.InvariantCulture),
+            ["expectedPaid"] = view.GetProperty("paid").GetBoolean() ? "true" : "false",
+            ["expectedNote"] = view.GetProperty("adminNote").GetString() ?? string.Empty,
+            ["paid"] = paid ? "true" : "false",
+            ["note"] = note
         };
         async Task<string?> PostJsonAsync(string handler, Dictionary<string, string> fields)
         {
@@ -2892,7 +2895,11 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             var altId = accounts.Single(x => x.GetProperty("role").GetString() == "alt").GetProperty("assignmentId").GetGuid();
             var fields = new Dictionary<string, string>
             {
-                ["participantId"] = first.Id.ToString(), ["expectedPaid"] = "true", ["expectedNote"] = "private-note", ["paid"] = "true", ["note"] = "private-note",
+                ["participantId"] = first.Id.ToString(),
+                ["expectedPaid"] = "true",
+                ["expectedNote"] = "private-note",
+                ["paid"] = "true",
+                ["note"] = "private-note",
                 ["accounts"] = System.Text.Json.JsonSerializer.Serialize(new object[] { new { assignmentId = playingId, name = regularName, ehb, role = "playing", primary = true }, new { assignmentId = altId, name = altName, ehb = (decimal?)null, role = "alt", primary = false } }),
                 ["answers"] = System.Text.Json.JsonSerializer.Serialize(new Dictionary<Guid, string> { [captain.Id] = captainValue, [answer.Id] = answerValue })
             };
@@ -3159,7 +3166,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         ["Input.Options"] = string.Empty,
         ["Input.AccountRole"] = string.Empty,
         ["expectedFormVersion"] = InputValueByName(page, "expectedFormVersion"),
-            ["__RequestVerificationToken"] = AntiforgeryToken(page)
+        ["__RequestVerificationToken"] = AntiforgeryToken(page)
     });
 
     private static string InputValue(string page, string id) => Regex.Match(page, $"<input id=\"{id}\"[^>]*value=\"([^\"]*)\"").Groups[1].Value;

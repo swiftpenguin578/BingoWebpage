@@ -8,13 +8,13 @@ using Bingo.Infrastructure.Persistence;
 using Bingo.Web;
 using Bingo.Web.UI;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.RazorPages.Infrastructure;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Localization;
 using Testcontainers.PostgreSql;
 
@@ -370,7 +370,11 @@ public sealed class AuditHistoryIntegrationTests(PostgreSqlTestFixture databaseF
         context.Request.QueryString = new QueryString($"?event={Guid.NewGuid()}&action=team.&type=spaceship&from=2027-13-40&page=0&EventId=x");
         var dropped = new Bingo.Web.Pages.Admin.Audit.IndexModel(db)
         {
-            EventQuery = Guid.NewGuid().ToString(), ActionQuery = "team.", TypeQuery = "spaceship", FromQuery = "2027-13-40", PageQuery = "0",
+            EventQuery = Guid.NewGuid().ToString(),
+            ActionQuery = "team.",
+            TypeQuery = "spaceship",
+            FromQuery = "2027-13-40",
+            PageQuery = "0",
             PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor()))
         };
         await dropped.OnGetAsync(CancellationToken.None);
@@ -418,7 +422,9 @@ public sealed class AuditHistoryIntegrationTests(PostgreSqlTestFixture databaseF
         var loginToken = Regex.Match(login, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
         using (var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Input.Username"] = "audit-binding-admin", ["Input.Password"] = "audit-test-password", ["__RequestVerificationToken"] = loginToken
+            ["Input.Username"] = "audit-binding-admin",
+            ["Input.Password"] = "audit-test-password",
+            ["__RequestVerificationToken"] = loginToken
         }))) Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
         const string notice = "Some filters in the link weren’t recognised.";
         static IReadOnlyList<string> Rows(string html) => Regex.Matches(html, "data-audit-row[^>]*|data-audit-entry=\"([0-9a-f-]+)\" data-audit-row").Select(match => match.Groups[1].Value).Where(value => value.Length > 0).ToList();

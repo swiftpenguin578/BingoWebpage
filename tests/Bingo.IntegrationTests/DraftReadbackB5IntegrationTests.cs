@@ -1,7 +1,7 @@
 using System.Data.Common;
 using System.Text.Json;
-using Bingo.Domain.Auditing;
 using Bingo.Domain.Access;
+using Bingo.Domain.Auditing;
 using Bingo.Domain.Integrations.WiseOldMan;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;

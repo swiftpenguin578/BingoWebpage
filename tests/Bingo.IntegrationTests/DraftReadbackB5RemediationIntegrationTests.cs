@@ -1,15 +1,15 @@
-using System.Net;
-using Microsoft.AspNetCore.Hosting;
-using System.Text.Json;
 using System.Data.Common;
+using System.Net;
+using System.Text.Json;
 using Bingo.Domain.Auditing;
-using Bingo.Web.Pages.Admin.Events;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore.Diagnostics;
 using Bingo.Domain.Integrations.WiseOldMan;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Web.Pages.Admin.Events;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
 
 namespace Bingo.IntegrationTests;
 

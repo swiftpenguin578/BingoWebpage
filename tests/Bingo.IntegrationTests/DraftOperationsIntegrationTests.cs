@@ -36,8 +36,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Testcontainers.PostgreSql;
 using Npgsql;
+using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 

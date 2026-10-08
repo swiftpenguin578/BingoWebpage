@@ -23,7 +23,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
 
             var originalSnapshot = await File.ReadAllTextAsync(path);
             var invalidSnapshot = JsonNode.Parse(originalSnapshot)!.AsObject();
-            invalidSnapshot["drops"]!.AsArray()[0]! ["assumedParticipants"] = 2;
+            invalidSnapshot["drops"]!.AsArray()[0]!["assumedParticipants"] = 2;
             await File.WriteAllTextAsync(path, invalidSnapshot.ToJsonString());
 
             long bossVersion;

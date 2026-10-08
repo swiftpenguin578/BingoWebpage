@@ -213,7 +213,8 @@ public sealed class SignupCodeValidationIntegrationTests(PostgreSqlTestFixture d
         var page = await client.GetStringAsync("/Account/Login");
         using var response = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Input.Username"] = login, ["Input.Password"] = "synthetic-test-password",
+            ["Input.Username"] = login,
+            ["Input.Password"] = "synthetic-test-password",
             ["__RequestVerificationToken"] = Token(page)
         }));
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);

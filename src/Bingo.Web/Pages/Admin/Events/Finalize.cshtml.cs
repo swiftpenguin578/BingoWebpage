@@ -78,10 +78,18 @@ public sealed partial class FinalizeModel(IEventFinalizationService finalization
     private bool WantsJson => Request.GetTypedHeaders().Accept?.Any(value => value.MediaType.Value == "application/json") == true;
     private static object CurrentState(FinalReviewReadiness value) => new
     {
-        value.EventId, version = value.EventVersion.ToString(CultureInfo.InvariantCulture), state = value.State.ToString(),
-        latestFinalization = (value.History.Count > 0 ? value.History[0] : null), value.History, value.ReviewCycleId,
-        finalRefresh = (value.History.Count > 0 ? value.History[0] : null)?.FinalWomRefresh, value.BlockingCurrentEvent,
-        value.CanFinalize, value.SubmissionWindowOpen, value.Blockers, value.Placements,
+        value.EventId,
+        version = value.EventVersion.ToString(CultureInfo.InvariantCulture),
+        state = value.State.ToString(),
+        latestFinalization = (value.History.Count > 0 ? value.History[0] : null),
+        value.History,
+        value.ReviewCycleId,
+        finalRefresh = (value.History.Count > 0 ? value.History[0] : null)?.FinalWomRefresh,
+        value.BlockingCurrentEvent,
+        value.CanFinalize,
+        value.SubmissionWindowOpen,
+        value.Blockers,
+        value.Placements,
         womEndUpdateStatus = value.WomEndUpdateStatus.ToString()
     };
     private async Task<IActionResult> Run(Guid id, Func<Task> action, CancellationToken ct)

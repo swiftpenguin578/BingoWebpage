@@ -115,8 +115,12 @@ public sealed class ParticipantFlowIntegrationTests(PostgreSqlTestFixture databa
         {
             Content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
-                ["participantId"] = participant.Id.ToString(), ["expectedResponseVersion"] = editVersion.ToString(CultureInfo.InvariantCulture),
-                ["expectedPaid"] = "false", ["expectedNote"] = "", ["paid"] = "false", ["note"] = "",
+                ["participantId"] = participant.Id.ToString(),
+                ["expectedResponseVersion"] = editVersion.ToString(CultureInfo.InvariantCulture),
+                ["expectedPaid"] = "false",
+                ["expectedNote"] = "",
+                ["paid"] = "false",
+                ["note"] = "",
                 ["accounts"] = $"[{{\"assignmentId\":\"{existingAssignment.Id}\",\"name\":\"Changed Edit\",\"ehb\":5.5,\"role\":\"playing\",\"primary\":true}}]",
                 ["answers"] = "{}"
             })

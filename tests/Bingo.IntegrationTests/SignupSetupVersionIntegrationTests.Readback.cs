@@ -1,8 +1,8 @@
 using System.Globalization;
-using Bingo.Application.Signups;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using Bingo.Application.Signups;
 using Bingo.Domain.Events;
 using Bingo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -18,12 +18,18 @@ public sealed partial class SignupSetupVersionIntegrationTests
         using var client = factory.CreateClient(new() { AllowAutoRedirect = false }); await LoginAsync(client, seed.Admin);
         var route = $"/Admin/Events/SignupSetup/{seed.EventId}"; var page = await client.GetStringAsync(route);
         client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
-        var accepted = await SettingsPostAsync(client, route + "?handler=SignupAdministration", page, new() {
-            ["SignupAdministration.Version"] = (await EventVersionAsync(seed.EventId)).ToString(CultureInfo.InvariantCulture), ["SignupAdministration.ParticipantCap"] = "10000" });
+        var accepted = await SettingsPostAsync(client, route + "?handler=SignupAdministration", page, new()
+        {
+            ["SignupAdministration.Version"] = (await EventVersionAsync(seed.EventId)).ToString(CultureInfo.InvariantCulture),
+            ["SignupAdministration.ParticipantCap"] = "10000"
+        });
         Assert.True(accepted.Succeeded, accepted.Error); Assert.Equal(10_000, accepted.Settings!.ParticipantCap);
         var before = await SnapshotAsync(seed.EventId);
-        var rejected = await SettingsPostAsync(client, route + "?handler=SignupAdministration", page, new() {
-            ["SignupAdministration.Version"] = accepted.Settings.EventVersion.ToString(CultureInfo.InvariantCulture), ["SignupAdministration.ParticipantCap"] = "10001" });
+        var rejected = await SettingsPostAsync(client, route + "?handler=SignupAdministration", page, new()
+        {
+            ["SignupAdministration.Version"] = accepted.Settings.EventVersion.ToString(CultureInfo.InvariantCulture),
+            ["SignupAdministration.ParticipantCap"] = "10001"
+        });
         Assert.False(rejected.Succeeded); Assert.Equal(BingoEvent.ParticipantCapMaximumMessage, rejected.Error);
         Assert.Equal(accepted.Settings, rejected.Settings); Assert.Equal(before, await SnapshotAsync(seed.EventId));
     }
@@ -36,7 +42,7 @@ public sealed partial class SignupSetupVersionIntegrationTests
         client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
         using var current = await client.GetFromJsonAsync<JsonDocument>(route + "?handler=Current");
         var question = current!.RootElement.GetProperty("questions").EnumerateArray().Single(q => q.GetProperty("id").GetGuid() == seed.Custom);
-        var fields = new Dictionary<string,string> { ["__RequestVerificationToken"] = Token(page), ["questionId"] = seed.Custom.ToString(), ["confirmed"] = "true", ["expectedAnswerCount"] = "1", ["expectedEventRegistrationReleaseCount"] = "0", ["expectedQuestionVersion"] = question.GetProperty("version").GetInt32().ToString(CultureInfo.InvariantCulture) };
+        var fields = new Dictionary<string, string> { ["__RequestVerificationToken"] = Token(page), ["questionId"] = seed.Custom.ToString(), ["confirmed"] = "true", ["expectedAnswerCount"] = "1", ["expectedEventRegistrationReleaseCount"] = "0", ["expectedQuestionVersion"] = question.GetProperty("version").GetInt32().ToString(CultureInfo.InvariantCulture) };
         using var rejected = await client.PostAsync(route + "?handler=Deactivate", new FormUrlEncodedContent(fields));
         Assert.Equal(HttpStatusCode.OK, rejected.StatusCode); var result = (await rejected.Content.ReadFromJsonAsync<SignupAdministrationResult>())!;
         Assert.False(result.Succeeded); Assert.True(result.RequiresConfirmation); Assert.Equal(seed.Custom, result.Impact!.QuestionId); Assert.Equal(0, result.Impact.AnswerCount);

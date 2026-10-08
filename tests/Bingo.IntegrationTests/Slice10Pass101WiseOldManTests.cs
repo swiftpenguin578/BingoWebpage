@@ -312,7 +312,8 @@ public sealed class Slice10Pass101WiseOldManTests
         using var http = new HttpClient(new DelegateHandler((_, _) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.BadRequest)
         {
             Content = JsonContent.Create(new { code = "COMPETITION_START_DATE_AFTER_END_DATE", message = "Rejected secret" })
-        }))) { BaseAddress = new Uri("https://fake.test/") };
+        })))
+        { BaseAddress = new Uri("https://fake.test/") };
         var client = new WiseOldManCompetitionManagementClient(new SingleClientFactory(http),
             new WiseOldManRequestLimiter(clock, NullLogger<WiseOldManRequestLimiter>.Instance), clock,
             new DataProtectionCompetitionCredentialProtector(new EphemeralDataProtectionProvider()));

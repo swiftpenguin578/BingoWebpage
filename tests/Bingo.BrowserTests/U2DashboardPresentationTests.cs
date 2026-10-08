@@ -23,7 +23,8 @@ public sealed class U2DashboardPresentationTests
             Assert.Equal("Mar 2027", model.Month(At, "UTC"));
             Assert.Equal("1–2 Apr 2027", model.Range(At, At.AddDays(1), "Europe/Copenhagen"));
             var card = new DashboardEventCard(EventId, "Cup", "cup", EventState.SignupClosed, At, null,
-                true, 0, 0, null, "/Admin/Events/Manage/fixture") { Timezone = "Europe/Copenhagen" };
+                true, 0, 0, null, "/Admin/Events/Manage/fixture")
+            { Timezone = "Europe/Copenhagen" };
             Assert.Equal("Start was due 1 Apr 2027", model.NextDate(card));
         }
         finally { CultureInfo.CurrentCulture = previous; }
@@ -67,15 +68,17 @@ public sealed class U2DashboardPresentationTests
     [Fact]
     public void ProvisionalEndIncludesYearAndCountsUseCultureSeparatorsWithoutPartialSuffix()
     {
-        var previous = CultureInfo.CurrentCulture;CultureInfo.CurrentCulture=CultureInfo.GetCultureInfo("en-GB");
-        try {
-            Assert.StartsWith("Ended 2 Apr 2027", model.ChartTipNote(Point() with { Provisional=true }));
+        var previous = CultureInfo.CurrentCulture; CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("en-GB");
+        try
+        {
+            Assert.StartsWith("Ended 2 Apr 2027", model.ChartTipNote(Point() with { Provisional = true }));
             Assert.Equal("1,234", Bingo.Web.Pages.Admin.IndexModel.Number(1234));
-            Assert.Contains("1,234 players",model.ChartLabel(Point() with {Participants=DashboardMetric<long>.Measured(1234)}));
-            var metric=DashboardMetric<long>.Measured(0);
-            var row=new DashboardHistoryRow(EventId,"Cup","cup",EventState.Archived,false,At,At.AddDays(1),"/fixture",metric,metric,metric,null,new DashboardEhbSummary(1m,DashboardEhbCoverage.Partial,1234,1000),[]);
-            Assert.Equal("Wise Old Man · 1,000 of 1,234 accounts",model.EhbHint(row));
-        } finally { CultureInfo.CurrentCulture=previous; }
+            Assert.Contains("1,234 players", model.ChartLabel(Point() with { Participants = DashboardMetric<long>.Measured(1234) }));
+            var metric = DashboardMetric<long>.Measured(0);
+            var row = new DashboardHistoryRow(EventId, "Cup", "cup", EventState.Archived, false, At, At.AddDays(1), "/fixture", metric, metric, metric, null, new DashboardEhbSummary(1m, DashboardEhbCoverage.Partial, 1234, 1000), []);
+            Assert.Equal("Wise Old Man · 1,000 of 1,234 accounts", model.EhbHint(row));
+        }
+        finally { CultureInfo.CurrentCulture = previous; }
     }
 
     private static DashboardParticipationPoint Point() => new(EventId, "Cup", "cup", EventState.AwaitingFinalReview,

@@ -1,13 +1,13 @@
 using System.Data.Common;
 using System.Text.Json;
-using Microsoft.EntityFrameworkCore.Diagnostics;
-using Npgsql;
 using Bingo.Domain.Boards;
 using Bingo.Domain.Catalogue;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Pages.Admin.Events;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Npgsql;
 
 namespace Bingo.IntegrationTests;
 
@@ -201,7 +201,10 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         await db.SaveChangesAsync();
         page.TileDraft = new BoardModel.TileDraftInput
         {
-            TileId = fixture.Tile.Id, Position = 0, Name = fixture.Tile.NameSnapshot, Description = null,
+            TileId = fixture.Tile.Id,
+            Position = 0,
+            Name = fixture.Tile.NameSnapshot,
+            Description = null,
             Requirements = [
                 new BoardModel.RequirementInput { RequirementId = fixture.Requirement.Id, Kind = "drops", Target = 1, DuplicatesAllowed = true, BossIds = [fixture.Boss.Id], DropIds = [fixture.Drop.Id] },
                 new BoardModel.RequirementInput { Kind = "drops", Target = 2, DuplicatesAllowed = true, BossIds = [fixture.Boss.Id], DropIds = [drop.Id] }

@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -7,10 +7,10 @@ namespace Bingo.Infrastructure.Persistence.Migrations;
 /// <inheritdoc />
 public partial class AddBossActivityTeamSize : Migration
 {
-        /// <inheritdoc />
-        protected override void Up(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.Sql("""
+    /// <inheritdoc />
+    protected override void Up(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.Sql("""
                 DO $$
                 BEGIN
                     IF EXISTS (
@@ -24,28 +24,28 @@ public partial class AddBossActivityTeamSize : Migration
                 END $$;
                 """);
 
-            migrationBuilder.AddColumn<int>(
-                name: "team_size",
-                table: "boss_activities",
-                type: "integer",
-                nullable: false,
-                defaultValue: 1);
+        migrationBuilder.AddColumn<int>(
+            name: "team_size",
+            table: "boss_activities",
+            type: "integer",
+            nullable: false,
+            defaultValue: 1);
 
-            migrationBuilder.AddCheckConstraint(
-                name: "ck_boss_activity_team_size",
-                table: "boss_activities",
-                sql: "team_size >= 1");
-        }
+        migrationBuilder.AddCheckConstraint(
+            name: "ck_boss_activity_team_size",
+            table: "boss_activities",
+            sql: "team_size >= 1");
+    }
 
-        /// <inheritdoc />
-        protected override void Down(MigrationBuilder migrationBuilder)
-        {
-            migrationBuilder.DropCheckConstraint(
-                name: "ck_boss_activity_team_size",
-                table: "boss_activities");
+    /// <inheritdoc />
+    protected override void Down(MigrationBuilder migrationBuilder)
+    {
+        migrationBuilder.DropCheckConstraint(
+            name: "ck_boss_activity_team_size",
+            table: "boss_activities");
 
-            migrationBuilder.DropColumn(
-                name: "team_size",
-                table: "boss_activities");
-        }
+        migrationBuilder.DropColumn(
+            name: "team_size",
+            table: "boss_activities");
+    }
 }

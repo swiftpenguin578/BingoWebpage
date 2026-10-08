@@ -27,10 +27,15 @@ public sealed partial class SignupQuestionCreationRetryIntegrationTests
         await LoginAsync(client, seed.Admin.LoginName);
         var route = $"/Admin/Events/SignupSetup/{seed.EventId}";
         var page = await client.GetStringAsync(route);
-        var fields = new Dictionary<string, string> {
-            ["Input.Label"] = "Arriving question", ["Input.Type"] = "Text", ["Input.Required"] = "true",
+        var fields = new Dictionary<string, string>
+        {
+            ["Input.Label"] = "Arriving question",
+            ["Input.Type"] = "Text",
+            ["Input.Required"] = "true",
             ["expectedFormVersion"] = existing.FormVersion!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            ["addRequestId"] = Guid.NewGuid().ToString(), ["__RequestVerificationToken"] = Token(page) };
+            ["addRequestId"] = Guid.NewGuid().ToString(),
+            ["__RequestVerificationToken"] = Token(page)
+        };
         var gate = new CommitGate();
         await using var signing = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>()
             .UseNpgsql(database.GetConnectionString()).AddInterceptors(gate).Options);
@@ -72,11 +77,16 @@ public sealed partial class SignupQuestionCreationRetryIntegrationTests
         var oldEditor = await guardedClient.GetStringAsync(guardedRoute);
         await using (var db = new ApplicationDbContext(options)) Assert.True((await SignupService(db).SignUpAuthenticatedAsync(guardedSignup)).Succeeded);
         var before = await SnapshotAsync();
-        foreach (var structural in new[] { new KeyValuePair<string,string>("Edit.Required", "true"), new("Edit.Type", "Number") })
+        foreach (var structural in new[] { new KeyValuePair<string, string>("Edit.Required", "true"), new("Edit.Type", "Number") })
         {
-            var edit = new Dictionary<string,string> { ["questionId"] = guarded.QuestionId!.Value.ToString(),
+            var edit = new Dictionary<string, string>
+            {
+                ["questionId"] = guarded.QuestionId!.Value.ToString(),
                 ["expectedFormVersion"] = guarded.FormVersion!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                ["Edit.Label"] = "Same label", [structural.Key] = structural.Value, ["__RequestVerificationToken"] = Token(oldEditor) };
+                ["Edit.Label"] = "Same label",
+                [structural.Key] = structural.Value,
+                ["__RequestVerificationToken"] = Token(oldEditor)
+            };
             using var response = await guardedClient.PostAsync(guardedRoute + "?handler=Edit", new FormUrlEncodedContent(edit));
             Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
             Assert.Contains("Answer format is locked", await guardedClient.GetStringAsync(response.Headers.Location));
@@ -215,7 +225,7 @@ public sealed partial class SignupQuestionCreationRetryIntegrationTests
         db.AddRange(player, character, new AccountOsrsCharacter(Guid.NewGuid(), player.Id, character.Id, true, 0, Now));
         await db.SaveChangesAsync();
         var primary = await db.SignupQuestions.SingleAsync(x => x.EventId == seed.EventId && x.SystemField == SignupSystemField.PrimaryRegularAccount);
-        return new(seed.EventId, player.Id, new Dictionary<Guid,AuthenticatedAccountAnswer> { [primary.Id] = new(character.Id, 10) }, new Dictionary<Guid,string>(), null);
+        return new(seed.EventId, player.Id, new Dictionary<Guid, AuthenticatedAccountAnswer> { [primary.Id] = new(character.Id, 10) }, new Dictionary<Guid, string>(), null);
     }
     private static SignupService SignupService(ApplicationDbContext db, DateTimeOffset? instant = null) =>
         new(db, new SecretHasher(), new AtClock(instant ?? Now), accountValidation: new SuccessfulWiseOldManAccountValidation());

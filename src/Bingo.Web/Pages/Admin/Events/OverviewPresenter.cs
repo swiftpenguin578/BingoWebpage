@@ -101,9 +101,15 @@ public sealed class OverviewPresenter(OverviewInput input, Func<string, object[]
 
     public string PhaseLabel => e.State switch
     {
-        EventState.Draft => T("Setup"), EventState.SignupOpen => T("Signups open"), EventState.SignupClosed => T("Signups closed"),
-        EventState.Live => T("Live"), EventState.AwaitingFinalReview => T("Final review"), EventState.Finalized => T("Finished"),
-        EventState.Archived => T("Archived"), EventState.Cancelled => T("Cancelled"), _ => e.State.ToString()
+        EventState.Draft => T("Setup"),
+        EventState.SignupOpen => T("Signups open"),
+        EventState.SignupClosed => T("Signups closed"),
+        EventState.Live => T("Live"),
+        EventState.AwaitingFinalReview => T("Final review"),
+        EventState.Finalized => T("Finished"),
+        EventState.Archived => T("Archived"),
+        EventState.Cancelled => T("Cancelled"),
+        _ => e.State.ToString()
     };
 
     public OverviewView Build()
@@ -127,8 +133,12 @@ public sealed class OverviewPresenter(OverviewInput input, Func<string, object[]
         var finished = e.State == EventState.Finalized;
         var index = e.State switch
         {
-            EventState.Draft => 0, EventState.SignupOpen => 1, EventState.SignupClosed => 2, EventState.Live => 3,
-            EventState.AwaitingFinalReview => 4, _ => 5
+            EventState.Draft => 0,
+            EventState.SignupOpen => 1,
+            EventState.SignupClosed => 2,
+            EventState.Live => 3,
+            EventState.AwaitingFinalReview => 4,
+            _ => 5
         };
         string Sched(DateTimeOffset? at, string verb) => at is null ? T("Not scheduled") : T(verb + " {0} · scheduled", Fmt(at));
         var published = e.ArchivedAt ?? e.FinalizedAt;
@@ -302,75 +312,75 @@ public sealed class OverviewPresenter(OverviewInput input, Func<string, object[]
         switch (e.State)
         {
             case EventState.Draft:
-            {
-                OverviewTransition tr = e.ScheduledSignupOpeningEnabled && e.SignupOpensAt is { } opens
-                    ? new(string.Empty, T("Signups open automatically on {0}", Fmt(opens)), T("If something below is still missing then, the opening is skipped and admins are notified."), false, [Button(d, "open", "btn-primary")])
-                    : e.SignupOpensAt is { } planned
-                        ? new(string.Empty, T("Signups are planned for {0}", Fmt(planned)), T("They open only when you open them, unless you turn on automatic opening on Schedule."), false, [Button(d, "open", "btn-primary")])
-                        : new("is-none", T("No opening time is scheduled"), T("Signups open when you open them. To schedule the opening, set a time on Schedule."), true, [Button(d, "open", "btn-primary")]);
-                return new(T("Private draft"), null, T("Players can’t see this event yet. It becomes public when signups open."), tr,
-                    T("Before you can open signups"), SignupChecks(input.Signup), null, [], T("Later, before the start: finalize the team draft and publish the board."),
-                    null, null, [], null, null, null, null, null, string.Empty);
-            }
+                {
+                    OverviewTransition tr = e.ScheduledSignupOpeningEnabled && e.SignupOpensAt is { } opens
+                        ? new(string.Empty, T("Signups open automatically on {0}", Fmt(opens)), T("If something below is still missing then, the opening is skipped and admins are notified."), false, [Button(d, "open", "btn-primary")])
+                        : e.SignupOpensAt is { } planned
+                            ? new(string.Empty, T("Signups are planned for {0}", Fmt(planned)), T("They open only when you open them, unless you turn on automatic opening on Schedule."), false, [Button(d, "open", "btn-primary")])
+                            : new("is-none", T("No opening time is scheduled"), T("Signups open when you open them. To schedule the opening, set a time on Schedule."), true, [Button(d, "open", "btn-primary")]);
+                    return new(T("Private draft"), null, T("Players can’t see this event yet. It becomes public when signups open."), tr,
+                        T("Before you can open signups"), SignupChecks(input.Signup), null, [], T("Later, before the start: finalize the team draft and publish the board."),
+                        null, null, [], null, null, null, null, null, string.Empty);
+                }
             case EventState.SignupOpen:
-            {
-                var lead = (e.ParticipantCap is > 0 ? T("{0} of {1} places confirmed", Nf(input.Confirmed), Nf(e.ParticipantCap.Value)) : T("{0} confirmed", Nf(input.Confirmed)))
-                    + (input.Waiting > 0 ? T(", {0} waiting", Nf(input.Waiting)) : string.Empty) + ". " + T("Opened {0}.", Fmt(e.ActualSignupOpenedAt));
-                OverviewTransition tr = e.SignupClosesAt is { } closes
-                    ? new(string.Empty, T("Signups close automatically on {0}", Fmt(closes)), T("Players already on the list aren’t affected."), false, [Button(d, "close", string.Empty)])
-                    : new("is-none", T("No closing time is set"), T("Signups stay open until you close them."), true, [Button(d, "close", string.Empty)]);
-                return new(T("Signups are open"), null, lead, tr, null, [], null, [], later + (e.DraftAt is { } draft ? " " + T("The team draft is planned for {0}.", Fmt(draft)) : string.Empty),
-                    null, null, [], null, null, null, null, null, string.Empty);
-            }
+                {
+                    var lead = (e.ParticipantCap is > 0 ? T("{0} of {1} places confirmed", Nf(input.Confirmed), Nf(e.ParticipantCap.Value)) : T("{0} confirmed", Nf(input.Confirmed)))
+                        + (input.Waiting > 0 ? T(", {0} waiting", Nf(input.Waiting)) : string.Empty) + ". " + T("Opened {0}.", Fmt(e.ActualSignupOpenedAt));
+                    OverviewTransition tr = e.SignupClosesAt is { } closes
+                        ? new(string.Empty, T("Signups close automatically on {0}", Fmt(closes)), T("Players already on the list aren’t affected."), false, [Button(d, "close", string.Empty)])
+                        : new("is-none", T("No closing time is set"), T("Signups stay open until you close them."), true, [Button(d, "close", string.Empty)]);
+                    return new(T("Signups are open"), null, lead, tr, null, [], null, [], later + (e.DraftAt is { } draft ? " " + T("The team draft is planned for {0}.", Fmt(draft)) : string.Empty),
+                        null, null, [], null, null, null, null, null, string.Empty);
+                }
             case EventState.SignupClosed:
-            {
-                var checks = StartChecks();
-                var ready = Ready(checks);
-                var lead = T("Signups closed {0}.", Fmt(e.ActualSignupClosedAt)) + " " + T("{0} confirmed", Nf(input.Confirmed)) + (input.Waiting > 0 ? T(", {0} waiting", Nf(input.Waiting)) : string.Empty) + ".";
-                var buttons = new List<OverviewButton>();
-                if (d["reopen"].Applicable) buttons.Add(Button(d, "reopen", string.Empty));
-                buttons.Add(Button(d, "start", "btn-primary"));
-                OverviewTransition tr = input.Postponed is not null
-                    ? new("is-none", T("Start the event yourself"), ready ? T("Everything below is done. The automatic start won’t retry.") : T("The automatic start won’t retry. Finish everything below, then start it."), false, buttons)
-                    : e.EventStartsAt is { } starts
-                        ? new(string.Empty, T("Starts automatically on {0}", Fmt(starts)), T("If something below is still missing then, the start is postponed and admins are notified."), false, buttons)
-                        : new("is-none", T("No start time is scheduled"), T("Set the event window on Schedule."), true, buttons);
-                // A-Overview-3: Reopen uses the signup checklist; shown only while it blocks Reopen.
-                var reopenChecks = d["reopen"].Applicable ? SignupChecks(input.Reopen).Where(x => !x.Done).ToList() : [];
-                return new(T("Getting ready to start"), null, lead, tr, T("Before you can start the event"), checks,
-                    reopenChecks.Count > 0 ? T("Before you can reopen signups") : null, reopenChecks, null, null, null, [], null, null, null, null, null, string.Empty);
-            }
+                {
+                    var checks = StartChecks();
+                    var ready = Ready(checks);
+                    var lead = T("Signups closed {0}.", Fmt(e.ActualSignupClosedAt)) + " " + T("{0} confirmed", Nf(input.Confirmed)) + (input.Waiting > 0 ? T(", {0} waiting", Nf(input.Waiting)) : string.Empty) + ".";
+                    var buttons = new List<OverviewButton>();
+                    if (d["reopen"].Applicable) buttons.Add(Button(d, "reopen", string.Empty));
+                    buttons.Add(Button(d, "start", "btn-primary"));
+                    OverviewTransition tr = input.Postponed is not null
+                        ? new("is-none", T("Start the event yourself"), ready ? T("Everything below is done. The automatic start won’t retry.") : T("The automatic start won’t retry. Finish everything below, then start it."), false, buttons)
+                        : e.EventStartsAt is { } starts
+                            ? new(string.Empty, T("Starts automatically on {0}", Fmt(starts)), T("If something below is still missing then, the start is postponed and admins are notified."), false, buttons)
+                            : new("is-none", T("No start time is scheduled"), T("Set the event window on Schedule."), true, buttons);
+                    // A-Overview-3: Reopen uses the signup checklist; shown only while it blocks Reopen.
+                    var reopenChecks = d["reopen"].Applicable ? SignupChecks(input.Reopen).Where(x => !x.Done).ToList() : [];
+                    return new(T("Getting ready to start"), null, lead, tr, T("Before you can start the event"), checks,
+                        reopenChecks.Count > 0 ? T("Before you can reopen signups") : null, reopenChecks, null, null, null, [], null, null, null, null, null, string.Empty);
+                }
             case EventState.Live:
-            {
-                var lead = T("Started {0}.", Fmt(e.ActualStartedAt)) + " " + Plural(input.TeamCount, "{0} team", "{0} teams") + ", " + Plural(input.Players, "{0} player", "{0} players") + ".";
-                var tr = e.EventEndsAt is { } ends
-                    ? new OverviewTransition(string.Empty, T("Ends automatically on {0}", Fmt(ends)), T("Uploads close 30 minutes later, at {0}.", Fmt(ends.AddMinutes(30))), false, [Button(d, "end", string.Empty)])
-                    : new OverviewTransition("is-none", T("No end time is scheduled"), T("Set the event window on Schedule."), true, [Button(d, "end", string.Empty)]);
-                return new(T("Live"), e.EventEndsAt is { } end ? T("Ends {0}", InDays(end)) : null, lead, tr, null, [], null, [], null,
-                    null, null, [], null, null, null, null, null, string.Empty);
-            }
+                {
+                    var lead = T("Started {0}.", Fmt(e.ActualStartedAt)) + " " + Plural(input.TeamCount, "{0} team", "{0} teams") + ", " + Plural(input.Players, "{0} player", "{0} players") + ".";
+                    var tr = e.EventEndsAt is { } ends
+                        ? new OverviewTransition(string.Empty, T("Ends automatically on {0}", Fmt(ends)), T("Uploads close 30 minutes later, at {0}.", Fmt(ends.AddMinutes(30))), false, [Button(d, "end", string.Empty)])
+                        : new OverviewTransition("is-none", T("No end time is scheduled"), T("Set the event window on Schedule."), true, [Button(d, "end", string.Empty)]);
+                    return new(T("Live"), e.EventEndsAt is { } end ? T("Ends {0}", InDays(end)) : null, lead, tr, null, [], null, [], null,
+                        null, null, [], null, null, null, null, null, string.Empty);
+                }
             case EventState.AwaitingFinalReview:
-            {
-                var until = UploadsUntil;
-                OverviewTransition tr = e.ReopenedSubmissionCutoffAt is { } reopened && UploadsOpen && reopened == until
-                    ? new(string.Empty, T("Uploads reopened until {0}", Fmt(reopened)), T("Results can be published once they close."), false, [])
-                    : UploadsOpen
-                        ? new(string.Empty, T("Uploads close on {0}", Fmt(until)), T("30 minutes after the end, for drops from before it."), false, [])
-                        : new("is-none", T("Uploads closed {0}", Fmt(until)), T("If a team needs more time, reopen uploads under Other actions."), false, []);
-                return new(T("Final review"), null, T("Ended {0}. Check the outstanding work, then publish the official results from Final review.", Fmt(e.ActualEndedAt)), tr,
-                    T("Before you can publish official results"), PublishChecks(), null, [], null, null, null, [], null, null,
-                    T("Publishing makes the results official and archives the event."), T("Open Final review"), Url("/Admin/Events/Finalize"), "btn-primary");
-            }
+                {
+                    var until = UploadsUntil;
+                    OverviewTransition tr = e.ReopenedSubmissionCutoffAt is { } reopened && UploadsOpen && reopened == until
+                        ? new(string.Empty, T("Uploads reopened until {0}", Fmt(reopened)), T("Results can be published once they close."), false, [])
+                        : UploadsOpen
+                            ? new(string.Empty, T("Uploads close on {0}", Fmt(until)), T("30 minutes after the end, for drops from before it."), false, [])
+                            : new("is-none", T("Uploads closed {0}", Fmt(until)), T("If a team needs more time, reopen uploads under Other actions."), false, []);
+                    return new(T("Final review"), null, T("Ended {0}. Check the outstanding work, then publish the official results from Final review.", Fmt(e.ActualEndedAt)), tr,
+                        T("Before you can publish official results"), PublishChecks(), null, [], null, null, null, [], null, null,
+                        T("Publishing makes the results official and archives the event."), T("Open Final review"), Url("/Admin/Events/Finalize"), "btn-primary");
+                }
             case EventState.Archived or EventState.Finalized:
-            {
-                var published = e.ArchivedAt ?? e.FinalizedAt;
-                var winners = input.Placings.Where(x => x.Placement == 1).Select(x => x.Team).ToList();
-                var placings = input.Placings.OrderBy(x => x.Placement).Take(3).Select(x => new OverviewFact(Ordinal(x.Placement) + " · " + x.Team,
-                    input.BoardTotal > 0 ? T("{0} of {1} tiles", Nf(x.CompletedTiles), Nf(input.BoardTotal)) : Plural(x.CompletedTiles, "{0} tile", "{0} tiles"))).ToList();
-                return new(T("Results are official"), null, e.State == EventState.Archived ? T("Published {0}. The event is archived.", Fmt(published)) : T("Published {0}.", Fmt(published)), null, null, [], null, [], null,
-                    winners.Count > 0 ? string.Join(" · ", winners) : null, winners.Count > 0 ? Plural(input.TeamCount, "{0} team competed", "{0} teams competed") : null, placings,
-                    null, null, T("To correct them, reopen the results from Final review."), T("Final review & results"), Url("/Admin/Events/Finalize"), string.Empty);
-            }
+                {
+                    var published = e.ArchivedAt ?? e.FinalizedAt;
+                    var winners = input.Placings.Where(x => x.Placement == 1).Select(x => x.Team).ToList();
+                    var placings = input.Placings.OrderBy(x => x.Placement).Take(3).Select(x => new OverviewFact(Ordinal(x.Placement) + " · " + x.Team,
+                        input.BoardTotal > 0 ? T("{0} of {1} tiles", Nf(x.CompletedTiles), Nf(input.BoardTotal)) : Plural(x.CompletedTiles, "{0} tile", "{0} tiles"))).ToList();
+                    return new(T("Results are official"), null, e.State == EventState.Archived ? T("Published {0}. The event is archived.", Fmt(published)) : T("Published {0}.", Fmt(published)), null, null, [], null, [], null,
+                        winners.Count > 0 ? string.Join(" · ", winners) : null, winners.Count > 0 ? Plural(input.TeamCount, "{0} team competed", "{0} teams competed") : null, placings,
+                        null, null, T("To correct them, reopen the results from Final review."), T("Final review & results"), Url("/Admin/Events/Finalize"), string.Empty);
+                }
             case EventState.Cancelled:
                 return new(T("This event was cancelled"), null, T("Its history is kept and nothing can be changed. Participants and signups stay readable on their pages."), null, null, [], null, [], null,
                     null, null, [], Fmt(e.CancelledAt) + (input.CancelledBy is null ? string.Empty : " " + T("by {0}", input.CancelledBy)), e.CancellationReason ?? string.Empty, null, null, null, string.Empty);
@@ -492,9 +502,16 @@ public sealed class OverviewPresenter(OverviewInput input, Func<string, object[]
                 reasonField is not null, reasonField, reasonLabel, reasonHint, untilField is not null, untilField, untilLabel, untilHint, untilDefault,
                 untilField is null ? null : LocalInput(now, Zone), confirmField, donePhase, doneHidden, doneGone, doneReopened, success ?? T(key switch
                 {
-                    "open" => "Signups are open for {0}.", "close" => "Signups are closed for {0}.", "reopen" => "Signups are open again for {0}.",
-                    "start" => "{0} is live.", "end" => "{0} ended and is in final review.", "resume" => "{0} is live again.",
-                    "del" => "{0} was deleted.", "cancel" => "{0} was cancelled.", "hide" => "{0} is hidden.", _ => "{0} was restored."
+                    "open" => "Signups are open for {0}.",
+                    "close" => "Signups are closed for {0}.",
+                    "reopen" => "Signups are open again for {0}.",
+                    "start" => "{0} is live.",
+                    "end" => "{0} ended and is in final review.",
+                    "resume" => "{0} is live again.",
+                    "del" => "{0} was deleted.",
+                    "cancel" => "{0} was cancelled.",
+                    "hide" => "{0} is hidden.",
+                    _ => "{0} was restored."
                 }, name));
 
         string Close(bool reopen)

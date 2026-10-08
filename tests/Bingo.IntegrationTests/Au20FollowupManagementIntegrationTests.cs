@@ -26,7 +26,8 @@ public sealed partial class EventCompetitionManagementIntegrationTests
             using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync());
             requestedEnd = body.RootElement.GetProperty("endsAt").GetDateTimeOffset();
             throw new TaskCanceledException("Controlled timeout before remote commit");
-        })) { BaseAddress = new Uri("https://controlled.invalid/") };
+        }))
+        { BaseAddress = new Uri("https://controlled.invalid/") };
         var client = Au20HttpClient(http, clock);
         var reads = new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, remote));
         async Task Pass()
@@ -76,7 +77,8 @@ public sealed partial class EventCompetitionManagementIntegrationTests
         {
             writes++;
             return Task.FromResult(Au20HttpReceipt(remote));
-        })) { BaseAddress = new Uri("https://controlled.invalid/") };
+        }))
+        { BaseAddress = new Uri("https://controlled.invalid/") };
         var reads = new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, remote));
         await using var db = CreateDb();
         var result = await new EventCompetitionManagementService(db, Au20HttpClient(http, clock), reads, new PassthroughCredentialProtector(), clock).QueueUpdateAsync(f.EventId);

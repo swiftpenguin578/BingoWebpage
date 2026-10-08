@@ -30,7 +30,9 @@ public sealed partial class U5ParticipantsServerIntegrationTests
             new(null, "Event Only", 33.5m, Primary: true)
         ], informational: [new(null, "Bank Alt", null)], answers: new()
         {
-            [world.CaptainQuestionId] = "true", [world.CoCaptainQuestionId] = "U5 Seed 1", [world.CustomQuestionId] = "Evenings"
+            [world.CaptainQuestionId] = "true",
+            [world.CoCaptainQuestionId] = "U5 Seed 1",
+            [world.CustomQuestionId] = "Evenings"
         }, paid: true, note: "Paid by GP drop");
         Assert.True(result.Succeeded, result.Error);
         Assert.True(result.Changed);

@@ -378,9 +378,18 @@ public sealed partial class WiseOldManModel(
         if (!string.IsNullOrWhiteSpace(CompetitionVerificationCode)) message = message.Replace(CompetitionVerificationCode.Trim(), "[redacted]", StringComparison.Ordinal);
         CompetitionVerificationCode = null;
         ModelState.Remove(nameof(CompetitionVerificationCode));
-        if (WantsJson) return new JsonResult(new { succeeded = type == UiMessageType.Success,
-            outcome = outcome ?? (type == UiMessageType.Success ? "applied" : "refused"), message,
-            error = type == UiMessageType.Success ? null : message, errorCode, skipReason = skipReason?.ToString(), retryAt, status, operationId });
+        if (WantsJson) return new JsonResult(new
+        {
+            succeeded = type == UiMessageType.Success,
+            outcome = outcome ?? (type == UiMessageType.Success ? "applied" : "refused"),
+            message,
+            error = type == UiMessageType.Success ? null : message,
+            errorCode,
+            skipReason = skipReason?.ToString(),
+            retryAt,
+            status,
+            operationId
+        });
         TempData["StatusMessage"] = message;
         TempData[UiMessage.TypeKey] = type.ToString();
         CompetitionVerificationCode = null;

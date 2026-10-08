@@ -254,7 +254,9 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         {
             using var refused = await PostAsync(client, $"{fixture.Path}?handler={handler}", displayed, new Dictionary<string, string>
             {
-                ["expectedTeamSize"] = "9", ["Rows"] = "2", ["Columns"] = "2",
+                ["expectedTeamSize"] = "9",
+                ["Rows"] = "2",
+                ["Columns"] = "2",
                 ["BoardVersion"] = ApprovalBatchInput(displayed, "BoardVersion")
             });
             Assert.Equal(HttpStatusCode.Redirect, refused.StatusCode);

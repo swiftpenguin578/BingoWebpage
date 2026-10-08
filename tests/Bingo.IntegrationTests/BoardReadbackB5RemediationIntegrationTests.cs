@@ -1,18 +1,18 @@
-using System.Net;
-using Microsoft.AspNetCore.Hosting;
-using System.Text.Json;
 using System.Data.Common;
+using System.Net;
+using System.Text.Json;
 using Bingo.Domain.Access;
-using Npgsql;
-using Bingo.Domain.Boards;
-using Bingo.Domain.Events;
-using Bingo.Domain.Catalogue;
 using Bingo.Domain.Auditing;
-using Microsoft.EntityFrameworkCore.Diagnostics;
+using Bingo.Domain.Boards;
+using Bingo.Domain.Catalogue;
+using Bingo.Domain.Events;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Pages.Admin.Events;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Diagnostics;
+using Npgsql;
 
 namespace Bingo.IntegrationTests;
 
@@ -234,8 +234,12 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
             var requirement = await db.BoardRequirementSnapshots.SingleAsync(x => x.BoardTileId == tileId);
             page.TileDraft = new BoardModel.TileDraftInput
             {
-                TileId = tileId, Position = tile.ColumnIndex, Name = tile.NameSnapshot + " edited", Description = tile.DescriptionSnapshot,
-                ManualEhb = 7m, Requirements = [new BoardModel.RequirementInput { RequirementId = requirement.Id, Kind = "challenge", Description = requirement.Description, Target = 1, DuplicatesAllowed = true }]
+                TileId = tileId,
+                Position = tile.ColumnIndex,
+                Name = tile.NameSnapshot + " edited",
+                Description = tile.DescriptionSnapshot,
+                ManualEhb = 7m,
+                Requirements = [new BoardModel.RequirementInput { RequirementId = requirement.Id, Kind = "challenge", Description = requirement.Description, Target = 1, DuplicatesAllowed = true }]
             };
             await page.OnPostEditTileAsync(fixture.Event.Id, CancellationToken.None);
             Assert.Equal("committed", page.TempData["BoardTileOutcome"]);

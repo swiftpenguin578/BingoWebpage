@@ -1,6 +1,6 @@
 using Bingo.Application.Integrations.WiseOldMan;
-using Bingo.Domain.Integrations.WiseOldMan;
 using Bingo.Domain.Events;
+using Bingo.Domain.Integrations.WiseOldMan;
 using Bingo.Infrastructure.Events;
 using Microsoft.EntityFrameworkCore;
 

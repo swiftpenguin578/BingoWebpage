@@ -32,8 +32,12 @@ public sealed class CreateModel(
         && Request.Headers["X-Requested-With"] == "XMLHttpRequest";
 
     private IActionResult InvalidInput() => ModalRequest
-        ? new JsonResult(new { outcome = "invalid", errors = ModelState.Where(entry => entry.Value?.Errors.Count > 0)
-            .ToDictionary(entry => entry.Key, entry => entry.Value!.Errors.Select(error => error.ErrorMessage).ToArray()) })
+        ? new JsonResult(new
+        {
+            outcome = "invalid",
+            errors = ModelState.Where(entry => entry.Value?.Errors.Count > 0)
+            .ToDictionary(entry => entry.Key, entry => entry.Value!.Errors.Select(error => error.ErrorMessage).ToArray())
+        })
         : ReturnToDialog();
 
     // A non-dialog POST (no script) is refused without side effects and returns to the dialog with the first reason as an error toast.

@@ -57,8 +57,14 @@ public sealed partial class IndexModel
             var name = key.StartsWith(prefix + ".", StringComparison.Ordinal) ? key[(prefix.Length + 1)..] : key;
             var field = name switch
             {
-                "Name" => "name", "Category" => "category", "EfficientRate" => "rate", "TeamSize" => "teamSize", "ImageUrl" => "image",
-                "ItemName" => "name", "DisplayRate" => "rate", _ => name
+                "Name" => "name",
+                "Category" => "category",
+                "EfficientRate" => "rate",
+                "TeamSize" => "teamSize",
+                "ImageUrl" => "image",
+                "ItemName" => "name",
+                "DisplayRate" => "rate",
+                _ => name
             };
             errors.TryAdd(field, error.ErrorMessage);
         }

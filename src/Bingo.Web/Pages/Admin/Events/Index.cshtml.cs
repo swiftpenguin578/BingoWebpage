@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Security.Claims;
-using Bingo.Application.Dashboard;
 using Bingo.Application.Access;
+using Bingo.Application.Dashboard;
 using Bingo.Application.Events;
 using Bingo.Domain.Access;
 using Bingo.Domain.Events;
@@ -217,9 +217,12 @@ public sealed class IndexModel(ApplicationDbContext dbContext, IEventLifecycleSe
         bool? attention = null, string? sort = null, string? direction = null, int page = 1) =>
         Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("/Admin/Events", new Dictionary<string, string?>
         {
-            ["view"] = view ?? ActiveView, ["phase"] = phase ?? (PhaseAllowed(ActiveFilter, view) ? ActiveFilter : "all"),
-            ["search"] = search ?? ActiveSearch, ["attention"] = (attention ?? ActiveAttention) ? "1" : null,
-            ["sort"] = sort ?? ActiveSort, ["direction"] = direction ?? ActiveSortDirection,
+            ["view"] = view ?? ActiveView,
+            ["phase"] = phase ?? (PhaseAllowed(ActiveFilter, view) ? ActiveFilter : "all"),
+            ["search"] = search ?? ActiveSearch,
+            ["attention"] = (attention ?? ActiveAttention) ? "1" : null,
+            ["sort"] = sort ?? ActiveSort,
+            ["direction"] = direction ?? ActiveSortDirection,
             ["page"] = page.ToString(CultureInfo.InvariantCulture)
         });
 

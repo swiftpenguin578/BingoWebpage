@@ -202,9 +202,13 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         var ownerToken = AntiforgeryToken(await ownerClient.GetStringAsync("/Admin/Catalogue"));
         Dictionary<string, string> RollGroup(SourceDrop current, CatalogueItem shared, string group) => new()
         {
-            ["recordId"] = current.Id.ToString(), ["expectedVersion"] = current.Version.ToString(CultureInfo.InvariantCulture),
-            ["expectedItemVersion"] = shared.Version.ToString(CultureInfo.InvariantCulture), ["itemName"] = shared.Name,
-            ["displayRate"] = current.DisplayRate, ["originalDisplayRate"] = current.DisplayRate, ["rollGroup"] = group
+            ["recordId"] = current.Id.ToString(),
+            ["expectedVersion"] = current.Version.ToString(CultureInfo.InvariantCulture),
+            ["expectedItemVersion"] = shared.Version.ToString(CultureInfo.InvariantCulture),
+            ["itemName"] = shared.Name,
+            ["displayRate"] = current.DisplayRate,
+            ["originalDisplayRate"] = current.DisplayRate,
+            ["rollGroup"] = group
         };
 
         // Item 13: the ordinary Admin's roll-group change is refused with the decided wording.

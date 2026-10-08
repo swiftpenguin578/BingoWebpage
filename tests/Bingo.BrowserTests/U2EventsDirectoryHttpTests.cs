@@ -4,8 +4,8 @@ using Bingo.Domain.Access;
 using Bingo.Domain.Events;
 using Bingo.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bingo.BrowserTests;
@@ -36,7 +36,9 @@ public sealed class U2EventsDirectoryHttpTests(BrowserTestApplicationFactory fac
         var token = WebUtility.HtmlDecode(Regex.Match(login, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value);
         using var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Input.Username"] = username, ["Input.Password"] = password, ["__RequestVerificationToken"] = token
+            ["Input.Username"] = username,
+            ["Input.Password"] = password,
+            ["__RequestVerificationToken"] = token
         }));
         Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
         var url = "/Admin/Events?search=" + Uri.EscapeDataString(name);

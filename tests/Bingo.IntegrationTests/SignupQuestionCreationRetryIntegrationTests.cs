@@ -232,7 +232,7 @@ public sealed partial class SignupQuestionCreationRetryIntegrationTests(PostgreS
         var page = await client.GetStringAsync(route);
         var renderedIds = Regex.Matches(page, "name=\"addRequestId\" value=\"([^\"]+)\"").Select(x => x.Groups[1].Value).ToArray();
         Assert.Equal(3, renderedIds.Distinct().Count()); Assert.All(renderedIds, x => Assert.NotEqual(Guid.Empty, Guid.Parse(x)));
-        var fields = account ? new Dictionary<string,string> { ["role"] = "Playing" } : new() { ["Input.Label"] = "HTTP question", ["Input.Type"] = "Text" };
+        var fields = account ? new Dictionary<string, string> { ["role"] = "Playing" } : new() { ["Input.Label"] = "HTTP question", ["Input.Type"] = "Text" };
         fields["expectedFormVersion"] = seed.Version.ToString(System.Globalization.CultureInfo.InvariantCulture);
         fields["addRequestId"] = renderedIds[account ? 0 : 2];
         var postRoute = account ? route + "?handler=AddAccount" : route;
@@ -243,7 +243,7 @@ public sealed partial class SignupQuestionCreationRetryIntegrationTests(PostgreS
         fields["__RequestVerificationToken"] = Token(page);
         foreach (var identity in new[] { "", "invalid-guid" })
         {
-            var invalid = new Dictionary<string,string>(fields) { ["addRequestId"] = identity };
+            var invalid = new Dictionary<string, string>(fields) { ["addRequestId"] = identity };
             using var response = await client.PostAsync(postRoute, new FormUrlEncodedContent(invalid));
             Assert.False((await response.Content.ReadFromJsonAsync<SignupQuestionCreationResult>())!.Succeeded);
             Assert.Equal(before, await SnapshotAsync());
@@ -335,10 +335,14 @@ public sealed partial class SignupQuestionCreationRetryIntegrationTests(PostgreS
     private async Task<string> SnapshotAsync()
     {
         await using var db = new ApplicationDbContext(options);
-        return JsonSerializer.Serialize(new {
-            Events = await db.Events.AsNoTracking().OrderBy(x => x.Id).ToListAsync(), Accounts = await db.Accounts.AsNoTracking().OrderBy(x => x.Id).ToListAsync(),
-            Forms = await db.SignupForms.AsNoTracking().OrderBy(x => x.Id).ToListAsync(), Questions = await db.SignupQuestions.AsNoTracking().OrderBy(x => x.Id).ToListAsync(),
-            Operations = await db.SignupQuestionCreationOperations.AsNoTracking().OrderBy(x => x.RequestId).ToListAsync(), Audits = await db.AuditEntries.AsNoTracking().OrderBy(x => x.Id).ToListAsync()
+        return JsonSerializer.Serialize(new
+        {
+            Events = await db.Events.AsNoTracking().OrderBy(x => x.Id).ToListAsync(),
+            Accounts = await db.Accounts.AsNoTracking().OrderBy(x => x.Id).ToListAsync(),
+            Forms = await db.SignupForms.AsNoTracking().OrderBy(x => x.Id).ToListAsync(),
+            Questions = await db.SignupQuestions.AsNoTracking().OrderBy(x => x.Id).ToListAsync(),
+            Operations = await db.SignupQuestionCreationOperations.AsNoTracking().OrderBy(x => x.RequestId).ToListAsync(),
+            Audits = await db.AuditEntries.AsNoTracking().OrderBy(x => x.Id).ToListAsync()
         });
     }
     private async Task AssertLockWaitersAsync(int count)
@@ -353,18 +357,23 @@ public sealed partial class SignupQuestionCreationRetryIntegrationTests(PostgreS
         }
     }
     private WebApplicationFactory<Program> Factory() => new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
-        .UseEnvironment("Testing").UseSetting("ConnectionStrings:Database", database.GetConnectionString()).ConfigureServices(services => {
+        .UseEnvironment("Testing").UseSetting("ConnectionStrings:Database", database.GetConnectionString()).ConfigureServices(services =>
+        {
             services.RemoveAll<IHostedService>(); services.RemoveAll<TimeProvider>(); services.AddSingleton<TimeProvider>(new FixedClock());
             services.AddDataProtection().UseEphemeralDataProtectionProvider();
         }));
     private static async Task LoginAsync(HttpClient client, string name)
     {
         var page = await client.GetStringAsync("/Account/Login");
-        using var response = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string,string> {
-            ["Input.Username"] = name, ["Input.Password"] = "synthetic-retry-password", ["__RequestVerificationToken"] = Token(page) }));
+        using var response = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Username"] = name,
+            ["Input.Password"] = "synthetic-retry-password",
+            ["__RequestVerificationToken"] = Token(page)
+        }));
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
     }
-    private static async Task<SignupQuestionCreationResult> PostAsync(HttpClient client, string route, Dictionary<string,string> fields)
+    private static async Task<SignupQuestionCreationResult> PostAsync(HttpClient client, string route, Dictionary<string, string> fields)
     {
         using var response = await client.PostAsync(route, new FormUrlEncodedContent(fields));
         Assert.Equal(HttpStatusCode.OK, response.StatusCode); return (await response.Content.ReadFromJsonAsync<SignupQuestionCreationResult>())!;

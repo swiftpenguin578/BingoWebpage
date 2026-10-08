@@ -6,7 +6,10 @@ public static class AdminEventSession
     public const string CookieName = "Bingo.AdminEvent";
     private static CookieOptions Options(HttpContext context) => new()
     {
-        HttpOnly = true, SameSite = SameSiteMode.Lax, IsEssential = true, Path = "/",
+        HttpOnly = true,
+        SameSite = SameSiteMode.Lax,
+        IsEssential = true,
+        Path = "/",
         Secure = !context.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment() || context.Request.IsHttps
         // No Expires/MaxAge: the preference ends with the browser session.
     };

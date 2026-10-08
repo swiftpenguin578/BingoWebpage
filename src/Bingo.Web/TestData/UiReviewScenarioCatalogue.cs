@@ -1,5 +1,5 @@
-using System.Text;
 using System.Globalization;
+using System.Text;
 using Bingo.Domain.Events;
 
 namespace Bingo.Web.TestData;
@@ -159,8 +159,12 @@ public static class UiReviewScenarioCatalogue
 
     private static string RoleDescription(string username) => username switch
     {
-        "ReviewOwner" => "SuperAdmin", "ReviewAdmin" => "plain Admin", "ReviewCaptain" or "ReviewSecondCaptain" => "captain",
-        "ReviewCoCaptain" or "ReviewSecondCoCaptain" => "co-captain", "ReviewParticipant" or "ReviewSecondMember" => "participant", "ReviewFormer" => "former team member",
+        "ReviewOwner" => "SuperAdmin",
+        "ReviewAdmin" => "plain Admin",
+        "ReviewCaptain" or "ReviewSecondCaptain" => "captain",
+        "ReviewCoCaptain" or "ReviewSecondCoCaptain" => "co-captain",
+        "ReviewParticipant" or "ReviewSecondMember" => "participant",
+        "ReviewFormer" => "former team member",
         _ => "plain website account"
     };
 }

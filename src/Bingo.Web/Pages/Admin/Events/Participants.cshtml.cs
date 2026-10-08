@@ -144,8 +144,11 @@ public sealed class ParticipantsModel(
             input.AddPlace, input.EventVersion, input.ResponseVersion), ct);
         return Outcome(result.Succeeded, result.Error, new
         {
-            status = result.Status is SignupStatus.WaitingList ? "waiting" : "confirmed", waitingPosition = result.WaitingPosition,
-            capacity = result.EffectiveParticipantCap, addedPlace = result.AddedPlace, changed = result.Changed
+            status = result.Status is SignupStatus.WaitingList ? "waiting" : "confirmed",
+            waitingPosition = result.WaitingPosition,
+            capacity = result.EffectiveParticipantCap,
+            addedPlace = result.AddedPlace,
+            changed = result.Changed
         });
     }
 
@@ -200,8 +203,12 @@ public sealed class ParticipantsModel(
         var name = result.ParticipantId is { } added ? (await NamesAsync(id, [added], ct)).FirstOrDefault() : null;
         return Outcome(result.Succeeded, result.Error, new
         {
-            participantId = result.ParticipantId, name, status = result.Status is SignupStatus.WaitingList ? "waiting" : "confirmed",
-            waitingPosition = result.WaitingPosition, capacity = result.EffectiveParticipantCap, addedPlace = result.AddedPlace
+            participantId = result.ParticipantId,
+            name,
+            status = result.Status is SignupStatus.WaitingList ? "waiting" : "confirmed",
+            waitingPosition = result.WaitingPosition,
+            capacity = result.EffectiveParticipantCap,
+            addedPlace = result.AddedPlace
         });
     }
 

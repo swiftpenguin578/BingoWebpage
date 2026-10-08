@@ -45,7 +45,8 @@ public sealed partial class SchedulePrecisionIntegrationTests(PostgreSqlTestFixt
         await db.SaveChangesAsync();
         factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
             .UseEnvironment("Testing").UseSetting("ConnectionStrings:Database", database.GetConnectionString())
-            .ConfigureServices(services => {
+            .ConfigureServices(services =>
+            {
                 services.RemoveAll<IHostedService>(); services.RemoveAll<TimeProvider>(); services.AddSingleton<TimeProvider>(new FixedClock());
                 services.AddDataProtection().UseEphemeralDataProtectionProvider();
             }));
@@ -58,8 +59,12 @@ public sealed partial class SchedulePrecisionIntegrationTests(PostgreSqlTestFixt
     {
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, BaseAddress = new Uri("https://localhost") });
         var token = Fields(await client.GetStringAsync("/Account/Login"))["__RequestVerificationToken"];
-        using var login = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string> {
-            ["Input.Username"] = name, ["Input.Password"] = "synthetic-identity-password", ["__RequestVerificationToken"] = token }));
+        using var login = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["Input.Username"] = name,
+            ["Input.Password"] = "synthetic-identity-password",
+            ["__RequestVerificationToken"] = token
+        }));
         Assert.Equal(HttpStatusCode.Redirect, login.StatusCode); return client;
     }
     private async Task<string> PostPageAsync(HttpClient client, Dictionary<string, string> fields)

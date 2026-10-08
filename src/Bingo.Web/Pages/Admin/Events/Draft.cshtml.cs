@@ -723,99 +723,99 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
                     throw new InvalidOperationException("The draft can only be finalized before the event has started and while its configured end remains in the future.");
                 var draftedTeams = await OrderedDraftTeams(id, ct);
 
-            // A zero/one-team event is a manually assembled roster. It is
-            // finalized directly from setup and never receives a synthetic
-            // running state, pick, turn, or team-balance calculation.
+                // A zero/one-team event is a manually assembled roster. It is
+                // finalized directly from setup and never receives a synthetic
+                // running state, pick, turn, or team-balance calculation.
                 if (draftedTeams.Count <= 1)
                 {
-                if (draft.State != DraftState.Setup)
-                    throw new InvalidOperationException("A manually assembled roster can only be finalized from setup.");
-                RequireOrAcquireControl(draft, now);
-                var directMembers = await ActiveEventMembersAsync(id, ct);
-                var directBlockers = await ValidateFinalRosterAsync(id, directMembers, ct);
-                if (directBlockers.Count > 0) throw new RosterBlockersException(directBlockers);
+                    if (draft.State != DraftState.Setup)
+                        throw new InvalidOperationException("A manually assembled roster can only be finalized from setup.");
+                    RequireOrAcquireControl(draft, now);
+                    var directMembers = await ActiveEventMembersAsync(id, ct);
+                    var directBlockers = await ValidateFinalRosterAsync(id, directMembers, ct);
+                    if (directBlockers.Count > 0) throw new RosterBlockersException(directBlockers);
 
-                var nextCycle = (await db.DraftPublicationCycles.Where(x => x.DraftSessionId == draft.Id).Select(x => (int?)x.CycleNumber).MaxAsync(ct) ?? 0) + 1;
-                var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, nextCycle, now, AdminId, DraftPublicationMethod.DirectRoster);
-                db.DraftPublicationCycles.Add(cycle);
-                var publicNames = await FrozenPublicNamesAsync(id, directMembers.Select(x => x.EventParticipantId), now, ct);
-                foreach (var member in directMembers)
-                    db.DraftPublicationRosters.Add(new DraftPublicationRoster(Guid.NewGuid(), cycle.Id, member.TeamId, member.EventParticipantId, member.Role, null, publicNames[member.EventParticipantId]));
-                foreach (var team in await db.Teams.Where(x => x.EventId == id && x.Active).ToListAsync(ct)) team.Finalize(now);
-                draft.FinalizeDirect(now);
-                bingoEvent.SetDraftLocked(true, now);
-                bingoEvent.SetDraftRosterPublication(true);
-                await audit.WriteAndSaveAsync(AdminId, User.Identity?.Name ?? "Admin", "draft.finalized", "draft", draft.Id.ToString(), $"DirectRoster publication cycle {nextCycle}; {directMembers.Count} frozen roster entries; no draft picks.", ct);
-                await db.SaveChangesAsync(ct);
-                await tx.CommitAsync(ct);
-                published = true;
-                offerBoardPublication = await db.Boards.AsNoTracking().AnyAsync(x => x.EventId == id && x.State == BoardState.Validated && x.ActiveApprovalSnapshotId != null, ct);
-                SetStatus(offerBoardPublication
-                    ? Localize("Manual roster finalized and published. The board is approved and ready to publish separately.")
-                    : Localize("Manual roster finalized and published."), UiMessageType.Success);
+                    var nextCycle = (await db.DraftPublicationCycles.Where(x => x.DraftSessionId == draft.Id).Select(x => (int?)x.CycleNumber).MaxAsync(ct) ?? 0) + 1;
+                    var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, nextCycle, now, AdminId, DraftPublicationMethod.DirectRoster);
+                    db.DraftPublicationCycles.Add(cycle);
+                    var publicNames = await FrozenPublicNamesAsync(id, directMembers.Select(x => x.EventParticipantId), now, ct);
+                    foreach (var member in directMembers)
+                        db.DraftPublicationRosters.Add(new DraftPublicationRoster(Guid.NewGuid(), cycle.Id, member.TeamId, member.EventParticipantId, member.Role, null, publicNames[member.EventParticipantId]));
+                    foreach (var team in await db.Teams.Where(x => x.EventId == id && x.Active).ToListAsync(ct)) team.Finalize(now);
+                    draft.FinalizeDirect(now);
+                    bingoEvent.SetDraftLocked(true, now);
+                    bingoEvent.SetDraftRosterPublication(true);
+                    await audit.WriteAndSaveAsync(AdminId, User.Identity?.Name ?? "Admin", "draft.finalized", "draft", draft.Id.ToString(), $"DirectRoster publication cycle {nextCycle}; {directMembers.Count} frozen roster entries; no draft picks.", ct);
+                    await db.SaveChangesAsync(ct);
+                    await tx.CommitAsync(ct);
+                    published = true;
+                    offerBoardPublication = await db.Boards.AsNoTracking().AnyAsync(x => x.EventId == id && x.State == BoardState.Validated && x.ActiveApprovalSnapshotId != null, ct);
+                    SetStatus(offerBoardPublication
+                        ? Localize("Manual roster finalized and published. The board is approved and ready to publish separately.")
+                        : Localize("Manual roster finalized and published."), UiMessageType.Success);
                 }
                 else
                 {
-                if (draft.State != DraftState.Running)
-                    throw new InvalidOperationException("A website draft must be running before it can be finalized.");
-                draft.RequireControl(AdminId, now);
+                    if (draft.State != DraftState.Running)
+                        throw new InvalidOperationException("A website draft must be running before it can be finalized.");
+                    draft.RequireControl(AdminId, now);
 
-                var captainTeamIds = await (from membership in db.TeamMemberships.AsNoTracking()
-                                            join participant in db.EventParticipants.AsNoTracking() on membership.EventParticipantId equals participant.Id
-                                            join account in db.Accounts.AsNoTracking() on participant.AccountId equals account.Id
-                                            where membership.LeftAt == null && membership.Role == TeamMembershipRole.Captain &&
-                                                  draftedTeams.Select(team => team.Id).Contains(membership.TeamId) && participant.EventId == id &&
-                                                  participant.SignupStatus == SignupStatus.Confirmed &&
-                                                  account.Active && account.AccountType == AccountType.WebsiteAccount
-                                            select membership.TeamId).Distinct().ToListAsync(ct);
-                var missingCaptains = draftedTeams.Where(team => !captainTeamIds.Contains(team.Id)).ToList();
-                if (missingCaptains.Count > 0)
-                {
-                    SetStatus(Localize("Assign a current Captain to every drafted team before finalizing: {0}.", string.Join(", ", missingCaptains.Select(team => team.Name))), UiMessageType.Error);
-                    SetOutcomeData(new { rosterTeamId = missingCaptains[0].Id });
-                    return Finish(new { id, rosterTeamId = missingCaptains[0].Id });
-                }
-                if (draftedTeams.Any(x => x.DraftPosition is null))
-                    throw new InvalidOperationException("Scramble the drafted teams before finalizing.");
+                    var captainTeamIds = await (from membership in db.TeamMemberships.AsNoTracking()
+                                                join participant in db.EventParticipants.AsNoTracking() on membership.EventParticipantId equals participant.Id
+                                                join account in db.Accounts.AsNoTracking() on participant.AccountId equals account.Id
+                                                where membership.LeftAt == null && membership.Role == TeamMembershipRole.Captain &&
+                                                      draftedTeams.Select(team => team.Id).Contains(membership.TeamId) && participant.EventId == id &&
+                                                      participant.SignupStatus == SignupStatus.Confirmed &&
+                                                      account.Active && account.AccountType == AccountType.WebsiteAccount
+                                                select membership.TeamId).Distinct().ToListAsync(ct);
+                    var missingCaptains = draftedTeams.Where(team => !captainTeamIds.Contains(team.Id)).ToList();
+                    if (missingCaptains.Count > 0)
+                    {
+                        SetStatus(Localize("Assign a current Captain to every drafted team before finalizing: {0}.", string.Join(", ", missingCaptains.Select(team => team.Name))), UiMessageType.Error);
+                        SetOutcomeData(new { rosterTeamId = missingCaptains[0].Id });
+                        return Finish(new { id, rosterTeamId = missingCaptains[0].Id });
+                    }
+                    if (draftedTeams.Any(x => x.DraftPosition is null))
+                        throw new InvalidOperationException("Scramble the drafted teams before finalizing.");
 
-                var activePickTeams = await db.DraftPicks
-                    .Where(x => x.DraftSessionId == draft.Id && x.UndoneAt == null)
-                    .OrderBy(x => x.PickNumber)
-                    .Select(x => x.TeamId)
-                    .ToListAsync(ct);
-                var derived = await DeriveDraftState(id, draftedTeams, activePickTeams, ct);
-                if (derived.Blockers.Count != 0) throw new RosterBlockersException(derived.Blockers);
-                var includedParticipantIds = derived.IncludedParticipantIds;
-                var draftedMembershipIds = await db.TeamMemberships
-                    .Where(x => x.LeftAt == null && includedParticipantIds.Contains(x.EventParticipantId) && draftedTeams.Select(t => t.Id).Contains(x.TeamId))
-                    .Select(x => x.EventParticipantId)
-                    .ToListAsync(ct);
-                if (draftedMembershipIds.Count != includedParticipantIds.Count || draftedMembershipIds.Distinct().Count() != includedParticipantIds.Count)
-                    throw new InvalidOperationException("Every included participant must have exactly one active drafted-team membership before finalization.");
+                    var activePickTeams = await db.DraftPicks
+                        .Where(x => x.DraftSessionId == draft.Id && x.UndoneAt == null)
+                        .OrderBy(x => x.PickNumber)
+                        .Select(x => x.TeamId)
+                        .ToListAsync(ct);
+                    var derived = await DeriveDraftState(id, draftedTeams, activePickTeams, ct);
+                    if (derived.Blockers.Count != 0) throw new RosterBlockersException(derived.Blockers);
+                    var includedParticipantIds = derived.IncludedParticipantIds;
+                    var draftedMembershipIds = await db.TeamMemberships
+                        .Where(x => x.LeftAt == null && includedParticipantIds.Contains(x.EventParticipantId) && draftedTeams.Select(t => t.Id).Contains(x.TeamId))
+                        .Select(x => x.EventParticipantId)
+                        .ToListAsync(ct);
+                    if (draftedMembershipIds.Count != includedParticipantIds.Count || draftedMembershipIds.Distinct().Count() != includedParticipantIds.Count)
+                        throw new InvalidOperationException("Every included participant must have exactly one active drafted-team membership before finalization.");
 
-                var activeMembers = await ActiveEventMembersAsync(id, ct);
-                var blockers = await ValidateFinalRosterAsync(id, activeMembers, ct);
-                if (blockers.Count > 0) throw new RosterBlockersException(blockers);
-                var nextCycle = (await db.DraftPublicationCycles.Where(x => x.DraftSessionId == draft.Id).Select(x => (int?)x.CycleNumber).MaxAsync(ct) ?? 0) + 1;
-                var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, nextCycle, now, AdminId, DraftPublicationMethod.WebsiteDraft);
-                db.DraftPublicationCycles.Add(cycle);
-                var pickNumbers = await db.DraftPicks.Where(x => x.DraftSessionId == draft.Id && x.UndoneAt == null).ToDictionaryAsync(x => x.Id, x => x.PickNumber, ct);
-                var publicNames = await FrozenPublicNamesAsync(id, activeMembers.Select(x => x.EventParticipantId), now, ct);
-                foreach (var member in activeMembers)
-                    db.DraftPublicationRosters.Add(new DraftPublicationRoster(Guid.NewGuid(), cycle.Id, member.TeamId, member.EventParticipantId, member.Role,
-                        member.AssignedByDraftPickId is { } pickId && pickNumbers.TryGetValue(pickId, out var pickNumber) ? pickNumber : null,
-                        publicNames[member.EventParticipantId]));
-                foreach (var team in await db.Teams.Where(x => x.EventId == id && x.Active).ToListAsync(ct)) team.Finalize(now);
-                draft.FinalizeWebsiteDraft(now);
-                bingoEvent.SetDraftRosterPublication(true);
-                await audit.WriteAndSaveAsync(AdminId, User.Identity?.Name ?? "Admin", "draft.finalized", "draft", draft.Id.ToString(), $"WebsiteDraft publication cycle {nextCycle}; {activeMembers.Count} frozen roster entries.", ct);
-                await db.SaveChangesAsync(ct);
-                await tx.CommitAsync(ct);
-                published = true;
-                offerBoardPublication = await db.Boards.AsNoTracking().AnyAsync(x => x.EventId == id && x.State == BoardState.Validated && x.ActiveApprovalSnapshotId != null, ct);
-                SetStatus(offerBoardPublication
-                    ? Localize("Draft finalized and team rosters published. The board is approved and ready to publish separately.")
-                    : Localize("Draft finalized and team rosters published."), UiMessageType.Success);
+                    var activeMembers = await ActiveEventMembersAsync(id, ct);
+                    var blockers = await ValidateFinalRosterAsync(id, activeMembers, ct);
+                    if (blockers.Count > 0) throw new RosterBlockersException(blockers);
+                    var nextCycle = (await db.DraftPublicationCycles.Where(x => x.DraftSessionId == draft.Id).Select(x => (int?)x.CycleNumber).MaxAsync(ct) ?? 0) + 1;
+                    var cycle = new DraftPublicationCycle(Guid.NewGuid(), draft.Id, nextCycle, now, AdminId, DraftPublicationMethod.WebsiteDraft);
+                    db.DraftPublicationCycles.Add(cycle);
+                    var pickNumbers = await db.DraftPicks.Where(x => x.DraftSessionId == draft.Id && x.UndoneAt == null).ToDictionaryAsync(x => x.Id, x => x.PickNumber, ct);
+                    var publicNames = await FrozenPublicNamesAsync(id, activeMembers.Select(x => x.EventParticipantId), now, ct);
+                    foreach (var member in activeMembers)
+                        db.DraftPublicationRosters.Add(new DraftPublicationRoster(Guid.NewGuid(), cycle.Id, member.TeamId, member.EventParticipantId, member.Role,
+                            member.AssignedByDraftPickId is { } pickId && pickNumbers.TryGetValue(pickId, out var pickNumber) ? pickNumber : null,
+                            publicNames[member.EventParticipantId]));
+                    foreach (var team in await db.Teams.Where(x => x.EventId == id && x.Active).ToListAsync(ct)) team.Finalize(now);
+                    draft.FinalizeWebsiteDraft(now);
+                    bingoEvent.SetDraftRosterPublication(true);
+                    await audit.WriteAndSaveAsync(AdminId, User.Identity?.Name ?? "Admin", "draft.finalized", "draft", draft.Id.ToString(), $"WebsiteDraft publication cycle {nextCycle}; {activeMembers.Count} frozen roster entries.", ct);
+                    await db.SaveChangesAsync(ct);
+                    await tx.CommitAsync(ct);
+                    published = true;
+                    offerBoardPublication = await db.Boards.AsNoTracking().AnyAsync(x => x.EventId == id && x.State == BoardState.Validated && x.ActiveApprovalSnapshotId != null, ct);
+                    SetStatus(offerBoardPublication
+                        ? Localize("Draft finalized and team rosters published. The board is approved and ready to publish separately.")
+                        : Localize("Draft finalized and team rosters published."), UiMessageType.Success);
                 }
             }
             catch (Exception ex) when (IsSerializationConflict(ex) && attempt == 0)

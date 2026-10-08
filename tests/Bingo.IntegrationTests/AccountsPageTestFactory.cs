@@ -26,7 +26,10 @@ internal static class AccountsPageTestFactory
         {
             PageContext = new PageContext(new ActionContext(context, new RouteData(), new PageActionDescriptor())),
             TempData = new TempDataDictionary(context, new NullTempData()),
-            Query = q, RoleQuery = role, PageQuery = page, AccountQuery = account
+            Query = q,
+            RoleQuery = role,
+            PageQuery = page,
+            AccountQuery = account
         };
     }
 

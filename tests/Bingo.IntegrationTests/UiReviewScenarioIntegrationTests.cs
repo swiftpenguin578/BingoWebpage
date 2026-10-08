@@ -1,37 +1,37 @@
-using System.Net;
 using System.Globalization;
+using System.Net;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Text.Json;
-using System.Text;
-using System.Security.Cryptography;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Bingo.Application.Dashboard;
-using Bingo.Application.Evidence;
-using Bingo.Infrastructure.Events;
-using Bingo.Web.HistoricalImport;
-using Bingo.Web.Navigation;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Routing;
-using Xunit.Abstractions;
 using Bingo.Application.Events;
+using Bingo.Application.Evidence;
 using Bingo.Domain.Access;
-using Bingo.Domain.Evidence;
 using Bingo.Domain.Events;
-using Bingo.Domain.Signups;
+using Bingo.Domain.Evidence;
 using Bingo.Domain.Integrations.WiseOldMan;
+using Bingo.Domain.Signups;
+using Bingo.Infrastructure.Events;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Catalogue;
+using Bingo.Web.HistoricalImport;
+using Bingo.Web.Navigation;
 using Bingo.Web.TestData;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using Testcontainers.PostgreSql;
+using Xunit.Abstractions;
 
 namespace Bingo.IntegrationTests;
 
@@ -223,7 +223,8 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
             Assert.Equal(await db.Accounts.Where(value => value.Active && value.AccountType == AccountType.WebsiteAccount
                 && (value.GlobalRole == GlobalRole.Admin || value.GlobalRole == GlobalRole.SuperAdmin)).Select(value => value.Id).OrderBy(value => value).ToListAsync(),
                 notifications.Select(value => value.RecipientAccountId).Order());
-            Assert.All(notifications, value => {
+            Assert.All(notifications, value =>
+            {
                 Assert.Equal(title, value.Title);
                 Assert.Equal($"{item.Name}: {string.Join(" ", descriptions)}", value.Detail);
                 Assert.Equal($"/Admin/Events/Manage/{item.Id}", value.Route);
@@ -359,7 +360,9 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
                 var token = WebUtility.HtmlDecode(Regex.Match(page1, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value);
                 using var language = await client.PostAsync("/Language", new FormUrlEncodedContent(new Dictionary<string, string>
                 {
-                    ["culture"] = culture, ["returnUrl"] = "/Admin/Events", ["__RequestVerificationToken"] = token
+                    ["culture"] = culture,
+                    ["returnUrl"] = "/Admin/Events",
+                    ["__RequestVerificationToken"] = token
                 }));
                 Assert.Equal(HttpStatusCode.Redirect, language.StatusCode);
                 Assert.Contains(language.Headers.GetValues("Set-Cookie"), value => value.StartsWith(".AspNetCore.Culture=", StringComparison.Ordinal));

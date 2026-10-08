@@ -126,7 +126,9 @@ internal static class AuditTestLogin
         var token = System.Text.RegularExpressions.Regex.Match(login, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value;
         using var response = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Input.Username"] = username, ["Input.Password"] = password, ["__RequestVerificationToken"] = System.Net.WebUtility.HtmlDecode(token)
+            ["Input.Username"] = username,
+            ["Input.Password"] = password,
+            ["__RequestVerificationToken"] = System.Net.WebUtility.HtmlDecode(token)
         }));
         Assert.Equal(System.Net.HttpStatusCode.Redirect, response.StatusCode);
         client.DefaultRequestHeaders.AcceptLanguage.ParseAdd(culture);

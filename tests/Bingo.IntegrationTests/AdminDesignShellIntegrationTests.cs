@@ -170,7 +170,8 @@ public sealed partial class AdminDesignShellIntegrationTests(PostgreSqlTestFixtu
         var login = await client.GetStringAsync("/Account/Login");
         using var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Input.Username"] = admin.LoginName, ["Input.Password"] = "synthetic-shell-password",
+            ["Input.Username"] = admin.LoginName,
+            ["Input.Password"] = "synthetic-shell-password",
             ["__RequestVerificationToken"] = Regex.Match(login, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value
         }));
         Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);

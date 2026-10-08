@@ -123,18 +123,24 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         await ApproveStatsAsync(f, await PendingStatsAsync(f, 0, 0, 10));
         var upstreamInput = f.Clock.GetUtcNow().AddMinutes(-5).AddTicks(7);
         var response = Lkp1Response(f, new(0, 100, 100), new(0, 40, 40));
-        response = response with { Competition = response.Competition! with
+        response = response with
         {
-            Participants = response.Competition.Participants.Select(p => p with { UpstreamUpdatedAt = upstreamInput }).ToArray()
-        } };
+            Competition = response.Competition! with
+            {
+                Participants = response.Competition.Participants.Select(p => p with { UpstreamUpdatedAt = upstreamInput }).ToArray()
+            }
+        };
         CountingFinalReviewClient provider;
         await using (var setup = new ApplicationDbContext(options))
         {
             var names = await setup.OsrsCharacters.ToDictionaryAsync(x => x.Id, x => x.DisplayName);
-            response = response with { Competition = response.Competition! with
+            response = response with
             {
-                Participants = response.Competition.Participants.Select(p => p with { Username = names[Guid.Parse(p.Username)] }).ToArray()
-            } };
+                Competition = response.Competition! with
+                {
+                    Participants = response.Competition.Participants.Select(p => p with { Username = names[Guid.Parse(p.Username)] }).ToArray()
+                }
+            };
             provider = new CountingFinalReviewClient(response, response);
             var sync = new EventCompetitionSynchronizationService(setup, provider, new FixedStatus(), f.Clock);
             Assert.True((await sync.ConfigureAsync(f.Event.Id, (await setup.Events.SingleAsync()).Version, 42, false,
@@ -241,13 +247,16 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
     private static WiseOldManCompetitionResult Lkp1Response(FullStatsFixture f, WiseOldManMetricDelta supported, WiseOldManMetricDelta? second)
     {
         var response = StatsResponse(f, supported);
-        return response with { Competition = response.Competition! with
+        return response with
         {
-            Participants = response.Competition.Participants.Select(p => p with
+            Competition = response.Competition! with
             {
-                Metrics = second is null ? p.Metrics : new Dictionary<string, WiseOldManMetricDelta>(p.Metrics!) { ["zulrah"] = second }
-            }).ToArray()
-        } };
+                Participants = response.Competition.Participants.Select(p => p with
+                {
+                    Metrics = second is null ? p.Metrics : new Dictionary<string, WiseOldManMetricDelta>(p.Metrics!) { ["zulrah"] = second }
+                }).ToArray()
+            }
+        };
     }
 
     [Fact]

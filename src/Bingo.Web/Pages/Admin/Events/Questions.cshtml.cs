@@ -8,6 +8,6 @@ namespace Bingo.Web.Pages.Admin.Events;
 [Authorize(Policy = AuthorizationPolicies.Admin)]
 public sealed class QuestionsModel : PageModel
 {
- public IActionResult OnGet(Guid id) => RedirectToPage("SignupSetup", new { id, tab = "form" });
- public IActionResult OnPost(Guid id) => RedirectToPage("SignupSetup", new { id, tab = "form" });
+    public IActionResult OnGet(Guid id) => RedirectToPage("SignupSetup", new { id, tab = "form" });
+    public IActionResult OnPost(Guid id) => RedirectToPage("SignupSetup", new { id, tab = "form" });
 }
