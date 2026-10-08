@@ -1,12 +1,12 @@
 using System.Text.RegularExpressions;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.AspNetCore.Hosting;
+using Bingo.Domain.Events;
+using Bingo.Infrastructure.Persistence;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using Bingo.Domain.Events;
-using Bingo.Infrastructure.Persistence;
 
 namespace Bingo.IntegrationTests;
 

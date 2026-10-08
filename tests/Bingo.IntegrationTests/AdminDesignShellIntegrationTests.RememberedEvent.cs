@@ -43,7 +43,7 @@ public sealed partial class AdminDesignShellIntegrationTests
         var after = await client.GetStringAsync("/Admin/Events/Index");
         Assert.Contains($"data-selected-event-id=\"{past.Id}\"", after);
         Assert.DoesNotContain($"data-selected-event-id=\"{first.Id}\"", after);
-        using var logout = await client.PostAsync("/Account/Logout", new FormUrlEncodedContent(new Dictionary<string,string> { ["__RequestVerificationToken"] = IdentityFields(after)["__RequestVerificationToken"] }));
+        using var logout = await client.PostAsync("/Account/Logout", new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = IdentityFields(after)["__RequestVerificationToken"] }));
         Assert.Equal(HttpStatusCode.Redirect, logout.StatusCode);
         Assert.Contains(logout.Headers.GetValues("Set-Cookie"), value => value.StartsWith(AdminEventSession.CookieName + "=;", StringComparison.Ordinal) && value.Contains("expires=Thu, 01 Jan 1970"));
     }

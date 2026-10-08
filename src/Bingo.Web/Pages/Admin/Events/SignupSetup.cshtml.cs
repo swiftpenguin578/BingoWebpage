@@ -1,10 +1,10 @@
+using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Globalization;
-using Bingo.Application.Auditing;
-using Bingo.Application.Security;
-using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using Bingo.Application.Access;
+using Bingo.Application.Auditing;
+using Bingo.Application.Security;
 using Bingo.Application.Signups;
 using Bingo.Domain.Auditing;
 using Bingo.Domain.Events;
@@ -15,11 +15,11 @@ using Bingo.Web.Security;
 using Bingo.Web.UI;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Filters;
-using Npgsql;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
+using Npgsql;
 
 namespace Bingo.Web.Pages.Admin.Events;
 
@@ -54,13 +54,36 @@ public sealed class SignupSetupModel(ApplicationDbContext dbContext, TimeProvide
     public DateTimeOffset? FirstResponseAt { get; private set; }
     public string EventName { get; private set; } = string.Empty;
 
-    public object CurrentSnapshot => new { eventId = EventId, phase = EventState.ToString(), draftLocked = DraftLocked, editable = CanEdit,
-            settings = Settings, confirmed = ConfirmedCount, waiting = WaitingCount,
-            hasForm = HasForm, formVersion = FormVersion, hasFirstResponse = HasFirstResponse, firstResponseDay = FirstResponseAt is { } first ? DateTimePresentation.ToTimezone(first, HasUnresolvableTimezone ? "UTC" : null).ToString("d MMM yyyy, HH':'mm", CultureInfo.CurrentCulture) : null,
-            questions = AllQuestions.Select(question => new { question.Id, question.Key, question.Label, question.HelpText,
-                type = question.Type.ToString(), question.Required, question.Options, question.Position, question.Active,
-                systemField = question.SystemField.ToString(), accountRole = question.AccountAnswerRole?.ToString(), question.Version,
-                impact = QuestionImpacts.GetValueOrDefault(question.Id) }).ToArray() };
+    public object CurrentSnapshot => new
+    {
+        eventId = EventId,
+        phase = EventState.ToString(),
+        draftLocked = DraftLocked,
+        editable = CanEdit,
+        settings = Settings,
+        confirmed = ConfirmedCount,
+        waiting = WaitingCount,
+        hasForm = HasForm,
+        formVersion = FormVersion,
+        hasFirstResponse = HasFirstResponse,
+        firstResponseDay = FirstResponseAt is { } first ? DateTimePresentation.ToTimezone(first, HasUnresolvableTimezone ? "UTC" : null).ToString("d MMM yyyy, HH':'mm", CultureInfo.CurrentCulture) : null,
+        questions = AllQuestions.Select(question => new
+        {
+            question.Id,
+            question.Key,
+            question.Label,
+            question.HelpText,
+            type = question.Type.ToString(),
+            question.Required,
+            question.Options,
+            question.Position,
+            question.Active,
+            systemField = question.SystemField.ToString(),
+            accountRole = question.AccountAnswerRole?.ToString(),
+            question.Version,
+            impact = QuestionImpacts.GetValueOrDefault(question.Id)
+        }).ToArray()
+    };
 
     public async Task<IActionResult> OnGetCurrentAsync(Guid id, CancellationToken ct)
     {

@@ -523,7 +523,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
     }
 
     [Theory]
-        [InlineData("CreateTile", true)]
+    [InlineData("CreateTile", true)]
     [InlineData("EditTile", true)]
     public async Task BoardApprovalBatchRejectsMixedSavesAtomically(string handler, bool mixed)
     {

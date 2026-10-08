@@ -100,7 +100,10 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         page.BoardVersion = view.BoardView!.Version;
         page.TileDraft = new BoardModel.TileDraftInput
         {
-            TileId = fixture.Tile.Id, Name = fixture.Tile.NameSnapshot, ManualEhb = 19m, ChangeManualEhbOverride = true,
+            TileId = fixture.Tile.Id,
+            Name = fixture.Tile.NameSnapshot,
+            ManualEhb = 19m,
+            ChangeManualEhbOverride = true,
             Requirements = [new() { RequirementId = fixture.Requirement.Id, Kind = "drops", Target = 1,
                 BossIds = [fixture.Boss.Id], DropIds = [fixture.Drop.Id] }]
         };

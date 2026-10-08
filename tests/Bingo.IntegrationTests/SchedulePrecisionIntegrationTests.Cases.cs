@@ -159,9 +159,11 @@ public sealed partial class SchedulePrecisionIntegrationTests
     public async Task TerminalScheduleGetAndCurrentAreReadOnlyWithoutOpeningMutationGate(bool archived)
     {
         // D17 permits these reads; the unchanged D16 test covers every terminal POST.
-        await EditAsync(item => {
+        await EditAsync(item =>
+        {
             if (!archived) item.Cancel(item.CreatedByAccountId, Now, "Synthetic cancellation", true);
-            else {
+            else
+            {
                 item.ConfigureSchedule(null, null, null, Now.AddDays(1), Now.AddDays(2), null);
                 item.OpenSignups(Now); item.CloseSignups(Now); item.StartEvent(Now);
                 item.EndEvent(Now.AddHours(1)); item.FinalizeResults(Now.AddHours(2)); item.Archive(Now.AddHours(3));

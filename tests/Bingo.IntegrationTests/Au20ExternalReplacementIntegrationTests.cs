@@ -129,12 +129,15 @@ public sealed partial class EventCompetitionManagementIntegrationTests
         var f = await SeedEventAsync(clock, false);
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var writes = new RecordingManagementClient { CreateHandler = async (p, _) =>
+        var writes = new RecordingManagementClient
+        {
+            CreateHandler = async (p, _) =>
         {
             entered.SetResult(); await release.Task;
             return unknown ? new(WiseOldManCompetitionWriteStatus.Unknown) : new(WiseOldManCompetitionWriteStatus.Success,
                 new(9803, p.Title, p.StartsAt, p.EndsAt, clock.GetUtcNow(), []), ProtectedVerificationCode: "protected:created");
-        }};
+        }
+        };
         var provider = new RecordingCompetitionClient(_ => throw new InvalidOperationException("Link validation must not run during Create."));
         await using var create = CreateDb();
         var task = CreateService(create, writes, provider, clock).CreateAsync(f.EventId, f.EventVersion, f.Actor);
@@ -211,8 +214,11 @@ public sealed partial class EventCompetitionManagementIntegrationTests
         var held = new Au20HeldReadClient(async () => { readEntered.SetResult(); await readRelease.Task; return new(WiseOldManCompetitionStatus.Success, remote); });
         var link = new EventCompetitionSynchronizationService(linking, held, new FixedStatus(), clock).ConfigureAsync(f.EventId, f.EventVersion, remote.Id, f.Actor);
         await readEntered.Task.WaitAsync(TimeSpan.FromSeconds(10));
-        var writes = new RecordingManagementClient { CreateHandler = (p, _) => Task.FromResult(new WiseOldManCompetitionWriteResult(WiseOldManCompetitionWriteStatus.Success,
-            new(9807, p.Title, p.StartsAt, p.EndsAt, clock.GetUtcNow(), []), ProtectedVerificationCode: "protected:created")) };
+        var writes = new RecordingManagementClient
+        {
+            CreateHandler = (p, _) => Task.FromResult(new WiseOldManCompetitionWriteResult(WiseOldManCompetitionWriteStatus.Success,
+            new(9807, p.Title, p.StartsAt, p.EndsAt, clock.GetUtcNow(), []), ProtectedVerificationCode: "protected:created"))
+        };
         try
         {
             await using var creating = CreateDb();

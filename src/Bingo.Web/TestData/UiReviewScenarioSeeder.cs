@@ -1,19 +1,19 @@
-using Bingo.Application.Evidence;
-using Bingo.Application.Events;
-using System.Text.Json;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Json;
+using Bingo.Application.Events;
+using Bingo.Application.Evidence;
 using Bingo.Domain.Access;
 using Bingo.Domain.Auditing;
 using Bingo.Domain.Boards;
+using Bingo.Domain.Catalogue;
 using Bingo.Domain.Events;
 using Bingo.Domain.Evidence;
 using Bingo.Domain.Integrations.WiseOldMan;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
-using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.Events;
-using Bingo.Domain.Catalogue;
+using Bingo.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using SixLabors.ImageSharp;
@@ -62,8 +62,14 @@ public sealed class UiReviewScenarioSeeder(
         {
             var name = index switch
             {
-                10 => "alpha", 11 => "Alpha", 12 => "Ægir", 13 => "Ørn", 14 => "År",
-                15 => "No capacity limit", 16 => "No dates configured", _ => $"Upcoming setup {index:00}"
+                10 => "alpha",
+                11 => "Alpha",
+                12 => "Ægir",
+                13 => "Ørn",
+                14 => "År",
+                15 => "No capacity limit",
+                16 => "No dates configured",
+                _ => $"Upcoming setup {index:00}"
             };
             events.Add(await AddEventAsync(name, $"ur-upcoming-{index:00}", EventState.Draft, now, 20 + index, ct,
                 noCapacity: index == 15, noDates: index == 16));
@@ -485,11 +491,20 @@ public sealed class UiReviewScenarioSeeder(
             db.EventCompetitionCharacterActivities.Add(new EventCompetitionCharacterActivity(Guid.NewGuid(), item.Id, 1, 91004,
                 assignment.OsrsCharacterId, 1, end, end, fingerprint, 25, 26));
         var counters = new[] { new[] { 1, 0, 0, 0 }, new[] { 0, 0, 0, 0 } };
-        var manifest = JsonSerializer.Serialize(new { @event = new { sourceEventId = item.Slug, item.Name, start, end },
-            teams = teams.Select((team, index) => new { team.Slug, team.Name, counters = counters[index], placement = index + 1 }) });
-        var input = JsonSerializer.Serialize(new { accounts = assignments.Select((assignment, index) => new {
-            participantKey = participants[index].Id, teamSlug = teams[index / 3].Slug,
-            accounts = new[] { new { username = characters[accounts[names[index]].Id].DisplayName, startEhb = 25, endEhb = 26, gainedEhb = 1, fetchedAt = end, upstreamUpdatedAt = end } } }) });
+        var manifest = JsonSerializer.Serialize(new
+        {
+            @event = new { sourceEventId = item.Slug, item.Name, start, end },
+            teams = teams.Select((team, index) => new { team.Slug, team.Name, counters = counters[index], placement = index + 1 })
+        });
+        var input = JsonSerializer.Serialize(new
+        {
+            accounts = assignments.Select((assignment, index) => new
+            {
+                participantKey = participants[index].Id,
+                teamSlug = teams[index / 3].Slug,
+                accounts = new[] { new { username = characters[accounts[names[index]].Id].DisplayName, startEhb = 25, endEhb = 26, gainedEhb = 1, fetchedAt = end, upstreamUpdatedAt = end } }
+            })
+        });
         static string Hash(string value) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
         var manifestHash = Hash(manifest);
         var inputHash = Hash(input);
@@ -505,8 +520,14 @@ public sealed class UiReviewScenarioSeeder(
             db.OfficialPlacements.Add(new OfficialPlacementSnapshot(Guid.NewGuid(), finalization.Id, item.Id, team.Id, team.Name,
                 index + 1, false, null, 0, index == 0 ? 1 : 0, 0));
         db.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, owner.Id, owner.LoginName, "historical_import.applied", "event",
-            item.Id.ToString("D"), JsonSerializer.Serialize(new { manifestHash, inputHash, importHash, sourceEventId = item.Slug,
-                counts = new { teams = 2, participants = 6, accounts = 6, tiles = 4, counters = 8 } }), item.Id));
+            item.Id.ToString("D"), JsonSerializer.Serialize(new
+            {
+                manifestHash,
+                inputHash,
+                importHash,
+                sourceEventId = item.Slug,
+                counts = new { teams = 2, participants = 6, accounts = 6, tiles = 4, counters = 8 }
+            }), item.Id));
         await db.SaveChangesAsync(ct);
         return item;
     }

@@ -1,15 +1,15 @@
 using System.Net;
+using System.Text.Json;
 using Bingo.Application.Events;
 using Bingo.Application.Integrations.WiseOldMan;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using System.Text.Json;
 using Bingo.Domain.Access;
 using Bingo.Domain.Events;
 using Bingo.Domain.Integrations.WiseOldMan;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace Bingo.IntegrationTests;
 
@@ -152,9 +152,12 @@ public sealed partial class EventCompetitionManagementIntegrationTests
         {
             using var response = await client.PostAsync(route + "?handler=" + handler, new FormUrlEncodedContent(new Dictionary<string, string>
             {
-                ["EventVersion"] = version.ToString(System.Globalization.CultureInfo.InvariantCulture), ["CompetitionId"] = "1234",
-                ["CompetitionVerificationCode"] = "secret-never-saved", ["ConfirmCompetitionClear"] = "true",
-                ["ConfirmManagedCompetitionDelete"] = "true", ["ManagedCompetitionDeleteId"] = "1234",
+                ["EventVersion"] = version.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["CompetitionId"] = "1234",
+                ["CompetitionVerificationCode"] = "secret-never-saved",
+                ["ConfirmCompetitionClear"] = "true",
+                ["ConfirmManagedCompetitionDelete"] = "true",
+                ["ManagedCompetitionDeleteId"] = "1234",
                 ["__RequestVerificationToken"] = InputValue(page, "__RequestVerificationToken")
             }));
             Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);

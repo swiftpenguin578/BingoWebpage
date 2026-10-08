@@ -3,8 +3,8 @@ using System.Text.Json;
 using Bingo.Domain.Access;
 using Bingo.Domain.Events;
 using Bingo.Domain.Integrations.WiseOldMan;
-using Bingo.Domain.Teams;
 using Bingo.Domain.Signups;
+using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Teams;
 using Bingo.Web.Security;
 using Microsoft.AspNetCore.Mvc;
@@ -19,7 +19,7 @@ public sealed partial class DraftModel
         Response.Headers.CacheControl = "no-store";
         try
         {
-        if (User.GetAccountId() is not { } actor || !await db.Accounts.AsNoTracking().AnyAsync(x => x.Id == actor && x.Active && (x.GlobalRole == GlobalRole.Admin || x.GlobalRole == GlobalRole.SuperAdmin), ct)) return Forbid();
+            if (User.GetAccountId() is not { } actor || !await db.Accounts.AsNoTracking().AnyAsync(x => x.Id == actor && x.Active && (x.GlobalRole == GlobalRole.Admin || x.GlobalRole == GlobalRole.SuperAdmin), ct)) return Forbid();
 
             await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
             var ev = await db.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id && x.HiddenAt == null, ct);

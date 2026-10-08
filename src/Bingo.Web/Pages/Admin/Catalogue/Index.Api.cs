@@ -124,9 +124,15 @@ public sealed partial class IndexModel
         return await SaveAsync("catalogue.item_api_updated", "catalogue_item", item.Id, item.Name, before, () => State(item), feedback, ct, messageType,
             data: new Dictionary<string, object?>
             {
-                ["activityId"] = drop.BossActivityId, ["dropId"] = drop.Id, ["tone"] = messageType.ToString(), ["result"] = result, ["rateLimited"] = rateLimited,
-                ["value"] = item.CatalogueValueGp, ["cleared"] = previousPriceSource == CataloguePriceSource.Api && previousValue is not null && item.CatalogueValueGp is null,
-                ["idChanged"] = !string.Equals(previousExternalIdentifier, item.ExternalIdentifier, StringComparison.Ordinal), ["mode"] = priceMode
+                ["activityId"] = drop.BossActivityId,
+                ["dropId"] = drop.Id,
+                ["tone"] = messageType.ToString(),
+                ["result"] = result,
+                ["rateLimited"] = rateLimited,
+                ["value"] = item.CatalogueValueGp,
+                ["cleared"] = previousPriceSource == CataloguePriceSource.Api && previousValue is not null && item.CatalogueValueGp is null,
+                ["idChanged"] = !string.Equals(previousExternalIdentifier, item.ExternalIdentifier, StringComparison.Ordinal),
+                ["mode"] = priceMode
             });
     }
 

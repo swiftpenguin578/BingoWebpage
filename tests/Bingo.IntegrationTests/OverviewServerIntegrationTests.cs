@@ -95,7 +95,9 @@ public sealed class OverviewServerIntegrationTests(PostgreSqlTestFixture databas
         var before = await VersionAsync(review);
         using var response = await PostJsonAsync(client, review, "ResumeEvent", page, before, new()
         {
-            ["ConfirmResumeEvent"] = "true", ["ResumeReason"] = "Ended by mistake", ["ReplacementEventEndsAtLocal"] = "2027-06-10T18:00"
+            ["ConfirmResumeEvent"] = "true",
+            ["ResumeReason"] = "Ended by mistake",
+            ["ReplacementEventEndsAtLocal"] = "2027-06-10T18:00"
         });
         var outcome = await JsonAsync(response);
         // U4-Q4 (b): replaces "Archive it before resuming this event."
@@ -163,8 +165,10 @@ public sealed class OverviewServerIntegrationTests(PostgreSqlTestFixture databas
         }
         using var plain = await client.PostAsync($"/Admin/Events/Manage/{live}?handler=EndEvent", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["__RequestVerificationToken"] = Token(page), ["EventVersion"] = (await VersionAsync(live)).ToString(System.Globalization.CultureInfo.InvariantCulture),
-            ["ConfirmEndEvent"] = "true", ["EndReason"] = "Called early"
+            ["__RequestVerificationToken"] = Token(page),
+            ["EventVersion"] = (await VersionAsync(live)).ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["ConfirmEndEvent"] = "true",
+            ["EndReason"] = "Called early"
         }));
         Assert.Equal(HttpStatusCode.Redirect, plain.StatusCode);
         Assert.Equal($"/Admin/Events/Manage/{live}", plain.Headers.Location!.OriginalString);

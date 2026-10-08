@@ -39,7 +39,8 @@ public sealed partial class EventCompetitionManagementIntegrationTests
             using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync());
             remote = remote with { EndsAt = body.RootElement.GetProperty("endsAt").GetDateTimeOffset() };
             return Au20HttpReceipt(remote);
-        })) { BaseAddress = new Uri("https://controlled.invalid/") };
+        }))
+        { BaseAddress = new Uri("https://controlled.invalid/") };
         var client = Au20HttpClient(http, clock);
         var reads = new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, remote));
         async Task Pass()
@@ -88,7 +89,8 @@ public sealed partial class EventCompetitionManagementIntegrationTests
             using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync());
             remote = remote with { EndsAt = body.RootElement.GetProperty("endsAt").GetDateTimeOffset() };
             return Au20HttpReceipt(remote);
-        })) { BaseAddress = new Uri("https://controlled.invalid/") };
+        }))
+        { BaseAddress = new Uri("https://controlled.invalid/") };
         var client = Au20HttpClient(http, clock);
         var reads = new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, remote));
         async Task Pass() { await using var db = CreateDb(); await new EventCompetitionManagementService(db, client, reads, new PassthroughCredentialProtector(), clock).ProcessDueAsync(); }
@@ -113,7 +115,8 @@ public sealed partial class EventCompetitionManagementIntegrationTests
             using var body = JsonDocument.Parse(await request.Content!.ReadAsStringAsync());
             Assert.NotEmpty(body.RootElement.GetProperty("teams").EnumerateArray());
             return Au20HttpReceipt(f.RemoteCompetition!); // Real adapter parses an empty participant list.
-        })) { BaseAddress = new Uri("https://controlled.invalid/") };
+        }))
+        { BaseAddress = new Uri("https://controlled.invalid/") };
         var reads = new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, f.RemoteCompetition));
         await using var db = CreateDb();
         var result = await new EventCompetitionManagementService(db, Au20HttpClient(http, clock), reads, new PassthroughCredentialProtector(), clock).QueueUpdateAsync(f.EventId);
@@ -159,7 +162,9 @@ public sealed partial class EventCompetitionManagementIntegrationTests
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var call = 0;
-        var writes = new RecordingManagementClient { UpdateHandler = async (_, payload, _, _) =>
+        var writes = new RecordingManagementClient
+        {
+            UpdateHandler = async (_, payload, _, _) =>
         {
             if (++call == 1)
             {
@@ -168,7 +173,8 @@ public sealed partial class EventCompetitionManagementIntegrationTests
             }
             remote = Success(remote, payload).Competition!;
             return new(WiseOldManCompetitionWriteStatus.Success, remote);
-        }};
+        }
+        };
         var reads = new RecordingCompetitionClient(_ => new(WiseOldManCompetitionStatus.Success, remote));
         await using var original = CreateDb();
         var sending = CreateService(original, writes, reads, clock).QueueUpdateAsync(f.EventId);
@@ -276,11 +282,14 @@ public sealed partial class EventCompetitionManagementIntegrationTests
             await sync.ProcessDueAsync();
             Assert.Equal(0, reads.Calls);
         }
-        var writes = new RecordingManagementClient { UpdateHandler = (_, payload, _, _) =>
+        var writes = new RecordingManagementClient
+        {
+            UpdateHandler = (_, payload, _, _) =>
         {
             remote = Success(remote, payload).Competition!;
             return Task.FromResult(new WiseOldManCompetitionWriteResult(WiseOldManCompetitionWriteStatus.Success, remote));
-        }};
+        }
+        };
         await using (var update = CreateDb()) await CreateService(update, writes, reads, clock).ProcessDueAsync();
         var before = reads.Calls;
         await using var db = CreateDb();

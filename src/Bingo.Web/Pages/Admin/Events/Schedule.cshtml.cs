@@ -109,26 +109,31 @@ public sealed class ScheduleModel(ApplicationDbContext db, IEventSignupLifecycle
 
     public object CurrentSnapshot { get; private set; } = new { };
     private object Snapshot(BingoEvent item) => new
+    {
+        eventId = item.Id,
+        version = item.Version.ToString(CultureInfo.InvariantCulture),
+        timezone = item.Timezone,
+        displayTimezone = DisplayTimezone,
+        phase = item.State.ToString(),
+        draftState = CurrentDraftState?.ToString(),
+        values = new
         {
-            eventId = item.Id,
-            version = item.Version.ToString(CultureInfo.InvariantCulture),
-            timezone = item.Timezone,
-            displayTimezone = DisplayTimezone,
-            phase = item.State.ToString(),
-            draftState = CurrentDraftState?.ToString(),
-            values = new
-            {
-                signupOpensAt = Instant(item.SignupOpensAt), signupClosesAt = Instant(item.SignupClosesAt),
-                draftAt = Instant(item.DraftAt), eventStartsAt = Instant(item.EventStartsAt),
-                eventEndsAt = Instant(item.EventEndsAt),
-                scheduledSignupOpeningEnabled = item.ScheduledSignupOpeningEnabled
-            },
-            editable = new
-            {
-                signupOpensAt = CanEditScheduledOpening, signupClosesAt = CanEditSignupClosing,
-                draftAt = CanEditDraftTime, eventStartsAt = CanEditEventStart, eventEndsAt = CanEditEventEnd
-            }
-        };
+            signupOpensAt = Instant(item.SignupOpensAt),
+            signupClosesAt = Instant(item.SignupClosesAt),
+            draftAt = Instant(item.DraftAt),
+            eventStartsAt = Instant(item.EventStartsAt),
+            eventEndsAt = Instant(item.EventEndsAt),
+            scheduledSignupOpeningEnabled = item.ScheduledSignupOpeningEnabled
+        },
+        editable = new
+        {
+            signupOpensAt = CanEditScheduledOpening,
+            signupClosesAt = CanEditSignupClosing,
+            draftAt = CanEditDraftTime,
+            eventStartsAt = CanEditEventStart,
+            eventEndsAt = CanEditEventEnd
+        }
+    };
 
     private static string? Instant(DateTimeOffset? value) => value?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture);
 

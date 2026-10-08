@@ -45,14 +45,18 @@ public sealed class U2DashboardHttpTests(BrowserTestApplicationFactory factory)
         var token = WebUtility.HtmlDecode(Regex.Match(login, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value);
         using var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Input.Username"] = username, ["Input.Password"] = password, ["__RequestVerificationToken"] = token
+            ["Input.Username"] = username,
+            ["Input.Password"] = password,
+            ["__RequestVerificationToken"] = token
         }));
         Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
         var shell = await client.GetStringAsync("/Admin");
         var languageToken = WebUtility.HtmlDecode(Regex.Match(shell, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value);
         using var language = await client.PostAsync("/Language", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["culture"] = culture, ["returnUrl"] = "/Admin", ["__RequestVerificationToken"] = languageToken
+            ["culture"] = culture,
+            ["returnUrl"] = "/Admin",
+            ["__RequestVerificationToken"] = languageToken
         }));
         Assert.Equal(HttpStatusCode.Redirect, language.StatusCode);
         Assert.Contains(language.Headers.GetValues("Set-Cookie"), value => value.StartsWith(".AspNetCore.Culture=", StringComparison.Ordinal));
@@ -100,7 +104,9 @@ public sealed class U2DashboardHttpTests(BrowserTestApplicationFactory factory)
         var token = WebUtility.HtmlDecode(Regex.Match(login, "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value);
         using var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Input.Username"] = username, ["Input.Password"] = password, ["__RequestVerificationToken"] = token
+            ["Input.Username"] = username,
+            ["Input.Password"] = password,
+            ["__RequestVerificationToken"] = token
         }));
         Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
         using var result = await client.GetAsync("/Admin");
@@ -127,14 +133,16 @@ public sealed class U2DashboardHttpTests(BrowserTestApplicationFactory factory)
             var rows = new[] { Guid.Parse("00000000-0000-0000-0000-000000000001"), Guid.Parse("00000000-0000-0000-0000-000000000002") }
                 .Select((id, i) => new DashboardHistoryRow(id, $"Fixture {i}", $"fixture-{i}", EventState.Live, true,
                     null, null, $"/Admin/Events/Manage/{id}", unknown, unknown, unknown, null,
-                    new DashboardEhbSummary(null, DashboardEhbCoverage.Unavailable, 0, 0), []) { TeamCount = 3 }).ToArray();
+                    new DashboardEhbSummary(null, DashboardEhbCoverage.Unavailable, 0, 0), [])
+                { TeamCount = 3 }).ToArray();
             var points = rows.Select(row => new DashboardParticipationPoint(row.EventId, row.EventName, row.EventSlug,
-                row.State, true, null, null, unknown, unknown, unknown, unknown, unknown) { TeamCount = 3 }).ToArray();
+                row.State, true, null, null, unknown, unknown, unknown, unknown, unknown)
+            { TeamCount = 3 }).ToArray();
             return Task.FromResult(new AdminDashboardResult(at,
                 new DashboardStatistics(DashboardMetric<long>.Measured(2), unknown, unknown, unknown, unknown, unknown)
-                    { Provisional = true, ProvisionalEvents = 2 }, points,
+                { Provisional = true, ProvisionalEvents = 2 }, points,
                 new DashboardRecap(rows[0].EventId, rows[0].EventName, rows[0].EventSlug, at.AddDays(-2), at.AddDays(-1), unknown, unknown, null, [], rows[0].OverviewPath)
-                    { State = provisional ? EventState.AwaitingFinalReview : EventState.Finalized, Provisional = provisional, IsHistoricalImport = imported }, rows,
+                { State = provisional ? EventState.AwaitingFinalReview : EventState.Finalized, Provisional = provisional, IsHistoricalImport = imported }, rows,
                 new DashboardEventCard(rows[0].EventId, "Next fixture", "next-fixture", cardState, null, null, false, 0, 0, null, rows[0].OverviewPath),
                 new DashboardCommunitySnapshot(DashboardMetric<long>.Measured(1), unknown, unknown, null, false)));
         }

@@ -342,7 +342,9 @@ public sealed class EventCreationRetryIntegrationTests(PostgreSqlTestFixture dat
         var page = await client.GetStringAsync("/Account/Login");
         using var response = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
         {
-            ["Input.Username"] = login, ["Input.Password"] = "synthetic-creation-password", ["__RequestVerificationToken"] = Token(page)
+            ["Input.Username"] = login,
+            ["Input.Password"] = "synthetic-creation-password",
+            ["__RequestVerificationToken"] = Token(page)
         }));
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
     }
@@ -351,8 +353,10 @@ public sealed class EventCreationRetryIntegrationTests(PostgreSqlTestFixture dat
     {
         var values = new Dictionary<string, string>
         {
-            ["__RequestVerificationToken"] = token, ["Input.RequestId"] = key,
-            ["Input.Name"] = name, ["Input.Timezone"] = timezone
+            ["__RequestVerificationToken"] = token,
+            ["Input.RequestId"] = key,
+            ["Input.Name"] = name,
+            ["Input.Timezone"] = timezone
         };
         if (retired) values["Input.Description"] = "Retired wizard value";
         return new(values);

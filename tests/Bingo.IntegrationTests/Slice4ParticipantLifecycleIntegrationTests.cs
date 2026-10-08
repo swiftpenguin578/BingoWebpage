@@ -703,7 +703,9 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests(PostgreSqlTestFix
 
         var response = Assert.IsType<JsonResult>(await model.OnPostRestoreAsync(setup.EventId, new()
         {
-            ParticipantId = setup.ConfirmedParticipantId, EventVersion = staleEventVersion, ResponseVersion = staleResponseVersion
+            ParticipantId = setup.ConfirmedParticipantId,
+            EventVersion = staleEventVersion,
+            ResponseVersion = staleResponseVersion
         }, CancellationToken.None));
         var outcome = System.Text.Json.JsonSerializer.SerializeToElement(response.Value);
         Assert.Equal("stale", outcome.GetProperty("outcome").GetString());

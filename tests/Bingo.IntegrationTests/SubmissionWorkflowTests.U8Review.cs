@@ -398,8 +398,10 @@ public sealed partial class SubmissionWorkflowTests
         }
         var fields = new Dictionary<string, string>
         {
-            ["__RequestVerificationToken"] = token, ["Input.ExpectedVersion"] = before.Version.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            ["Input.Reason"] = "Archived events cannot be reviewed.", ["confirmed"] = "true"
+            ["__RequestVerificationToken"] = token,
+            ["Input.ExpectedVersion"] = before.Version.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["Input.Reason"] = "Archived events cannot be reviewed.",
+            ["confirmed"] = "true"
         };
         using var response = await client.PostAsync($"/Admin/Review/Details/{id}?handler={handler}", new FormUrlEncodedContent(fields));
         Assert.NotEqual(HttpStatusCode.InternalServerError, response.StatusCode);

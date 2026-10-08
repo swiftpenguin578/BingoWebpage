@@ -170,8 +170,10 @@ public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService ser
     }
 
     private Task<bool> VisibleSubmissionAsync(Guid id, CancellationToken ct) =>
-        (from submission in db.Submissions.AsNoTracking() join item in db.Events.AsNoTracking() on submission.EventId equals item.Id
-         where submission.Id == id && item.HiddenAt == null select submission.Id).AnyAsync(ct);
+        (from submission in db.Submissions.AsNoTracking()
+         join item in db.Events.AsNoTracking() on submission.EventId equals item.Id
+         where submission.Id == id && item.HiddenAt == null
+         select submission.Id).AnyAsync(ct);
 
     private static bool IsReviewPersistenceConflict(Exception exception)
     {
@@ -222,9 +224,12 @@ public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService ser
         Assets = await db.EvidenceAssets.AsNoTracking().Where(x => x.SubmissionId == id).OrderByDescending(x => x.Active).ThenByDescending(x => x.UploadedAt).Select(x => new AssetView(x.Id, x.OriginalFilename, x.MediaType, x.ByteSize, x.PixelWidth, x.PixelHeight, x.Checksum, x.UploadedAt, x.Role, x.Active)).ToListAsync(ct);
         var activeChecksum = Assets.FirstOrDefault(x => x.Active)?.Checksum;
         if (activeChecksum is not null)
-            ChecksumMatches = await (from asset in db.EvidenceAssets.AsNoTracking() join other in db.Submissions on asset.SubmissionId equals other.Id join otherTile in db.BoardTiles on other.BoardTileId equals otherTile.Id
+            ChecksumMatches = await (from asset in db.EvidenceAssets.AsNoTracking()
+                                     join other in db.Submissions on asset.SubmissionId equals other.Id
+                                     join otherTile in db.BoardTiles on other.BoardTileId equals otherTile.Id
                                      where asset.Checksum == activeChecksum && asset.Active && other.EventId == s.EventId && other.Id != s.Id
-                                     orderby other.SubmittedAt descending select new ChecksumMatch(other.Id, otherTile.NameSnapshot, other.CreditedCharacterName, other.SubmittedAt, other.Status)).Distinct().ToListAsync(ct);
+                                     orderby other.SubmittedAt descending
+                                     select new ChecksumMatch(other.Id, otherTile.NameSnapshot, other.CreditedCharacterName, other.SubmittedAt, other.Status)).Distinct().ToListAsync(ct);
         History = await LoadHistoryAsync(id, ct);
         Approval = s.Status == SubmissionStatus.Approved ? History.FirstOrDefault(x => x.Action == "submission.approved") is { } approved ? new(approved.Actor, approved.At, null) : null : null;
         Feedback = s.Status is SubmissionStatus.Rejected or SubmissionStatus.Reversed && History.FirstOrDefault(x => x.Action is "submission.rejected" or "submission.reversed") is { } decided ? new(decided.Actor, decided.At, s.CurrentReviewerNote) : null;

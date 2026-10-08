@@ -277,7 +277,8 @@ public sealed partial class SignupSetupVersionIntegrationTests(PostgreSqlTestFix
     private async Task<string> SnapshotAsync(Guid id)
     {
         await using var db = new ApplicationDbContext(options);
-        return JsonSerializer.Serialize(new {
+        return JsonSerializer.Serialize(new
+        {
             Event = await db.Events.AsNoTracking().SingleAsync(x => x.Id == id),
             Form = await db.SignupForms.AsNoTracking().SingleAsync(x => x.EventId == id),
             Questions = await db.SignupQuestions.AsNoTracking().Where(x => x.EventId == id).OrderBy(x => x.Id).ToListAsync(),
@@ -288,7 +289,8 @@ public sealed partial class SignupSetupVersionIntegrationTests(PostgreSqlTestFix
             Notifications = await db.PersonalNotifications.AsNoTracking().Where(x => x.EventId == id).OrderBy(x => x.Id).ToListAsync()
         });
     }
-    private static Dictionary<string, string> Fields(string op, Seed s) => op switch {
+    private static Dictionary<string, string> Fields(string op, Seed s) => op switch
+    {
         "Add" => new() { ["Input.Label"] = "Added", ["Input.Type"] = "Text" },
         "AddAccount" => new() { ["role"] = "Playing" },
         "Edit" => new() { ["questionId"] = s.Custom.ToString(), ["Edit.Label"] = "Edited", ["Edit.Type"] = "Text" },
@@ -299,16 +301,16 @@ public sealed partial class SignupSetupVersionIntegrationTests(PostgreSqlTestFix
     private static async Task LoginAsync(HttpClient client, string login)
     {
         var page = await client.GetStringAsync("/Account/Login");
-        using var response = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string,string> { ["Input.Username"] = login, ["Input.Password"] = "synthetic-test-password", ["__RequestVerificationToken"] = Token(page) }));
+        using var response = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string> { ["Input.Username"] = login, ["Input.Password"] = "synthetic-test-password", ["__RequestVerificationToken"] = Token(page) }));
         Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
     }
-    private static Task<HttpResponseMessage> PostAsync(HttpClient client, string route, string handler, string page, string? version, Dictionary<string,string> fields)
+    private static Task<HttpResponseMessage> PostAsync(HttpClient client, string route, string handler, string page, string? version, Dictionary<string, string> fields)
     {
         if (handler is "Add" or "AddAccount") fields["addRequestId"] = Guid.NewGuid().ToString();
         fields["__RequestVerificationToken"] = Token(page); if (version is not null) fields["expectedFormVersion"] = version;
         return client.PostAsync(handler == "Add" ? route : route + "?handler=" + handler, new FormUrlEncodedContent(fields));
     }
-    private static async Task<SignupAdministrationResult> SettingsPostAsync(HttpClient client, string route, string page, Dictionary<string,string> fields)
+    private static async Task<SignupAdministrationResult> SettingsPostAsync(HttpClient client, string route, string page, Dictionary<string, string> fields)
     {
         fields["__RequestVerificationToken"] = Token(page);
         using var response = await client.PostAsync(route, new FormUrlEncodedContent(fields));

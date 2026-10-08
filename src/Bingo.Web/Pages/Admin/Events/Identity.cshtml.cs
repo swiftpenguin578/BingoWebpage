@@ -349,12 +349,24 @@ public sealed class IdentityModel(
 
     private static object AuditState(BingoEvent item)
     {
-        var fixedLength = JsonSerializer.Serialize(new { item.Name, Description = (string?)null,
-            BuyInDescription = (string?)null, item.Timezone, item.Slug }).Length;
+        var fixedLength = JsonSerializer.Serialize(new
+        {
+            item.Name,
+            Description = (string?)null,
+            BuyInDescription = (string?)null,
+            item.Timezone,
+            item.Slug
+        }).Length;
         // Audit JSON is varchar(4000). Budget escaped excerpts, retaining full identity keys.
         var excerptBudget = (4_000 - fixedLength) / 2 + 4;
-        return new { item.Name, Description = AuditDescription(item.Description, excerptBudget),
-            BuyInDescription = AuditDescription(item.BuyInDescription, excerptBudget), item.Timezone, item.Slug };
+        return new
+        {
+            item.Name,
+            Description = AuditDescription(item.Description, excerptBudget),
+            BuyInDescription = AuditDescription(item.BuyInDescription, excerptBudget),
+            item.Timezone,
+            item.Slug
+        };
     }
 
     private static string? AuditDescription(string? description, int jsonBudget)

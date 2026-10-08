@@ -385,9 +385,15 @@ public sealed class AdminStaleChangeIntegrationTests(PostgreSqlTestFixture datab
         string Attribute(string name) => WebUtility.HtmlDecode(Regex.Match(tag, $"\\b{name}=\"([^\"]*)\"").Groups[1].Value);
         return new Dictionary<string, string>
         {
-            ["recordId"] = drop.Id.ToString(), ["expectedVersion"] = Attribute("data-version"), ["expectedItemVersion"] = Attribute("data-item-version"),
-            ["itemName"] = Attribute("data-item-name"), ["displayRate"] = Attribute("data-rate"), ["originalDisplayRate"] = Attribute("data-rate"),
-            ["imageUrl"] = Attribute("data-image"), ["useExistingItem"] = "false", ["__RequestVerificationToken"] = Token(page)
+            ["recordId"] = drop.Id.ToString(),
+            ["expectedVersion"] = Attribute("data-version"),
+            ["expectedItemVersion"] = Attribute("data-item-version"),
+            ["itemName"] = Attribute("data-item-name"),
+            ["displayRate"] = Attribute("data-rate"),
+            ["originalDisplayRate"] = Attribute("data-rate"),
+            ["imageUrl"] = Attribute("data-image"),
+            ["useExistingItem"] = "false",
+            ["__RequestVerificationToken"] = Token(page)
         };
     }
     private static Task<HttpResponseMessage> PostDrop(HttpClient client, SourceDrop drop, Dictionary<string, string> form) => client.PostAsync($"/Admin/Catalogue?bossId={drop.BossActivityId}&handler=UpdateDrop", new FormUrlEncodedContent(form));

@@ -34,8 +34,11 @@ public sealed partial class SubmissionWorkflowTests
             var page = DrawerPage(db, setup.CaptainId, logger);
             page.Input = new Bingo.Web.Pages.Captain.SubmitModel.SubmissionInput
             {
-                TileId = setup.TileId, RequirementId = setup.RequirementId, DropSnapshotId = setup.DropId,
-                CreditedParticipantId = setup.ParticipantId, ClaimedWeight = 1,
+                TileId = setup.TileId,
+                RequirementId = setup.RequirementId,
+                DropSnapshotId = setup.DropId,
+                CreditedParticipantId = setup.ParticipantId,
+                ClaimedWeight = 1,
                 Evidence = new FormFile(new MemoryStream([1, 2, 3]), 0, 3, "Input.Evidence", "proof.png")
             };
 

@@ -1,18 +1,18 @@
 using System.Reflection;
 using System.Text.RegularExpressions;
+using Bingo.Domain.Events;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web;
+using Bingo.Web.Pages.Admin.Events;
+using Bingo.Web.Security;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Localization;
-using Bingo.Domain.Events;
-using Bingo.Web.Pages.Admin.Events;
-using Bingo.Web.Security;
-using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace Bingo.IntegrationTests;
 

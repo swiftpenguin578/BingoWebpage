@@ -3,8 +3,8 @@ using Bingo.Domain.Access;
 using Bingo.Domain.Events;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
-using Microsoft.AspNetCore.Mvc;
 using Bingo.Infrastructure.Teams;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bingo.Web.Pages.Admin.Events;

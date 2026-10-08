@@ -1106,8 +1106,11 @@ public sealed partial class C11FinalizedRosterIntegrationTests(PostgreSqlTestFix
         {
             Content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
-                ["teamId"] = seed.TeamId.ToString(), ["accountId"] = seed.InternalOwnerId.ToString(), ["confirmed"] = "true",
-                ["expectedTeamVersion"] = teamVersion.ToString(CultureInfo.InvariantCulture), ["rosterTeamId"] = seed.TeamId.ToString()
+                ["teamId"] = seed.TeamId.ToString(),
+                ["accountId"] = seed.InternalOwnerId.ToString(),
+                ["confirmed"] = "true",
+                ["expectedTeamVersion"] = teamVersion.ToString(CultureInfo.InvariantCulture),
+                ["rosterTeamId"] = seed.TeamId.ToString()
             })
         };
         request.Headers.Add("Accept", "application/json"); request.Headers.Add("RequestVerificationToken", Token(draftPage));
@@ -1966,9 +1969,12 @@ public sealed partial class C11FinalizedRosterIntegrationTests(PostgreSqlTestFix
         {
             Content = new FormUrlEncodedContent(new Dictionary<string, string>
             {
-                ["participantId"] = participant.ToString(), ["expectedResponseVersion"] = view.GetProperty("responseVersion").GetInt32().ToString(CultureInfo.InvariantCulture),
-                ["expectedPaid"] = view.GetProperty("paid").GetBoolean() ? "true" : "false", ["expectedNote"] = view.GetProperty("adminNote").GetString() ?? string.Empty,
-                ["paid"] = view.GetProperty("paid").GetBoolean() ? "true" : "false", ["note"] = note
+                ["participantId"] = participant.ToString(),
+                ["expectedResponseVersion"] = view.GetProperty("responseVersion").GetInt32().ToString(CultureInfo.InvariantCulture),
+                ["expectedPaid"] = view.GetProperty("paid").GetBoolean() ? "true" : "false",
+                ["expectedNote"] = view.GetProperty("adminNote").GetString() ?? string.Empty,
+                ["paid"] = view.GetProperty("paid").GetBoolean() ? "true" : "false",
+                ["note"] = note
             })
         };
         request.Headers.Add("Accept", "application/json"); request.Headers.Add("RequestVerificationToken", Token(page));

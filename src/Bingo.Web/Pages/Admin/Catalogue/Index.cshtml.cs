@@ -1,13 +1,13 @@
-using Bingo.Domain.Events;
 using System.ComponentModel.DataAnnotations;
 using System.Data;
 using System.Globalization;
 using System.Text.Json;
 using Bingo.Application.Access;
 using Bingo.Application.Catalogue;
-using Bingo.Domain.Auditing;
 using Bingo.Domain.Access;
+using Bingo.Domain.Auditing;
 using Bingo.Domain.Catalogue;
+using Bingo.Domain.Events;
 using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Events;
@@ -97,9 +97,12 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
             initialMappingStatus = !mapping.Available ? ApiMappingStatus.TemporarilyUnavailable
                 : fetchedItem is null ? ApiMappingStatus.Unsupported : ApiMappingStatus.Verified;
             if (!mapping.Available) { fetchFailure = ProviderFailure(mapping.Error, "The item mapping API is temporarily unavailable."); fetchCode = RateLimited(mapping.Error) ? "rate-limited" : "unavailable"; }
-            else if (fetchedItem is null) { fetchFailure = BossDrop.InitialWikiItemId is not null
+            else if (fetchedItem is null)
+            {
+                fetchFailure = BossDrop.InitialWikiItemId is not null
                 ? "The item ID is not in the tradeable item mapping."
-                : "No unique exact-name item match was found."; fetchCode = BossDrop.InitialWikiItemId is not null ? "unsupported-id" : "no-match"; }
+                : "No unique exact-name item match was found."; fetchCode = BossDrop.InitialWikiItemId is not null ? "unsupported-id" : "no-match";
+            }
             else
             {
                 var prices = await catalogueApi!.GetHourlyPricesAsync(ct);
@@ -161,10 +164,14 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
                 // D9: recheck the exact current set before commit.
                 var currentActivities = await GetSharedItemActivitiesAsync(targetItem.Id, boss.Id, cancellationToken);
                 return SharedItemConfirmationMatches(sharedItemConfirmationActivityIds, currentActivities) ? null : RefuseSharedItemChange(currentActivities);
-            } : null,
+            }
+        : null,
             new Dictionary<string, object?>
             {
-                ["activityId"] = boss.Id, ["dropId"] = created.Id, ["itemName"] = targetItem.Name, ["reactivated"] = dropBefore is not null,
+                ["activityId"] = boss.Id,
+                ["dropId"] = created.Id,
+                ["itemName"] = targetItem.Name,
+                ["reactivated"] = dropBefore is not null,
                 ["notice"] = fetchFailure is null ? null : Localize(fetchFailure) + " " + Localize("The entered manual value ({0} GP) was used and stays fixed during bulk refreshes. Review the mapping and choose API hourly average, then validate again to use API pricing.", targetItem.CatalogueValueGp!)
             });
     }
@@ -326,7 +333,8 @@ public sealed partial class IndexModel(ApplicationDbContext dbContext, TimeProvi
                 // D7: recheck the exact current set before commit.
                 var currentActivities = await GetSharedItemActivitiesAsync(targetItem.Id, entity.BossActivityId, cancellationToken);
                 return SharedItemConfirmationMatches(sharedItemConfirmationActivityIds, currentActivities) ? null : RefuseSharedItemChange(currentActivities);
-            } : null,
+            }
+        : null,
             new Dictionary<string, object?> { ["activityId"] = entity.BossActivityId, ["dropId"] = entity.Id, ["itemName"] = targetItem.Name });
     }
     public async Task<IActionResult> OnGetDeletionImpactAsync(string recordType, Guid recordId, long expectedVersion, CancellationToken ct)

@@ -1,5 +1,5 @@
-using Bingo.Domain.Catalogue;
 using Bingo.Domain.Access;
+using Bingo.Domain.Catalogue;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Web.Pages.Admin.Catalogue;
 using Microsoft.AspNetCore.Mvc;

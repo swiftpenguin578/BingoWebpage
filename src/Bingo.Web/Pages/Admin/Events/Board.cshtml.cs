@@ -18,8 +18,8 @@ using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Events;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.Teams;
-using Bingo.Web.Security;
 using Bingo.Web.Boards;
+using Bingo.Web.Security;
 using Bingo.Web.UI;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -1183,120 +1183,120 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
             if (issues.Any(x => x.TileId == tile.Id && x.Code is "tile-definition" or "objective-missing" or "objective-positions" or "source-inactive" or "drop-inactive")) continue;
             try
             {
-            string? artwork = null;
-            if (tile.ActiveImageAssetId is { } imageId)
-            {
-                if (!imagesById.TryGetValue(imageId, out var image) || image.EventId != board.EventId || image.BoardTileId != tile.Id)
-                    throw Invalid("artwork-invalid", "A managed tile image no longer belongs to this event. Correct the tile before approval.", tile);
-                artwork = image.StorageKey;
-            }
-            var tileRequirements = requirements.Where(x => x.BoardTileId == tile.Id).OrderBy(x => x.Position).ToList();
-            if (tileRequirements.Select(x => x.ManualObjective).Distinct().Count() > 1)
-                throw Invalid("objective-mixed", "Use separate tiles for catalogue drops and custom challenges. Every objective in a tile must have the same kind.", tile);
-            var template = templates[tile.TileTemplateId];
-            if (template.DescriptionIsAutomatic != tile.DescriptionIsAutomatic)
-                throw Invalid("description-mode", "The tile description mode changed. Edit and save the tile before approval.", tile);
-            var description = tile.DescriptionSnapshot;
-            if (tile.DescriptionIsAutomatic)
-            {
-                var descriptionRequirements = tileRequirements.Select(requirement =>
+                string? artwork = null;
+                if (tile.ActiveImageAssetId is { } imageId)
                 {
-                    var selectedDrops = priorRequirementIds.Contains(requirement.Id)
-                        ? prior!.Drops.Where(drop => drop.RequirementId == requirement.Id)
-                            .Select(drop => new TileDescriptionDrop(drop.ItemIdSnapshot, drop.ItemName, drop.BossName)).ToList()
-                        : requirementDrops.Where(drop => drop.RequirementId == requirement.Id)
-                            .Select(drop => currentDrops.TryGetValue(drop.SourceDropId, out var selectedDrop)
-                                ? new TileDescriptionDrop(drop.ItemIdSnapshot, selectedDrop.Item.Name, selectedDrop.Boss.Name) : null)
-                            .Where(value => value is not null).Select(value => value!).ToList();
-                    return new TileDescriptionRequirement(requirement.Position, requirement.TargetContribution,
-                        requirement.ManualObjective, requirement.Description, selectedDrops);
-                });
-                description = ApprovalDescription(tile.DescriptionIsAutomatic, tile.DescriptionSnapshot, descriptionRequirements);
-                if (description.Length > TileDescriptionFormatter.MaximumFrozenDescriptionLength)
-                    throw Invalid("description-length", "{0} has an automatic description that is too long. Reduce the selected sources or objective count before approval.", tile, tile.NameSnapshot);
-            }
-            var approvalTile = new BoardApprovalTileSnapshot(Guid.NewGuid(), approval.Id, tile.Id, tile.TileTemplateId, tile.RowIndex, tile.ColumnIndex, tile.NameSnapshot, description, string.Empty, 0m, artwork, tile.DescriptionIsAutomatic);
-            db.BoardApprovalTileSnapshots.Add(approvalTile);
-            var manualTile = tileRequirements.All(x => x.ManualObjective);
-            if ((template.ObjectiveType == ObjectiveType.Manual) != manualTile)
-                throw Invalid("objective-kind", "The tile kind does not match its objectives. Edit and save the tile with one objective kind before approval.", tile);
-            var tileEstimates = new List<decimal?>();
-            // U7-Q1: names of the drops whose catalogue rate (drop chance or source
-            // kill rate) is missing, carried on a catalogue-rates-missing issue.
-            var missingRateDrops = new List<string>();
-            foreach (var requirement in tileRequirements)
-            {
-                var approvalRequirement = new BoardApprovalRequirementSnapshot(Guid.NewGuid(), approvalTile.Id, requirement.Id, requirement.Position, requirement.TargetContribution, requirement.DuplicatesAllowed, requirement.AllowHigherWeightings, requirement.CreditedWeight, requirement.Description, requirement.ManualObjective);
-                db.BoardApprovalRequirementSnapshots.Add(approvalRequirement);
-                if (priorRequirementIds.Contains(requirement.Id))
+                    if (!imagesById.TryGetValue(imageId, out var image) || image.EventId != board.EventId || image.BoardTileId != tile.Id)
+                        throw Invalid("artwork-invalid", "A managed tile image no longer belongs to this event. Correct the tile before approval.", tile);
+                    artwork = image.StorageKey;
+                }
+                var tileRequirements = requirements.Where(x => x.BoardTileId == tile.Id).OrderBy(x => x.Position).ToList();
+                if (tileRequirements.Select(x => x.ManualObjective).Distinct().Count() > 1)
+                    throw Invalid("objective-mixed", "Use separate tiles for catalogue drops and custom challenges. Every objective in a tile must have the same kind.", tile);
+                var template = templates[tile.TileTemplateId];
+                if (template.DescriptionIsAutomatic != tile.DescriptionIsAutomatic)
+                    throw Invalid("description-mode", "The tile description mode changed. Edit and save the tile before approval.", tile);
+                var description = tile.DescriptionSnapshot;
+                if (tile.DescriptionIsAutomatic)
                 {
-                    var previous = priorApprovalRequirements.Single(x => x.BoardRequirementSnapshotId == requirement.Id);
-                    var bosses = priorBosses.Where(x => x.ApprovalRequirementSnapshotId == previous.Id).ToList();
-                    var drops = priorDrops.Where(x => x.ApprovalRequirementSnapshotId == previous.Id).ToList();
-                    foreach (var boss in bosses) db.BoardApprovalRequirementBossSnapshots.Add(new(Guid.NewGuid(), approvalRequirement.Id, boss.BossActivityId, boss.Name, boss.EfficientRate, boss.CatalogueVersion));
-                    foreach (var drop in drops) db.BoardApprovalRequirementDropSnapshots.Add(new(Guid.NewGuid(), approvalRequirement.Id, drop.SourceDropId, drop.ItemIdSnapshot, drop.BossName, drop.ItemName, drop.DisplayRate, drop.NumericProbability, drop.MaximumContribution, drop.EhbPerContribution, drop.CreditedWeight, drop.CatalogueVersion, drop.ProbabilityScope, drop.ConditionalOnParent, drop.ParentProbability, drop.AssumedParticipants, drop.RollsPerCompletion, drop.RollGroup, drop.RateCondition));
-                    var identityBosses = await db.SourceDrops.AsNoTracking().Where(x => drops.Select(d => d.SourceDropId).Contains(x.Id)).Select(x => new { x.Id, x.BossActivityId }).ToDictionaryAsync(x => x.Id, ct);
+                    var descriptionRequirements = tileRequirements.Select(requirement =>
+                    {
+                        var selectedDrops = priorRequirementIds.Contains(requirement.Id)
+                            ? prior!.Drops.Where(drop => drop.RequirementId == requirement.Id)
+                                .Select(drop => new TileDescriptionDrop(drop.ItemIdSnapshot, drop.ItemName, drop.BossName)).ToList()
+                            : requirementDrops.Where(drop => drop.RequirementId == requirement.Id)
+                                .Select(drop => currentDrops.TryGetValue(drop.SourceDropId, out var selectedDrop)
+                                    ? new TileDescriptionDrop(drop.ItemIdSnapshot, selectedDrop.Item.Name, selectedDrop.Boss.Name) : null)
+                                .Where(value => value is not null).Select(value => value!).ToList();
+                        return new TileDescriptionRequirement(requirement.Position, requirement.TargetContribution,
+                            requirement.ManualObjective, requirement.Description, selectedDrops);
+                    });
+                    description = ApprovalDescription(tile.DescriptionIsAutomatic, tile.DescriptionSnapshot, descriptionRequirements);
+                    if (description.Length > TileDescriptionFormatter.MaximumFrozenDescriptionLength)
+                        throw Invalid("description-length", "{0} has an automatic description that is too long. Reduce the selected sources or objective count before approval.", tile, tile.NameSnapshot);
+                }
+                var approvalTile = new BoardApprovalTileSnapshot(Guid.NewGuid(), approval.Id, tile.Id, tile.TileTemplateId, tile.RowIndex, tile.ColumnIndex, tile.NameSnapshot, description, string.Empty, 0m, artwork, tile.DescriptionIsAutomatic);
+                db.BoardApprovalTileSnapshots.Add(approvalTile);
+                var manualTile = tileRequirements.All(x => x.ManualObjective);
+                if ((template.ObjectiveType == ObjectiveType.Manual) != manualTile)
+                    throw Invalid("objective-kind", "The tile kind does not match its objectives. Edit and save the tile with one objective kind before approval.", tile);
+                var tileEstimates = new List<decimal?>();
+                // U7-Q1: names of the drops whose catalogue rate (drop chance or source
+                // kill rate) is missing, carried on a catalogue-rates-missing issue.
+                var missingRateDrops = new List<string>();
+                foreach (var requirement in tileRequirements)
+                {
+                    var approvalRequirement = new BoardApprovalRequirementSnapshot(Guid.NewGuid(), approvalTile.Id, requirement.Id, requirement.Position, requirement.TargetContribution, requirement.DuplicatesAllowed, requirement.AllowHigherWeightings, requirement.CreditedWeight, requirement.Description, requirement.ManualObjective);
+                    db.BoardApprovalRequirementSnapshots.Add(approvalRequirement);
+                    if (priorRequirementIds.Contains(requirement.Id))
+                    {
+                        var previous = priorApprovalRequirements.Single(x => x.BoardRequirementSnapshotId == requirement.Id);
+                        var bosses = priorBosses.Where(x => x.ApprovalRequirementSnapshotId == previous.Id).ToList();
+                        var drops = priorDrops.Where(x => x.ApprovalRequirementSnapshotId == previous.Id).ToList();
+                        foreach (var boss in bosses) db.BoardApprovalRequirementBossSnapshots.Add(new(Guid.NewGuid(), approvalRequirement.Id, boss.BossActivityId, boss.Name, boss.EfficientRate, boss.CatalogueVersion));
+                        foreach (var drop in drops) db.BoardApprovalRequirementDropSnapshots.Add(new(Guid.NewGuid(), approvalRequirement.Id, drop.SourceDropId, drop.ItemIdSnapshot, drop.BossName, drop.ItemName, drop.DisplayRate, drop.NumericProbability, drop.MaximumContribution, drop.EhbPerContribution, drop.CreditedWeight, drop.CatalogueVersion, drop.ProbabilityScope, drop.ConditionalOnParent, drop.ParentProbability, drop.AssumedParticipants, drop.RollsPerCompletion, drop.RollGroup, drop.RateCondition));
+                        var identityBosses = await db.SourceDrops.AsNoTracking().Where(x => drops.Select(d => d.SourceDropId).Contains(x.Id)).Select(x => new { x.Id, x.BossActivityId }).ToDictionaryAsync(x => x.Id, ct);
+                        if (!requirement.ManualObjective)
+                            missingRateDrops.AddRange(drops.Where(drop => drop.NumericProbability is not > 0 ||
+                                bosses.SingleOrDefault(x => x.BossActivityId == identityBosses.GetValueOrDefault(drop.SourceDropId)?.BossActivityId)?.EfficientRate is not > 0).Select(drop => drop.ItemName));
+                        tileEstimates.Add(requirement.ManualObjective ? null : EhbCalculator.CalculateDropRequirement(requirement.TargetContribution, drops.Select(drop =>
+                        {
+                            var boss = bosses.Single(x => x.BossActivityId == identityBosses[drop.SourceDropId].BossActivityId);
+                            return new EligibleDropRate(boss.EfficientRate, drop.NumericProbability, drop.ItemIdSnapshot, boss.BossActivityId, drop.CreditedWeight, drop.RollsPerCompletion, drop.RollGroup);
+                        }), requirement.DuplicatesAllowed));
+                        continue;
+                    }
+                    foreach (var requirementBoss in requirementBosses.Where(x => x.RequirementId == requirement.Id))
+                    {
+                        var currentBoss = currentBosses[requirementBoss.BossActivityId];
+                        db.BoardApprovalRequirementBossSnapshots.Add(new BoardApprovalRequirementBossSnapshot(Guid.NewGuid(), approvalRequirement.Id, currentBoss.Id, currentBoss.Name, currentBoss.EfficientCompletionsPerHour, currentBoss.Version));
+                    }
+
+                    var frozenDrops = requirementDrops.Where(x => x.RequirementId == requirement.Id).ToList();
+                    if (!requirement.ManualObjective && !requirement.DuplicatesAllowed) EnsureConsistentItemCaps(frozenDrops, tile, board.Columns);
+                    var selectedDrops = frozenDrops.Select(x => currentDrops[x.SourceDropId]).ToList();
+                    if (!requirement.ManualObjective && selectedDrops.Count == 0)
+                        throw Invalid("drop-missing", "Every catalogue objective needs an active eligible drop before approval.", tile);
+                    foreach (var selected in selectedDrops)
+                    {
+                        var sourceSnapshot = requirementDrops.Single(x => x.RequirementId == requirement.Id && x.SourceDropId == selected.Drop.Id);
+                        if (selected.Drop.ItemId != sourceSnapshot.ItemIdSnapshot)
+                            throw Invalid("item-identity", "A catalogue item identity changed. Reselect the affected drop in the tile before approving the board.", tile);
+                        var approvalDrop = new BoardApprovalRequirementDropSnapshot(Guid.NewGuid(), approvalRequirement.Id, selected.Drop.Id, sourceSnapshot.ItemIdSnapshot, selected.Boss.Name, selected.Item.Name, selected.Drop.DisplayRate, selected.Drop.NumericProbability, sourceSnapshot.MaximumContribution, selected.Drop.DefaultEhbEstimate, sourceSnapshot.CreditedWeight, selected.Drop.Version, selected.Drop.ProbabilityScope, selected.Drop.ConditionalOnParent, selected.Drop.ParentProbability, selected.Drop.AssumedParticipants, selected.Drop.RollsPerCompletion, selected.Drop.RollGroup, selected.Drop.RateConditionNote);
+                        db.BoardApprovalRequirementDropSnapshots.Add(approvalDrop);
+                    }
+
                     if (!requirement.ManualObjective)
-                        missingRateDrops.AddRange(drops.Where(drop => drop.NumericProbability is not > 0 ||
-                            bosses.SingleOrDefault(x => x.BossActivityId == identityBosses.GetValueOrDefault(drop.SourceDropId)?.BossActivityId)?.EfficientRate is not > 0).Select(drop => drop.ItemName));
-                    tileEstimates.Add(requirement.ManualObjective ? null : EhbCalculator.CalculateDropRequirement(requirement.TargetContribution, drops.Select(drop =>
-                    {
-                        var boss = bosses.Single(x => x.BossActivityId == identityBosses[drop.SourceDropId].BossActivityId);
-                        return new EligibleDropRate(boss.EfficientRate, drop.NumericProbability, drop.ItemIdSnapshot, boss.BossActivityId, drop.CreditedWeight, drop.RollsPerCompletion, drop.RollGroup);
-                    }), requirement.DuplicatesAllowed));
-                    continue;
+                        missingRateDrops.AddRange(selectedDrops.Where(drop => drop.Drop.NumericProbability is not > 0 || drop.Boss.EfficientCompletionsPerHour is not > 0).Select(drop => drop.Item.Name));
+                    tileEstimates.Add(requirement.ManualObjective
+                        ? null
+                        : EhbCalculator.CalculateDropRequirement(requirement.TargetContribution, selectedDrops.Select(drop =>
+                        {
+                            var snapshot = requirementDrops.Single(x => x.RequirementId == requirement.Id && x.SourceDropId == drop.Drop.Id);
+                            return new EligibleDropRate(drop.Boss.EfficientCompletionsPerHour, drop.Drop.NumericProbability, drop.Drop.ItemId, drop.Boss.Id, snapshot.CreditedWeight, drop.Drop.RollsPerCompletion, drop.Drop.RollGroup);
+                        }), requirement.DuplicatesAllowed));
                 }
-                foreach (var requirementBoss in requirementBosses.Where(x => x.RequirementId == requirement.Id))
+                var tileEhb = ApprovalTileEhb(template, tileRequirements.Select(x => x.ManualObjective).Zip(tileEstimates));
+                if (prior is not null && requirements.Any(x => x.BoardTileId == tile.Id && evidenced.Contains(x.Id)))
                 {
-                    var currentBoss = currentBosses[requirementBoss.BossActivityId];
-                    db.BoardApprovalRequirementBossSnapshots.Add(new BoardApprovalRequirementBossSnapshot(Guid.NewGuid(), approvalRequirement.Id, currentBoss.Id, currentBoss.Name, currentBoss.EfficientCompletionsPerHour, currentBoss.Version));
+                    var priorTile = prior.Tiles.Single(x => x.Id == tile.Id);
+                    if (decimal.Round(tileEhb, 4, MidpointRounding.AwayFromZero) != priorTile.EstimatedEhbSnapshot ||
+                        requirements.Where(x => x.BoardTileId == tile.Id).Sum(x => (long)x.TargetContribution) !=
+                        prior.Requirements.Where(x => x.BoardTileId == tile.Id).Sum(x => (long)x.TargetContribution))
+                        throw Invalid("evidence-scoring-locked", "A tile with submitted evidence cannot change its scoring. The active publication has been preserved.", tile);
+                    tileEhb = priorTile.EstimatedEhbSnapshot;
                 }
-
-                var frozenDrops = requirementDrops.Where(x => x.RequirementId == requirement.Id).ToList();
-                if (!requirement.ManualObjective && !requirement.DuplicatesAllowed) EnsureConsistentItemCaps(frozenDrops, tile, board.Columns);
-                var selectedDrops = frozenDrops.Select(x => currentDrops[x.SourceDropId]).ToList();
-                if (!requirement.ManualObjective && selectedDrops.Count == 0)
-                    throw Invalid("drop-missing", "Every catalogue objective needs an active eligible drop before approval.", tile);
-                foreach (var selected in selectedDrops)
+                if (tileEhb <= 0)
                 {
-                    var sourceSnapshot = requirementDrops.Single(x => x.RequirementId == requirement.Id && x.SourceDropId == selected.Drop.Id);
-                    if (selected.Drop.ItemId != sourceSnapshot.ItemIdSnapshot)
-                        throw Invalid("item-identity", "A catalogue item identity changed. Reselect the affected drop in the tile before approving the board.", tile);
-                    var approvalDrop = new BoardApprovalRequirementDropSnapshot(Guid.NewGuid(), approvalRequirement.Id, selected.Drop.Id, sourceSnapshot.ItemIdSnapshot, selected.Boss.Name, selected.Item.Name, selected.Drop.DisplayRate, selected.Drop.NumericProbability, sourceSnapshot.MaximumContribution, selected.Drop.DefaultEhbEstimate, sourceSnapshot.CreditedWeight, selected.Drop.Version, selected.Drop.ProbabilityScope, selected.Drop.ConditionalOnParent, selected.Drop.ParentProbability, selected.Drop.AssumedParticipants, selected.Drop.RollsPerCompletion, selected.Drop.RollGroup, selected.Drop.RateConditionNote);
-                    db.BoardApprovalRequirementDropSnapshots.Add(approvalDrop);
+                    var missing = Invalid(manualTile ? "manual-ehb-missing" : "catalogue-rates-missing", manualTile
+                        ? "{0} needs a positive manual EHB estimate. Edit the custom tile before approval."
+                        : "{0} needs automatic EHB. Correct the catalogue rates or drop requirements before approval; a manual estimate cannot replace them.", tile, tile.NameSnapshot);
+                    if (!manualTile && missingRateDrops.Count > 0)
+                        throw new BoardApprovalValidationException([missing.Issue with { DropNames = missingRateDrops.Distinct(StringComparer.Ordinal).ToList() }]);
+                    throw missing;
                 }
-
-                if (!requirement.ManualObjective)
-                    missingRateDrops.AddRange(selectedDrops.Where(drop => drop.Drop.NumericProbability is not > 0 || drop.Boss.EfficientCompletionsPerHour is not > 0).Select(drop => drop.Item.Name));
-                tileEstimates.Add(requirement.ManualObjective
-                    ? null
-                    : EhbCalculator.CalculateDropRequirement(requirement.TargetContribution, selectedDrops.Select(drop =>
-                    {
-                        var snapshot = requirementDrops.Single(x => x.RequirementId == requirement.Id && x.SourceDropId == drop.Drop.Id);
-                        return new EligibleDropRate(drop.Boss.EfficientCompletionsPerHour, drop.Drop.NumericProbability, drop.Drop.ItemId, drop.Boss.Id, snapshot.CreditedWeight, drop.Drop.RollsPerCompletion, drop.Drop.RollGroup);
-                    }), requirement.DuplicatesAllowed));
-            }
-            var tileEhb = ApprovalTileEhb(template, tileRequirements.Select(x => x.ManualObjective).Zip(tileEstimates));
-            if (prior is not null && requirements.Any(x => x.BoardTileId == tile.Id && evidenced.Contains(x.Id)))
-            {
-                var priorTile = prior.Tiles.Single(x => x.Id == tile.Id);
-                if (decimal.Round(tileEhb, 4, MidpointRounding.AwayFromZero) != priorTile.EstimatedEhbSnapshot ||
-                    requirements.Where(x => x.BoardTileId == tile.Id).Sum(x => (long)x.TargetContribution) !=
-                    prior.Requirements.Where(x => x.BoardTileId == tile.Id).Sum(x => (long)x.TargetContribution))
-                    throw Invalid("evidence-scoring-locked", "A tile with submitted evidence cannot change its scoring. The active publication has been preserved.", tile);
-                tileEhb = priorTile.EstimatedEhbSnapshot;
-            }
-            if (tileEhb <= 0)
-            {
-                var missing = Invalid(manualTile ? "manual-ehb-missing" : "catalogue-rates-missing", manualTile
-                    ? "{0} needs a positive manual EHB estimate. Edit the custom tile before approval."
-                    : "{0} needs automatic EHB. Correct the catalogue rates or drop requirements before approval; a manual estimate cannot replace them.", tile, tile.NameSnapshot);
-                if (!manualTile && missingRateDrops.Count > 0)
-                    throw new BoardApprovalValidationException([missing.Issue with { DropNames = missingRateDrops.Distinct(StringComparer.Ordinal).ToList() }]);
-                throw missing;
-            }
-            db.Entry(approvalTile).Property(x => x.EstimatedEhb).CurrentValue = tileEhb;
-            totalEhb += tileEhb;
+                db.Entry(approvalTile).Property(x => x.EstimatedEhb).CurrentValue = tileEhb;
+                totalEhb += tileEhb;
             }
             catch (BoardApprovalValidationException exception) { issues.AddRange(exception.Issues); }
         }
@@ -1873,7 +1873,7 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
         }).ToList();
     private static string RequirementDescription(RequirementInput input) => input.IsManual ? input.Description!.Trim() : $"Collect {input.Target} eligible drop{(input.Target == 1 ? string.Empty : "s")}";
 
-    public sealed class TileDraftInput { public Guid? TileId { get; set; } public int Position { get; set; } public string? Name { get; set; } [StringLength(TileDescriptionFormatter.MaximumManualDescriptionLength, ErrorMessage = "Tile description cannot be longer than 4000 characters.")] public string? Description { get; set; } public IFormFile? Image { get; set; } public bool RemoveImage { get; set; } [ModelBinder(BinderType = typeof(ManualEhbInputBinder))] [Range(typeof(decimal), "0.0001", "100000", ParseLimitsInInvariantCulture = true)] public decimal? ManualEhb { get; set; } public bool ChangeManualEhbOverride { get; set; } public List<RequirementInput> Requirements { get; set; } = [new()]; }
+    public sealed class TileDraftInput { public Guid? TileId { get; set; } public int Position { get; set; } public string? Name { get; set; } [StringLength(TileDescriptionFormatter.MaximumManualDescriptionLength, ErrorMessage = "Tile description cannot be longer than 4000 characters.")] public string? Description { get; set; } public IFormFile? Image { get; set; } public bool RemoveImage { get; set; } [ModelBinder(BinderType = typeof(ManualEhbInputBinder))][Range(typeof(decimal), "0.0001", "100000", ParseLimitsInInvariantCulture = true)] public decimal? ManualEhb { get; set; } public bool ChangeManualEhbOverride { get; set; } public List<RequirementInput> Requirements { get; set; } = [new()]; }
     public sealed class RequirementInput { public Guid? RequirementId { get; set; } public string Kind { get; set; } = "drops"; public string? Description { get; set; } [Range(1, 10000)] public int Target { get; set; } = 1; public bool DuplicatesAllowed { get; set; } = true; public Dictionary<Guid, int> DropWeights { get; set; } = []; public List<Guid> BossIds { get; set; } = []; public List<Guid> DropIds { get; set; } = []; public bool IsManual => string.Equals(Kind, "challenge", StringComparison.OrdinalIgnoreCase); public int WeightFor(Guid dropId) => Math.Max(1, DropWeights.GetValueOrDefault(dropId, 1)); public bool HasHigherWeights => DropIds.Any(x => WeightFor(x) > 1); }
     public sealed record BoardDetails(int Rows, int Columns, BoardState State, decimal TotalEhb, long Version, bool PublishedCorrectionInProgress);
     public sealed record BoardStatistics(decimal TotalEhb, int? TeamSize, decimal? EhbPerPlayer, decimal? EhbPerPlayerPerDay, decimal AverageTileEhb, decimal LowestLineEhb, decimal HighestLineEhb, int MissingEhbTiles, decimal DurationDays);

@@ -1,13 +1,13 @@
+using System.Globalization;
 using Bingo.Application.Access;
 using Bingo.Application.Dashboard;
+using Bingo.Domain.Events;
 using Bingo.Web.Security;
 using Bingo.Web.UI;
-using Bingo.Domain.Events;
-using System.Globalization;
-using Microsoft.Extensions.Localization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
+using Microsoft.Extensions.Localization;
 
 namespace Bingo.Web.Pages.Admin;
 
@@ -96,8 +96,13 @@ public sealed class IndexModel(IAdminDashboardService dashboard, IStringLocalize
     }
     public string Phase(EventState state) => L(state switch
     {
-        EventState.Draft => "Setup", EventState.SignupOpen => "Signups open", EventState.SignupClosed => "Signups closed",
-        EventState.Live => "Live", EventState.AwaitingFinalReview => "Final review", EventState.Finalized => "Finalized", _ => "Archived"
+        EventState.Draft => "Setup",
+        EventState.SignupOpen => "Signups open",
+        EventState.SignupClosed => "Signups closed",
+        EventState.Live => "Live",
+        EventState.AwaitingFinalReview => "Final review",
+        EventState.Finalized => "Finalized",
+        _ => "Archived"
     });
 
     public async Task<IActionResult> OnGetAsync(CancellationToken cancellationToken)

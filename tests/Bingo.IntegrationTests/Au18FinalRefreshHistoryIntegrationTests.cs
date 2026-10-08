@@ -1,26 +1,26 @@
 using System.Net;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
-using Bingo.Web;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Hosting;
 using Bingo.Application.Events;
 using Bingo.Application.Integrations.WiseOldMan;
 using Bingo.Domain.Access;
 using Bingo.Domain.Events;
 using Bingo.Domain.Integrations.WiseOldMan;
 using Bingo.Domain.Signups;
-using System.Security.Cryptography;
-using System.Text;
 using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Events;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Web;
 using Bingo.Web.Pages.Admin.Events;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Hosting;
 
 namespace Bingo.IntegrationTests;
 
@@ -165,7 +165,7 @@ public sealed partial class Au12PlacementRuleIntegrationTests
             var token = Regex.Match(login, "name=\"__RequestVerificationToken\" type=\"hidden\" value=\"([^\"]+)\"").Groups[1].Value;
             Assert.NotEmpty(token);
             using var response = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
-                { ["Input.Username"] = "au12-admin", ["Input.Password"] = "password", ["__RequestVerificationToken"] = token }));
+            { ["Input.Username"] = "au12-admin", ["Input.Password"] = "password", ["__RequestVerificationToken"] = token }));
             Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
             var html = WebUtility.HtmlDecode(await client.GetStringAsync($"/Admin/Events/Finalize/{fixture.EventId}"));
             // AU18 / A10: only non-success refresh notes appear; legacy unknown has no fabricated note.
