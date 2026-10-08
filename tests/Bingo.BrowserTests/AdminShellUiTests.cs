@@ -103,6 +103,16 @@ public sealed class AdminShellUiTests
     }
 
     [Fact]
+    public void RetiredAdminScriptsAreGone()
+    {
+        // U10 item 2: no page loads these any more (rg proof in review-notes/98e-u10-evidence.md).
+        var js = Path.Combine(FindRepositoryRoot(), "src", "Bingo.Web", "wwwroot", "js");
+        foreach (var name in new[] { "draft-scramble.js", "event-manage.js", "admin-collaboration.js", "event-create-datetime.js", "event-create-validation.js" })
+            Assert.False(File.Exists(Path.Combine(js, name)), name);
+        Assert.DoesNotContain("initializeAdminAccountSearch", File.ReadAllText(Path.Combine(js, "site.js")));
+    }
+
+    [Fact]
     public void PublicPagesRetainThePublicLayout()
     {
         var root = FindRepositoryRoot();
