@@ -45,8 +45,11 @@ export function init(region, ui = window.AdminUI) {
     const fetch = root.querySelector('#fetch-btn'); if (fetch) { fetch.disabled = value || !state.integration?.canRefresh; fetch.classList.toggle('is-busy', value); fetch.querySelector('.spin').hidden = !value; fetch.querySelector('svg').style.display = value ? 'none' : ''; fetch.querySelector('[data-component-text]').textContent = t(value ? 'Fetching…' : 'Fetch now'); }
   }
   const uncertain = key => t(key === 'fetch' ? 'We couldn’t confirm whether new data was fetched.' : 'We couldn’t confirm whether this change was saved.');
+  // An unresolved operation phase (numeric enum or name) outranks management.status, which stays Active while an Update is queued.
+  const phaseNames = {1: 'Pending', 2: 'Claimed', 3: 'Sending', 5: 'Retry', 6: 'Unknown'}, unresolvedPhases = ['Pending', 'Claimed', 'Sending', 'Retry', 'Unknown'];
+  const operationState = management => { const raw = management?.operationPhase, phase = typeof raw === 'number' ? phaseNames[raw] : raw; return unresolvedPhases.includes(phase) ? phase : management?.status; };
   const outcomes = ['applied', 'queued', 'skipped', 'failed', 'refused'];
-  const statusText = status => t(({NotManaged:'Not configured',Active:'Active',Pending:'Queued',Sending:'Sending',Unknown:'Unknown outcome',Failed:'Failed',Conflict:'Conflict',Deleted:'Deleted',Cancelled:'Cancelled'})[status] || 'Not configured');
+  const statusText = status => t(({NotManaged:'Not configured',Active:'Active',Pending:'Queued',Claimed:'Sending',Retry:'Queued',Sending:'Sending',Unknown:'Unknown outcome',Failed:'Failed',Conflict:'Conflict',Deleted:'Deleted',Cancelled:'Cancelled'})[status] || 'Not configured');
   async function check() {
     if (writing) return; const intent = saved().pending; busy(true);
     const result = await ui.busy(() => window.AdminFetch.request(url('Current'), {cache: 'no-store', readback: true, signal: life.signal}), true);
@@ -54,8 +57,8 @@ export function init(region, ui = window.AdminUI) {
     if (result.kind !== 'handler' || result.data?.eventId !== eventId) { notice(t('The current state is unavailable. Check again before trying another action.'), true); return; }
     state = result.data; save({pending: null}); await refresh();
     const connection = state.integration?.competitionId ? '#' + state.integration.competitionId : t('Not connected');
-    const message = (intent && !intent.knownQueued ? uncertain(intent.key) + ' ' : '') + t('Current stored connection: {0}. Last successful fetch on record: {1}. Operation status: {2}.', connection, fmt(state.integration?.lastSuccessfulAt), statusText(state.management?.status));
-    const unresolved = ['Pending','Sending','Retry','Unknown'].includes(state.management?.status);
+    const message = (intent && !intent.knownQueued ? uncertain(intent.key) + ' ' : '') + t('Current stored connection: {0}. Last successful fetch on record: {1}. Operation status: {2}.', connection, fmt(state.integration?.lastSuccessfulAt), statusText(operationState(state.management)));
+    const unresolved = unresolvedPhases.includes(operationState(state.management));
     notice(message, unresolved, 'is-info', false);
   }
   async function run(form, fields = [], layer = null) {
