@@ -70,7 +70,7 @@ async function until(page,fn){for(let i=0;i<200;i++)if(await page.evaluate(fn))r
     close(loading.summary.height,loading.summaryLine*(width<=640?2:1),'U3-Q6 phone/wide summary reservation');
     close(loading.head.x,loaded.head.x,'header x');close(loading.head.y,loaded.head.y,'header y');close(loading.head.width,loaded.head.width,'header width');
     close(loading.title.x,loaded.title.x,'title x');close(loading.title.height,loaded.title.height,'title line height');
-    if(family!=='dashboard'){close(delta,loaded.summary.height-loading.summary.height,'only summary growth changes header');close(loading.title.y,loaded.title.y,'title y');}
+    if(family!=='dashboard'){close(delta,loaded.summary.height-loading.summary.height+(registration.headerGrowth?.[width]??0),'only summary growth'+(registration.headerGrowth?.[width]?' plus the registered '+registration.headerGrowth[width]+' px header growth':'')+' changes header');close(loading.title.y,loaded.title.y,'title y');}
     for(const k of Object.keys(shifts))for(const axis of['x','yBeyondHeader','width'])close(shifts[k][axis],family==='dashboard'&&k==='section'&&axis==='yBeyondHeader'?loaded.wrapGrowth:0,family+' '+width+' '+presentation+' '+k+' '+axis);
     if(family==='dashboard'){
      close(loading.blocks.stats.height,loaded.oneLine.height,'one-line statistic reservation');

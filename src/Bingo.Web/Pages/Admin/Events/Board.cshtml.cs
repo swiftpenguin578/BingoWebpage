@@ -31,6 +31,7 @@ using Npgsql;
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
+[AdminDesign]
 public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider time, IAuditWriter audit, IAdminCollaborationNotifier collaboration, IEvidenceStorage storage, IStringLocalizer<SharedResource>? text = null, EventItemPriceService? itemPrices = null) : PageModel
 {
     public IReadOnlyList<BoardValidationIssue> ValidationIssues { get; private set; } = [];
@@ -42,7 +43,6 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
     public IReadOnlyList<BossView> Bosses { get; private set; } = [];
     public IReadOnlyList<DropView> Drops { get; private set; } = [];
     public IReadOnlyList<TileEditorView> TileEditors { get; private set; } = [];
-    public IReadOnlyList<TeamWorkloadView> TeamWorkloads { get; private set; } = [];
     public decimal BalanceSpread { get; private set; }
     public IReadOnlyList<string> ReadinessWarnings { get; private set; } = [];
     public Guid CurrentAccountId { get; private set; }
@@ -67,7 +67,9 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
         if (!await EnsureBoardAndEditingLeaseAsync(id, ct)) return NotFound();
         // Board GET is an overview read. Working-copy freshness is refreshed at
         // explicit mutation boundaries, never while a form/token is loaded.
-        return await Load(id, ct) ? Page() : NotFound();
+        if (!await Load(id, ct)) return NotFound();
+        await LoadViewContextAsync(id, ct);
+        return Page();
     }
 
     /// <summary>
@@ -231,6 +233,31 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
         return RedirectToPage(new { id });
     }
 
+    // U7-E1 (c): the new layout has no SignalR connection, so the page renews the
+    // holder's edit lease over HTTP while the admin works (throttled client-side).
+    // Same rule as AdminCollaborationHub.RenewBoardEditing: only the active holder
+    // extends the expiry; no version, edit-control or audit change, so another
+    // admin's open draft is not made stale. A lapsed or lost lease is reported, not taken.
+    public async Task<IActionResult> OnPostRenewEditingAsync(Guid id, CancellationToken ct)
+    {
+        Response.Headers.CacheControl = "no-store";
+        var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct); if (board is null) return NotFound();
+        var now = time.GetUtcNow();
+        if (!board.HasActiveEditor(now) || board.EditorAccountId != AdminId) return new JsonResult(new { renewed = false });
+        try
+        {
+            board.RenewEditing(AdminId, now, BoardEditingLease.Duration);
+            await db.SaveChangesAsync(ct);
+            return new JsonResult(new { renewed = true });
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or DbUpdateConcurrencyException)
+        {
+            // A command or takeover won the race; the page's next read is authoritative.
+            db.ChangeTracker.Clear();
+            return new JsonResult(new { renewed = false });
+        }
+    }
+
     public async Task<IActionResult> OnPostCreateTileAsync(Guid id, CancellationToken ct)
     {
         TempData["BoardTileOutcome"] = "failed";
@@ -246,7 +273,7 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
         foreach (var requirement in TileDraft.Requirements)
         {
             if (requirement.Target < 1) ModelState.AddModelError(string.Empty, Localize("Every requirement needs a quantity of at least 1."));
-            if (requirement.DropWeights.Any(x => x.Value < 1)) ModelState.AddModelError(string.Empty, Localize("Every selected drop count must be at least 1."));
+            if (requirement.DropWeights.Any(x => x.Value is < 1 or > MaximumDropWeight)) ModelState.AddModelError(string.Empty, Localize(DropWeightRangeMessage));
             if (!requirement.IsManual && requirement.BossIds.Count == 0) ModelState.AddModelError(string.Empty, Localize("Choose at least one boss for each collect-drops requirement."));
             if (!requirement.IsManual && requirement.DropIds.Count == 0) ModelState.AddModelError(string.Empty, Localize("Choose at least one eligible drop for each collect-drops requirement."));
             if (requirement.IsManual && string.IsNullOrWhiteSpace(requirement.Description)) ModelState.AddModelError(string.Empty, Localize("Describe the challenge requirements."));
@@ -254,6 +281,7 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
         if (TileDraft.Requirements.Select(x => x.IsManual).Distinct().Count() > 1)
             ModelState.AddModelError(string.Empty, Localize("Use separate tiles for catalogue drops and custom challenges. Every objective in a tile must have the same kind."));
         if (TileDraft.Requirements.All(x => x.IsManual) && TileDraft.ManualEhb is not > 0) ModelState.AddModelError(string.Empty, Localize("A custom challenge needs an explicit manual EHB estimate."));
+        if (TileNameTooLong(TileDraft.Name, null)) ModelState.AddModelError(string.Empty, Localize(TileNameTooLongMessage));
         if (!ModelState.IsValid) { SetStatus(string.Join(" ", ModelState.Values.SelectMany(x => x.Errors).Select(x => x.ErrorMessage)), UiMessageType.Warning); return RedirectToPage(new { id }); }
 
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.RepeatableRead, ct);
@@ -334,7 +362,7 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
             foreach (var requirement in TileDraft.Requirements)
             {
                 if (requirement.Target < 1) ModelState.AddModelError(string.Empty, Localize("Every requirement needs a quantity of at least 1."));
-                if (requirement.DropWeights.Any(x => x.Value < 1)) ModelState.AddModelError(string.Empty, Localize("Every selected drop count must be at least 1."));
+                if (requirement.DropWeights.Any(x => x.Value is < 1 or > MaximumDropWeight)) ModelState.AddModelError(string.Empty, Localize(DropWeightRangeMessage));
                 if (!requirement.IsManual && requirement.BossIds.Count == 0) ModelState.AddModelError(string.Empty, Localize("Choose at least one boss for each collect-drops requirement."));
                 if (!requirement.IsManual && requirement.DropIds.Count == 0) ModelState.AddModelError(string.Empty, Localize("Choose at least one eligible drop for each collect-drops requirement."));
                 if (requirement.IsManual && string.IsNullOrWhiteSpace(requirement.Description)) ModelState.AddModelError(string.Empty, Localize("Describe the challenge requirements."));
@@ -342,6 +370,7 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
             if (TileDraft.Requirements.Select(x => x.IsManual).Distinct().Count() > 1)
                 ModelState.AddModelError(string.Empty, Localize("Use separate tiles for catalogue drops and custom challenges. Every objective in a tile must have the same kind."));
             if (TileDraft.Requirements.All(x => x.IsManual) && TileDraft.ManualEhb is not > 0) ModelState.AddModelError(string.Empty, Localize("A custom challenge needs an explicit manual EHB estimate."));
+            if (TileNameTooLong(TileDraft.Name, tile.NameSnapshot)) ModelState.AddModelError(string.Empty, Localize(TileNameTooLongMessage));
             if (!ModelState.IsValid) { SetStatus(string.Join(" ", ModelState.Values.SelectMany(x => x.Errors).Select(x => x.ErrorMessage)), UiMessageType.Warning); return RedirectToPage(new { id }); }
 
             if (!await TryEnsurePublishedCorrectionLifecycleAsync(board, id, ct))
@@ -550,8 +579,16 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
         await using var transaction = await db.Database.BeginTransactionAsync(ct);
         if (expectedTeamSize is < 1 or > 100) { SetStatus(Localize("Expected team size must be between 1 and 100."), UiMessageType.Warning); return RedirectToPage(new { id }); }
         var board = await db.Boards.SingleOrDefaultAsync(x => x.EventId == id, ct); if (board is null) return NotFound();
-        if (!await TryClaimBoardAsync(board, ct)) return RedirectToPage(new { id });
         var bingoEvent = await db.Events.SingleOrDefaultAsync(x => x.Id == id, ct); if (bingoEvent is null) return NotFound();
+        // B-Board-1: the planning size is editable only before Live, including
+        // during an open published correction (the route gate lets corrections through).
+        if (!EventStatePolicy.Allows(bingoEvent.State, EventCapability.ConfigureIdentityOrSchedule))
+        {
+            db.ChangeTracker.Clear();
+            SetStatus(Localize(TeamSizeLockedMessage), UiMessageType.Warning);
+            return RedirectToPage(new { id });
+        }
+        if (!await TryClaimBoardAsync(board, ct)) return RedirectToPage(new { id });
         var before = new { bingoEvent.ExpectedTeamSize };
         bingoEvent.SetExpectedTeamSize(expectedTeamSize);
         await WriteAudit("board.expected_team_size_changed", board, before, new { bingoEvent.ExpectedTeamSize }, ct); await transaction.CommitAsync(ct); await collaboration.NotifyBoardChangedAsync(id, ct); SetStatus(Localize("Expected team size updated."), UiMessageType.Success); return RedirectToPage(new { id });
@@ -573,26 +610,34 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
             var draft = await db.DraftSessions.SingleOrDefaultAsync(x => x.EventId == id, ct);
             if (board is null || bingoEvent is null || draft is null) { ValidationIssues = [new("board-not-found", null, null, null, "Board not found.", [])]; return NotFound(); }
             if (board.Version != BoardVersion) throw new DbUpdateConcurrencyException();
+            // U7-Q2: collect every publication refusal that applies and return them together.
+            var refusals = new List<BoardValidationIssue>();
+            const string timingMessage = "The board must be published before the event has started and while its configured end remains in the future.";
             if (draft.State != DraftState.Finalized || await db.ActiveRosterPublicationAsync(id, ct) is null)
-                throw new BoardApprovalValidationException("roster-unpublished", null, null, null, "Finalize the team draft before publishing the board.");
+                refusals.Add(new("roster-unpublished", null, null, null, "Finalize the team draft before publishing the board.", []));
             if (bingoEvent.ActualStartedAt is not null)
-                throw new BoardApprovalValidationException("event-already-started", null, null, null, "The board must be published before the event has started and while its configured end remains in the future.");
+                refusals.Add(new("event-already-started", null, null, null, timingMessage, []));
             if (bingoEvent.EventEndsAt is not { } endsAt || time.GetUtcNow() >= endsAt)
-                throw new BoardApprovalValidationException("event-end-passed", null, null, null, "The board must be published before the event has started and while its configured end remains in the future.");
+                refusals.Add(new("event-end-passed", null, null, null, timingMessage, []));
             var publication = board.ActiveApprovalSnapshotId is { } approvalId ? await db.ApprovalObjectivesAsync(board.Id, approvalId, ct) : null;
-            if (publication is null) throw new BoardApprovalValidationException("approval-unavailable", null, null, null, "The approved board is unavailable.");
+            if (publication is null) refusals.Add(new("approval-unavailable", null, null, null, "The approved board is unavailable.", []));
             var priceIssues = new List<BoardValidationIssue>();
-            foreach (var tile in publication.Tiles)
+            if (publication is not null)
             {
-                var requirementIds = publication.Requirements.Where(x => x.BoardTileId == tile.Id).Select(x => x.Id).ToHashSet();
-                var missing = await db.ItemsWithoutEventOrCataloguePriceAsync(id, publication.Drops.Where(x => requirementIds.Contains(x.RequirementId)).Select(x => x.ItemIdSnapshot), ct);
-                if (missing.Count > 0) priceIssues.Add(new("item-price-missing", tile.Id, tile.RowIndex * publication.Approval.Columns + tile.ColumnIndex, tile.NameSnapshot, MissingPriceMessage, [string.Join(", ", missing)]));
+                foreach (var tile in publication.Tiles)
+                {
+                    var requirementIds = publication.Requirements.Where(x => x.BoardTileId == tile.Id).Select(x => x.Id).ToHashSet();
+                    var missing = await db.ItemsWithoutEventOrCataloguePriceAsync(id, publication.Drops.Where(x => requirementIds.Contains(x.RequirementId)).Select(x => x.ItemIdSnapshot), ct);
+                    if (missing.Count > 0) priceIssues.Add(new("item-price-missing", tile.Id, tile.RowIndex * publication.Approval.Columns + tile.ColumnIndex, tile.NameSnapshot, MissingPriceMessage, [string.Join(", ", missing)]));
+                }
             }
-            if (priceIssues.Count > 0)
+            if (refusals.Count > 0 || priceIssues.Count > 0)
             {
-                ValidationIssues = priceIssues;
-                var missing = await db.ItemsWithoutEventOrCataloguePriceAsync(id, publication.Drops.Select(x => x.ItemIdSnapshot), ct);
-                SetStatus(Localize(MissingPriceMessage, string.Join(", ", missing)), UiMessageType.Warning);
+                ValidationIssues = [.. refusals, .. priceIssues];
+                var messages = refusals.Select(x => x.ResourceKey).Distinct().Select(x => Localize(x)).ToList();
+                if (priceIssues.Count > 0)
+                    messages.Add(Localize(MissingPriceMessage, string.Join(", ", await db.ItemsWithoutEventOrCataloguePriceAsync(id, publication!.Drops.Select(x => x.ItemIdSnapshot), ct))));
+                SetStatus(string.Join(" ", messages), UiMessageType.Warning);
                 return RedirectToPage(new { id });
             }
             board.Publish(time.GetUtcNow());
@@ -633,6 +678,11 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
         if (!confirmed || string.IsNullOrWhiteSpace(reason))
         {
             SetStatus(Localize("Confirm the exceptional board correction and provide an Admin reason."), UiMessageType.Warning);
+            return RedirectToPage(new { id });
+        }
+        if (reason.Trim().Length > CorrectionReasonMaximumLength)
+        {
+            SetStatus(Localize(CorrectionReasonTooLongMessage), UiMessageType.Warning);
             return RedirectToPage(new { id });
         }
         await using var transaction = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
@@ -1171,6 +1221,9 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
             if ((template.ObjectiveType == ObjectiveType.Manual) != manualTile)
                 throw Invalid("objective-kind", "The tile kind does not match its objectives. Edit and save the tile with one objective kind before approval.", tile);
             var tileEstimates = new List<decimal?>();
+            // U7-Q1: names of the drops whose catalogue rate (drop chance or source
+            // kill rate) is missing, carried on a catalogue-rates-missing issue.
+            var missingRateDrops = new List<string>();
             foreach (var requirement in tileRequirements)
             {
                 var approvalRequirement = new BoardApprovalRequirementSnapshot(Guid.NewGuid(), approvalTile.Id, requirement.Id, requirement.Position, requirement.TargetContribution, requirement.DuplicatesAllowed, requirement.AllowHigherWeightings, requirement.CreditedWeight, requirement.Description, requirement.ManualObjective);
@@ -1183,6 +1236,9 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
                     foreach (var boss in bosses) db.BoardApprovalRequirementBossSnapshots.Add(new(Guid.NewGuid(), approvalRequirement.Id, boss.BossActivityId, boss.Name, boss.EfficientRate, boss.CatalogueVersion));
                     foreach (var drop in drops) db.BoardApprovalRequirementDropSnapshots.Add(new(Guid.NewGuid(), approvalRequirement.Id, drop.SourceDropId, drop.ItemIdSnapshot, drop.BossName, drop.ItemName, drop.DisplayRate, drop.NumericProbability, drop.MaximumContribution, drop.EhbPerContribution, drop.CreditedWeight, drop.CatalogueVersion, drop.ProbabilityScope, drop.ConditionalOnParent, drop.ParentProbability, drop.AssumedParticipants, drop.RollsPerCompletion, drop.RollGroup, drop.RateCondition));
                     var identityBosses = await db.SourceDrops.AsNoTracking().Where(x => drops.Select(d => d.SourceDropId).Contains(x.Id)).Select(x => new { x.Id, x.BossActivityId }).ToDictionaryAsync(x => x.Id, ct);
+                    if (!requirement.ManualObjective)
+                        missingRateDrops.AddRange(drops.Where(drop => drop.NumericProbability is not > 0 ||
+                            bosses.SingleOrDefault(x => x.BossActivityId == identityBosses.GetValueOrDefault(drop.SourceDropId)?.BossActivityId)?.EfficientRate is not > 0).Select(drop => drop.ItemName));
                     tileEstimates.Add(requirement.ManualObjective ? null : EhbCalculator.CalculateDropRequirement(requirement.TargetContribution, drops.Select(drop =>
                     {
                         var boss = bosses.Single(x => x.BossActivityId == identityBosses[drop.SourceDropId].BossActivityId);
@@ -1210,6 +1266,8 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
                     db.BoardApprovalRequirementDropSnapshots.Add(approvalDrop);
                 }
 
+                if (!requirement.ManualObjective)
+                    missingRateDrops.AddRange(selectedDrops.Where(drop => drop.Drop.NumericProbability is not > 0 || drop.Boss.EfficientCompletionsPerHour is not > 0).Select(drop => drop.Item.Name));
                 tileEstimates.Add(requirement.ManualObjective
                     ? null
                     : EhbCalculator.CalculateDropRequirement(requirement.TargetContribution, selectedDrops.Select(drop =>
@@ -1229,9 +1287,14 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
                 tileEhb = priorTile.EstimatedEhbSnapshot;
             }
             if (tileEhb <= 0)
-                throw Invalid(manualTile ? "manual-ehb-missing" : "catalogue-rates-missing", manualTile
+            {
+                var missing = Invalid(manualTile ? "manual-ehb-missing" : "catalogue-rates-missing", manualTile
                     ? "{0} needs a positive manual EHB estimate. Edit the custom tile before approval."
                     : "{0} needs automatic EHB. Correct the catalogue rates or drop requirements before approval; a manual estimate cannot replace them.", tile, tile.NameSnapshot);
+                if (!manualTile && missingRateDrops.Count > 0)
+                    throw new BoardApprovalValidationException([missing.Issue with { DropNames = missingRateDrops.Distinct(StringComparer.Ordinal).ToList() }]);
+                throw missing;
+            }
             db.Entry(approvalTile).Property(x => x.EstimatedEhb).CurrentValue = tileEhb;
             totalEhb += tileEhb;
             }
@@ -1616,37 +1679,29 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
                     return new RequirementDropView(drop.SourceDropId, "Unavailable boss", "Unavailable item", "Catalogue entry unavailable", drop.CreditedWeight);
                 }).ToList())).ToList(), calculatedBaselines.GetValueOrDefault(tile.Id))).ToList();
         var lines = new List<LineView>(); for (var row = 0; row < board.Rows; row++) lines.Add(new($"Row {row + 1}", "row", row, Tiles.Where(x => x.Position / board.Columns == row).Sum(x => x.Ehb))); for (var column = 0; column < board.Columns; column++) lines.Add(new($"Column {column + 1}", "column", column, Tiles.Where(x => x.Position % board.Columns == column).Sum(x => x.Ehb))); Lines = lines; BalanceSpread = lines.Count == 0 ? 0 : lines.Max(x => x.Ehb) - lines.Min(x => x.Ehb);
-        var eventTeams = await db.Teams.AsNoTracking().Where(x => x.EventId == id && x.Active).OrderBy(x => x.DraftPosition).ThenBy(x => x.Name).ToListAsync(ct);
-        var rosterSizes = new Dictionary<Guid, int>();
-        if (eventTeams.Count > 0)
-        {
-            var teamIdsForWorkload = eventTeams.Select(x => x.Id).ToList();
-            rosterSizes = activeRosterPublication is { } frozenRoster
-                ? await db.DraftPublicationRosters.AsNoTracking()
-                    .Where(x => x.DraftPublicationCycleId == frozenRoster.Id && teamIdsForWorkload.Contains(x.TeamId))
-                    .GroupBy(x => x.TeamId)
-                    .ToDictionaryAsync(x => x.Key, x => x.Count(), ct)
-                : await db.TeamMemberships.AsNoTracking()
-                    .Where(x => teamIdsForWorkload.Contains(x.TeamId) && x.LeftAt == null)
-                    .GroupBy(x => x.TeamId)
-                    .ToDictionaryAsync(x => x.Key, x => x.Count(), ct);
-        }
         // ExpectedTeamSize is the manual planning estimate in every lifecycle
         // state. The frozen roster remains visible as actual context, but never
         // replaces the estimate used for projections.
         var teamSize = bingoEvent.ExpectedTeamSize;
         var durationDays = bingoEvent.EventEndsAt is { } eventEnd && bingoEvent.EventStartsAt is { } eventStart ? Math.Max(0.5m, (decimal)(eventEnd - eventStart).TotalHours / 24m) : 0.5m; var total = displayedTotal; var populatedLines = lines.Where(x => x.Ehb > 0).ToList();
         Statistics = new(total, teamSize, teamSize is > 0 ? total / teamSize.Value : null, teamSize is > 0 ? total / teamSize.Value / durationDays : null, Tiles.Count == 0 ? 0 : total / Tiles.Count, populatedLines.Count == 0 ? 0 : populatedLines.Min(x => x.Ehb), populatedLines.Count == 0 ? 0 : populatedLines.Max(x => x.Ehb), Tiles.Count(x => x.Ehb <= 0), durationDays);
-        if (eventTeams.Count > 0)
-        {
-            TeamWorkloads = eventTeams.Select(team =>
-            {
-                var actualSize = rosterSizes.GetValueOrDefault(team.Id);
-                var sizeUsed = bingoEvent.ExpectedTeamSize ?? 0;
-                return new TeamWorkloadView(team.Name, team.FormationType, actualSize, sizeUsed > 0 ? sizeUsed : null, sizeUsed > 0 ? total / sizeUsed : null);
-            }).ToList();
-        }
         return true;
+    }
+
+    // B-Board-2 limits (brief 88). The tile name limit applies to new and changed
+    // names only; stored longer names stay valid (planner ruling 2, as U5-Q4).
+    public const int TileNameMaximumLength = 80;
+    public const int CorrectionReasonMaximumLength = 2000;
+    public const int MaximumDropWeight = 10000;
+    public const string TileNameTooLongMessage = "Tile names must be 80 characters or fewer.";
+    public const string CorrectionReasonTooLongMessage = "The correction reason must be 2,000 characters or fewer.";
+    public const string DropWeightRangeMessage = "Every drop weight must be between 1 and 10,000.";
+    public const string TeamSizeLockedMessage = "Players per team can only be changed before the event goes Live.";
+    private static bool TileNameTooLong(string? entered, string? stored)
+    {
+        if (string.IsNullOrWhiteSpace(entered)) return false;
+        var name = entered.Trim();
+        return name.Length > TileNameMaximumLength && !string.Equals(name, stored, StringComparison.Ordinal);
     }
 
     private Guid AdminId => User.GetAccountId()!.Value;
@@ -1859,5 +1914,4 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
     public sealed record TileEditorView(Guid Id, string Name, string Description, string? ImageUrl, decimal? ManualEhb, IReadOnlyList<RequirementEditorView> Requirements, decimal? CalculatedEhb = null);
     public sealed record RequirementEditorView(Guid RequirementId, string Kind, string Description, int Target, bool DuplicatesAllowed, IReadOnlyList<Guid> BossIds, IReadOnlyList<Guid> DropIds, IReadOnlyDictionary<Guid, int> DropWeights, IReadOnlyList<RequirementDropView> Drops);
     public sealed record RequirementDropView(Guid Id, string BossName, string ItemName, string DisplayRate, int CreditedWeight);
-    public sealed record TeamWorkloadView(string TeamName, TeamFormationType FormationType, int ActualRosterSize, int? SizeUsed, decimal? EhbPerPlayer);
 }
