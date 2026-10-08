@@ -244,6 +244,7 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
             SetStatus(FinalizedRosterMutationMessage(result, "added"), result.Succeeded
                 ? UiMessageType.Success
                 : UiMessageType.Error);
+            if (result.Succeeded) await NotifyDraft(id, ct);
             return Finish(new { id, rosterTeamId });
         }
         // A serialization failure means another roster change committed first; the single
@@ -321,6 +322,7 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
             SetStatus(FinalizedRosterMutationMessage(result, "removed"), result.Succeeded
                 ? UiMessageType.Success
                 : UiMessageType.Error);
+            if (result.Succeeded) await NotifyDraft(id, ct);
             return Finish(new { id, rosterTeamId });
         }
         await using var tx = await db.Database.BeginTransactionAsync(System.Data.IsolationLevel.Serializable, ct);
@@ -338,7 +340,7 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
         membership.Leave(now, correctionReason); if (previous is TeamMembershipRole.Captain or TeamMembershipRole.CoCaptain) db.TeamMembershipRoleTransitions.Add(new TeamMembershipRoleTransition(Guid.NewGuid(), membership.Id, previous, TeamMembershipRole.Participant, AdminId, now));
         if (draft?.State == DraftState.Finalized) { await db.SaveChangesAsync(ct); await RepublishPreformedCorrectionAsync(ev, draft, "team.member_removed", membership.Id, ct); }
         else await audit.WriteAndSaveAsync(AdminId, User.Identity?.Name ?? "Admin", "team.member_removed", "membership", membership.Id.ToString(), correctionReason, ct);
-        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); SetStatus(Localize("{0} removed from {1}.", participantName, team.Name), UiMessageType.Success); return Finish(new { id, rosterTeamId });
+        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); SetStatus(Localize("{0} removed from {1}.", participantName, team.Name), UiMessageType.Success); await NotifyDraft(id, ct); return Finish(new { id, rosterTeamId });
     }
     public async Task<IActionResult> OnPostChangeRoleAsync(Guid id, Guid membershipId, TeamMembershipRole role, CancellationToken ct, long? membershipVersion = null, Guid? rosterTeamId = null)
     {
@@ -411,6 +413,7 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
         }
 
         SetStatus(result.Succeeded ? Localize("{0} is now {1}.", result.ParticipantName ?? string.Empty, RoleLabel(role)) : result.Error ?? Localize("The role could not be changed."), result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+        if (result.Succeeded) await NotifyDraft(id, ct);
         return Finish(new { id, rosterTeamId });
     }
     public async Task<IActionResult> OnPostMoveMemberAsync(Guid id, Guid membershipId, Guid targetTeamId, CancellationToken ct, bool confirmed = false, Guid? rosterTeamId = null)
@@ -444,7 +447,7 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
         if (previous is TeamMembershipRole.Captain or TeamMembershipRole.CoCaptain) db.TeamMembershipRoleTransitions.Add(new TeamMembershipRoleTransition(Guid.NewGuid(), membership.Id, previous, TeamMembershipRole.Participant, AdminId, now));
         var replacement = new TeamMembership(Guid.NewGuid(), target.Id, membership.EventParticipantId, previous, now, null, correctionReason); replacement.SetSource(TeamMembershipSource.Replacement, membership.Id); db.TeamMemberships.Add(replacement);
         await audit.WriteAndSaveAsync(AdminId, User.Identity?.Name ?? "Admin", "team.member_moved", "membership", membership.Id.ToString(), $"{source.Name} → {target.Name}: {correctionReason}", ct);
-        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); SetStatus(Localize("{0} moved from {1} to {2}.", participantName, source.Name, target.Name), UiMessageType.Success); return Finish(new { id, rosterTeamId });
+        await db.SaveChangesAsync(ct); await tx.CommitAsync(ct); SetStatus(Localize("{0} moved from {1} to {2}.", participantName, source.Name, target.Name), UiMessageType.Success); await NotifyDraft(id, ct); return Finish(new { id, rosterTeamId });
     }
     public async Task<IActionResult> OnPostScrambleAsync(Guid id, CancellationToken ct)
     {
