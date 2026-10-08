@@ -16,6 +16,7 @@ using Npgsql;
 
 namespace Bingo.Web.Pages.Admin.Review;
 
+[AdminDesign]
 public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService service, IStringLocalizer<SharedResource>? text = null) : PageModel
 {
     private const int MaxReviewReasonLength = 4000;
@@ -25,6 +26,7 @@ public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService ser
     public const string ConflictMessage = "This review was not saved because the event or evidence changed in another request. Reload the submission, review the latest state, and try again.";
 
     public DetailsView Details { get; private set; } = null!;
+    public bool Missing { get; private set; }
     public BingoEvent Event { get; private set; } = null!;
     public string EventTimezone { get; private set; } = DateTimePresentation.DefaultTimezoneId;
     public bool ReviewOpen { get; private set; }
@@ -40,9 +42,6 @@ public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService ser
     public DecisionView? Approval { get; private set; }
     public DecisionView? Feedback { get; private set; }
     public NeighbourView? Neighbours { get; private set; }
-    // Retired in 1d with the legacy view: current-members projection and the raw audit history.
-    public IReadOnlyList<Option> Characters { get; private set; } = [];
-    public IEnumerable<AuditEntry> AuditHistory => History.Select(x => x.Entry);
     public int RemovedContribution { get; private set; }
     public int TargetContribution { get; private set; }
     public int UsedContribution { get; private set; }
@@ -55,7 +54,8 @@ public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService ser
 
     public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
     {
-        if (!await Load(id, ct)) return NotFound();
+        // C-CMP-1: unknown and hidden are one Not Found, rendered as the reference's unavailable state.
+        if (!await Load(id, ct)) { Missing = true; return new PageResult { StatusCode = StatusCodes.Status404NotFound }; }
         Input = new() { BoardTileId = Details.TileId, RequirementId = Details.RequirementId, DropSnapshotId = Details.DropId, CreditedOsrsCharacterId = Details.CharacterId, ExpectedVersion = Details.Version };
         return Page();
     }
@@ -231,7 +231,6 @@ public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService ser
         Requirements = publication.Requirements.OrderBy(x => tileMap[x.BoardTileId].RowIndex).ThenBy(x => tileMap[x.BoardTileId].ColumnIndex).ThenBy(x => x.Position)
             .Select(x => new RequirementOption(x.Id, x.BoardTileId, tileMap[x.BoardTileId].NameSnapshot, x.Description, x.ManualObjective, x.CreditedWeight)).ToList();
         Drops = publication.Drops.OrderBy(x => x.BossName).ThenBy(x => x.ItemName).Select(x => new DropOption(x.Id, x.RequirementId, x.BossName, x.ItemName, x.CreditedWeight)).ToList();
-        Characters = await (from assignment in db.EventParticipantCharacters.AsNoTracking() join membership in db.TeamMemberships.AsNoTracking() on assignment.EventParticipantId equals membership.EventParticipantId join character in db.OsrsCharacters.AsNoTracking() on assignment.OsrsCharacterId equals character.Id where assignment.EventId == s.EventId && membership.TeamId == s.TeamId && membership.LeftAt == null && assignment.EventRole == Bingo.Domain.Signups.EventCharacterRole.Playing && assignment.ReleasedAt == null orderby character.DisplayName select new Option(character.Id, character.DisplayName)).Distinct().ToListAsync(ct);
         var rows = ReviewList.Filter(await ReviewList.RowsAsync(db, eventItem, ct), Search?.Trim() ?? string.Empty, Status);
         var index = rows.ToList().FindIndex(x => x.Id == s.Id);
         if (index >= 0) Neighbours = new(index + 1, rows.Count, index > 0 ? rows[index - 1].Id : null, index < rows.Count - 1 ? rows[index + 1].Id : null);
@@ -276,7 +275,6 @@ public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService ser
     public sealed record ChecksumMatch(Guid Id, string Tile, string Account, DateTimeOffset SubmittedAt, SubmissionStatus Status);
     public sealed record HistoryView(AuditEntry Entry, string Action, string Actor, DateTimeOffset At);
     public sealed record DecisionView(string Actor, DateTimeOffset At, string? Text);
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("Naming", "CA1716:Identifiers should not match keywords")] public sealed record Option(Guid Id, string Label);
     public sealed record NeighbourView(int Position, int Count, Guid? PreviousId, Guid? NextId);
     public sealed record RequirementOption(Guid Id, Guid TileId, string Tile, string Description, bool Manual, int Weight);
     public sealed record DropOption(Guid Id, Guid RequirementId, string Boss, string Item, int Weight);

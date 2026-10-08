@@ -719,7 +719,7 @@ public sealed partial class CaptainScopedNavigationIntegrationTests(PostgreSqlTe
         AssertContext(detailsHtml);
 
         var rejectForm = Regex.Matches(detailsHtml, @"<form\b[\s\S]*?</form>")
-            .Select(match => match.Value).Single(form => form.Contains("id=\"admin-review-reject-form\"", StringComparison.Ordinal));
+            .Select(match => match.Value).Single(form => form.Contains("data-review-form=\"reject\"", StringComparison.Ordinal));
         var action = WebUtility.HtmlDecode(Regex.Match(rejectForm, "action=\"([^\"]+)\"").Groups[1].Value);
         var fields = Regex.Matches(rejectForm, @"<input\b[^>]*>").Select(match => match.Value)
             .Where(input => input.Contains("type=\"hidden\"", StringComparison.Ordinal))
@@ -733,7 +733,7 @@ public sealed partial class CaptainScopedNavigationIntegrationTests(PostgreSqlTe
         var resolvedHtml = await client.GetStringAsync(redirect);
         AssertContext(resolvedHtml);
         Assert.Contains("Journey rejection reason.", resolvedHtml, StringComparison.Ordinal);
-        var backUrl = WebUtility.HtmlDecode(Regex.Match(resolvedHtml, "<a[^>]*class=\"[^\"]*admin-review-back-link[^\"]*\"[^>]*href=\"([^\"]+)\"").Groups[1].Value);
+        var backUrl = WebUtility.HtmlDecode(Regex.Match(resolvedHtml, "<a[^>]*id=\"back-btn\"[^>]*href=\"([^\"]+)\"").Groups[1].Value);
         var backQuery = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(client.BaseAddress!, backUrl).Query);
         Assert.Equal(live.Id.ToString(), backQuery["eventId"].ToString());
         Assert.Equal(search, backQuery["search"].ToString());
@@ -774,11 +774,12 @@ public sealed partial class CaptainScopedNavigationIntegrationTests(PostgreSqlTe
         Assert.DoesNotContain("Admin review player", hiddenHtml, StringComparison.Ordinal);
         Assert.DoesNotContain("data-admin-event-navigation", hiddenHtml, StringComparison.Ordinal);
 
+        // U8 (A10): new-layout shell; the selected event comes from the submission (A2), whatever eventId the link carries.
         void AssertContext(string html)
         {
-            Assert.Contains($"<span class=\"admin-selected-event-name\">{live.Name}</span>", html, StringComparison.Ordinal);
-            Assert.Contains($"data-admin-event-section=\"overview\" href=\"/Admin/Events/Manage/{live.Id}\"", html, StringComparison.Ordinal);
-            Assert.Contains("data-admin-review-detail", html, StringComparison.Ordinal);
+            Assert.Contains($"href=\"/Admin/Events/Manage/{live.Id}\"", html, StringComparison.Ordinal);
+            Assert.Contains(live.Name, WebUtility.HtmlDecode(html), StringComparison.Ordinal);
+            Assert.Contains("data-review-workspace", html, StringComparison.Ordinal);
         }
     }
 

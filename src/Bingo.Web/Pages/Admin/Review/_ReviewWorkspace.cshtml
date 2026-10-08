@@ -1,0 +1,269 @@
+@model Bingo.Web.Pages.Admin.Review.DetailsModel
+@using Bingo.Domain.Events
+@using Bingo.Domain.Evidence
+@using Bingo.Web.Pages.Admin.Review
+@inject IStringLocalizer<Bingo.Web.AuditResource> A
+@* U8: the submission workspace (Review.dc.html): viewer, checks, facts, history and the decision panel. *@
+@{
+    var d = Model.Details;
+    var ev = Model.Event;
+    var zone = Model.EventTimezone;
+    var city = ReviewTime.City(zone);
+    var badge = d.Status switch { SubmissionStatus.Pending => "badge-warning", SubmissionStatus.Approved => "badge-success", SubmissionStatus.Withdrawn => "badge-neutral", _ => "badge-danger" };
+    var pendingOpen = Model.ReviewOpen && d.Status == SubmissionStatus.Pending;
+    var approvedOpen = Model.ReviewOpen && d.Status == SubmissionStatus.Approved;
+    var active = Model.Assets.FirstOrDefault(x => x.Active);
+    var inGap = d.EligibilityGaps?.FirstOrDefault(gap => d.SubmittedAt >= gap.StartedAt && d.SubmittedAt < gap.ResumedAt);
+    var lastGap = d.EligibilityGaps?.LastOrDefault();
+    string Minutes(int n) => n < 60 ? (n == 1 ? T["1 minute"].Value : T["{0} minutes", n].Value) : T["{0} h {1} min", n / 60, n % 60].Value;
+    string StatusWord(SubmissionStatus status) => T[ReviewStatusText.Key(status)].Value.ToLower(System.Globalization.CultureInfo.CurrentCulture);
+    string Size(long bytes) => bytes >= 1048576 ? $"{Math.Round(bytes / 1048576d, 1).ToString(System.Globalization.CultureInfo.CurrentCulture)} MB" : $"{Math.Round(bytes / 1024d)} KB";
+    var subject = d.Drop ?? d.Tile;
+    string closedText = ev.State switch
+    {
+        EventState.Draft or EventState.SignupOpen or EventState.SignupClosed => T["Review starts when the event is Live."].Value,
+        EventState.Finalized => T["{0} is finished, so review is read-only.", ev.Name].Value,
+        EventState.Archived => T["{0} is archived, so review is read-only.", ev.Name].Value,
+        EventState.Cancelled => T["{0} was cancelled, so review is read-only.", ev.Name].Value,
+        _ => T["Review is available while the event is Live or in final review."].Value
+    };
+    // AU17 contribution (R-R2/R-R3/R-R18): only the reference's statements, from SubmissionContributionNumbers.
+    string contributionValue, contributionSub = string.Empty;
+    var numbers = Model.Contribution?.Values;
+    if (d.Status == SubmissionStatus.Pending && Model.ApprovalBlock is not null) { contributionValue = T["Waiting for an earlier upload"].Value; contributionSub = T["An earlier upload for this objective is still pending. Approve or reject it first."].Value; }
+    else if (d.Status == SubmissionStatus.Pending && numbers is { } n)
+    {
+        if (n.Add > 0)
+        {
+            contributionValue = T["Approving adds {0}", n.Add].Value;
+            var limit = n.Add < n.Weight ? n.Add < n.Remaining ? T["Worth {0}, but the drop’s limit allows only {1} more.", n.Weight, n.Add].Value : n.Remaining == 1 ? T["Worth {0}, but only 1 remains.", n.Weight].Value : T["Worth {0}, but only {1} remain.", n.Weight, n.Remaining].Value : d.Drop is not null ? T["Worth {0}.", n.Weight].Value : string.Empty;
+            contributionSub = (limit + " " + (n.Completes ? T["Completes the objective ({0} of {0}).", n.Target].Value : T["Objective: {0} of {1} after approval.", n.Used + n.Add, n.Target].Value)).Trim();
+        }
+        else if (n.Remaining > 0) { contributionValue = T["The drop’s limit is reached"].Value; contributionSub = T["This drop can’t add more to the objective ({0} of {1}). If the submission doesn’t count, reject it with a reason.", n.Used, n.Target].Value; }
+        else { contributionValue = T["Nothing left to add"].Value; contributionSub = T["The objective is already complete for {0} ({1} of {2}).", d.Team, n.Used, n.Target].Value; }
+    }
+    else if (d.Status == SubmissionStatus.Pending) { contributionValue = T["Not available"].Value; }
+    else if (d.Status == SubmissionStatus.Approved) { contributionValue = T["Added {0}", d.Approved].Value; contributionSub = T["Objective progress: {0} of {1}.", Model.UsedContribution + d.Approved, Model.TargetContribution].Value + (d.Approved < d.Claimed ? " " + T["Worth {0}; only {1} remained when approved.", d.Claimed, d.Approved].Value : string.Empty); }
+    else if (d.Status == SubmissionStatus.Reversed) { contributionValue = T["Removed {0}", Model.RemovedContribution].Value; contributionSub = T["Not counted since the reversal. Objective progress: {0} of {1}.", Model.UsedContribution, Model.TargetContribution].Value; }
+    else { contributionValue = T["Not counted"].Value; contributionSub = T["Objective progress: {0} of {1}.", Model.UsedContribution, Model.TargetContribution].Value; }
+}
+<div class="rv-ws-page" data-review-workspace data-submission-id="@d.Id" data-version="@d.Version" data-status="@d.Status" data-status-code="@((int)d.Status)" data-status-labels="@System.Text.Json.JsonSerializer.Serialize(Enum.GetValues<SubmissionStatus>().ToDictionary(x => ((int)x).ToString(System.Globalization.CultureInfo.InvariantCulture), x => T[ReviewStatusText.Key(x)].Value.ToLower(System.Globalization.CultureInfo.CurrentCulture)))" data-queue-url="@Model.QueueUrl" data-next-url="@(Model.Neighbours?.NextId is { } nextId ? Model.DetailsUrl(nextId) : null)"
+     data-readback-url="/Admin/Review/Details/@d.Id?handler=Readback" data-characters-url="/Admin/Review/Details/@d.Id?handler=CorrectionCharacters"
+     data-team="@d.Team" data-account="@d.Player" data-amount="@d.Approved"
+     data-text-approved="@T["AdminDesign.Approved"]" data-text-approved-sub="@T["{0} added to {1}.", "{0}", d.Team]"
+     data-text-rejected="@T["Rejected"]" data-text-rejected-sub="@T["The team’s captains and {0} are notified with your reason.", d.Player]"
+     data-text-reversed="@T["Approval reversed"]" data-text-reversed-sub="@T["{0} removed from {1}; later progress recalculated.", "{0}", d.Team]"
+     data-text-corrected="@T["Details corrected. The submission is still pending."]" data-text-next-submission="@T["Next submission"]"
+     data-what-approve="@T["approve this submission"]" data-what-reject="@T["reject this submission"]" data-what-reverse="@T["reverse the approval"]" data-what-correct="@T["save the correction"]"
+     data-text-couldnt="@T["Couldn’t {0}."]" data-text-blocked="@T["Approve or reject the earlier upload first."]" data-text-open-earlier="@T["Open the earlier upload"]"
+     data-text-stale-by="@T["{0} changed this submission while you were reviewing it."]" data-text-stale="@T["This submission changed while you were reviewing it."]" data-text-stale-sub="@T["Nothing you did was saved. The current state is shown; check it again before deciding."]"
+     data-text-unsure="@T["We couldn’t confirm whether you managed to {0}."]" data-text-unsure-sub="@T["It may already have been saved. Check before doing anything else."]"
+     data-text-check="@T["Check status"]" data-text-checking="@T["Checking…"]" data-text-still-unsure="@T["We still couldn’t check. Your connection may be down; try again."]"
+     data-text-not-saved="@T["It wasn’t saved."]" data-text-not-saved-sub="@T["The submission is unchanged, so you can decide again."]"
+     data-text-now="@T["We couldn’t confirm your request, but the submission is now {0}."]" data-text-now-sub="@T["The current state is shown. Check the history to see who decided it."]"
+     data-text-leave-title="@T["Leave before checking?"]" data-text-leave-body="@T["We couldn’t confirm your last decision, and it may already have been saved. Check now, or leave and check when you come back."]" data-text-leave="@T["Leave anyway"]"
+     data-text-wait="@T["Wait for the current decision to finish."]" data-text-reason-required="@T["Enter a reason. The team sees it."]" data-text-correct-reason-required="@T["Enter a reason for the correction."]" data-text-reason-long="@T["Use 4,000 characters or fewer."]" data-text-reverse-reason="@T["Enter a reason."]"
+     data-text-noop="@T["Change at least one detail, or cancel."]" data-text-choose-drop="@T["Choose the drop shown in the screenshot."]" data-text-choose-drop-weight="@T["Choose a drop to see its weight."]" data-text-same-weight="@T["Worth {0}, the same as now."]" data-text-new-weight="@T["Worth {0} after this change (now {1})."]" data-text-weight-source="@T["The weight comes from the board."]"
+     data-text-released="@T["Released"]" data-text-left="@T["Left team"]" data-text-current="@T["AdminDesign.Current"]" data-text-accounts-failed="@T["Couldn’t load the accounts. Try again."]" data-text-reason-label="@T["Reason"]"
+     data-weight="@d.Claimed" data-drop="@d.DropId" data-requirement="@d.RequirementId" data-character="@d.CharacterId">
+<div class="rv-ws">
+    <section class="iv rv-viewer" aria-label="@T["Screenshot"]" data-review-viewer data-src="@(active is null ? null : $"/Evidence/{active.Id}")" data-width="@active?.Width" data-height="@active?.Height">
+        <div class="iv-bar" role="toolbar" aria-label="@T["Screenshot controls"]">
+            <div class="iv-zoom">
+                <button class="icon-btn" type="button" id="iv-out" aria-label="@T["Zoom out"]" title="@T["Zoom out (−)"]" data-iv="out" disabled><partial name="_AdminDesignIcon" model='new AdminDesignIcon("minus")' /></button>
+                <span class="iv-pct" aria-live="polite" data-iv-pct>—</span>
+                <button class="icon-btn" type="button" id="iv-in" aria-label="@T["Zoom in"]" title="@T["Zoom in (+)"]" data-iv="in" disabled><partial name="_AdminDesignIcon" model='new AdminDesignIcon("plus")' /></button>
+            </div>
+            <button class="btn btn-sm btn-quiet" type="button" id="iv-fit" aria-pressed="false" title="@T["Fit (0)"]" data-iv="fit" disabled>@T["Fit"]</button>
+            <button class="btn btn-sm btn-quiet" type="button" id="iv-one" aria-pressed="false" title="@T["Actual size (1)"]" data-iv="one" disabled>100%</button>
+            <span class="spacer"></span>
+            <span class="iv-hint rv-hide-sm">@T["Drag to move · scroll to zoom"]</span>
+            @if (active is not null) { <a class="btn btn-sm btn-quiet" id="iv-original" href="/Evidence/@active.Id" target="_blank" rel="noopener"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("external")' />@T["Original"]</a> }
+        </div>
+        <div class="iv-stage" id="iv-stage" tabindex="0" aria-label="@T["Screenshot viewer. Plus and minus zoom, 0 fits, 1 shows actual size, arrow keys move."]" data-iv-stage>
+            @if (active is not null)
+            {
+                <div class="iv-img" role="img" aria-label="@T["Screenshot submitted for {0}, credited to {1}", subject, d.Player]" data-iv-img hidden></div>
+                <div class="iv-state" aria-busy="true" data-iv-loading><div class="sk iv-sk"></div><span class="sr">@T["Loading the screenshot"]</span></div>
+                <div class="iv-state" role="alert" data-iv-error hidden><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /></div><div class="iv-state-title">@T["Couldn’t load the screenshot"]</div><div class="iv-state-text">@T["The file is kept; this was a loading problem."]</div><div class="iv-state-acts"><button class="btn btn-sm" type="button" id="iv-retry" data-iv="retry">@T["Try again"]</button><a class="btn btn-sm btn-quiet" href="/Evidence/@active.Id" target="_blank" rel="noopener">@T["Open original"]</a></div></div>
+            }
+            else
+            {
+                <div class="iv-state"><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("image")' /></div><div class="iv-state-title">@T["No screenshot available"]</div><div class="iv-state-text">@T["No image is attached to this submission."]</div></div>
+            }
+        </div>
+    </section>
+
+    <div class="rv-side">
+        <div class="rv-side-scroll" id="side-scroll">
+            <div data-review-notice></div>
+            @{
+                var hasWarnings = active is null || d.MinutesAfterEventEnd is not null || inGap is not null || d.CreditedParticipantLeftTeamAt is not null || Model.ChecksumMatches.Count > 0;
+            }
+            @if (hasWarnings)
+            {
+                <ul class="rv-warnings" aria-label="@T["Needs a closer look"]">
+                    @if (active is null) { <li class="banner is-warning" id="w-missing"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("warning")' /><span class="grow"><b>@T["No screenshot is available."]</b> @T["There is nothing to compare. Reject it with a reason unless the evidence can be confirmed another way."]</span></li> }
+                    @if (d.MinutesAfterEventEnd is int late && d.EventEndsAt is { } end) { <li class="banner is-warning" id="w-late"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("warning")' /><span class="grow"><b>@T["Uploaded {0} after the event ended.", Minutes(late)]</b> @T["Uploads are allowed until the cutoff, but the drop must happen before {0}. Check the time in the screenshot.", ReviewTime.UtcFull(end)]</span></li> }
+                    @if (inGap is not null) { <li class="banner is-warning" id="w-gap"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("warning")' /><span class="grow"><b>@T["Check the in-game time: the event was paused."]</b> @T["The event was ended early and resumed: {0} – {1}. A drop inside that period doesn’t count; an earlier drop uploaded then still can.", ReviewTime.UtcFull(inGap.StartedAt), ReviewTime.UtcFull(inGap.ResumedAt)]</span></li> }
+                    @if (d.CreditedParticipantLeftTeamAt is { } left) { <li class="banner is-warning" id="w-left"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("warning")' /><span class="grow"><b>@T["{0} left {1} at {2}.", d.Player, d.Team, ReviewTime.UtcFull(left)]</b> @T["Drops before that time count for the team; later ones don’t."]</span></li> }
+                    @if (Model.ChecksumMatches.Count > 0)
+                    {
+                        <li class="banner is-warning" id="w-dupe"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("warning")' /><span class="grow"><b>@(Model.ChecksumMatches.Count == 1 ? T["The same image is on another submission."] : T["The same image is on {0} other submissions.", Model.ChecksumMatches.Count])</b> @T["Identical files, matched by checksum. Compare them; a match alone doesn’t make this one invalid."]
+                            @foreach (var match in Model.ChecksumMatches) { <a class="banner-btn rv-warn-link" href="@Model.DetailsUrl(match.Id)" data-shell-link>@match.Tile · @match.Account · @StatusWord(match.Status)</a> }
+                        </span></li>
+                    }
+                </ul>
+            }
+            @if (pendingOpen)
+            {
+                <form class="card facts decide-form" aria-labelledby="cf-title" id="cf-card" method="post" asp-page-handler="Edit" asp-route-eventId="@d.EventId" asp-route-search="@Model.Search" asp-route-status="@Model.Status" data-review-form="correct" hidden>
+                    <h2 class="facts-title" id="cf-title">@T["Correct details"]</h2>
+                    <p class="decide-note">@T["Change only what the screenshot shows differently. The screenshot, upload time and contribution can’t be edited."]</p>
+                    <input asp-for="Input.ExpectedVersion" type="hidden" data-review-version />
+                    <input asp-for="Input.BoardTileId" type="hidden" data-cf-tile />
+                    <div class="field"><label class="lbl" for="cf-req">@T["Objective"]</label><div class="select-wrap"><select class="select select-field" id="cf-req" name="Input.RequirementId" data-cf-req>
+                        @foreach (var group in Model.Requirements.GroupBy(x => (x.TileId, x.Tile)))
+                        {
+                            <optgroup label="@group.Key.Tile">
+                                @foreach (var option in group) { <option value="@option.Id" data-tile="@option.TileId" data-manual="@(option.Manual ? "true" : "false")" data-weight="@option.Weight" selected="@(option.Id == d.RequirementId)">@option.Description</option> }
+                            </optgroup>
+                        }
+                    </select><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></div></div>
+                    <div class="field" data-cf-drop-field><label class="lbl" for="cf-drop">@T["Drop"]</label><div class="select-wrap"><select class="select select-field" id="cf-drop" name="Input.DropSnapshotId" aria-describedby="cf-weight" data-cf-drop>
+                        <option value="">@T["Choose a drop"]</option>
+                        @foreach (var drop in Model.Drops) { <option value="@drop.Id" data-requirement="@drop.RequirementId" data-weight="@drop.Weight" selected="@(drop.Id == d.DropId)">@T["{0} · {1} (worth {2})", drop.Item, drop.Boss, drop.Weight]</option> }
+                    </select><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></div><div class="field-err" id="cf-drop-err" hidden data-cf-drop-err><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /><span data-component-text></span></div></div>
+                    <div class="field"><label class="lbl" for="cf-acct">@T["Credited account"]</label><div class="select-wrap"><select class="select select-field" id="cf-acct" name="Input.CreditedOsrsCharacterId" aria-describedby="cf-acct-hint" data-cf-acct>
+                        <option value="@d.CharacterId" selected>@d.Player</option>
+                    </select><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></div><div class="field-hint" id="cf-acct-hint" data-cf-acct-hint>@T["Playing accounts on this team at upload time. The player is set from the account."]</div></div>
+                    <p class="decide-weight" id="cf-weight" data-cf-weight></p>
+                    <div class="field">
+                        <div class="lbl-row"><label class="lbl" for="cf-reason">@T["Reason for the correction"]</label><span class="field-count" aria-live="polite" hidden data-reason-count></span></div>
+                        <textarea class="textarea" id="cf-reason" name="Input.Reason" aria-describedby="cf-reason-hint cf-reason-err" placeholder="@T["e.g. The chat shows a fish barrel, not a tackle box."]" data-review-reason></textarea>
+                        <div class="field-hint" id="cf-reason-hint">@T["Required. Kept in the history."]</div>
+                        <div class="field-err" id="cf-reason-err" hidden data-reason-err><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /><span data-component-text></span></div>
+                    </div>
+                </form>
+            }
+            <section class="card facts" aria-labelledby="facts-title" data-review-facts>
+                <h2 class="facts-title" id="facts-title">@T["Compare with the screenshot"]</h2>
+                <dl class="facts-list">
+                    <div class="fact" id="fact-account"><dt class="fact-k">@T["Account"]</dt><dd class="fact-v">@d.Player<span class="fact-sub">@d.Team</span></dd></div>
+                    @if (d.Drop is not null) { <div class="fact" id="fact-drop"><dt class="fact-k">@T["Drop"]</dt><dd class="fact-v">@d.Drop<span class="fact-sub">@T["AdminDesign.from {0}", d.Boss!]</span></dd></div> }
+                    <div class="fact is-plain" id="fact-objective"><dt class="fact-k">@T["Objective"]</dt><dd class="fact-v">@d.Requirement@if (d.Manual) { <span class="fact-sub">@T["Manual objective"]</span> }</dd></div>
+                    @if (ev.EvidenceCodeEnabled) { <div class="fact" id="fact-code"><dt class="fact-k">@T["Code"]</dt><dd class="fact-v">@if (d.ExpectedCode is { } code) { <code class="code-tag">@code</code> } else { <span>—</span> }<span class="fact-sub">@T["Active when it was uploaded"]</span></dd></div> }
+                    <div class="fact" id="fact-uploaded"><dt class="fact-k">@T["Uploaded"]</dt><dd class="fact-v">@ReviewTime.UtcFull(d.SubmittedAt)<span class="fact-sub">@T["{0} {1} time · recorded by the server", ReviewTime.Local(d.SubmittedAt, zone), city]</span></dd></div>
+                    <div class="fact @(d.MinutesAfterEventEnd is not null || inGap is not null ? "is-warn" : "is-plain")" id="fact-window"><dt class="fact-k">@T["Event window"]</dt><dd class="fact-v">@(Model.EventStartedAt is { } started ? ReviewTime.UtcFull(started).Replace(" UTC", string.Empty, StringComparison.Ordinal) : "—") – @(d.EventEndsAt is { } windowEnd ? ReviewTime.UtcFull(windowEnd) : T["AdminDesign.not set"].Value)@if (lastGap is not null) { <span class="fact-sub">@T["Paused {0} – {1}", ReviewTime.UtcFull(lastGap.StartedAt), ReviewTime.UtcFull(lastGap.ResumedAt)]</span> }</dd></div>
+                    @if (Model.ReviewOpen)
+                    {
+                        <div class="fact is-plain" id="fact-contribution"><dt class="fact-k">@T["Contribution"]</dt><dd class="fact-v">@contributionValue@if (contributionSub.Length > 0) { <span class="fact-sub">@contributionSub</span> }@if (Model.ApprovalBlock is { } block) { <a class="text-btn rv-block-link" href="@Model.DetailsUrl(block.SubmissionId)" data-shell-link>@T["Open the earlier upload ({0})", ReviewTime.Utc(block.SubmittedAt)]</a> }</dd></div>
+                    }
+                </dl>
+                @if (!string.IsNullOrWhiteSpace(d.CaptainNote)) { <div class="facts-note"><div class="fact-k">@T["Submitter’s note"]</div><div class="quote">@d.CaptainNote</div></div> }
+                @if (Model.Feedback is { } feedback && !string.IsNullOrWhiteSpace(feedback.Text)) { <div class="facts-note"><div class="fact-k">@T[d.Status == SubmissionStatus.Rejected ? "Rejected by {0} · {1}" : "Approval reversed by {0} · {1}", "@" + feedback.Actor, ReviewTime.UtcFull(feedback.At)]</div><div class="quote">@feedback.Text</div></div> }
+            </section>
+
+            <section class="card rv-more" aria-label="@T["History and files"]">
+                <div class="rv-more-sec">
+                    <button class="disc-btn" type="button" id="more-history" aria-expanded="false" aria-controls="more-history-body" data-review-disclosure><span>@T["History"] <span class="rv-count">@Model.History.Count</span></span><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></button>
+                    <ol class="tl" id="more-history-body" hidden>
+                        @foreach (var item in Model.History)
+                        {
+                            var presented = AuditPresenter.Present(item.Entry, A);
+                            <li class="tl-item" data-audit-entry="@item.Entry.Id"><div class="tl-head"><span class="tl-what">@presented.Action</span><span class="tl-when">@("@" + item.Actor) · @ReviewTime.UtcFull(item.At)</span></div>@if (!string.IsNullOrWhiteSpace(presented.Reason)) { <div class="tl-reason">@presented.Reason</div> }</li>
+                        }
+                    </ol>
+                </div>
+                <div class="rv-more-sec">
+                    <button class="disc-btn" type="button" id="more-prior" aria-expanded="false" aria-controls="more-prior-body" data-review-disclosure><span>@T["Earlier approvals for this objective"] <span class="rv-count">@Model.PriorApproved.Count</span></span><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></button>
+                    <div id="more-prior-body" hidden>
+                        @if (Model.PriorApproved.Count == 0) { <p class="rv-muted-p">@T["None for this team yet."]</p> }
+                        <ul class="rv-links">@foreach (var prior in Model.PriorApproved) { <li><a class="text-btn" href="@Model.DetailsUrl(prior.Id)" data-shell-link>@(prior.Drop ?? T["Manual objective"].Value) · @prior.Player</a><span class="rv-muted">@ReviewTime.UtcFull(prior.SubmittedAt) · @T["AdminDesign.added {0}", prior.Amount]</span></li> }</ul>
+                    </div>
+                </div>
+                <div class="rv-more-sec">
+                    <button class="disc-btn" type="button" id="more-files" aria-expanded="false" aria-controls="more-files-body" data-review-disclosure><span>@T["Files"] <span class="rv-count">@Model.Assets.Count</span></span><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></button>
+                    <div id="more-files-body" hidden>
+                        @if (Model.Assets.Count == 0) { <p class="rv-muted-p">@T["No files are attached."]</p> }
+                        <ul class="rv-files">@foreach (var file in Model.Assets)
+                        {
+                            <li class="@(file.Active ? null : "is-old")"><div class="rv-file-head"><span class="rv-file-name">@file.Filename</span><a class="text-btn" href="/Evidence/@file.Id" target="_blank" rel="noopener">@T["AdminDesign.Open"]</a></div><div class="rv-muted">@(file.Active ? file.Role == EvidenceAssetRole.ReplacementEvidence ? T["Current · replaced the original"] : T["AdminDesign.Current"] : T["Earlier version · kept for history"])</div><div class="rv-muted">@file.Width × @file.Height · @Size(file.Bytes) · @T["uploaded {0}", ReviewTime.UtcFull(file.UploadedAt)]</div><div class="rv-muted" title="SHA-256 @file.Checksum">@T["Checksum"] <code class="code-inline">@(file.Checksum[..Math.Min(12, file.Checksum.Length)])…</code></div></li>
+                        }</ul>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <section class="card decide" aria-labelledby="dec-title" data-review-decide>
+            <h2 class="sr" id="dec-title">@T["Decision"]</h2>
+            <div data-review-decide-error></div>
+            <div data-review-result hidden>
+                <div class="decide-result" id="dec-result" tabindex="-1" data-review-result-box><partial name="_AdminDesignIcon" model='new AdminDesignIcon("check")' /><div class="grow"><div class="decide-result-title" data-review-result-title></div><div class="decide-result-sub" data-review-result-sub></div></div></div>
+                <div class="decide-acts">@if (Model.Neighbours?.NextId is { } resultNext) { <a class="btn btn-primary" id="dec-next" href="@Model.DetailsUrl(resultNext)" data-shell-link>@T["Next submission"]<partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-right")' /></a> }<a class="btn" href="@Model.QueueUrl" data-shell-link data-review-back>@T["Back to the queue"]</a></div>
+            </div>
+            <div data-review-panel>
+            @if (!Model.ReviewOpen)
+            {
+                <p class="decide-note" data-review-closed>@closedText</p>
+            }
+            else if (pendingOpen)
+            {
+                <form method="post" asp-page-handler="Approve" asp-route-eventId="@d.EventId" asp-route-search="@Model.Search" asp-route-status="@Model.Status" data-review-form="approve" data-review-mode="idle">
+                    <input asp-for="Input.ExpectedVersion" type="hidden" data-review-version />
+                    <div class="decide-acts">
+                        <button class="btn btn-primary" id="dec-approve" type="submit" data-busy-label="@T["Approving…"]">@T["Approve"]</button>
+                        <button class="btn btn-outline-danger" id="dec-reject" type="button" data-review-start="reject">@T["Reject…"]</button>
+                    </div>
+                    <button class="text-btn decide-link" id="dec-correct" type="button" data-review-start="correct">@T["Correct details…"]</button>
+                </form>
+                <form method="post" asp-page-handler="Reject" asp-route-eventId="@d.EventId" asp-route-search="@Model.Search" asp-route-status="@Model.Status" data-review-form="reject" data-review-mode="reject" hidden>
+                    <input asp-for="Input.ExpectedVersion" type="hidden" data-review-version />
+                    <input type="hidden" name="confirmed" value="true" />
+                    <div class="field">
+                        <div class="lbl-row"><label class="lbl" for="dec-reason">@T["Reason for rejecting"]</label><span class="field-count" aria-live="polite" hidden data-reason-count></span></div>
+                        <textarea class="textarea" id="dec-reason" name="Input.Reason" aria-describedby="dec-reason-hint dec-reason-err" placeholder="@T["e.g. The drop message isn’t visible in the screenshot."]" data-review-reason></textarea>
+                        <div class="field-hint" id="dec-reason-hint">@T["Required. Sent to the team’s captains and {0}, and kept in the history.", d.Player]</div>
+                        <div class="field-err" id="dec-reason-err" hidden data-reason-err><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /><span data-component-text></span></div>
+                    </div>
+                    <div class="decide-acts"><button class="btn btn-danger" id="dec-reject-confirm" type="submit" data-busy-label="@T["Rejecting…"]">@T["Reject submission"]</button><button class="btn" type="button" data-review-cancel>@T["Cancel"]</button></div>
+                </form>
+                <div data-review-mode="correct" hidden>
+                    <p class="decide-note">@T["Correcting details for this submission. It stays pending."]</p>
+                    <div class="field-err" id="cf-form-err" role="alert" hidden data-cf-form-err><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /><span data-component-text></span></div>
+                    <div class="decide-acts"><button class="btn btn-primary" id="cf-save" type="submit" form="cf-card" data-busy-label="@T["Saving…"]">@T["Save correction"]</button><button class="btn" type="button" data-review-cancel>@T["Cancel"]</button></div>
+                </div>
+            }
+            else if (approvedOpen)
+            {
+                <p class="decide-note">@(Model.Approval is { } approval ? T["Approved by {0} · {1}", "@" + approval.Actor, ReviewTime.UtcFull(approval.At)] : T["AdminDesign.Approved"])</p>
+                <div class="decide-acts"><button class="btn btn-outline-danger" id="dec-reverse" type="button" data-review-reverse>@T["Reverse approval…"]</button></div>
+                <template data-review-reverse-template>
+                    <form method="post" asp-page-handler="Reverse" asp-route-eventId="@d.EventId" asp-route-search="@Model.Search" asp-route-status="@Model.Status" data-review-form="reverse" novalidate>
+                        <h2 class="m-title" data-confirm-title>@T["Reverse this approval?"]</h2>
+                        <div data-confirm-description>
+                            <p class="m-body">@T["{0}’s {1} stops counting for {2}.", d.Player, subject, d.Team]</p>
+                            <ul class="m-points"><li>@T["Its contribution of {0} is removed, and tile, line, leaderboard and placement progress are recalculated.", d.Approved]</li><li>@T["Later approved evidence for this objective may take up the freed amount."]</li><li>@T["The submission and its approval stay in the history. It can’t be approved again; the team can upload a new submission while uploads are open."]</li></ul>
+                        </div>
+                        <div data-review-dialog-error></div>
+                        <input type="hidden" name="Input.ExpectedVersion" value="@d.Version" data-review-version />
+                        <input type="hidden" name="confirmed" value="true" />
+                        <div class="field rv-dialog-field">
+                            <label class="lbl" for="cx-reason">@T["Reason for reversing"]</label>
+                            <textarea class="textarea" id="cx-reason" name="Input.Reason" aria-describedby="cx-reason-hint cx-reason-err" placeholder="@T["e.g. The drop was on a different account than the one credited."]" data-review-reason></textarea>
+                            <div class="field-hint" id="cx-reason-hint">@T["Required. Kept in the history."]</div>
+                            <div class="field-err" id="cx-reason-err" hidden data-reason-err><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /><span data-component-text></span></div>
+                        </div>
+                        <div class="m-actions"><button class="btn" type="button" data-review-dialog-cancel>@T["Cancel"]</button><button class="btn btn-danger" type="submit" data-busy-label="@T["Reversing…"]">@T["Reverse approval"]</button></div>
+                    </form>
+                </template>
+            }
+            else
+            {
+                <p class="decide-note">@(d.Status == SubmissionStatus.Withdrawn ? T["Withdrawn by the team before review. It stays in the history."] : T["This attempt stays in the history and can’t be approved again. A new upload is a separate submission."])</p>
+            }
+            </div>
+        </section>
+    </div>
+</div>
+</div>
