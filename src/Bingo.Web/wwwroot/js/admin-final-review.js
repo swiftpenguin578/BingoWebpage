@@ -69,7 +69,7 @@ export function init(region, ui = window.AdminUI) {
       const intent={kind,version:before.version,cycle:before.reviewCycleId};save({pending:intent});
       const result=await post(kind==='publish'?'Finalize':'Unfinalize',body,reason?{[t('Reason')]:reason.value}:{});
       writing=false;ui.refreshDirty();if(life.signal.aborted)return;cancel.disabled=false;accept.disabled=false;accept.classList.remove('is-busy');accept.querySelector('.spin').hidden=true;layer.element.removeAttribute('aria-busy');
-      if(result.kind==='handler'&&typeof result.data?.succeeded==='boolean'){
+      if(result.kind==='handler'&&typeof result.data?.succeeded==='boolean'&&['applied','queued','skipped','failed','refused'].includes(result.data?.outcome)){
         save({pending:null});if(result.data.succeeded){save({reason:''});layer.markClean();await layer.close();await refresh();
           const refreshState=result.data.current?.finalRefresh;const note=kind==='publish'?(refreshState?.status===0?t('Final WOM refresh succeeded.'):root.querySelector('.fr-wom-note')?.textContent.trim()||''):'';notice(t(kind==='publish'?'Official results published. The event is archived.':'Results reopened. The official version stays in history.')+(note?' '+note:''),false,refreshState&&refreshState.status!==0?'is-warning':'is-info');return;}
         message.textContent=result.data.error||t('Nothing was saved. Your entries are still here.');message.hidden=false;message.focus();

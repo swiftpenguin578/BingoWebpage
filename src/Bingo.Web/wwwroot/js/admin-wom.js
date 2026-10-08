@@ -45,6 +45,7 @@ export function init(region, ui = window.AdminUI) {
     const fetch = root.querySelector('#fetch-btn'); if (fetch) { fetch.disabled = value || !state.integration?.canRefresh; fetch.classList.toggle('is-busy', value); fetch.querySelector('.spin').hidden = !value; fetch.querySelector('svg').style.display = value ? 'none' : ''; fetch.querySelector('[data-component-text]').textContent = t(value ? 'Fetching…' : 'Fetch now'); }
   }
   const uncertain = key => t(key === 'fetch' ? 'We couldn’t confirm whether new data was fetched.' : 'We couldn’t confirm whether this change was saved.');
+  const outcomes = ['applied', 'queued', 'skipped', 'failed', 'refused'];
   const statusText = status => t(({NotManaged:'Not configured',Active:'Active',Pending:'Queued',Sending:'Sending',Unknown:'Unknown outcome',Failed:'Failed',Conflict:'Conflict',Deleted:'Deleted',Cancelled:'Cancelled'})[status] || 'Not configured');
   async function check() {
     if (writing) return; const intent = saved().pending; busy(true);
@@ -71,7 +72,7 @@ export function init(region, ui = window.AdminUI) {
     const intent = {key, version: state.version}; save({pending: intent}); busy(true);
     const result = await post(new URL(form.action).searchParams.get('handler'), body, draft);
     busy(false); if (life.signal.aborted) return;
-    if (result.kind === 'handler' && typeof result.data?.succeeded === 'boolean') {
+    if (result.kind === 'handler' && typeof result.data?.succeeded === 'boolean' && outcomes.includes(result.data?.outcome)) {
       const outcome = result.data; save({pending: null});
       if (outcome.succeeded || outcome.outcome === 'skipped' || outcome.outcome === 'queued') {
         if (outcome.succeeded) {
