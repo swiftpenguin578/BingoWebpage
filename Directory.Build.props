@@ -5,4 +5,13 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
+
+  <!-- Six Labors ImageSharp 4.x build-time license check. The key is never committed:
+       CI/Docker pass it as SIXLABORS_LICENSE_KEY; local builds use the untracked repo-root sixlabors.lic. -->
+  <PropertyGroup Condition="'$(SixLaborsLicenseKey)' == '' And '$(SIXLABORS_LICENSE_KEY)' != ''">
+    <SixLaborsLicenseKey>$(SIXLABORS_LICENSE_KEY)</SixLaborsLicenseKey>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(SixLaborsLicenseKey)' == '' And '$(SixLaborsLicenseFile)' == '' And Exists('$(MSBuildThisFileDirectory)sixlabors.lic')">
+    <SixLaborsLicenseFile>$(MSBuildThisFileDirectory)sixlabors.lic</SixLaborsLicenseFile>
+  </PropertyGroup>
 </Project>
