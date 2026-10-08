@@ -4041,6 +4041,7 @@
   <data name="Couldn’t add the participant. Nothing was saved." xml:space="preserve"><value>Deltageren kunne ikke tilføjes. Intet blev gemt.</value></data>
   <data name="Discord not linked" xml:space="preserve"><value>Discord er ikke tilknyttet</value></data>
   <data name="EHB comes from the saved account and can be changed for this event after adding. Up to {0} playing accounts per participant." xml:space="preserve"><value>EHB kommer fra den gemte konto og kan ændres for denne begivenhed efter tilføjelsen. Op til {0} spillekonti pr. deltager.</value></data>
+  <data name="EHB comes from the saved account and can be changed for this event after adding. Up to {0} playing account per participant." xml:space="preserve"><value>EHB kommer fra den gemte konto og kan ændres for denne begivenhed efter tilføjelsen. Op til {0} spillekonto pr. deltager.</value></data>
   <data name="Full · capacity {0} → {1}" xml:space="preserve"><value>Fuld · kapacitet {0} → {1}</value></data>
   <data name="No EHB" xml:space="preserve"><value>Ingen EHB</value></data>
   <data name="No saved EHB — update the account first" xml:space="preserve"><value>Ingen gemt EHB — opdater kontoen først</value></data>
