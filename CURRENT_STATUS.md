@@ -11,7 +11,7 @@
 
 **D1 in progress:** `DELIVERY_PLAN.md` status cells and C/D ledger, `docs/PRODUCTION_RUNBOOK.md` and this file are reconciled on `claude/d1-docs` (docs only). Then the final candidate SHA is fixed.
 
-**R-3 rehearsal (user decision: option b, lighter local rehearsal; runbook subsection of the same name):** harness `scripts/rehearsal/local-rehearsal.sh` on `claude/local-rehearsal` (`13472767`). First real run on `9c734a8f` with the user's production dump passed stages 1–4 (AU20 blocker cleared by the user); in progress. Accepted limits: no VM, Docker internal network only, no G4 Down/re-Up check, no real R2/WOM/restic/host wrapper/public TLS. The dump is private (outside the repo) and is deleted afterwards. The planner records the final result here.
+**R-3 rehearsal (user decision: option b, lighter local rehearsal; runbook subsection of the same name):** harness `scripts/rehearsal/local-rehearsal.sh` on `claude/local-rehearsal` (`13472767`). Real production dump (8 October 18:30): run 1 stopped at the AU20 gate (leftover load-test event; user published and re-hid it); run 2 found migration `20260922214708_AddTileCompletionFactsAndCurrentScoreReachedAt` timing out on a statistics-less restore; fixed in `43c05918` (ANALYZE + materialized CTEs, identical rows proven on real-data clones); run 3 on `43c05918` **passed all 9 stages** (migrate 7 s, Luck Converted=1 / Could not convert=0, preflight and health OK). Rerun on the final candidate SHA before deploy.
 
 **Before the deploy (runbook release-readiness checklist, items 9–11):** install the changed host copies of `bingo-deploy` and `bingo-verify-evidence`; keep the `SIXLABORS_LICENSE_KEY` secret; rollback uses the prior image digest because `main` no longer restores (ImageSharp 3.1.12 advisories).
 
