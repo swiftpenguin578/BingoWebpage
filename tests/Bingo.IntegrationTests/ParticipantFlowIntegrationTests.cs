@@ -278,7 +278,7 @@ public sealed class ParticipantFlowIntegrationTests(PostgreSqlTestFixture databa
         {
             using var cache = new MemoryCache(new MemoryCacheOptions());
             var service = new PreformedRosterCsvImportService(db, new EventParticipantCharacterService(db, new FixedClock(now)), cache, new FixedClock(now));
-            await using var csv = new MemoryStream(Encoding.UTF8.GetBytes("Account,EHB\r\nExternal Main,1\r\n"));
+            await using var csv = new MemoryStream(Encoding.UTF8.GetBytes("Account,EHB\r\nExtern Main,1\r\n" /* U5-Q4: CSV import enforces the 12-character RSN rule (U5 review L1) */));
             var preview = await service.PreviewAsync(admin.Id, item.Id, team.Id, csv, CancellationToken.None);
             Assert.True(preview.IsValid);
             Assert.True((await service.ApplyAsync(admin.Id, admin.LoginName, item.Id, team.Id, preview.Nonce!, CancellationToken.None)).Succeeded);
