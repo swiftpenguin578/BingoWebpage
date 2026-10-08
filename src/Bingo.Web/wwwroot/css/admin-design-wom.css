@@ -6,18 +6,28 @@
 :where([data-page-family="wom"]) .wm-sub{margin:3px 0 0;font-size:var(--dk-fs-small);color:var(--dk-text-3);line-height:1.45;max-width:72ch}
 :where([data-page-family="wom"]) .wm-hero-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:var(--dk-space-5) var(--dk-space-6) 14px;flex-wrap:wrap}
 :where([data-page-family="wom"]) .wm-hero-text{min-width:0;flex:1 1 360px}
-:where([data-page-family="wom"]) .wm-comp-title{margin:2px 0 0;font-size:var(--dk-fs-section);font-weight:600;letter-spacing:-.005em;overflow-wrap:anywhere}
+:where([data-page-family="wom"]) .wm-comp-title{margin:2px 0 0;font-size:var(--dk-fs-section, 16px);font-weight:600;letter-spacing:-.005em;overflow-wrap:anywhere}
+:where([data-page-family="wom"]) .wm-comp-title:focus{outline:none}
+:where([data-page-family="wom"]) .wm-issue:focus{outline:none}
 :where([data-page-family="wom"]) .wm-cap{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap;margin:8px 0 0}
 :where([data-page-family="wom"]) .wm-cap-text{font-size:var(--dk-fs-control-sm);color:var(--dk-text-2)}
 :where([data-page-family="wom"]) .wm-stats{--stat-cols:3;border-top:1px solid var(--dk-border-subtle);border-bottom:1px solid var(--dk-border-subtle)}
 :where([data-page-family="wom"]) .wm-fetch{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px var(--dk-space-6)}
 :where([data-page-family="wom"]) .wm-fetch-why{font-size:var(--dk-fs-control-sm);color:var(--dk-text-2)}
 :where([data-page-family="wom"]) .wm-tbl{--table-cols:minmax(180px,1.4fr) minmax(170px,1fr) 110px minmax(220px,1.6fr);--table-min:720px}
+:where([data-page-family="wom"]) .wm-tbl .td{padding-top:11px;padding-bottom:11px}
 :where([data-page-family="wom"]) .wm-num{text-align:right;justify-content:flex-end;font-variant-numeric:tabular-nums}
+:where([data-page-family="wom"]) .wm-tbl .th.wm-num{text-align:right}
 :where([data-page-family="wom"]) .wm-team{font-weight:600}
 :where([data-page-family="wom"]) .wm-missing{display:block;font-size:var(--dk-fs-control-sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 :where([data-page-family="wom"]) .wm-miss-box{padding:12px var(--dk-space-6) 14px;border-top:1px solid var(--dk-border-subtle)}
+:where([data-page-family="wom"]) .wm-miss-title{font-size:var(--dk-fs-control-sm);font-weight:600}
+:where([data-page-family="wom"]) .wm-miss-hint{margin:8px 0 0;font-size:var(--dk-fs-small);color:var(--dk-text-2)}
 :where([data-page-family="wom"]) .wm-miss-list{list-style:none;margin:8px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px 16px}
+:where([data-page-family="wom"]) .wm-miss-list li{display:flex;align-items:baseline;gap:8px;font-size:var(--dk-fs-control-sm);min-width:0}
+:where([data-page-family="wom"]) .wm-miss-name{font-weight:550;font-size:var(--dk-fs-meta)}
+:where([data-page-family="wom"]) .wm-miss-team{color:var(--dk-text-3);font-size:var(--dk-fs-small);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+:where([data-page-family="wom"]) .wm-empty{padding-top:20px}
 :where([data-page-family="wom"]) .wm-sync-body{padding:0 var(--dk-space-6) var(--dk-space-5);display:flex;flex-direction:column;gap:12px}
 :where([data-page-family="wom"]) .wm-op{padding:0 var(--dk-space-6) 4px}
 :where([data-page-family="wom"]) .wm-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0;border-top:1px solid var(--dk-border-subtle);margin-top:12px}
@@ -25,10 +35,15 @@
 :where([data-page-family="wom"]) .wm-option+.wm-option{border-left:1px solid var(--dk-border-subtle)}
 :where([data-page-family="wom"]) .wm-opt-title{margin:0;font-size:var(--dk-fs-control);font-weight:600}
 :where([data-page-family="wom"]) .wm-opt-text{margin:0;font-size:var(--dk-fs-control-sm);color:var(--dk-text-2);line-height:1.5}
+:where([data-page-family="wom"]) .wm-pre .check-item{padding:8px 0}
 :where([data-page-family="wom"]) .wm-opt-act{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:auto;padding-top:4px}
 :where([data-page-family="wom"]) .wm-opt-why{font-size:var(--dk-fs-small);color:var(--dk-text-3)}
 :where([data-page-family="wom"]) .wm-manage-body{padding:0 var(--dk-space-6) var(--dk-space-5)}
+:where([data-page-family="wom"]) .wm-act-title{font-size:var(--dk-fs-control);font-weight:550}
+:where([data-page-family="wom"]) .wm-act-text{margin-top:2px;font-size:var(--dk-fs-control-sm);color:var(--dk-text-2);line-height:1.45;max-width:64ch}
 :where([data-page-family="wom"]) .wm-tech{padding:14px var(--dk-space-6)}
+:where([data-page-family="wom"]) .wm-tech-btn{font-size:var(--dk-fs-control-sm)}
+:where([data-page-family="wom"]) .wm-tech-btn[aria-expanded=true] .ic{transform:rotate(180deg)}
 :where([data-page-family="wom"]) .wm-kv{grid-template-columns:150px minmax(0,1fr)}
 :where([data-page-family="wom"]) .wm-kv dd{margin:0;overflow-wrap:anywhere}
 :where([data-page-family="wom"]) .wm-reason{min-height:72px}
@@ -36,4 +51,15 @@
 :where([data-page-family="wom"]) .wm-sk-line .sk{width:160px;height:12px}
 :where([data-page-family="wom"]) .wm-sk-body{height:120px;margin-top:12px}
 :where([data-page-family="wom"]) .page-banner,:where([data-page-family="wom"]) .card,:where([data-page-family="wom"]) .fade-in,:where([data-page-family="wom"]) .results,:where([data-page-family="wom"]) .empty{animation:none}
-@media(max-width:760px){:where([data-page-family="wom"]) .wm-options{grid-template-columns:minmax(0,1fr)}:where([data-page-family="wom"]) .wm-option+.wm-option{border-left:0;border-top:1px solid var(--dk-border-subtle)}:where([data-page-family="wom"]) .wm-stats{--stat-cols:1}:where([data-page-family="wom"]) .wm-kv{grid-template-columns:minmax(0,1fr)}:where([data-page-family="wom"]) .wm-manage-body .act-row{flex-direction:column;align-items:flex-start}}
+@media(max-width:760px){
+:where([data-page-family="wom"]) .wm-options{grid-template-columns:minmax(0,1fr)}
+:where([data-page-family="wom"]) .wm-option+.wm-option{border-left:0;border-top:1px solid var(--dk-border-subtle)}
+:where([data-page-family="wom"]) .wm-stats{--stat-cols:1}
+:where([data-page-family="wom"]) .wm-stats .stat{border-left:0;border-top:1px solid var(--dk-border-subtle)}
+:where([data-page-family="wom"]) .wm-stats .stat:first-child{border-top:0}
+:where([data-page-family="wom"]) .wm-hero-head,:where([data-page-family="wom"]) .wm-card-head,:where([data-page-family="wom"]) .wm-fetch,:where([data-page-family="wom"]) .wm-option,:where([data-page-family="wom"]) .wm-miss-box{padding-left:var(--dk-space-4);padding-right:var(--dk-space-4)}
+:where([data-page-family="wom"]) .wm-sync-body,:where([data-page-family="wom"]) .wm-manage-body,:where([data-page-family="wom"]) .wm-op{padding-left:var(--dk-space-4);padding-right:var(--dk-space-4)}
+:where([data-page-family="wom"]) .wm-tech{padding:12px var(--dk-space-4)}
+:where([data-page-family="wom"]) .wm-manage-body .act-row{flex-direction:column;align-items:flex-start}
+:where([data-page-family="wom"]) .wm-kv{grid-template-columns:minmax(0,1fr)}
+}
