@@ -156,9 +156,9 @@ public sealed partial class AdminDesignShellIntegrationTests
         Assert.DoesNotContain("AdminDesign.", html); Assert.DoesNotContain("Bingoer", html); Assert.DoesNotContain("begivenhed", html, StringComparison.OrdinalIgnoreCase);
         var directory = WebUtility.HtmlDecode(await client.GetStringAsync("/Admin/Events/Index?culture=da&ui-culture=da"));
         Assert.Contains("data-admin-design", directory); Assert.Contains(">Events</h1>", directory);
-        // A10: Final review and WiseOldMan are bound by U9; no event-scoped Admin page is left on the old layout, so UiReferences (not event-scoped) carries the unchanged legacy-shell contract.
-        var old = WebUtility.HtmlDecode(await client.GetStringAsync($"/Admin/UiReferences?culture=da&ui-culture=da"));
-        Assert.Contains("Bingoer", old); Assert.DoesNotContain("data-admin-design", old);
+        // A10 (U10 part 2): UiReferences, the last old-layout page, is retired and redirects to the dashboard, so no legacy page is left to stay unchanged.
+        using var retired = await client.GetAsync("/Admin/UiReferences?culture=da&ui-culture=da");
+        Assert.Equal(HttpStatusCode.Redirect, retired.StatusCode); Assert.Equal("/Admin", retired.Headers.Location!.OriginalString);
     }
 
     private WebApplicationFactory<Program> IdentityFactory(params IInterceptor[] interceptors) => new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
