@@ -17,6 +17,7 @@ for (const action of ['Disable', 'Restore', 'GrantAdmin', 'RevokeAdmin']) {
     }
   }
 }
+const perFileTimeout = Number(process.env.BROWSER_TEST_TIMEOUT_MS) > 0 ? Number(process.env.BROWSER_TEST_TIMEOUT_MS) : 120000;
 fs.mkdirSync(output, { recursive: true });
 const results = [];
 const runs = files.flatMap(file => /^(admin-design-|identity-)/.test(file)
@@ -29,7 +30,7 @@ for (const { file, browser } of runs) {
     cwd: root,
     env: { ...process.env, PLAYWRIGHT_BROWSER: browser, PLAYWRIGHT_CHANNEL: process.env.PLAYWRIGHT_CHANNEL || 'chromium' },
     encoding: 'utf8',
-    timeout: 120000,
+    timeout: perFileTimeout,
     maxBuffer: 8 * 1024 * 1024
   });
   const passed = !result.error && result.status === 0;
