@@ -2744,8 +2744,11 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task InternalParticipantOutageConfirmationAndCancelWorkWithoutJavaScript()
+    public async Task SavedAccountAddNeedsNoWomAndRetiredInternalParticipantHandlersAreGone()
     {
+        // A10 (U5 item 1c, F04): the internal-participant form, its WOM outage confirmation and
+        // CancelWomValidation are retired. Add uses the account's saved Playing accounts and stored
+        // EHB without any WOM request, even while WOM is unavailable; retired posts write nothing.
         var now = DateTimeOffset.UtcNow;
         var admin = Website($"internal-outage-admin-{Guid.NewGuid():N}", now);
         admin.SetGlobalRole(GlobalRole.Admin);
@@ -2756,9 +2759,10 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var primary = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null,
             SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         var answer = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "cancel-answer", "Cancel answer", SignupQuestionType.Text, false, 1, null);
+        var saved = new OsrsCharacter(Guid.NewGuid(), "Outage Alice", $"OUTAGE ALICE {Guid.NewGuid():N}", now);
         await using (var db = new ApplicationDbContext(options))
         {
-            db.AddRange(admin, bingoEvent, form, primary, answer);
+            db.AddRange(admin, bingoEvent, form, primary, answer, saved, new AccountOsrsCharacter(Guid.NewGuid(), admin.Id, saved.Id, admin.Id, true, 0, null, 7.25m, now));
             await db.SaveChangesAsync();
         }
 
@@ -2780,58 +2784,53 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         }))) Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
 
         var route = $"/Admin/Events/Participants/{bingoEvent.Id}";
-        var page = await client.GetStringAsync($"{route}?addParticipant=1");
-        const string characterName = "Outage Alice";
-        const string submittedAnswer = "Keep this answer after cancel";
-        var characterField = $"InternalParticipant.AccountAnswers[{primary.Id}].CharacterName";
-        var ehbField = $"InternalParticipant.AccountAnswers[{primary.Id}].Ehb";
-        var answerField = $"InternalParticipant.Answers[{answer.Id}]";
-        var fields = new Dictionary<string, string>
+        var page = await client.GetStringAsync($"{route}?add=1");
+        Assert.Contains("data-drawer-add=\"true\"", page, StringComparison.Ordinal);
+        Assert.DoesNotContain("InternalParticipant.", page, StringComparison.Ordinal);
+        foreach (var retired in new[] { "CreateInternalParticipant", "CancelWomValidation" })
         {
-            ["InternalParticipant.OwnerAccountId"] = admin.Id.ToString(),
-            [characterField] = characterName,
-            [ehbField] = "7.25",
-            [answerField] = submittedAnswer,
-            ["__RequestVerificationToken"] = AntiforgeryToken(page)
-        };
-        using var confirmationResponse = await client.PostAsync($"{route}?handler=CreateInternalParticipant", new FormUrlEncodedContent(fields));
-        Assert.Equal(HttpStatusCode.OK, confirmationResponse.StatusCode);
-        var confirmation = await confirmationResponse.Content.ReadAsStringAsync();
-        Assert.Contains("data-wom-validation-confirmation", confirmation, StringComparison.Ordinal);
-        Assert.Contains("participant-add-route-page", confirmation, StringComparison.Ordinal);
-        Assert.Equal(admin.Id.ToString(), InputValueByName(confirmation, "InternalParticipant.OwnerAccountId"));
-        Assert.Equal(characterName, InputValueByName(confirmation, characterField));
-        Assert.Equal("7.25", InputValueByName(confirmation, ehbField));
-        Assert.Equal(submittedAnswer, InputValueByName(confirmation, answerField));
-        var token = InputValueByName(confirmation, "InternalParticipant.WomValidationConfirmationToken");
-        Assert.NotEmpty(token);
+            using var response = await client.PostAsync($"{route}?handler={retired}", new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["InternalParticipant.OwnerAccountId"] = admin.Id.ToString(),
+                [$"InternalParticipant.AccountAnswers[{primary.Id}].CharacterName"] = "Typed Outage",
+                [$"InternalParticipant.AccountAnswers[{primary.Id}].Ehb"] = "7.25",
+                ["__RequestVerificationToken"] = AntiforgeryToken(page)
+            }));
+            Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+        }
+        await using (var verify = new ApplicationDbContext(options)) Assert.Empty(await verify.EventParticipants.Where(item => item.EventId == bingoEvent.Id).ToListAsync());
 
-        var cancelButton = Regex.Match(confirmation, "<button(?=[^>]*data-wom-validation-cancel)[^>]*>").Value;
-        Assert.Contains("type=\"submit\"", cancelButton, StringComparison.Ordinal);
-        var cancelAction = WebUtility.HtmlDecode(Regex.Match(cancelButton, "formaction=\"([^\"]+)\"").Groups[1].Value);
-        Assert.Contains("handler=CancelWomValidation", cancelAction, StringComparison.Ordinal);
-        var cancelUri = new Uri(new Uri(client.BaseAddress!, route), cancelAction);
-        var cancelFields = new Dictionary<string, string>(fields)
+        using var owners = System.Text.Json.JsonDocument.Parse(await client.GetStringAsync($"{route}?handler=OwnerAccounts&owner={admin.Id}"));
+        var option = Assert.Single(owners.RootElement.EnumerateArray());
+        Assert.Equal(saved.Id, option.GetProperty("characterId").GetGuid()); Assert.Equal(7.25m, option.GetProperty("savedEhb").GetDecimal());
+        long eventVersion;
+        await using (var read = new ApplicationDbContext(options)) eventVersion = await read.Events.Where(item => item.Id == bingoEvent.Id).Select(item => item.Version).SingleAsync();
+        using var request = new HttpRequestMessage(HttpMethod.Post, $"{route}?handler=Add")
         {
-            ["InternalParticipant.WomValidationConfirmationToken"] = token,
-            ["__RequestVerificationToken"] = AntiforgeryToken(confirmation)
+            Content = new FormUrlEncodedContent(new List<KeyValuePair<string, string>>
+            {
+                new("owner", admin.Id.ToString()), new("accounts", saved.Id.ToString()), new("primary", saved.Id.ToString()),
+                new("paid", "false"), new("addPlace", "false"), new("eventVersion", eventVersion.ToString(CultureInfo.InvariantCulture))
+            })
         };
-        using var cancelledResponse = await client.PostAsync(cancelUri.PathAndQuery, new FormUrlEncodedContent(cancelFields));
-        Assert.Equal(HttpStatusCode.OK, cancelledResponse.StatusCode);
-        var cancelled = await cancelledResponse.Content.ReadAsStringAsync();
-        Assert.Contains("data-wom-validation-cancelled=\"true\"", cancelled, StringComparison.Ordinal);
-        Assert.DoesNotContain("data-wom-validation-confirmation", cancelled, StringComparison.Ordinal);
-        Assert.Equal(characterName, InputValueByName(cancelled, characterField));
-        Assert.Equal("7.25", InputValueByName(cancelled, ehbField));
-        Assert.Equal(submittedAnswer, InputValueByName(cancelled, answerField));
-        Assert.Equal(admin.Id.ToString(), InputValueByName(cancelled, "InternalParticipant.OwnerAccountId"));
-        Assert.Empty(InputValueByName(cancelled, "InternalParticipant.WomValidationConfirmationToken"));
-        await using var verify = new ApplicationDbContext(options);
-        Assert.Empty(await verify.EventParticipants.Where(item => item.EventId == bingoEvent.Id).ToListAsync());
-        Assert.False(await verify.OsrsCharacters.AnyAsync(item => item.NormalizedName == "INTERNAL OUTAGE ALICE"));
-        Assert.Empty(await verify.AuditEntries.ToListAsync());
-        Assert.Empty(await verify.PersonalNotifications.ToListAsync());
-        Assert.True(offlineLookup.Calls >= 1);
+        request.Headers.Add("Accept", "application/json"); request.Headers.Add("RequestVerificationToken", AntiforgeryToken(page));
+        using (var added = await client.SendAsync(request))
+        {
+            Assert.Equal(HttpStatusCode.OK, added.StatusCode);
+            using var json = System.Text.Json.JsonDocument.Parse(await added.Content.ReadAsStringAsync());
+            Assert.Equal("done", json.RootElement.GetProperty("outcome").GetString());
+            Assert.Equal("Outage Alice", json.RootElement.GetProperty("data").GetProperty("name").GetString());
+        }
+        await using (var verify = new ApplicationDbContext(options))
+        {
+            var created = await verify.EventParticipants.SingleAsync(item => item.EventId == bingoEvent.Id);
+            Assert.Equal(SignupSource.AdminCreated, created.Source); Assert.Equal(admin.Id, created.AccountId); Assert.False(created.CaptainVolunteer);
+            var assignment = await verify.EventParticipantCharacters.SingleAsync(item => item.EventParticipantId == created.Id && item.ReleasedAt == null);
+            Assert.Equal(saved.Id, assignment.OsrsCharacterId); Assert.Equal(7.25m, assignment.EhbSnapshot);
+            Assert.Empty(await verify.SignupAnswers.Where(item => item.EventParticipantId == created.Id && item.SignupQuestionId == answer.Id).ToListAsync());
+            Assert.Equal(7.25m, await verify.AccountOsrsCharacters.Where(item => item.AccountId == admin.Id).Select(item => item.SavedEhb).SingleAsync());
+        }
+        Assert.Equal(0, offlineLookup.Calls);
     }
 
     [Fact]
@@ -2905,8 +2904,27 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             using var json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
             return (json.RootElement.GetProperty("outcome").GetString(), json.RootElement.GetProperty("message").GetString() ?? string.Empty);
         }
+        // A10 (U5 item 1c, F04): the internal-participant form is retired; Add takes the admin
+        // account's saved Playing account with its stored EHB (no answers, no WOM).
+        var addedCharacter = new OsrsCharacter(Guid.NewGuid(), $"Int {Guid.NewGuid().ToString("N")[..8]}", $"INT {Guid.NewGuid():N}", now);
+        long addVersion;
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.AddRange(addedCharacter, new AccountOsrsCharacter(Guid.NewGuid(), admin.Id, addedCharacter.Id, admin.Id, true, 0, null, 8m, now));
+            await db.SaveChangesAsync();
+            addVersion = await db.Events.Where(x => x.Id == bingoEvent.Id).Select(x => x.Version).SingleAsync();
+        }
         participants = await client.GetStringAsync(participantsRoute);
-        using (var created = await client.PostAsync($"{participantsRoute}?handler=CreateInternalParticipant", new FormUrlEncodedContent(new Dictionary<string, string> { ["InternalParticipant.OwnerAccountId"] = admin.Id.ToString(), [$"InternalParticipant.AccountAnswers[{regular.Id}].CharacterName"] = $"Int {Guid.NewGuid().ToString("N")[..8]}", [$"InternalParticipant.AccountAnswers[{regular.Id}].Ehb"] = "8", [$"InternalParticipant.Answers[{answer.Id}]"] = "created", ["__RequestVerificationToken"] = AntiforgeryToken(participants) }))) Assert.Equal(HttpStatusCode.Redirect, created.StatusCode);
+        using (var addRequest = new HttpRequestMessage(HttpMethod.Post, $"{participantsRoute}?handler=Add")
+        {
+            Content = new FormUrlEncodedContent(new List<KeyValuePair<string, string>> { new("owner", admin.Id.ToString()), new("accounts", addedCharacter.Id.ToString()), new("primary", addedCharacter.Id.ToString()), new("paid", "false"), new("addPlace", "false"), new("eventVersion", addVersion.ToString(CultureInfo.InvariantCulture)) })
+        })
+        {
+            addRequest.Headers.Add("Accept", "application/json"); addRequest.Headers.Add("RequestVerificationToken", AntiforgeryToken(participants));
+            using var created = await client.SendAsync(addRequest);
+            using var json = System.Text.Json.JsonDocument.Parse(await created.Content.ReadAsStringAsync());
+            Assert.Equal("done", json.RootElement.GetProperty("outcome").GetString());
+        }
         await using (var verify = new ApplicationDbContext(options)) { var created = await verify.EventParticipants.SingleAsync(x => x.Source == SignupSource.AdminCreated); Assert.Equal(admin.Id, created.AccountId); Assert.Equal(SignupStatus.Confirmed, created.SignupStatus); Assert.NotNull(await verify.SignupForms.Where(x => x.Id == form.Id).Select(x => x.FirstResponseAt).SingleAsync()); }
 
         async Task LoginAsync(HttpClient http, string username, string password)

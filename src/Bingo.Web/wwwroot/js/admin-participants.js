@@ -47,7 +47,7 @@ export function init(region, ui = window.AdminUI) {
     if (summary && nextSummary) importChildren(summary, nextSummary);
     const actions = region.querySelector('[data-participants-head-actions]'), nextActions = doc.querySelector('[data-participants-head-actions]');
     if (actions && nextActions) importChildren(actions, nextActions);
-    for (const key of ['directoryCanonical', 'eventVersion', 'capacity', 'confirmed', 'waiting', 'firstWaiter', 'editable', 'privateEditable', 'lockReason']) root.dataset[key] = fresh.dataset[key] ?? '';
+    for (const key of ['directoryCanonical', 'eventVersion', 'capacity', 'confirmed', 'waiting', 'firstWaiter', 'editable', 'privateEditable', 'lockReason', 'playingSlots']) root.dataset[key] = fresh.dataset[key] ?? '';
     query = new URL(fresh.dataset.directoryCanonical, location.href);
     paintQuery();
     markSelected();
@@ -805,6 +805,207 @@ export function init(region, ui = window.AdminUI) {
     if (current.kind === 'ok') { install(state, current.view); drawerMessage(state, 'uncertain', t('We couldn’t confirm whether your changes were saved. The current details are shown; check them before saving again.')); }
     else drawerMessage(state, 'uncertain', t('We couldn’t confirm whether your changes were saved, and the current details didn’t load. Your edits are still here; check the participant before saving again.'));
     void reread();
+  }
+
+  /* ---------------- Add drawer (item 1c, F04) ---------------- */
+  // A website account's saved Playing accounts, no questions and no WOM (B-Participants-5 search).
+  const initials = name => (name || '?').replace(/[^A-Za-z0-9]+/g, ' ').trim().split(' ').slice(0, 2).map(part => part[0]?.toUpperCase() || '').join('') || '?';
+  const addDirty = state => !!(state.query.trim() || state.owner);
+  async function openAddDrawer(_button, { push = true, opener = root.querySelector('#add-btn') || document.activeElement } = {}) {
+    if (drawer?.mode === 'add') return;
+    if (!rosterEditable()) return;
+    if (drawer && !await closeDrawer({ history: false })) return;
+    drawerParam = ['add', '1'];
+    // The Add drawer replaces the URL rather than pushing, so no history entry can resubmit it.
+    setUrl(directoryUrl(), false);
+    const current = state(), full = current.confirmed >= current.capacity;
+    const add = drawer = { mode: 'add', id: null, query: '', owner: null, accounts: [], selected: new Set(), primary: null, place: full ? 'waiting' : 'confirmed', paid: false,
+      results: [], searchToken: 0, showErrors: false, saving: false, silent: false, pushed: false, opener };
+    const layer = ui.openLayer({ kind: 'drawer', title: t('Add participant'), content: tpl('data-participant-add-drawer'), opener,
+      dirty: () => addDirty(add), pending: () => add.saving,
+      onClose: async (_result, { navigating } = {}) => {
+        if (drawer === add) { drawer = null; drawerParam = null; }
+        if (navigating) return;
+        if (!add.silent) setUrl(directoryUrl());
+      } });
+    add.layer = layer; add.element = layer.element;
+    layer.element.dataset.pageFamily = 'participants';
+    layer.element.setAttribute('aria-labelledby', 'drawer-title'); layer.element.removeAttribute('aria-label');
+    wireAdd(add); paintAdd(add);
+    add.element.querySelector('#add-search').focus({ preventScroll: true });
+  }
+  openAdd = openAddDrawer;
+  function addErrors(add) {
+    if (!add.showErrors) return {};
+    if (!add.owner) return { search: t('Choose a website account.') };
+    if (!add.selected.size) return { accounts: add.accounts.some(item => !eligibility(add, item)) ? t('Select at least one playing account.') : t('This account has no playing accounts that can be added.') };
+    return {};
+  }
+  function eligibility(add, item) {
+    if (item.savedEhb === null || item.savedEhb === undefined) return t('No saved EHB — update the account first');
+    if (item.inEvent) return t('Already in this event');
+    return '';
+  }
+  function paintAdd(add) {
+    const node = add.element, current = state(), slots = Number(root.dataset.playingSlots || 1);
+    const full = current.confirmed >= current.capacity, left = Math.max(0, current.capacity - current.confirmed);
+    const errors = addErrors(add);
+    node.querySelector('[data-ad-pick]').hidden = !!add.owner;
+    const picked = node.querySelector('[data-ad-picked]'); picked.hidden = !add.owner;
+    const search = node.querySelector('[data-ad-search]');
+    search.classList.toggle('is-invalid', !!errors.search); search.setAttribute('aria-invalid', String(!!errors.search));
+    const searchNote = node.querySelector('[data-ad-search-note]'); searchNote.replaceChildren(fieldNote('error', errors.search)); if (searchNote.firstElementChild) searchNote.firstElementChild.id = 'add-search-err';
+    if (add.owner) {
+      node.querySelector('[data-ad-initials]').textContent = initials(add.owner.username);
+      node.querySelector('[data-ad-username]').textContent = '@' + add.owner.username;
+      node.querySelector('[data-ad-sub]').textContent = add.owner.discordName || t('Discord not linked');
+    }
+    node.querySelector('[data-ad-placeholder]').hidden = !!add.owner;
+    node.querySelector('[data-ad-accounts-wrap]').hidden = !add.owner;
+    const list = node.querySelector('[data-ad-accounts]');
+    list.replaceChildren(...add.accounts.map(item => {
+      const checked = add.selected.has(item.characterId);
+      const reason = eligibility(add, item) || (!checked && add.selected.size >= slots ? t('All {0} account slots are used', slots) : '');
+      const row = el('div', 'pick' + (reason ? ' is-disabled' : checked ? ' is-checked' : ''));
+      const box = el('input'); box.type = 'checkbox'; box.id = 'addacc-' + item.characterId; box.checked = checked; box.disabled = !!reason; box.dataset.adAccount = item.characterId;
+      const label = el('label', 'pick-label'); label.htmlFor = box.id; label.append(el('div', 'pick-name', item.name)); if (reason) label.append(el('div', 'pick-sub', reason));
+      const ehb = el('div', 'pick-ehb' + (item.savedEhb === null || item.savedEhb === undefined ? ' is-missing' : ''), item.savedEhb === null || item.savedEhb === undefined ? t('No EHB') : t('{0} EHB', fmtEhb(item.savedEhb)));
+      const primary = el('label', 'pick-prim' + (checked ? '' : ' is-hidden')); const radio = el('input'); radio.type = 'radio'; radio.name = 'add-primary'; radio.checked = add.primary === item.characterId; radio.disabled = !checked; radio.dataset.adPrimary = item.characterId;
+      radio.setAttribute('aria-label', t('Use {0} as primary account', item.name)); primary.append(radio, t('Primary'));
+      row.append(box, label, ehb, primary); return row;
+    }));
+    const accountsNote = node.querySelector('[data-ad-accounts-note]'); accountsNote.replaceChildren(fieldNote('error', errors.accounts)); if (accountsNote.firstElementChild) accountsNote.firstElementChild.id = 'add-accounts-err';
+    node.querySelector('[data-ad-accounts-hint]').textContent = t('EHB comes from the saved account and can be changed for this event after adding. Up to {0} playing accounts per participant.', slots);
+    const primary = add.accounts.find(item => item.characterId === add.primary);
+    const draftValue = node.querySelector('[data-ad-draft]'); draftValue.hidden = !primary;
+    if (primary) draftValue.replaceChildren(fillNodes(labels['Draft value {0} EHB'] ?? 'Draft value {0} EHB', el('b', '', fmtEhb(primary.savedEhb))));
+    if (!full) add.place = 'confirmed';
+    for (const input of node.querySelectorAll('[data-ad-place]')) {
+      input.checked = input.value === add.place; input.disabled = add.saving || (input.value === 'waiting' && !full);
+      input.closest('.choice').classList.toggle('is-on', input.checked); input.closest('.choice').classList.toggle('is-disabled', input.value === 'waiting' && !full);
+    }
+    node.querySelector('[data-ad-pc-title]').textContent = full ? t('Confirm and add a place') : t('AdminDesign.Confirmed');
+    node.querySelector('[data-ad-pc-sub]').textContent = full ? t('Full · capacity {0} → {1}', current.capacity, current.capacity + 1) : t('{0} of {1} spots left', left, current.capacity);
+    node.querySelector('[data-ad-pw-sub]').textContent = full ? t('Joins at #{0}', current.waiting + 1) : t('Only when the event is full');
+    const capHint = node.querySelector('[data-ad-cap-hint]'); capHint.hidden = !(full && add.place === 'confirmed');
+    capHint.textContent = t('Capacity will increase from {0} to {1} when you add this participant.', current.capacity, current.capacity + 1);
+    for (const input of node.querySelectorAll('[data-ad-pay]')) { input.checked = (input.value === 'paid') === add.paid; input.closest('.seg-opt').classList.toggle('is-on', input.checked); }
+    const submit = node.querySelector('[data-ad-submit]');
+    submit.disabled = add.saving; submit.classList.toggle('is-busy', add.saving); submit.querySelector('.spin').hidden = !add.saving;
+    submit.querySelector('[data-ad-submit-label]').textContent = add.saving ? t('Adding…') : t('Add participant');
+    for (const button of node.querySelectorAll('.dr-foot [data-d-close]')) button.disabled = add.saving;
+    node.setAttribute('aria-busy', String(add.saving));
+  }
+  function paintResults(add) {
+    const node = add.element, box = node.querySelector('[data-ad-results]'), query = add.query.trim();
+    box.hidden = !query; // B-Participants-5: no "Recently joined" list before a search.
+    if (!query) return;
+    node.querySelector('[data-ad-results-label]').textContent = add.results.length ? t(add.results.length === 1 ? '{0} match' : '{0} matches', add.results.length) : t('No matches');
+    const list = node.querySelector('[data-ad-result-list]');
+    if (!add.results.length) { list.replaceChildren(el('div', 'res-empty', t('No website accounts match “{0}”.', query))); return; }
+    list.replaceChildren(...add.results.map(owner => {
+      const button = el('button', 'res'); button.type = 'button'; button.dataset.adOwner = owner.id; button.disabled = !!owner.inEvent;
+      const text = el('span', 'grow'); text.append(el('span', 'res-name pa-block', '@' + owner.username),
+        el('span', 'res-sub pa-block', (owner.matchedAccount ? t('Owns {0}', owner.matchedAccount) : owner.savedAccounts.join(', ')) + ' · ' + (owner.discordName || t('Discord not linked'))));
+      const note = el('span', 'res-note', owner.inEvent === 'withdrawn' ? t('Withdrawn · restore instead') : owner.inEvent ? t('Already in event') : t(owner.savedAccounts.length === 1 ? '{0} saved account' : '{0} saved accounts', owner.savedAccounts.length));
+      const avatar = el('span', 'avatar', initials(owner.username)); avatar.setAttribute('aria-hidden', 'true');
+      button.append(avatar, text, note); return button;
+    }));
+  }
+  async function searchOwners(add) {
+    const token = ++add.searchToken, query = add.query.trim();
+    if (!query) { add.results = []; paintResults(add); return; }
+    const outcome = await window.AdminFetch.request(`${actionUrl('SearchOwnerAccounts')}&search=${encodeURIComponent(query)}`, { expect: 'json', readback: true, signal, cache: 'no-store' });
+    if (drawer !== add || token !== add.searchToken) return;
+    if (outcome.kind === 'handler' && Array.isArray(outcome.data)) { add.results = outcome.data; paintResults(add); drawerMessage(add, null, ''); }
+    else if (outcome.kind !== 'session-lost') drawerMessage(add, 'error', t('Website accounts couldn’t be searched. Try again.'));
+  }
+  async function pickOwner(add, owner) {
+    const outcome = await window.AdminFetch.request(`${actionUrl('OwnerAccounts')}&owner=${encodeURIComponent(owner.id)}`, { expect: 'json', readback: true, signal, cache: 'no-store' });
+    if (drawer !== add) return;
+    if (!(outcome.kind === 'handler' && Array.isArray(outcome.data))) { if (outcome.kind !== 'session-lost') drawerMessage(add, 'error', t('That account’s saved playing accounts didn’t load. Try again.')); return; }
+    add.owner = owner; add.accounts = outcome.data; add.selected = new Set(); add.primary = null;
+    const eligible = add.accounts.filter(item => !eligibility(add, item));
+    if (eligible.length === 1) { add.selected.add(eligible[0].characterId); add.primary = eligible[0].characterId; }
+    drawerMessage(add, null, ''); paintAdd(add);
+    (add.element.querySelector(`#addacc-${CSS.escape(eligible[0]?.characterId || '')}`) || add.element.querySelector('#add-change'))?.focus({ preventScroll: true });
+  }
+  function wireAdd(add) {
+    const node = add.element, on = (type, fn) => node.addEventListener(type, fn, { signal });
+    let searchTimer;
+    on('click', event => {
+      if (event.target.closest('[data-d-close]')) { void ui.closeLayer(); return; }
+      if (add.saving) return;
+      const owner = event.target.closest('[data-ad-owner]');
+      if (owner && !owner.disabled) { void pickOwner(add, add.results.find(item => item.id === owner.dataset.adOwner)); return; }
+      if (event.target.closest('[data-ad-change]')) { add.owner = null; add.accounts = []; add.selected = new Set(); add.primary = null; paintAdd(add); node.querySelector('#add-search').focus(); return; }
+      if (event.target.closest('[data-ad-submit]')) void submitAdd(add);
+    });
+    on('input', event => {
+      if (!event.target.matches('[data-ad-search]')) return;
+      add.query = event.target.value; clearTimeout(searchTimer); searchTimer = setTimeout(() => void searchOwners(add), 250);
+    });
+    on('keydown', event => {
+      if (event.target.matches('[data-ad-search]')) {
+        if (event.key === 'Enter') { event.preventDefault(); clearTimeout(searchTimer); void searchOwners(add); }
+        else if (event.key === 'ArrowDown') { event.preventDefault(); node.querySelector('#add-results button.res:not([disabled])')?.focus(); }
+        return;
+      }
+      const result = event.target.closest('#add-results button.res');
+      if (result && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
+        event.preventDefault();
+        const items = [...node.querySelectorAll('#add-results button.res:not([disabled])')], index = items.indexOf(result) + (event.key === 'ArrowDown' ? 1 : -1);
+        if (index < 0) node.querySelector('#add-search').focus(); else items[Math.min(index, items.length - 1)]?.focus();
+      }
+    });
+    on('change', event => {
+      const target = event.target, slots = Number(root.dataset.playingSlots || 1);
+      if (target.matches('[data-ad-account]')) {
+        const id = target.dataset.adAccount;
+        if (target.checked && add.selected.size < slots) { add.selected.add(id); if (!add.primary) add.primary = id; }
+        else { add.selected.delete(id); if (add.primary === id) add.primary = [...add.selected][0] || null; }
+      } else if (target.matches('[data-ad-primary]')) add.primary = target.dataset.adPrimary;
+      else if (target.matches('[data-ad-place]')) add.place = target.value;
+      else if (target.matches('[data-ad-pay]')) add.paid = target.value === 'paid';
+      else return;
+      paintAdd(add);
+      node.querySelector('#' + CSS.escape(target.id || ''))?.focus({ preventScroll: true });
+    });
+  }
+  async function submitAdd(add) {
+    if (add.saving) return;
+    add.showErrors = true;
+    const errors = addErrors(add);
+    if (errors.search || errors.accounts) { paintAdd(add); (add.element.querySelector(errors.search ? '#add-search' : '#add-accounts input:not([disabled])') || add.element.querySelector('#add-accounts'))?.focus(); return; }
+    const current = state(), full = current.confirmed >= current.capacity;
+    const body = new FormData();
+    body.set('owner', add.owner.id); for (const id of add.selected) body.append('accounts', id);
+    body.set('primary', add.primary); body.set('paid', String(add.paid)); body.set('addPlace', String(full && add.place === 'confirmed')); body.set('eventVersion', current.version);
+    const names = add.accounts.filter(item => add.selected.has(item.characterId)).map(item => item.name);
+    const sessionDraft = { [t('Website account')]: '@' + add.owner.username, [t('Playing accounts')]: names.join(', '), [t('Entry payment')]: add.paid ? t('Paid') : t('Unpaid') };
+    add.saving = true; drawerMessage(add, null, ''); paintAdd(add);
+    const outcome = await post('Add', body, sessionDraft);
+    add.saving = false;
+    if (drawer !== add || signal.aborted) return;
+    paintAdd(add);
+    if (outcome.kind === 'session-lost') return;
+    const result = outcome.kind === 'handler' ? outcome.data : null;
+    if (result?.outcome === 'done') {
+      const value = result.data || {}, name = value.name || add.accounts.find(item => item.characterId === add.primary)?.name || '';
+      await add.layer.close(true);
+      await reread(); if (value.participantId) flash(value.participantId);
+      const text = (value.status === 'waiting' ? t('{0} added to the waiting list (#{1})', name, value.waitingPosition) : t('{0} added to confirmed', name)) + (value.addedPlace ? t(' · capacity now {0}', value.capacity) : '');
+      ui.toast(text, { actionLabel: t('Show'), action: () => {
+        search.value = name;
+        void readDirectory(withQuery(params => { params.set('q', name); params.delete('pay'); if (value.status === 'waiting') params.set('tab', 'waiting'); else params.delete('tab'); }), { record: true }).then(() => { if (value.participantId) flash(value.participantId); });
+      } });
+      return;
+    }
+    if (result?.outcome === 'stale') { await reread(); paintAdd(add); drawerMessage(add, 'warning', t('The event changed while you were adding. The current numbers are shown; nothing was added.')); return; }
+    if (result?.outcome === 'refused' || outcome.kind === 'refused') { drawerMessage(add, 'error', result?.message || outcome.reason || t('Couldn’t add the participant. Nothing was saved.')); return; }
+    // Lost response: never resubmit; show the current list and say so.
+    await reread(); paintAdd(add);
+    drawerMessage(add, 'uncertain', t('We couldn’t confirm whether {0} was added. The current list is shown; check it before trying again.', '@' + add.owner.username));
   }
 
   /* ---------------- URL state ---------------- */

@@ -1941,7 +1941,7 @@ public sealed partial class SignupService(
             foreach (var recipient in recipients)
             {
                 var route = adminRecipients.Contains(recipient)
-                    ? $"/Admin/Events/Participant/{request.EventId}/Participants/{participant.Id}"
+                    ? $"/Admin/Events/Participants/{request.EventId}?participant={participant.Id}"
                     : $"/Events/{Uri.EscapeDataString(bingoEvent.Slug)}/Teams";
                 await AddNotificationOnceAsync("live-withdrawal", membership.Id, recipient, preLive ? "participant.prelive_withdrawn" : "participant.live_withdrawn", detail, route, now, request.EventId, cancellationToken);
             }

@@ -42,7 +42,9 @@
         "Action", "Participant", "Payment", "Paid", "Unpaid", "Payment for {0}: paid. Activate to mark as unpaid.", "Payment for {0}: unpaid. Activate to mark as paid.",
         "Search participants",
         // Item 1b drawer.
-        "#{0} of {1}", "All {0} account slots for this event are used", "Alt account", "At least one playing account is required", "Can’t be negative.", "Changes to {0} saved", "Check this field.", "Discord", "Draft value {0} EHB", "EHB filled in from the saved account", "EHB for {0}", "Enter a number.", "Enter an RSN.", "Entry payment", "External roster member", "Fix the highlighted field to save.", "Fix the {0} highlighted fields to save.", "Linked", "Member since", "No", "No answer", "No request", "No saved EHB", "No team yet", "No website account", "None", "Not a saved account. Used for this event only.", "Not linked", "Not one of @{0}’s saved accounts. Used for this event only.", "Only for captain volunteers", "Participant not found", "Participant · @{0}", "Playing accounts", "Primary", "Private note", "RSN for {0}", "Remove account", "Remove {0}", "Requested co-captain", "Required. 0 is valid.", "Save changes", "Saving…", "Signed up", "Signup order", "Source", "This account is already listed.", "This is already a playing account.", "This participant changed while you were editing. The current details are shown; nothing was saved.", "Use 100,000 or less.", "Use up to 12 letters, numbers, spaces, - or _.", "Use {0} as primary account", "Volunteers to captain", "Waiting · #{0}", "Was paid", "Was unpaid", "We couldn’t confirm whether your changes were saved, and the current details didn’t load. Your edits are still here; check the participant before saving again.", "We couldn’t confirm whether your changes were saved. The current details are shown; check them before saving again.", "Website account", "Withdrawn", "Yes", "new account", "{0} / {1}", "{0} EHB saved", "{0} of {1} account slots", "· optional", "· optional, no EHB", "· retired question"
+        "#{0} of {1}", "All {0} account slots for this event are used", "Alt account", "At least one playing account is required", "Can’t be negative.", "Changes to {0} saved", "Check this field.", "Discord", "Draft value {0} EHB", "EHB filled in from the saved account", "EHB for {0}", "Enter a number.", "Enter an RSN.", "Entry payment", "External roster member", "Fix the highlighted field to save.", "Fix the {0} highlighted fields to save.", "Linked", "Member since", "No", "No answer", "No request", "No saved EHB", "No team yet", "No website account", "None", "Not a saved account. Used for this event only.", "Not linked", "Not one of @{0}’s saved accounts. Used for this event only.", "Only for captain volunteers", "Participant not found", "Participant · @{0}", "Playing accounts", "Primary", "Private note", "RSN for {0}", "Remove account", "Remove {0}", "Requested co-captain", "Required. 0 is valid.", "Save changes", "Saving…", "Signed up", "Signup order", "Source", "This account is already listed.", "This is already a playing account.", "This participant changed while you were editing. The current details are shown; nothing was saved.", "Use 100,000 or less.", "Use up to 12 letters, numbers, spaces, - or _.", "Use {0} as primary account", "Volunteers to captain", "Waiting · #{0}", "Was paid", "Was unpaid", "We couldn’t confirm whether your changes were saved, and the current details didn’t load. Your edits are still here; check the participant before saving again.", "We couldn’t confirm whether your changes were saved. The current details are shown; check them before saving again.", "Website account", "Withdrawn", "Yes", "new account", "{0} / {1}", "{0} EHB saved", "{0} of {1} account slots", "· optional", "· optional, no EHB", "· retired question",
+        // Item 1c Add drawer.
+        "Add participant", "Adding…", "All {0} account slots are used", "Already in event", "Already in this event", "Capacity will increase from {0} to {1} when you add this participant.", "Choose a website account.", "Couldn’t add the participant. Nothing was saved.", "Discord not linked", "EHB comes from the saved account and can be changed for this event after adding. Up to {0} playing accounts per participant.", "Full · capacity {0} → {1}", "No EHB", "No matches", "No saved EHB — update the account first", "No website accounts match “{0}”.", "Owns {0}", "Select at least one playing account.", "Show", "That account’s saved playing accounts didn’t load. Try again.", "The event changed while you were adding. The current numbers are shown; nothing was added.", "This account has no playing accounts that can be added.", "We couldn’t confirm whether {0} was added. The current list is shown; check it before trying again.", "Website accounts couldn’t be searched. Try again.", "Withdrawn · restore instead", "{0} EHB", "{0} added to confirmed", "{0} added to the waiting list (#{1})", "{0} of {1} spots left", "{0} match", "{0} matches", "{0} saved account", "{0} saved accounts"
     };
     var labelJson = JsonSerializer.Serialize(labels.Distinct().ToDictionary(key => key, key => T[key].Value));
     string StatusLabel(ParticipantsListRow row) => row.Status switch
@@ -85,7 +87,7 @@
 }
 <div data-participants data-directory-canonical="@directory" data-labels="@labelJson" data-event-id="@item.Id" data-event-name="@item.Name"
      data-event-version="@item.Version" data-capacity="@counts.Capacity" data-confirmed="@counts.Confirmed" data-waiting="@counts.Waiting"
-     data-first-waiter="@Model.List.FirstWaitingName" data-editable="@policy.Editable.ToString().ToLowerInvariant()" data-private-editable="@policy.PrivateEditable.ToString().ToLowerInvariant()" data-lock-reason="@policy.Reason">
+     data-first-waiter="@Model.List.FirstWaitingName" data-editable="@policy.Editable.ToString().ToLowerInvariant()" data-private-editable="@policy.PrivateEditable.ToString().ToLowerInvariant()" data-lock-reason="@policy.Reason" data-playing-slots="@Model.PlayingSlots" data-drawer-add="@Model.DrawerAdd.ToString().ToLowerInvariant()">
 <div data-participants-banners>
 @if (!policy.Editable) { <div class="banner is-info page-banner"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("info")' /><span class="grow">@policy.Reason @T["Accounts, signup answers and statuses can’t be changed. Payments and private notes can still be updated."]</span></div> }
 </div>
@@ -213,6 +215,43 @@ else
     <span class="dirty" role="status" data-d-dirty hidden><span class="dot"></span>@T["Unsaved changes"]</span>
     <button type="button" class="btn" data-d-close>@T["Cancel"]</button>
     <button type="button" class="btn btn-primary pa-save" disabled data-d-save><span class="spin" hidden></span><span data-d-save-label>@T["Save changes"]</span></button>
+</div>
+</template>
+<template data-participant-add-drawer>
+<div class="dr-head">
+    <div class="grow"><div class="eyebrow">@item.Name</div><h2 class="dr-title" id="drawer-title">@T["Add participant"]</h2></div>
+    <button type="button" class="icon-btn" id="drawer-close" aria-label="@T["Close"]" data-d-close><partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button>
+</div>
+<div class="dr-body" id="drawer-body">
+    <div class="dr-banners"><div data-d-messages></div></div>
+    <section class="sec" aria-labelledby="add-acc-lbl">
+        <div class="sec-head"><h3 class="sec-title" id="add-acc-lbl">@T["Website account"]</h3></div>
+        <div data-ad-pick>
+            <div class="search pa-full"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("search")' /><input class="input" id="add-search" type="search" placeholder="@T["Search by username, Discord or RSN"]" aria-label="@T["Search website accounts"]" aria-describedby="add-search-err" maxlength="@ParticipantsListReader.SearchLimit" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" data-ad-search></div>
+            <div data-ad-search-note></div>
+            <div class="results" id="add-results" hidden data-ad-results><div class="res-label" data-ad-results-label></div><div data-ad-result-list></div></div>
+        </div>
+        <div class="picked" hidden data-ad-picked><span class="avatar" aria-hidden="true" data-ad-initials></span><span class="grow"><span class="res-name pa-block" data-ad-username></span><span class="res-sub pa-block" data-ad-sub></span></span><button type="button" class="btn btn-sm" id="add-change" data-ad-change>@T["Change"]</button></div>
+    </section>
+    <section class="sec" aria-labelledby="add-pl-lbl">
+        <div class="sec-head"><h3 class="sec-title" id="add-pl-lbl">@T["Playing accounts"]</h3><span class="sec-aside" hidden data-ad-draft></span></div>
+        <div class="placeholder" data-ad-placeholder>@T["Choose a website account to see its saved playing accounts."]</div>
+        <div hidden data-ad-accounts-wrap><div class="picks" id="add-accounts" role="group" aria-labelledby="add-pl-lbl" aria-describedby="add-accounts-err" tabindex="-1" data-ad-accounts></div><div data-ad-accounts-note></div><div class="field-hint" data-ad-accounts-hint></div></div>
+    </section>
+    <section class="sec" aria-labelledby="add-place-lbl">
+        <div class="sec-head"><h3 class="sec-title" id="add-place-lbl">@T["Add to"]</h3></div>
+        <div class="choices" role="radiogroup" aria-labelledby="add-place-lbl">
+            <label class="choice"><input type="radio" name="add-place" value="confirmed" data-ad-place><span><span class="choice-title pa-block" data-ad-pc-title></span><span class="choice-sub pa-block" data-ad-pc-sub></span></span></label>
+            <label class="choice"><input type="radio" name="add-place" value="waiting" data-ad-place><span><span class="choice-title pa-block">@T["Waiting list"]</span><span class="choice-sub pa-block" data-ad-pw-sub></span></span></label>
+        </div>
+        <div class="field-hint" role="status" hidden data-ad-cap-hint></div>
+        <div class="pa-gap-lg"><div class="lbl" id="add-pay-lbl">@T["Entry payment"]</div><div class="seg" role="radiogroup" aria-labelledby="add-pay-lbl"><label class="seg-opt is-on"><input class="sr" type="radio" name="add-pay" value="unpaid" checked data-ad-pay>@T["Unpaid"]</label><label class="seg-opt"><input class="sr" type="radio" name="add-pay" value="paid" data-ad-pay>@T["Paid"]</label></div></div>
+    </section>
+</div>
+<div class="dr-foot">
+    <div class="spacer"></div>
+    <button type="button" class="btn" data-d-close>@T["Cancel"]</button>
+    <button type="button" class="btn btn-primary pa-add-save" data-ad-submit><span class="spin" hidden></span><span data-ad-submit-label>@T["Add participant"]</span></button>
 </div>
 </template>
 <template data-participant-account-row>

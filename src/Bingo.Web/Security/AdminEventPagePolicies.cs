@@ -104,9 +104,8 @@ public static class AdminEventPagePolicies
                 ("POST:Confirm", AdminEventHandlerGate.Setup),
                 ("POST:MoveToWaiting", AdminEventHandlerGate.Setup),
                 ("POST:Restore", AdminEventHandlerGate.Setup),
-                ("POST:CancelWomValidation", AdminEventHandlerGate.Setup),
+                ("POST:Add", AdminEventHandlerGate.Setup),
                 ("POST:SignupAdministration", AdminEventHandlerGate.Setup),
-                ("POST:CreateInternalParticipant", AdminEventHandlerGate.Setup),
                 ("POST:Payment", AdminEventHandlerGate.Service)),
             // U5 1b: redirect-only old detail URL (A2); its write handlers are retired (A10).
             [typeof(ParticipantModel)] = Page(AdminEventPageKind.Participant, true, true,
