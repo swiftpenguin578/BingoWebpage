@@ -5214,4 +5214,10 @@
   <data name="A Playing character cannot be assigned to more than one included participant." xml:space="preserve">
     <value>En spillende karakter kan ikke tildeles mere end én deltager i draftet.</value>
   </data>
+  <data name="{0} will have {1} member, {2} below the drafted size of {3}." xml:space="preserve">
+    <value>{0} får {1} medlem, {2} under den draftede størrelse på {3}.</value>
+  </data>
+  <data name="{0} will have {1} members, {2} below the drafted size of {3}." xml:space="preserve">
+    <value>{0} får {1} medlemmer, {2} under den draftede størrelse på {3}.</value>
+  </data>
 </root>

@@ -114,6 +114,8 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     await page.locator('#draft-menu .menu-item', { hasText: 'Remove from team…' }).click();
     await modal.locator('.m-title', { hasText: 'Remove Bronze Liner from Bronze Line?' }).waitFor();
     assert.match(await modal.innerText(), /Bronze Line will have no captain until you assign one\./);
+    // U6-E2 (a): under the drafted size, the dialog says by how much.
+    assert.match(await modal.innerText(), /Bronze Line will have 2 members, 1 below the drafted size of 3\./);
     await modal.locator('#cx-confirm').click();
     await toast('Bronze Liner removed from Bronze Line. Rosters republished.');
     await card('Bronze Line').locator('button', { hasText: 'Add member' }).click();
