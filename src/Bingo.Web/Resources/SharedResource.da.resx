@@ -4490,6 +4490,21 @@
   <data name="Version {0} published" xml:space="preserve"><value>Version {0} offentliggjort</value></data>
   <data name="Version {0} reopened" xml:space="preserve"><value>Version {0} genåbnet</value></data>
   <data name="{0} versions" xml:space="preserve"><value>{0} versioner</value></data>
+  <data name="1 version" xml:space="preserve"><value>1 version</value></data>
+  <data name="Not found" xml:space="preserve"><value>Ikke fundet</value></data>
+  <data name="The event ends {0}. These standings are live and change as evidence is approved." xml:space="preserve"><value>Eventet slutter {0}. Disse stillinger er live og ændres, efterhånden som beviser godkendes.</value></data>
+  <data name="Calculated now from approved evidence." xml:space="preserve"><value>Beregnet nu ud fra godkendte beviser.</value></data>
+  <data name="Correct official results" xml:space="preserve"><value>Ret officielle resultater</value></data>
+  <data name="Reopen results…" xml:space="preserve"><value>Genåbn resultater…</value></data>
+  <data name="Manage the connection" xml:space="preserve"><value>Administrér tilknytningen</value></data>
+  <data name="Standings appear once the board is published and the event is live." xml:space="preserve"><value>Stillinger vises, når pladen er offentliggjort, og eventet er live.</value></data>
+  <data name="Pending submissions" xml:space="preserve"><value>Afventende indsendelser</value></data>
+  <data name="{0} by @{1}" xml:space="preserve"><value>{0} af @{1}</value></data>
+  <data name="Version summary" xml:space="preserve"><value>Versionsoversigt</value></data>
+  <data name="Results as published" xml:space="preserve"><value>Resultater som offentliggjort</value></data>
+  <data name="Results of this version" xml:space="preserve"><value>Resultater for denne version</value></data>
+  <data name="Stored snapshot: placements and order exactly as published. Later rule or data changes don’t alter it." xml:space="preserve"><value>Gemt øjebliksbillede: placeringer og rækkefølge præcis som offentliggjort. Senere regel- eller dataændringer ændrer det ikke.</value></data>
+  <data name="The link may be incomplete. Retained versions are never deleted." xml:space="preserve"><value>Linket kan være ufuldstændigt. Bevarede versioner slettes aldrig.</value></data>
   <data name="Completed the board after {0}" xml:space="preserve"><value>Fuldførte pladen efter {0}</value></data>
   <data name="Event is in final review" xml:space="preserve"><value>Eventet er i slutgennemgang</value></data>
   <data name="Every submission has a decision." xml:space="preserve"><value>Alle indsendelser har en afgørelse.</value></data>

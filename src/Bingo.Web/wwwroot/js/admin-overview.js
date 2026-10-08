@@ -253,7 +253,7 @@ export async function init(region, ui = window.AdminUI) {
     codeField.append(codeLabel, codeRow, codeError);
     const fromField = el('div', 'field'), fromLabel = el('div', 'lbl'); fromLabel.id = 'code-from-lbl'; fromLabel.append(document.createTextNode(t('Active from') + ' '), el('span', 'opt', '· ' + c.timezone));
     const fromValue = el('input'); fromValue.type = 'hidden'; fromValue.value = c.defaultFrom;
-    const dtp = el('div', 'dtp'); Object.assign(dtp.dataset, { dateTime: 'code-from', label: t('Active from'), timezone: timezone(), now: new Date(now()).toISOString(), clearable: 'false' });
+    const dtp = el('div', 'dtp'); dtp.id = 'code-from-field'; Object.assign(dtp.dataset, { dateTime: 'code-from', label: t('Active from'), timezone: timezone(), now: new Date(now()).toISOString(), clearable: 'false' });
     dtp.setAttribute('role', 'group'); dtp.setAttribute('aria-labelledby', 'code-from-lbl');
     const date = el('input', 'dtp-date'); date.id = 'code-from-date'; date.placeholder = 'dd mmm yyyy'; date.autocomplete = 'off'; date.setAttribute('aria-label', t('{0}, date', t('Active from')));
     const time = el('input', 'dtp-time'); time.id = 'code-from-time'; time.placeholder = 'hh:mm'; time.inputMode = 'numeric'; time.autocomplete = 'off'; time.setAttribute('aria-label', t('{0}, time (24-hour)', t('Active from')));

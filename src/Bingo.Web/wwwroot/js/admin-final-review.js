@@ -92,10 +92,9 @@ export function init(region, ui = window.AdminUI) {
     if(drawer){closingFromUrl=true;await drawer.layer.close();closingFromUrl=false;drawer=null;}
     if(!version)return;
     if(record)ui.setUrl({version},schema,{record:true});
-    const source=root.querySelector(`template[data-final-history="${version}"]`),content=document.createDocumentFragment();
-    const head=el('div','dr-head'),title=el('h2','dr-title',t('Version {0}',version)),close=el('button','btn btn-sm',t('Close'));head.append(title,close);content.append(head);
-    const body=el('div','dr-body');body.append(source?source.content.cloneNode(true):el('div','empty',t('This version isn’t available')));content.append(body);
-    const layer=ui.openLayer({kind:'drawer',title:t('Version {0}',version),content,onClose:()=>{drawer=null;if(!closingFromUrl)ui.setUrl({version:null},schema);}});layer.element.dataset.pageFamily='final-review';drawer={version,layer};on(close,'click',()=>ui.closeLayer());
+    const source=root.querySelector(`template[data-final-history="${version}"]`)||root.querySelector('template[data-final-history-missing]'),content=document.createDocumentFragment();
+    content.append(source.content.cloneNode(true));const missing=content.querySelector('[data-final-missing-title]');if(missing)missing.textContent=t('Version {0}',version);
+    const layer=ui.openLayer({kind:'drawer',title:t('Version {0}',version),content,onClose:()=>{drawer=null;if(!closingFromUrl)ui.setUrl({version:null},schema);}});layer.element.classList.add('is-wide');layer.element.dataset.pageFamily='final-review';drawer={version,layer};layer.element.querySelectorAll('[data-final-close]').forEach(button=>on(button,'click',()=>ui.closeLayer()));
   }
   on(root,'click',event=>{const toggle=event.target.closest('#how-btn');if(toggle){const expanded=toggle.getAttribute('aria-expanded')!=='true';toggle.setAttribute('aria-expanded',String(expanded));root.querySelector('#how-body').hidden=!expanded;}
     const link=event.target.closest('[data-final-version]');if(link){event.preventDefault();void syncDrawer(link.href,true);}if(event.target.closest('[data-final-readback]'))void check();});

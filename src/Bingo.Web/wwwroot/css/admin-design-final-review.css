@@ -1,28 +1,68 @@
 :where([data-page-family="final-review"]).page { max-width:1120px; }
-:where([data-page-family="final-review"]) .fr-content { display:grid; gap:var(--dk-space-5); }
-:where([data-page-family="final-review"]) .fr-title { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+:where([data-page-family="final-review"]) .fr-content { display:grid; grid-template-columns:minmax(0,1fr); gap:var(--dk-space-5); }
+:where([data-page-family="final-review"]) .fr-tz { color:var(--dk-text-3); }
 :where([data-page-family="final-review"]) .fr-pub-head { display:flex; align-items:flex-start; gap:14px; padding:var(--dk-space-5) var(--dk-space-6); }
+:where([data-page-family="final-review"]) .fr-pub-ic, :where([data-page-family="final-review"]) .fr-official-ic { width:32px; height:32px; border-radius:var(--dk-radius-pill); display:grid; place-items:center; flex:none; background:var(--dk-track); color:var(--dk-text-3); }
+:where([data-page-family="final-review"]) .fr-pub-ic.is-ready { background:var(--dk-success-bg); color:var(--dk-success-fg); }
+:where([data-page-family="final-review"]) .fr-pub-ic.is-blocked { background:var(--dk-warning-bg); color:var(--dk-warning-fg); }
+:where([data-page-family="final-review"]) .fr-official-ic { background:var(--dk-success-bg); color:var(--dk-success-fg); }
+:where([data-page-family="final-review"]) .fr-pub-text { flex:1; min-width:0; padding-top:1px; }
+:where([data-page-family="final-review"]) .fr-pub-title { margin:0; font-size:var(--dk-fs-section, 16px); font-weight:600; letter-spacing:-.005em; }
+:where([data-page-family="final-review"]) .fr-pub-title:focus { outline:none; }
+:where([data-page-family="final-review"]) .fr-pub-sub { margin:4px 0 0; font-size:var(--dk-fs-control-sm); color:var(--dk-text-2); line-height:1.5; max-width:62ch; }
 :where([data-page-family="final-review"]) .fr-pub-act { display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex:none; max-width:260px; }
-:where([data-page-family="final-review"]) .fr-checks { padding:2px var(--dk-space-6) 8px; }
+:where([data-page-family="final-review"]) .fr-pub-why { font-size:var(--dk-fs-small); color:var(--dk-text-3); text-align:right; }
+:where([data-page-family="final-review"]) .fr-checks { padding:2px var(--dk-space-6) 8px calc(var(--dk-space-6) + 46px); border-top:1px solid var(--dk-border-subtle); }
+:where([data-page-family="final-review"]) .fr-checks .check-item { padding:11px 0; }
+:where([data-page-family="final-review"]) .fr-official { padding:var(--dk-space-5) var(--dk-space-6); }
 :where([data-page-family="final-review"]) .fr-official-main { display:flex; align-items:flex-start; gap:14px; }
-:where([data-page-family="final-review"]) .fr-wom-note { margin-top:12px; }
+:where([data-page-family="final-review"]) .fr-official-main .grow { min-width:0; }
+:where([data-page-family="final-review"]) .fr-official-note { display:flex; gap:8px; align-items:flex-start; margin:12px 0 0; padding:9px 12px; border-radius:var(--dk-radius-lg); background:var(--dk-warning-bg); color:var(--dk-text); font-size:var(--dk-fs-control-sm); line-height:1.5; }
+:where([data-page-family="final-review"]) .fr-official-note .ic { width:14px; height:14px; margin-top:2px; color:var(--dk-warning-fg); flex:none; }
+:where([data-page-family="final-review"]) .fr-official .fr-official-note { margin-left:46px; }
+:where([data-page-family="final-review"]) .fr-official form { margin:12px 0 0 46px; }
 :where([data-page-family="final-review"]) .fr-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px 20px; padding:var(--dk-space-5) var(--dk-space-6) 12px; flex-wrap:wrap; }
-:where([data-page-family="final-review"]) .fr-how { margin:0 var(--dk-space-6) 14px; padding:12px 14px; }
+:where([data-page-family="final-review"]) .fr-st-sub { margin:3px 0 0; font-size:var(--dk-fs-small); color:var(--dk-text-3); }
+:where([data-page-family="final-review"]) .fr-how-btn { display:inline-flex; align-items:center; gap:4px; font-size:var(--dk-fs-control-sm); margin-top:2px; }
+:where([data-page-family="final-review"]) .fr-how-btn .ic { width:13px; height:13px; transition:transform var(--dk-dur-content-in); }
+:where([data-page-family="final-review"]) .fr-how-btn[aria-expanded=true] .ic { transform:rotate(180deg); }
+:where([data-page-family="final-review"]) .fr-how { margin:0 var(--dk-space-6) 14px; padding:12px 14px; border-radius:var(--dk-radius-lg); background:var(--dk-surface-2); border:1px solid var(--dk-border-subtle); animation:fadeIn var(--dk-dur-content-in) ease-out; }
+:where([data-page-family="final-review"]) .fr-how-list { margin:0; padding-left:20px; font-size:var(--dk-fs-control-sm); color:var(--dk-text); line-height:1.6; }
+:where([data-page-family="final-review"]) .fr-how-note { margin:8px 0 0; font-size:var(--dk-fs-small); color:var(--dk-text-2); line-height:1.5; }
 :where([data-page-family="final-review"]) .fr-tbl { --table-cols:minmax(260px,2.4fr) minmax(130px,1fr) 70px 70px 112px minmax(130px,1fr); --table-min:840px; }
+:where([data-page-family="final-review"]) .fr-tbl .td { padding-top:12px; padding-bottom:12px; }
 :where([data-page-family="final-review"]) .fr-num { text-align:right; justify-content:flex-end; }
+:where([data-page-family="final-review"]) .fr-tbl .th.fr-num { text-align:right; }
 :where([data-page-family="final-review"]) .fr-team { display:flex; align-items:center; gap:12px; min-width:0; }
-:where([data-page-family="final-review"]) .fr-why { white-space:normal; }
+:where([data-page-family="final-review"]) .fr-team>div { min-width:0; }
+:where([data-page-family="final-review"]) .fr-team-name { font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+:where([data-page-family="final-review"]) .fr-why { white-space:normal; line-height:1.4; }
 :where([data-page-family="final-review"]) .fr-hist .tl { padding:0 var(--dk-space-6) var(--dk-space-5); margin-top:0; }
 :where([data-page-family="final-review"]) .fr-tl-row { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
-:where([data-page-family="final-review"]) .fr-reopen-block { display:flex; gap:6px; align-items:flex-start; margin:8px 0 0; }
+:where([data-page-family="final-review"]) .fr-tl-row>div:first-child { min-width:0; }
+:where([data-page-family="final-review"]) .fr-tl .tl-what { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+:where([data-page-family="final-review"]) .fr-tl .tl-item.is-reopen::before { background:var(--dk-warning-fg); }
+:where([data-page-family="final-review"]) .fr-tl-note { margin-top:4px; font-size:var(--dk-fs-small); color:var(--dk-text-3); }
+:where([data-page-family="final-review"]) .fr-reopen { padding:var(--dk-space-5) var(--dk-space-6); }
+:where([data-page-family="final-review"]) .fr-reopen .act-row { padding:0; border:0; }
+:where([data-page-family="final-review"]) .fr-reopen-text { margin:4px 0 0; font-size:var(--dk-fs-control-sm); color:var(--dk-text-2); line-height:1.5; max-width:64ch; }
+:where([data-page-family="final-review"]) .fr-reopen-block { display:flex; gap:6px; align-items:flex-start; margin:8px 0 0; font-size:var(--dk-fs-control-sm); color:var(--dk-text); line-height:1.45; }
+:where([data-page-family="final-review"]) .fr-reopen-block .ic { width:14px; height:14px; margin-top:2px; color:var(--dk-warning-fg); flex:none; }
+:where([data-page-family="final-review"]) .fr-reopen-block:focus { outline:none; }
 :where([data-page-family="final-review"]) .fr-sk-line { height:calc(var(--dk-fs-control) * 1.45); display:flex; align-items:center; }
 :where([data-page-family="final-review"]) .fr-sk-line .sk { width:40%; height:8px; }
 :where([data-page-family="final-review"]) .fr-sk-body { height:160px; margin-top:18px; }
 @media (max-width:720px) {
 :where([data-page-family="final-review"]) .fr-pub-head { flex-wrap:wrap; padding:var(--dk-space-4); }
 :where([data-page-family="final-review"]) .fr-pub-act { width:100%; align-items:stretch; max-width:none; }
+:where([data-page-family="final-review"]) .fr-pub-why { text-align:left; }
 :where([data-page-family="final-review"]) .fr-checks { padding:2px var(--dk-space-4) 8px; }
+:where([data-page-family="final-review"]) .fr-official, :where([data-page-family="final-review"]) .fr-reopen { padding:var(--dk-space-4); }
+:where([data-page-family="final-review"]) .fr-official .fr-official-note { margin-left:0; }
+:where([data-page-family="final-review"]) .fr-official form { margin-left:0; }
 :where([data-page-family="final-review"]) .fr-card-head { padding:var(--dk-space-4) var(--dk-space-4) 10px; }
+:where([data-page-family="final-review"]) .fr-how { margin:0 var(--dk-space-4) 12px; }
+:where([data-page-family="final-review"]) .fr-hist .tl { padding:0 var(--dk-space-4) var(--dk-space-4); }
 :where([data-page-family="final-review"]) .fr-reopen .act-row { flex-direction:column; align-items:stretch; }
 :where([data-page-family="final-review"]) .fr-tl-row { flex-direction:column; }
 }
@@ -31,5 +71,12 @@
 
 :where([data-page-family="final-review"]) .fr-effects{display:flex;flex-direction:column;gap:6px;margin:12px 0;padding-left:20px;line-height:1.5}
 :where([data-page-family="final-review"]) .fr-top{display:flex;flex-direction:column;gap:8px;margin:12px 0;padding-left:0;list-style:none}
-:where([data-page-family="final-review"]) .dr-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
-:where([data-page-family="final-review"]) .ro-row{flex-wrap:wrap;gap:12px}
+:where([data-page-family="final-review"]) .fr-tbl.is-compact{--table-cols:minmax(200px,2fr) 128px 52px 52px 96px 128px;--table-min:720px}
+:where([data-page-family="final-review"]) .fr-tbl.is-compact .td{padding-top:9px;padding-bottom:9px}
+:where([data-page-family="final-review"]) .fr-kv{margin-top:0;grid-template-columns:96px minmax(0,1fr)}
+:where([data-page-family="final-review"]) .fr-kv dd{margin:0}
+:where([data-page-family="final-review"]) .fr-dr-reason{margin-top:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+:where([data-page-family="final-review"]) .fr-dr-wrap{border:1px solid var(--dk-border-subtle);border-radius:var(--dk-radius-lg)}
+:where([data-page-family="final-review"]) .fr-dr-note{margin:10px 0 0;font-size:var(--dk-fs-small);color:var(--dk-text-3)}
+/* The loaded summary starts with a 24px badge; the loading header reserves that line so nothing moves on load (U11 R1). */
+@media (min-width:641px){ :where([data-page-family="final-review"])[data-page-skeleton="final-review"][aria-busy="true"] > .page-head .summary{min-height:24px} }
