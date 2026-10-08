@@ -15,8 +15,12 @@
     var missingTeams = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     foreach (var team in a?.Teams ?? []) foreach (var name in Model.MissingFor(team)) missingTeams.TryAdd(name, team.TeamName);
 }
-@section HeaderTitle { <div class="wm-title"><h1 class="h1" id="page-h1" tabindex="-1">@T["Wise Old Man"]</h1><span class="badge @(issue is not null ? "badge-warning" : connected ? "badge-success" : "badge-neutral")">@T[issue is not null ? "Needs attention" : connected ? "Connected" : "Not connected"]</span></div> }
-@section HeaderSummary { @if (Model.ReadOnly) { <span>@T["Inspection only"] · </span> } else if (e.State == EventState.AwaitingFinalReview) { <span>@T["Event in final review"] · </span> }<span>@T["The website’s dates are the schedule"] · @T["Times in {0}", e.Timezone]</span> }
+@section HeaderTitle { <h1 class="h1" id="page-h1" tabindex="-1">@T["Wise Old Man"]</h1> }
+@section HeaderSummary {
+    <span class="badge @(issue is not null ? "badge-warning" : connected ? "badge-success" : "badge-neutral")">@T[issue is not null ? "Needs attention" : connected ? "Connected" : "Not connected"]</span>
+    @if (Model.ReadOnly) { <span>@T["Inspection only"]</span> } else if (e.State == EventState.AwaitingFinalReview) { <span>@T["Event in final review"]</span> }
+    <span>@T["The website’s dates are the schedule"]</span><span class="wm-tz">@T["Times in {0}", e.Timezone]</span>
+}
 <div class="wm-content" data-wom data-current="@Model.CurrentJson" data-labels="@Model.LabelsJson" data-event-id="@e.Id" data-timezone="@e.Timezone">
     <div class="banner page-banner is-warning" data-wom-notice role="status" tabindex="-1" hidden></div>
     @if (Model.ReadOnly) { <div class="banner is-info"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("lock")' /><span>@Model.ReadOnlyText</span></div> }

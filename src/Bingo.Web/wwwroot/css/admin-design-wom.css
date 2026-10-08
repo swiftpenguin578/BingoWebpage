@@ -1,7 +1,7 @@
 /* WOM layout only; shared primitives remain authoritative. */
 :where([data-page-family="wom"]).page{max-width:1120px}
 :where([data-page-family="wom"]) .wm-content{display:grid;grid-template-columns:minmax(0,1fr);gap:var(--dk-space-5)}
-:where([data-page-family="wom"]) .wm-title{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+:where([data-page-family="wom"]) .wm-tz{color:var(--dk-text-3)}
 :where([data-page-family="wom"]) .wm-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:var(--dk-space-5) var(--dk-space-6) 12px}
 :where([data-page-family="wom"]) .wm-sub{margin:3px 0 0;font-size:var(--dk-fs-small);color:var(--dk-text-3);line-height:1.45;max-width:72ch}
 :where([data-page-family="wom"]) .wm-hero-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:var(--dk-space-5) var(--dk-space-6) 14px;flex-wrap:wrap}

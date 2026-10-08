@@ -1,6 +1,6 @@
 :where([data-page-family="final-review"]).page { max-width:1120px; }
 :where([data-page-family="final-review"]) .fr-content { display:grid; grid-template-columns:minmax(0,1fr); gap:var(--dk-space-5); }
-:where([data-page-family="final-review"]) .fr-title { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+:where([data-page-family="final-review"]) .fr-tz { color:var(--dk-text-3); }
 :where([data-page-family="final-review"]) .fr-pub-head { display:flex; align-items:flex-start; gap:14px; padding:var(--dk-space-5) var(--dk-space-6); }
 :where([data-page-family="final-review"]) .fr-pub-ic, :where([data-page-family="final-review"]) .fr-official-ic { width:32px; height:32px; border-radius:var(--dk-radius-pill); display:grid; place-items:center; flex:none; background:var(--dk-track); color:var(--dk-text-3); }
 :where([data-page-family="final-review"]) .fr-pub-ic.is-ready { background:var(--dk-success-bg); color:var(--dk-success-fg); }
