@@ -3025,6 +3025,7 @@
   <data name="Switch event" xml:space="preserve"><value>Skift event</value></data>
   <data name="The page could not be loaded." xml:space="preserve"><value>Siden kunne ikke indlæses.</value></data>
   <data name="View public site" xml:space="preserve"><value>Vis det offentlige site</value></data>
+  <data name="Go to the public site" xml:space="preserve"><value>Gå til det offentlige site</value></data>
   <data name="Your changes were not saved" xml:space="preserve"><value>Dine ændringer blev ikke gemt</value></data>
   <data name="Your session is no longer available. What you entered is still here. Sign in before trying again." xml:space="preserve"><value>Din session er ikke længere tilgængelig. Det, du indtastede, er stadig her. Log ind, før du prøver igen.</value></data>
   <data name="DK" xml:space="preserve"><value>DK</value></data>

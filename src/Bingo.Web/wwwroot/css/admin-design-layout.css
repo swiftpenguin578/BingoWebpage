@@ -13,6 +13,13 @@ button.theme-opt{border:0;padding:0;background:transparent}button.theme-opt:focu
 body:not(.using-keyboard) :focus-visible{outline:none}.design-drawer-layer{position:fixed;inset:0;pointer-events:none;z-index:var(--dk-z-drawer)}.design-drawer-layer>.drawer{pointer-events:auto}
 
 .logo img{display:block;width:28px;height:28px;object-fit:contain;border-radius:inherit}
+/* U10 part 2 (user): expanded, the logo links to the public front page and the account button beside it carries the only hover highlight.
+   U10-E1 (user): collapsed, the logo stays visible as a button that opens the account popout; the name/role button is hidden. */
+.design-logo-link{flex:none}
+.logo.design-logo-account{display:none;flex:none;border:0;padding:0;cursor:pointer}
+.design-logo-link:focus-visible,.design-logo-account:focus-visible{outline:2px solid var(--dk-focus);outline-offset:2px}
+.side.is-collapsed .logo.design-logo-link,.side.is-collapsed .account-btn{display:none}
+.side.is-collapsed .logo.design-logo-account{display:grid}
 [data-menu-target="admin-notifications-menu"]{position:relative}
 .design-notification-count{position:absolute;right:-4px;top:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:var(--dk-radius-pill);background:var(--dk-primary);color:var(--dk-on-primary);font-size:10px;line-height:16px;text-align:center}
 
