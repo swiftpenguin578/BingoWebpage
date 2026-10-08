@@ -24,4 +24,4 @@
 
 Open later items live in `BACKLOG.md` (not approved work).
 
-**No push, merge to `main` or deployment is authorized.** Older handoffs are in Git history.
+**Deployed to production on 8 October 2026** (`b7cb1ad8`, image `sha256:1d9be675…4b9b`, run `37839660829`). Next work comes from `BACKLOG.md`; each push, merge or deploy still needs the user's approval. Older handoffs are in Git history.
