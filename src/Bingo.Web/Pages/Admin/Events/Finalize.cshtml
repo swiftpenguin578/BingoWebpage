@@ -13,6 +13,7 @@
     var phase = AdminDesignPhasePresentation.For(r.State);
     var nextVersion = r.History.Count == 0 ? 1 : r.History.Max(x => x.Version) + 1;
     var live = r.State == EventState.Live;
+    var preLive = r.State is not (EventState.Live or EventState.AwaitingFinalReview);
     var pubBlocked = !r.CanFinalize && !live && Model.Checks.Any(x => x.Class == "is-blocked");
     var pubIconClass = r.CanFinalize ? "is-ready" : pubBlocked ? "is-blocked" : "is-wait";
 }
@@ -47,7 +48,7 @@
     else if (r.State != EventState.Cancelled)
     {
         <section class="card" aria-labelledby="pub-title">
-            <div class="fr-pub-head"><div class="fr-pub-ic @pubIconClass" aria-hidden="true"><partial name="_AdminDesignIcon" model='new AdminDesignIcon(r.CanFinalize ? "check" : pubBlocked ? "warning" : "schedule")' /></div><div class="fr-pub-text"><h2 class="fr-pub-title" id="pub-title" tabindex="-1">@Model.PublicationTitle</h2><p class="fr-pub-sub">@(live ? T["The event ends {0}. These standings are live and change as evidence is approved.", Model.Fmt(r.EventEndsAt)] : T["Publishing makes these standings official as version {0} and archives the event.", nextVersion])</p></div>
+            <div class="fr-pub-head"><div class="fr-pub-ic @pubIconClass" aria-hidden="true"><partial name="_AdminDesignIcon" model='new AdminDesignIcon(r.CanFinalize ? "check" : pubBlocked ? "warning" : "schedule")' /></div><div class="fr-pub-text"><h2 class="fr-pub-title" id="pub-title" tabindex="-1">@Model.PublicationTitle</h2><p class="fr-pub-sub">@(preLive ? T["Standings appear once the board is published and the event is live."] : live ? T["The event ends {0}. These standings are live and change as evidence is approved.", Model.Fmt(r.EventEndsAt)] : T["Publishing makes these standings official as version {0} and archives the event.", nextVersion])</p></div>
                 @if (r.State == EventState.AwaitingFinalReview)
                 {
                     <form method="post" asp-page-handler="Finalize" class="fr-pub-act" data-final-action="publish" data-cancel-label="@T["Cancel"]" data-reason-label="@T["Reason"]" data-confirm-title="@T["Publish official results"]" data-confirm-description="@T["Publish these placements as the official results and archive the event in one step?"]" data-confirm-action="@T["Publish official results"]" data-confirm-field="ConfirmLifecycleAction">
@@ -56,7 +57,7 @@
                     </form>
                 }
             </div>
-            @if (!live)
+            @if (!live && !preLive)
             {
             <ul class="checklist fr-checks" aria-label="@T["Publication requirements"]">
                 @foreach (var check in Model.Checks)
