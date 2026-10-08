@@ -21,6 +21,17 @@ public sealed partial class DraftModel
     private List<(Guid Id, int Number, Guid ParticipantId, Guid TeamId)> ActivePickIds { get; set; } = [];
     public TeamsPageState? State { get; private set; }
 
+    // The header summary as the page script draws it (stage sentence).
+    public string Summary => State is not { } state ? string.Empty : state.Stage switch
+    {
+        "setup" => state.Teams.Count == 0 ? Localize("Add a team for each captain to get started.")
+            : state.Teams.Count(team => team.Included) < 2 ? Localize("Assemble each roster by hand, then finalize to publish them.")
+            : Localize("Prepare teams and captains, then run the snake draft."),
+        "final" => Localize("Published rosters for {0}.", state.EventName),
+        "running" => string.Empty,
+        _ => Localize("Rosters for {0}.", state.EventName)
+    };
+
     public async Task<IActionResult> OnGetStateAsync(Guid id, CancellationToken ct)
     {
         Response.Headers.CacheControl = "no-store";
@@ -43,7 +54,7 @@ public sealed partial class DraftModel
             EventState.Cancelled or EventState.Finalized or EventState.Archived or EventState.Discarded => "terminal",
             EventState.AwaitingFinalReview => "review",
             EventState.Live => "locked",
-            _ => draftState == DraftState.Running ? "running" : finalized ? "final" : "setup"
+            _ => draftState == DraftState.Running ? "running" : finalized ? "final" : draftState == DraftState.Paused ? "paused" : "setup"
         };
         var activeCycle = await db.ActiveRosterPublications(id).OrderByDescending(x => x.CycleNumber).Select(x => (DateTimeOffset?)x.PublishedAt).FirstOrDefaultAsync(ct);
         var boardExists = await db.Boards.AsNoTracking().AnyAsync(x => x.EventId == id, ct);

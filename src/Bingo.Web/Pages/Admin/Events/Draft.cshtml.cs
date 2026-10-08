@@ -29,13 +29,13 @@ using Npgsql;
 
 namespace Bingo.Web.Pages.Admin.Events;
 
+[AdminDesign]
 [Authorize(Policy = AuthorizationPolicies.Admin)]
 public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider time, IAuditWriter audit, IAdminCollaborationNotifier collaboration, ISignupService signupService, EventParticipantCharacterService characterService, IEvidenceStorage? storage = null, ITeamCaptainAuthorityService? captainAuthority = null, IStringLocalizer<SharedResource>? text = null, IWiseOldManAccountValidation? accountValidation = null) : PageModel
 {
     public string EventName { get; private set; } = string.Empty; public string EventTimezone { get; private set; } = DateTimePresentation.DefaultTimezoneId; public string Sort { get; private set; } = "ehb"; public DraftView? Draft { get; private set; }
     public Guid EventId { get; private set; }
     public IReadOnlyList<TeamView> Teams { get; private set; } = []; public IReadOnlyList<ParticipantView> Participants { get; private set; } = [];
-    public IReadOnlyDictionary<Guid, PaymentStatus> ParticipantPayments { get; private set; } = new Dictionary<Guid, PaymentStatus>();
     public TurnView? CurrentTurn { get; private set; }
     public PickView? LatestPick { get; private set; }
     public int ConfirmedCount { get; private set; }
@@ -69,23 +69,17 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
             context.Result = NotFound();
     }
 
-    public async Task<IActionResult> OnGetAsync(Guid id, string? sort, CancellationToken ct, Guid? rosterTeamId = null)
+    public async Task<IActionResult> OnGetAsync(Guid id, [FromQuery] string? sort, CancellationToken ct, [FromQuery] Guid? rosterTeamId = null)
     {
         _ = characterService;
         _ = accountValidation;
         CurrentAccountId = AdminId;
         WomValidationConfirmationToken = TempData.Peek("WomValidationConfirmationToken") as string;
         if (!await Load(id, sort, ct)) return NotFound();
+        // A stored notification link (rosterTeamId) focuses that team; an unknown or removed id is ignored.
         RosterTeamId = rosterTeamId is { } requested && Teams.Any(team => team.Id == requested) ? requested : null;
-        if (Participants.Count > 0)
-        {
-            var participantIds = Participants.Select(participant => participant.Id).ToList();
-            ParticipantPayments = await db.EventParticipants
-                .AsNoTracking()
-                .Where(participant => participantIds.Contains(participant.Id))
-                .ToDictionaryAsync(participant => participant.Id, participant => participant.PaymentStatus, ct);
-        }
         await LoadControllerState(id, ct);
+        State = await BuildStateAsync(id, ct);
         return Page();
     }
 

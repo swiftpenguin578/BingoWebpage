@@ -869,7 +869,9 @@ public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture dat
         Assert.Contains($"participant={seed.OtherWaitingId}", withdrawnSearch);
         Assert.Contains("First waiting", await admin.GetStringAsync(DrawerRead(seed, seed.OtherWaitingId)));
         var draft = await admin.GetStringAsync($"/Admin/Events/Draft/{seed.EventId}");
-        var finalizedRoster = Regex.Match(draft, "<ol class=\"finalized-roster-list\">(?<roster>[\\s\\S]*?)</ol>").Groups["roster"].Value;
+        // A10 (U6): the finalized roster is drawn from the page state's team members (frozen published names).
+        var finalizedRoster = string.Join("\n", DraftOperationsIntegrationTests.DraftPageState(draft).GetProperty("teams").EnumerateArray()
+            .SelectMany(team => team.GetProperty("members").EnumerateArray()).Select(member => member.GetProperty("name").GetString()));
         Assert.Contains("Leader", finalizedRoster);
         Assert.DoesNotContain("Departed C", finalizedRoster);
         Assert.DoesNotContain("Current renamed player", finalizedRoster);
@@ -1199,9 +1201,10 @@ public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture dat
         await using var factory = Factory();
         using var adminClient = await LoginAsync(factory, "c11-admin");
         var draftPage = await adminClient.GetStringAsync($"/Admin/Events/Draft/{seed.EventId}");
-        Assert.Contains("name=\"role\"", draftPage, StringComparison.Ordinal);
-        Assert.Contains("value=\"Captain\"", draftPage, StringComparison.Ordinal);
-        Assert.Contains("value=\"CoCaptain\"", draftPage, StringComparison.Ordinal);
+        // A10 (U6, U6-Q1): the correction Add keeps the role choice; the page state allows corrections
+        // and the page script posts Participant / Captain / CoCaptain.
+        Assert.True(DraftOperationsIntegrationTests.DraftPageState(draftPage).GetProperty("canCorrect").GetBoolean());
+        foreach (var role in new[] { "Participant", "Captain", "CoCaptain" }) DraftOperationsIntegrationTests.AssertDraftPageOffers(role);
         using var publicClient = factory.CreateClient();
         var publicPage = RosterSection(await publicClient.GetStringAsync(TeamsPath(seed)));
         Assert.Matches("(?s)<li class=\"is-captain\">\\s*<span>Added Captain</span>", publicPage);
