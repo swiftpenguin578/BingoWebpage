@@ -12,6 +12,9 @@ jobs:
     name: JavaScript and Playwright tests
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Not a release gate yet (user decision, 8 October 2026): known JS failures are
+    # recorded and fixed with the JS job split. Remove continue-on-error then.
+    continue-on-error: true
     permissions:
       contents: read
     env:
@@ -41,8 +44,12 @@ jobs:
       - name: Build controlled real-layout fixture
         run: dotnet build tests/AdminDesignParityFixture/AdminDesignParityFixture.csproj --configuration Release
       - name: Run every JavaScript test
+        continue-on-error: true
+        timeout-minutes: 15
         run: pnpm test:js
       - name: Compare rendered reference and real layout in both engines
+        continue-on-error: true
+        timeout-minutes: 5
         run: pnpm test:parity
       - name: Upload JavaScript results
         if: always()
