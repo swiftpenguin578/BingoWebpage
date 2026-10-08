@@ -4253,4 +4253,43 @@
   <data name="Reason must be 4000 characters or fewer." xml:space="preserve"><value>Begrundelsen må højst være 4000 tegn.</value></data>
   <data name="A written correction reason is required." xml:space="preserve"><value>En skriftlig begrundelse er påkrævet.</value></data>
   <data name="This review was not saved because the event or evidence changed in another request. Reload the submission, review the latest state, and try again." xml:space="preserve"><value>Gennemgangen blev ikke gemt, fordi eventet eller dokumentationen blev ændret i en anden anmodning. Genindlæs indsendelsen, gennemgå den nyeste tilstand, og prøv igen.</value></data>
+  <data name="Live · ends {0}" xml:space="preserve"><value>Live · slutter {0}</value></data>
+  <data name="Ended {0} · uploads closed, review continues" xml:space="preserve"><value>Sluttede {0} · uploads lukket, gennemgangen fortsætter</value></data>
+  <data name="Uploads closed, review continues" xml:space="preserve"><value>Uploads lukket, gennemgangen fortsætter</value></data>
+  <data name="Finished · review is read-only" xml:space="preserve"><value>Afsluttet · gennemgangen er skrivebeskyttet</value></data>
+  <data name="Archived · review is read-only" xml:space="preserve"><value>Arkiveret · gennemgangen er skrivebeskyttet</value></data>
+  <data name="Cancelled · review is read-only" xml:space="preserve"><value>Aflyst · gennemgangen er skrivebeskyttet</value></data>
+  <data name="Review opens when the event goes Live" xml:space="preserve"><value>Gennemgangen åbner, når eventet går live</value></data>
+  <data name="Nothing pending" xml:space="preserve"><value>Intet afventer</value></data>
+  <data name="Times in UTC, with {0} time below" xml:space="preserve"><value>Tider i UTC, med {0}-tid nedenunder</value></data>
+  <data name="Choose an event to review its submissions" xml:space="preserve"><value>Vælg et event for at gennemgå dets indsendelser</value></data>
+  <data name="This event isn’t available" xml:space="preserve"><value>Eventet er ikke tilgængeligt</value></data>
+  <data name="The link may be incomplete, or the event is hidden." xml:space="preserve"><value>Linket kan være ufuldstændigt, eller eventet er skjult.</value></data>
+  <data name="Choose an event" xml:space="preserve"><value>Vælg et event</value></data>
+  <data name="Review shows one event’s submissions. Pick an event in the sidebar, or open Review from its overview." xml:space="preserve"><value>Review viser ét events indsendelser. Vælg et event i sidebjælken, eller åbn Review fra eventets overblik.</value></data>
+  <data name="Search team, account or tile" xml:space="preserve"><value>Søg efter hold, konto eller tile</value></data>
+  <data name="No submissions yet" xml:space="preserve"><value>Ingen indsendelser endnu</value></data>
+  <data name="Evidence appears here as teams submit it." xml:space="preserve"><value>Dokumentation vises her, når holdene indsender den.</value></data>
+  <data name="Teams can submit evidence once {0} is Live." xml:space="preserve"><value>Holdene kan indsende dokumentation, når {0} er live.</value></data>
+  <data name="No submissions match" xml:space="preserve"><value>Ingen indsendelser passer</value></data>
+  <data name="Try another search or status." xml:space="preserve"><value>Prøv en anden søgning eller status.</value></data>
+  <data name="Clear search and status" xml:space="preserve"><value>Ryd søgning og status</value></data>
+  <data name="Submissions, pending first" xml:space="preserve"><value>Indsendelser, afventende først</value></data>
+  <data name="Check" xml:space="preserve"><value>Tjek</value></data>
+  <data name="No screenshot" xml:space="preserve"><value>Intet skærmbillede</value></data>
+  <data name="After end" xml:space="preserve"><value>Efter slut</value></data>
+  <data name="Paused period" xml:space="preserve"><value>Pauseperiode</value></data>
+  <data name="Same image" xml:space="preserve"><value>Samme billede</value></data>
+  <data name="Left team" xml:space="preserve"><value>Forlod holdet</value></data>
+  <data name="No warnings" xml:space="preserve"><value>Ingen advarsler</value></data>
+  <data name="{0} of {1} submissions" xml:space="preserve"><value>{0} af {1} indsendelser</value></data>
+  <data name="1 submission" xml:space="preserve"><value>1 indsendelse</value></data>
+  <data name="{0} submissions" xml:space="preserve"><value>{0} indsendelser</value></data>
+  <data name="Couldn’t load the submissions" xml:space="preserve"><value>Indsendelserne kunne ikke indlæses</value></data>
+  <data name="Your search and status are kept. Check your connection and try again." xml:space="preserve"><value>Din søgning og status er bevaret. Tjek din forbindelse, og prøv igen.</value></data>
+  <data name="Loading submissions" xml:space="preserve"><value>Indlæser indsendelser</value></data>
+  <data name="Couldn’t load this submission" xml:space="preserve"><value>Indsendelsen kunne ikke indlæses</value></data>
+  <data name="Loading the submission" xml:space="preserve"><value>Indlæser indsendelsen</value></data>
+  <data name="Reversed" xml:space="preserve"><value>Tilbageført</value></data>
+  <data name="AdminDesign.Approved" xml:space="preserve"><value>Godkendt</value></data>
 </root>

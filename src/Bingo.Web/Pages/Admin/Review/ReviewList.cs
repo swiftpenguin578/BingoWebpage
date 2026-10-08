@@ -123,3 +123,9 @@ public static class ReviewTime
         return city.Length == 0 ? timezone : city;
     }
 }
+
+public static class ReviewStatusText
+{
+    // "Approved" differs only in case from an existing resource name, so it uses a scoped key (MSB3568).
+    public static string Key(Bingo.Domain.Evidence.SubmissionStatus status) => status == Bingo.Domain.Evidence.SubmissionStatus.Approved ? "AdminDesign.Approved" : status.ToString();
+}

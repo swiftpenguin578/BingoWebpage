@@ -1,107 +1,108 @@
 @page
 @model Bingo.Web.Pages.Admin.Review.IndexModel
+@using Bingo.Domain.Events
 @using Bingo.Domain.Evidence
-@using Bingo.Web.UI
+@using Bingo.Web.Pages.Admin.Review
 @{
-    ViewData["Title"] = T["Evidence review"];
-    ViewData["CompactNavigation"] = true;
-    ViewData["AdminPageDescription"] = T["Review submitted evidence and resolve contribution decisions."];
+    ViewData["Title"] = "Review";
+    ViewData["PageFamily"] = "review";
+    ViewData["LocalizedTitle"] = T["Review"].Value;
+    var statuses = new (SubmissionStatus? Value, string Label)[] { (null, "All"), (SubmissionStatus.Pending, "Pending"), (SubmissionStatus.Approved, "AdminDesign.Approved"), (SubmissionStatus.Rejected, "Rejected"), (SubmissionStatus.Withdrawn, "Withdrawn"), (SubmissionStatus.Reversed, "Reversed") };
+    string Badge(SubmissionStatus status) => status switch { SubmissionStatus.Pending => "badge-warning", SubmissionStatus.Approved => "badge-success", SubmissionStatus.Withdrawn => "badge-neutral", _ => "badge-danger" };
+    var ev = Model.Event;
+    var city = ReviewTime.City(Model.EventTimezone);
+    var pending = Model.Count(SubmissionStatus.Pending);
+    string? phase = ev is null ? null : ev.State switch
+    {
+        EventState.Live => ReviewList.EffectiveEnd(ev) is { } end ? T["Live · ends {0}", ReviewTime.UtcFull(end)].Value : T["Live"].Value,
+        EventState.AwaitingFinalReview => ReviewList.EffectiveEnd(ev) is { } ended ? T["Ended {0} · uploads closed, review continues", ReviewTime.UtcFull(ended)].Value : T["Uploads closed, review continues"].Value,
+        EventState.Finalized => T["Finished · review is read-only"].Value,
+        EventState.Archived => T["Archived · review is read-only"].Value,
+        EventState.Cancelled => T["Cancelled · review is read-only"].Value,
+        _ => T["Review opens when the event goes Live"].Value
+    };
 }
-
-<section class="admin-review-page admin-review-queue-page" data-admin-review-queue data-event-id="@Model.EventId">
-    @if (Model.EventId is null)
+@section HeaderSummary {
+    @if (ev is not null)
     {
-        <div class="admin-review-empty" role="status">
-            <h2>@T["Select an event"]</h2>
-            <p>@T["Open Review from an event workspace to load its evidence submissions."]</p>
-        </div>
+        <span data-review-pending>@(pending == 0 ? T["Nothing pending"] : T["{0} pending", pending])</span><span>@phase</span><span>@T["Times in UTC, with {0} time below", city]</span>
     }
-    else
+    else if (!Model.Missing)
     {
-        <div class="admin-events-directory-controls">
-            <form method="get" class="admin-events-toolbar" data-admin-review-filter-form>
-                <input type="hidden" name="eventId" value="@Model.EventId" />
-                <div class="admin-search-field admin-events-search">
-                    <label class="visually-hidden" for="admin-review-search">@T["Search team, player or tile"]</label>
-                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
-                    <input id="admin-review-search" class="admin-search-field-input form-control" type="search" name="search" value="@Model.Search" placeholder="@T["Search team, player or tile"]" data-admin-review-search />
-                    <button class="admin-search-clear" type="button" data-admin-search-clear aria-label='@T["Clear search"]' hidden="@(string.IsNullOrWhiteSpace(Model.Search) ? "hidden" : null)"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 6 12 12" /><path d="m18 6-12 12" /></svg></button>
-                </div>
-                <div class="admin-events-state-filter admin-field">
-                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
-                    <label for="admin-review-status">@T["Status"]:</label>
-                    <div class="admin-events-state-select">
-                        <select id="admin-review-status" class="admin-filter-select form-select" name="status" data-admin-review-status>
-                            <option value="">@T["All"]</option>
-                            @foreach (var status in Enum.GetValues<SubmissionStatus>())
-                            {
-                                <option value="@status" selected="@(status == Model.Status ? "selected" : null)">@T[status.ToString()]</option>
-                            }
-                        </select>
-                        <svg class="admin-events-state-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m6 9 6 6 6-6" /></svg>
-                    </div>
-                </div>
-            </form>
+        <span>@T["Choose an event to review its submissions"]</span>
+    }
+}
+@if (Model.Missing)
+{
+    <div class="card"><div class="empty"><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /></div><div class="empty-title">@T["This event isn’t available"]</div><div class="empty-text">@T["The link may be incomplete, or the event is hidden."]</div><a class="btn" href="/Admin/Events" data-shell-link>@T["AdminDesign.Events"]</a></div></div>
+}
+else if (ev is null)
+{
+    <div class="card"><div class="empty"><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("review")' /></div><div class="empty-title">@T["Choose an event"]</div><div class="empty-text">@T["Review shows one event’s submissions. Pick an event in the sidebar, or open Review from its overview."]</div><a class="btn" href="/Admin/Events" data-shell-link>@T["AdminDesign.Events"]</a></div></div>
+}
+else
+{
+<div data-review-queue data-queue-url="@Model.QueueUrl(Model.Search, Model.Status)" data-event-id="@ev.Id">
+    <div class="toolbar rv-toolbar">
+        <div class="search @(Model.Search.Length > 0 ? "has-clear" : null)" role="search">
+            <partial name="_AdminDesignIcon" model='new AdminDesignIcon("search")' />
+            <input class="input" id="rv-search" type="search" placeholder="@T["Search team, account or tile"]" aria-label="@T["Search team, account or tile"]" value="@Model.Search" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other" data-review-search>
+            <button class="icon-btn clear" type="button" aria-label="@T["Clear search"]" data-review-search-clear hidden="@(Model.Search.Length == 0)"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button>
         </div>
-        <section class="admin-review-queue-surface" aria-labelledby="review-queue-title">
-            <header class="admin-review-surface-heading">
-                <div>
-                    <p class="admin-module-eyebrow">@Model.EventName</p>
-                    <h2 id="review-queue-title">@T["Submissions"]</h2>
-                    <p>@T["Review the evidence record, contribution, and eligibility warnings from each row."]</p>
-                </div>
-            </header>
-            <div class="admin-review-empty admin-review-empty-in-surface" data-admin-review-empty role="status" hidden="@(Model.Rows.Count > 0 ? "hidden" : null)">
-                <h3>@T["No submissions match these filters"]</h3>
-                <p>@T["Clear a filter or wait for a new evidence submission."]</p>
-            </div>
-            <div class="admin-review-table-scroll" data-admin-review-table-wrap hidden="@(Model.Rows.Count == 0 ? "hidden" : null)">
-                <table class="admin-review-table">
-                    <thead>
-                        <tr>
-                            <th>@T["Submitted"]</th>
-                            <th>@T["Team"]</th>
-                            <th>@T["Tile"]</th>
-                            <th>@T["Credited player"]</th>
-                            <th>@T["Status"]</th>
-                            <th>@T["Contribution"]</th>
-                            <th>@T["Expected code"]</th>
-                            <th>@T["Actions"]</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+        <div class="seg rv-status" role="radiogroup" aria-label="@T["Status"]" data-review-status-seg>
+            @foreach (var (value, label) in statuses)
+            {
+                var on = value == Model.Status;
+                <label class="seg-opt @(on ? "is-on" : null)"><input class="sr" type="radio" name="rv-status" value="@(value?.ToString() ?? "all")" checked="@on" data-review-status>@T[label]<span class="seg-count" data-review-count="@(value?.ToString() ?? "all")">@Model.Count(value)</span></label>
+            }
+        </div>
+        <div class="select-wrap rv-status-select"><select class="select select-field" aria-label="@T["Status"]" data-review-status-select>
+            @foreach (var (value, label) in statuses)
+            {
+                <option value="@(value?.ToString() ?? "all")" selected="@(value == Model.Status)">@(value is null ? T["All statuses"] : T[label]) (@Model.Count(value))</option>
+            }
+        </select><partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></div>
+    </div>
+    <div class="card" data-review-results>
+        @if (Model.AllRows.Count == 0)
+        {
+            <div class="empty"><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("image")' /></div><div class="empty-title">@T["No submissions yet"]</div><div class="empty-text">@(Model.ReviewOpen ? T["Evidence appears here as teams submit it."] : T["Teams can submit evidence once {0} is Live.", ev.Name])</div></div>
+        }
+        else if (Model.Rows.Count == 0)
+        {
+            <div class="empty"><div class="empty-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("search")' /></div><div class="empty-title">@T["No submissions match"]</div><div class="empty-text">@T["Try another search or status."]</div><button class="btn" type="button" data-review-clear-all>@T["Clear search and status"]</button></div>
+        }
+        else
+        {
+            <div class="tbl-wrap" data-review-wrap data-admin-scroll-region>
+                <div class="tbl rv-tbl sticky-first" role="table" aria-label="@T["Submissions, pending first"]">
+                    <div class="tr th-row" role="row"><div class="th c-name" role="columnheader">@T["Uploaded"]</div><div class="th" role="columnheader">@T["Team"]</div><div class="th" role="columnheader">@T["Account"]</div><div class="th" role="columnheader">@T["Tile"]</div><div class="th" role="columnheader">@T["Status"]</div><div class="th" role="columnheader">@T["Check"]</div></div>
+                    <div class="rows" role="rowgroup">
                         @foreach (var row in Model.Rows)
                         {
-                            var statusModifier = row.Status switch
-                            {
-                                SubmissionStatus.Pending => "is-yellow",
-                                SubmissionStatus.Approved => "is-green",
-                                SubmissionStatus.Rejected or SubmissionStatus.Reversed => "is-danger",
-                                _ => "is-muted"
-                            };
-                            <tr data-admin-review-row data-review-team="@row.Team" data-review-tile="@row.Tile" data-review-player="@row.Account" data-review-status="@row.Status">
-                                <td data-label='@T["Submitted"]'>
-                                    <a class="admin-review-cell-value admin-review-submission-link" asp-page="Details" asp-route-id="@row.Id" asp-route-eventId="@Model.EventId" asp-route-search="@Model.Search" asp-route-status="@Model.Status">@DateTimePresentation.Format(row.SubmittedAt, "dd MMM yyyy, HH:mm", Model.EventTimezone, CultureInfo.CurrentCulture)</a>
-                                    <small>@row.SubmittedAt.UtcDateTime.ToString("yyyy-MM-dd HH:mm 'UTC'")</small>
-                                    @if (row.AfterEnd)
-                                    {
-                                        <small class="admin-review-warning-text">@T["After event end — verify screenshot time"]</small>
-                                    }
-                                </td>
-                                <td data-label='@T["Team"]'><span class="admin-review-cell-value">@row.Team</span></td>
-                                <td data-label='@T["Tile"]'><span class="admin-review-cell-value">@row.Tile</span></td>
-                                <td data-label='@T["Credited player"]'><span class="admin-review-cell-value">@row.Account</span></td>
-                                <td data-label='@T["Status"]'><span class="admin-status-pill @statusModifier">@T[row.Status.ToString()]</span></td>
-                                <td data-label='@T["Contribution"]'><span class="admin-review-cell-value">—</span></td>
-                                <td data-label='@T["Expected code"]'><span class="admin-review-cell-value">—</span></td>
-                                <td class="admin-review-row-action" data-label='@T["Actions"]'><a class="event-overview-row-action" asp-page="Details" asp-route-id="@row.Id" asp-route-eventId="@Model.EventId" asp-route-search="@Model.Search" asp-route-status="@Model.Status">@T["Details"]</a></td>
-                            </tr>
+                            <div class="tr row" role="row" data-review-row="@row.Id">
+                                <div class="td c-name" role="cell"><a class="name-btn rv-when" id="open-@row.Id" href="@Model.DetailsUrl(row.Id)" data-shell-link data-review-open>@ReviewTime.Utc(row.SubmittedAt)</a><span class="cell-sub">@ReviewTime.Local(row.SubmittedAt, Model.EventTimezone) @city</span></div>
+                                <div class="td" role="cell"><span class="cell-main">@row.Team</span></div>
+                                <div class="td" role="cell"><span class="cell-main">@row.Account</span></div>
+                                <div class="td" role="cell"><span class="cell-main">@row.Tile</span><span class="cell-sub">@(row.DropItem is null ? T["Manual objective"] : $"{row.DropItem} · {row.Boss}")</span></div>
+                                <div class="td" role="cell"><span class="badge @Badge(row.Status)">@T[ReviewStatusText.Key(row.Status)]</span></div>
+                                <div class="td" role="cell"><div class="cell-tags">
+                                    @if (row.NoScreenshot) { <span class="pill is-warning">@T["No screenshot"]</span> }
+                                    @if (row.AfterEnd) { <span class="pill is-warning">@T["After end"]</span> }
+                                    @if (row.Paused) { <span class="pill is-warning">@T["Paused period"]</span> }
+                                    @if (row.SameImage) { <span class="pill is-warning">@T["Same image"]</span> }
+                                    @if (row.LeftTeam) { <span class="pill is-neutral">@T["Left team"]</span> }
+                                    @if (!row.HasChecks) { <span class="rv-muted" aria-label="@T["No warnings"]">—</span> }
+                                </div></div>
+                            </div>
                         }
-                    </tbody>
-                </table>
+                    </div>
                 </div>
-        </section>
-    }
-</section>
-
-@section Scripts { <script src="~/js/admin-review-queue.js" asp-append-version="true"></script> }
+            </div>
+            <div class="tfoot"><div class="tfoot-left"><span>@(Model.Filtered ? T["{0} of {1} submissions", Model.Rows.Count, Model.AllRows.Count] : Model.AllRows.Count == 1 ? T["1 submission"] : T["{0} submissions", Model.AllRows.Count])</span></div></div>
+        }
+    </div>
+</div>
+}
+@section Styles { <link rel="stylesheet" href="~/css/admin-design-review.css" asp-append-version="true" data-admin-page-style /> }
+@section Scripts { <script type="module" src="~/js/admin-review.js" asp-append-version="true" data-admin-page-script></script> }
