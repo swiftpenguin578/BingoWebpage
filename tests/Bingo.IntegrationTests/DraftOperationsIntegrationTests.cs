@@ -185,7 +185,14 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
         });
         // The retired external-member route is covered by the canonical fail-closed
         // proof below; this journey retains a current manual-roster member.
-        await Post(draftPath, "WithdrawParticipant", new() { ["participantId"] = internalIds[2].ToString() });
+        // U6 (A10): Teams no longer withdraws participants; Participants owns withdrawal (S5).
+        using (var withdraw = new HttpRequestMessage(HttpMethod.Post, participantsPath + "?handler=Withdraw"))
+        {
+            withdraw.Headers.Accept.ParseAdd("application/json");
+            withdraw.Content = Form(AntiforgeryToken(await client.GetStringAsync(participantsPath)), new() { ["participantId"] = internalIds[2].ToString(), ["confirmLifecycleAction"] = "true" });
+            using var withdrawn = await client.SendAsync(withdraw);
+            Assert.Contains("\"outcome\":\"done\"", await withdrawn.Content.ReadAsStringAsync(), StringComparison.Ordinal);
+        }
         await using (var db = new ApplicationDbContext(options))
         {
             Assert.Equal(SignupStatus.Withdrawn, await db.EventParticipants.Where(x => x.Id == internalIds[2]).Select(x => x.SignupStatus).SingleAsync());

@@ -134,13 +134,15 @@ public static class AdminEventPagePolicies
                 ("POST:CorrectPublished", AdminEventHandlerGate.BoardCorrection)),
             [typeof(BoardPreviewModel)] = Page(AdminEventPageKind.BoardPreview, true, false,
                 ("GET:", AdminEventHandlerGate.Read)),
-            [typeof(DraftModel)] = Page(AdminEventPageKind.Draft, true, false,
+            // D17 (U6): Teams is a read-only view on terminal events; every POST but
+            // ChangeRole keeps its Setup refusal and ChangeRole stays service-gated.
+            [typeof(DraftModel)] = Page(AdminEventPageKind.Draft, true, true,
                 ("GET:", AdminEventHandlerGate.Read),
                 ("GET:Readback", AdminEventHandlerGate.Read),
+                ("GET:State", AdminEventHandlerGate.Read),
                 ("GET:TeamImage", AdminEventHandlerGate.Read),
                 ("POST:AddTeam", AdminEventHandlerGate.Setup),
                 ("POST:RemoveDraftTeam", AdminEventHandlerGate.Setup),
-                ("POST:WithdrawParticipant", AdminEventHandlerGate.Setup),
                 ("POST:UpdateTeam", AdminEventHandlerGate.Setup),
                 ("POST:AddMember", AdminEventHandlerGate.Setup),
                 ("POST:RemoveMember", AdminEventHandlerGate.Setup),
