@@ -84,6 +84,11 @@ public sealed partial class WiseOldManModel
           || CompetitionManagement?.Status is "Conflict" or "Failed"
           || CompetitionManagement?.CredentialStatus is EventCompetitionCredentialStatus.Invalid or EventCompetitionCredentialStatus.Revoked
           || CompetitionManagement?.CanWrite != true ? "is-none" : "";
+    // Reference glyphs: queued clock, pause when updates are paused, cross when nothing can be sent, check otherwise.
+    public string UpdateGlyph => EndNeedsAttention || OperationPending ? "mark-queued"
+        : !ReadOnly && EventView!.State != EventState.AwaitingFinalReview && (CompetitionManagement?.Status is "Conflict" or "Failed"
+            || CompetitionManagement?.CredentialStatus is EventCompetitionCredentialStatus.Invalid or EventCompetitionCredentialStatus.Revoked) ? "mark-pause"
+        : !ReadOnly && EventView!.State != EventState.AwaitingFinalReview && CompetitionManagement?.CanWrite != true ? "mark-cross" : "check";
     public string CredentialToneClass => CompetitionManagement?.CredentialStatus switch
     {
         EventCompetitionCredentialStatus.Valid => "is-good",
