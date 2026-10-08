@@ -11,6 +11,41 @@ namespace Bingo.Web.Pages.Admin.Events;
 public sealed partial class WiseOldManModel
 {
     private static readonly JsonSerializerOptions WomJsonOptions = new(JsonSerializerDefaults.Web);
+    private static readonly string[] ClientLabels =
+    [
+        "Check current state",
+        "Update queued",
+        "The operation is queued. Check the current state for its result.",
+        "None yet",
+        "Not configured",
+        "Active",
+        "Queued",
+        "Sending",
+        "Unknown outcome",
+        "Failed",
+        "Conflict",
+        "Deleted",
+        "Cancelled",
+        "Not connected",
+        "Enter a valid competition ID.",
+        "Enter a valid Wise Old Man management code.",
+        "Action",
+        "Fetch now",
+        "Fetching…",
+        "Management code",
+        "Cancel",
+        "Update unconfirmed",
+        "The current state is unavailable. Check again before trying another action.",
+        "Nothing was saved. Your entries are still here.",
+        "Check the current state before trying another action.",
+        "Next eligible time: {0}",
+        "We couldn’t confirm whether new data was fetched.",
+        "We couldn’t confirm whether this change was saved.",
+        "Current stored connection: {0}. Last successful fetch on record: {1}. Operation status: {2}.",
+        "The submitted code was cleared. Enter it again if needed.",
+        "The current connection is shown.",
+    ];
+    public string LabelsJson => JsonSerializer.Serialize(ClientLabels.ToDictionary(key => key, key => text?[key].Value ?? key), WomJsonOptions);
     public string CurrentJson => JsonSerializer.Serialize(new { eventId = EventView!.Id, version = EventVersion.ToString(CultureInfo.InvariantCulture), state = EventView.State.ToString(), integration = CompetitionIntegration, management = CompetitionManagement, activity = Activity }, WomJsonOptions);
     public bool ReadOnly => EventView!.State is EventState.Cancelled or EventState.Finalized or EventState.Archived;
     public bool BeforeLive => EventView!.ActualStartedAt is null && EventView.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed;
@@ -31,7 +66,9 @@ public sealed partial class WiseOldManModel
         : CompetitionManagement?.CredentialStatus is EventCompetitionCredentialStatus.Invalid or EventCompetitionCredentialStatus.Revoked
             ? new(Localize("Wise Old Man rejected the management code."), Localize("Website changes are paused until a valid code is saved. Fetching still follows the current eligibility shown below."), "is-warning")
         : CompetitionIntegration?.LastErrorKind == "NotFound" ? new(Localize("Wise Old Man could not find that competition."), Localize("Previously fetched data is retained. Check the competition on Wise Old Man."), "is-error")
-        : CompetitionIntegration?.LastErrorKind is "RateLimited" or "Unavailable" ? new(Localize(CompetitionIntegration.LastErrorKind == "RateLimited" ? "Wise Old Man is limiting requests." : "Wise Old Man isn’t responding."), Localize("Previously fetched data is retained. The next permitted fetch is shown below."), "is-warning") : null;
+        : CompetitionIntegration?.LastErrorKind is "RateLimited" or "Unavailable" ? new(Localize(CompetitionIntegration.LastErrorKind == "RateLimited" ? "Wise Old Man is limiting requests." : "Wise Old Man isn’t responding."), Localize("Previously fetched data is retained. The next permitted fetch is shown below."), "is-warning")
+        : EventView!.State == EventState.Live && CompetitionIntegration?.LastSuccessfulAt is { } fetched && fetched < (clock ?? TimeProvider.System).GetUtcNow().AddHours(-1)
+            ? new(Localize("The data is more than an hour old."), Localize("The next scheduled fetch is shown below."), "is-info") : null;
     public string UpdateTitle => EndNeedsAttention ? EndTitle : OperationPending ? Localize(CompetitionManagement?.OperationPhase == EventCompetitionManagementOperationPhase.Unknown ? "Update unconfirmed" : "Update queued")
         : ReadOnly || EventView!.State == EventState.AwaitingFinalReview ? Localize("Updates stopped")
         : CompetitionManagement?.Status is "Conflict" or "Failed" || CompetitionManagement?.CredentialStatus is EventCompetitionCredentialStatus.Invalid or EventCompetitionCredentialStatus.Revoked ? Localize("Updates paused")

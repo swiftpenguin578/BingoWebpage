@@ -1,4 +1,9 @@
 using System.Net;
+using Bingo.Application.Events;
+using Bingo.Application.Integrations.WiseOldMan;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using System.Text.Json;
 using Bingo.Domain.Access;
 using Bingo.Domain.Events;
@@ -9,6 +14,55 @@ namespace Bingo.IntegrationTests;
 
 public sealed partial class EventCompetitionManagementIntegrationTests
 {
+    [Fact]
+    public async Task Rc09W1Wa9AppliedCreateAndDeleteReportCompletedRatherThanQueued()
+    {
+        var clock = new TestClock(new DateTimeOffset(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
+        var fixture = await SeedEventAsync(clock, live: false);
+        await SetAdminPasswordAsync(fixture.Actor.Id, clock.GetUtcNow());
+        var provider = new RecordingManagementClient
+        {
+            CreateHandler = (payload, _) => Task.FromResult(new WiseOldManCompetitionWriteResult(
+                WiseOldManCompetitionWriteStatus.Success,
+                new WiseOldManCompetition(7701, payload.Title, payload.StartsAt, payload.EndsAt, clock.GetUtcNow(),
+                    payload.Teams.SelectMany(team => team.Participants).Select(name => new WiseOldManCompetitionParticipant(name, "REGULAR", null)).ToArray()),
+                ProtectedVerificationCode: "protected:controlled-code"))
+        };
+        await using var original = CreateAdminFactory(clock);
+        await using var factory = original.WithWebHostBuilder(builder => builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IWiseOldManCompetitionManagementClient>();
+            services.AddSingleton<IWiseOldManCompetitionManagementClient>(provider);
+            services.RemoveAll<ICompetitionCredentialProtector>();
+            services.AddSingleton<ICompetitionCredentialProtector>(new PassthroughCredentialProtector());
+        }));
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, BaseAddress = new Uri("https://localhost") });
+        await LoginAsync(client, fixture.Actor.Username);
+        var route = $"/Admin/Events/WiseOldMan/{fixture.EventId}";
+        foreach (var (handler, message) in new[] {
+            ("CreateManagedCompetition", "The WOM competition was created and linked."),
+            ("DeleteManagedCompetition", "The website-created WOM competition was deleted.") })
+        {
+            var page = await client.GetStringAsync(route);
+            client.DefaultRequestHeaders.Accept.Clear();
+            client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+            using var response = await client.PostAsync(route + "?handler=" + handler, new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["EventVersion"] = InputValue(page, "EventVersion"),
+                ["ManagedCompetitionDeleteId"] = "7701",
+                ["ConfirmManagedCompetitionDelete"] = "true",
+                ["__RequestVerificationToken"] = InputValue(page, "__RequestVerificationToken")
+            }));
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            using var result = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert.True(result.RootElement.GetProperty("succeeded").GetBoolean(), result.RootElement.ToString());
+            Assert.Equal("applied", result.RootElement.GetProperty("outcome").GetString());
+            Assert.Equal(message, result.RootElement.GetProperty("message").GetString());
+        }
+        Assert.Equal(1, provider.CreateCalls);
+        Assert.Equal(1, provider.DeleteCalls);
+    }
+
     [Fact]
     public async Task CCmp2W1WomStructuredRefusalClearsSecretAndCurrentIsNoStore()
     {

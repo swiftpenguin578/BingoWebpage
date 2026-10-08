@@ -4252,4 +4252,16 @@
   <data name="WOM data is temporarily rate-limited." xml:space="preserve"><value>Forespørgsler efter WOM-data er midlertidigt begrænset.</value></data>
   <data name="WOM data is temporarily rate-limited. Try again after {0}." xml:space="preserve"><value>Forespørgsler efter WOM-data er midlertidigt begrænset. Prøv igen efter {0}.</value></data>
   <data name="WOM data is temporarily unavailable. Try again after {0}." xml:space="preserve"><value>WOM-data er midlertidigt utilgængelige. Prøv igen efter {0}.</value></data>
+  <data name="Fetching…" xml:space="preserve"><value>Henter…</value></data>
+  <data name="We couldn’t confirm whether new data was fetched." xml:space="preserve"><value>Vi kunne ikke bekræfte, om nye data blev hentet.</value></data>
+  <data name="We couldn’t confirm whether this change was saved." xml:space="preserve"><value>Vi kunne ikke bekræfte, om denne ændring blev gemt.</value></data>
+  <data name="Current stored connection: {0}. Last successful fetch on record: {1}. Operation status: {2}." xml:space="preserve"><value>Aktuel gemt tilknytning: {0}. Seneste registrerede vellykkede hentning: {1}. Handlingsstatus: {2}.</value></data>
+  <data name="The submitted code was cleared. Enter it again if needed." xml:space="preserve"><value>Den indsendte kode blev ryddet. Indtast den igen, hvis det er nødvendigt.</value></data>
+  <data name="The current connection is shown." xml:space="preserve"><value>Den aktuelle tilknytning vises.</value></data>
+  <data name="The operation is queued. Check the current state for its result." xml:space="preserve"><value>Handlingen er sat i kø. Kontrollér den aktuelle tilstand for at se resultatet.</value></data>
+  <data name="The data is more than an hour old." xml:space="preserve"><value>Dataene er mere end en time gamle.</value></data>
+  <data name="The next scheduled fetch is shown below." xml:space="preserve"><value>Den næste planlagte hentning vises nedenfor.</value></data>
+  <data name="Account coverage is not available yet" xml:space="preserve"><value>Kontodækning er endnu ikke tilgængelig</value></data>
+  <data name="The WOM competition was created and linked." xml:space="preserve"><value>WOM-konkurrencen blev oprettet og tilknyttet.</value></data>
+  <data name="The website-created WOM competition was deleted." xml:space="preserve"><value>WOM-konkurrencen oprettet af hjemmesiden blev slettet.</value></data>
 </root>
