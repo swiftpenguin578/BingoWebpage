@@ -2171,32 +2171,6 @@ public sealed partial class SignupService(
 
     private sealed record ReplacementPrevalidation(LiveParticipantResult? Failure, IReadOnlyList<string>? Names);
 
-    public async Task<PromotionFollowUpResult> CompletePromotionFollowUpAsync(Guid eventId, Guid followUpId, Guid adminAccountId, string adminName, CancellationToken cancellationToken = default)
-    {
-        return new(false, "Promotion follow-up is retired; finalized roster Add and Remove are the only roster corrections before Live.");
-#pragma warning disable CS0162
-        await using var tx = await dbContext.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
-        var bingoEvent = await LockEventAsync(eventId, cancellationToken);
-        if (bingoEvent is null) return new(false, "The event could not be found.");
-        if (bingoEvent.State is not (EventState.Live or EventState.AwaitingFinalReview) &&
-            await FinalizedPreLiveDraftAsync(bingoEvent, timeProvider.GetUtcNow(), cancellationToken) is null)
-            return new(false, "Promotion follow-up is unavailable in this event lifecycle state.");
-        var admin = await AdminAsync(adminAccountId, cancellationToken);
-        if (admin is null) return new(false, "Admin access is required.");
-        var followUp = await dbContext.WaitingListPromotionFollowUps
-            .FromSqlInterpolated($"SELECT * FROM waiting_list_promotion_follow_ups WHERE id = {followUpId} FOR UPDATE")
-            .SingleOrDefaultAsync(cancellationToken);
-        if (followUp is null || followUp.EventId != eventId) return new(false, "The promotion follow-up could not be found.");
-        if (followUp.CompletedAt is not null) { await tx.CommitAsync(cancellationToken); return new(true, Changed: false); }
-        var now = timeProvider.GetUtcNow().ToUniversalTime();
-        followUp.MarkComplete(adminAccountId, now);
-        dbContext.AuditEntries.Add(new AuditEntry(Guid.NewGuid(), now, adminAccountId, adminName, "participant.promotion_follow_up_completed", "promotion_follow_up", followUp.Id.ToString(), null, eventId, null, Json(new { followUp.CompletedByAccountId, followUp.CompletedAt })));
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await tx.CommitAsync(CancellationToken.None);
-        return new(true, Changed: true);
-#pragma warning restore CS0162
-    }
-
     private async Task<DraftSession?> FinalizedPreLiveDraftAsync(BingoEvent bingoEvent, DateTimeOffset now, CancellationToken ct)
     {
         var draft = await dbContext.DraftSessions.SingleOrDefaultAsync(x => x.EventId == bingoEvent.Id, ct);
