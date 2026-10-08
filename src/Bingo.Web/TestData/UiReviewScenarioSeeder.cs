@@ -53,7 +53,9 @@ public sealed class UiReviewScenarioSeeder(
         var privateSetup = await AddEventAsync("Private setup", "ur-draft", EventState.Draft, now, -2, ct);
         events.Add(privateSetup);
 
-        events.Add(await AddEventAsync("Signups open", "ur-signups-open", EventState.SignupOpen, now, 15, ct));
+        var signupsOpen = await AddEventAsync("Signups open", "ur-signups-open", EventState.SignupOpen, now, 15, ct);
+        events.Add(signupsOpen);
+        var participants = AddParticipantsScenario(signupsOpen, now);
         events.Add(await AddEventAsync("Signups closed — finalized affiliated rosters", "ur-signups-closed", EventState.SignupClosed, now, 16, ct, roster: true));
         events.Add(await AddEventAsync("Unknown timezone", "ur-unknown-timezone", EventState.SignupClosed, now, 17, ct, timezone: "Review/Unknown"));
         for (var index = 1; index <= 22; index++)
@@ -124,7 +126,55 @@ public sealed class UiReviewScenarioSeeder(
         return new UiReviewScenarios(profile, now, active.Id, discarded.Id, blocked,
             events.Select(value => new UiReviewEvent(value.Id, value.Name, value.Slug, value.State, value.IsHidden)).ToArray(),
             accounts.Values.Select(value => new UiReviewAccount(value.LoginName, value.GlobalRole!.Value, value.DisabledAt is not null, value.Id)).ToArray(),
-            catalogue.Activity, catalogue.Drop);
+            catalogue.Activity, catalogue.Drop, participants);
+    }
+
+    // U5 Participants: the open-signup event is full (capacity 4) with a waiting list and a withdrawn participant, so the
+    // list, the participant drawer, Add (ReviewWebsite is not in the event) and the full-event choices can be reviewed.
+    // The cancelled, archived and Live events already show the read-only states.
+    private UiReviewParticipants AddParticipantsScenario(BingoEvent item, DateTimeOffset now)
+    {
+        item.SetParticipantCap(4);
+        var question = db.SignupQuestions.Local.Single(value => value.EventId == item.Id && value.SystemField == SignupSystemField.PrimaryRegularAccount);
+        var captainQuestion = db.SignupQuestions.Local.Single(value => value.EventId == item.Id && value.SystemField == SignupSystemField.CoCaptainName);
+        var people = new (string Account, SignupStatus Status, bool Paid)[]
+        {
+            ("ReviewCaptain", SignupStatus.Confirmed, true), ("ReviewCoCaptain", SignupStatus.Confirmed, false),
+            ("ReviewParticipant", SignupStatus.Confirmed, true), ("ReviewSecondMember", SignupStatus.Confirmed, false),
+            ("ReviewSecondCaptain", SignupStatus.WaitingList, false), ("ReviewSecondCoCaptain", SignupStatus.WaitingList, true),
+            ("ReviewFormer", SignupStatus.Withdrawn, false)
+        };
+        Guid? waiting = null, withdrawn = null, confirmed = null;
+        for (var index = 0; index < people.Length; index++)
+        {
+            var (name, status, paid) = people[index];
+            var at = now.AddDays(-12 + index);
+            var account = accounts[name];
+            var character = characters[account.Id];
+            var participant = new EventParticipant(Guid.NewGuid(), item.Id, status == SignupStatus.Withdrawn ? SignupStatus.Confirmed : status, index + 1, at, SignupSource.Website);
+            participant.AssignOwner(account);
+            participant.SetPaymentStatus(paid ? PaymentStatus.Paid : PaymentStatus.Unpaid);
+            db.EventParticipants.Add(participant);
+            db.SignupAnswers.Add(new SignupAnswer(Guid.NewGuid(), participant.Id, question.Id, "Playing account", string.Empty, character.Id));
+            var assignment = new EventParticipantCharacter(Guid.NewGuid(), item.Id, participant.Id, character.Id, 0, at,
+                account.Id, question.Id, EventCharacterRole.Playing, 25, EhbSource.Manual, null);
+            db.EventParticipantCharacters.Add(assignment);
+            if (index == 0)
+            {
+                participant.SetCaptainVolunteer(true);
+                participant.SetAdminNotes("Synthetic private note: paid in game.");
+                db.SignupAnswers.Add(new SignupAnswer(Guid.NewGuid(), participant.Id, captainQuestion.Id, captainQuestion.Label, "Ur Participant"));
+                confirmed = participant.Id;
+            }
+            if (status == SignupStatus.WaitingList) waiting ??= participant.Id;
+            if (status == SignupStatus.Withdrawn)
+            {
+                participant.Withdraw(now.AddDays(-2), "Participant withdrawal");
+                assignment.Release(account.Id, now.AddDays(-2));
+                withdrawn = participant.Id;
+            }
+        }
+        return new UiReviewParticipants(item.Id, confirmed, waiting, withdrawn);
     }
 
     // T2 Catalogue (S10): one catalogue drop used by a visible draft board, by the current event's correction copy
@@ -528,4 +578,5 @@ public sealed class UiReviewScenarioSeeder(
 public sealed record UiReviewEvent(Guid Id, string Name, string Slug, EventState State, bool Hidden);
 public sealed record UiReviewAccount(string Username, GlobalRole Role, bool Disabled, Guid Id = default);
 public sealed record UiReviewScenarios(string Profile, DateTimeOffset BuiltAt, Guid CurrentEventId, Guid DiscardedEventId, Guid BlockedSubmissionId, IReadOnlyList<UiReviewEvent> Events, IReadOnlyList<UiReviewAccount> Accounts,
-    Guid? CatalogueActivityId = null, Guid? CatalogueDropId = null);
+    Guid? CatalogueActivityId = null, Guid? CatalogueDropId = null, UiReviewParticipants? Participants = null);
+public sealed record UiReviewParticipants(Guid EventId, Guid? ConfirmedId, Guid? WaitingId, Guid? WithdrawnId);

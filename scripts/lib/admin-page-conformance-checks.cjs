@@ -212,8 +212,10 @@ async function checkLoadingSummary(page, registration) {
   const bars=summary.locator('.tab-count[data-pending-count] > .sk');
   const numberItems=registration.countSummary.numberItems||words.map((_,i)=>i);
   assert.ok(numberItems.every(i=>Number.isInteger(i)&&i>=0&&i<words.length)&&new Set(numberItems).size===numberItems.length,registration.family+': declared numeric summary items');
-  assert.equal(await bars.count(),numberItems.length,registration.family+': same numeric placeholders as tabs');
-  for(let i=0;i<words.length;i++)assert.equal(await summary.locator(':scope > span').nth(i).locator('.tab-count[data-pending-count] > .sk').count(),numberItems.includes(i)?1:0,registration.family+': placeholder in declared numeric item '+i);
+  // U5: an item may hold more than one number ("58 of 60 confirmed"); numberCounts declares how many.
+  const expected=i=>registration.countSummary.numberCounts?.[i]??(numberItems.includes(i)?1:0);
+  assert.equal(await bars.count(),words.reduce((sum,_,i)=>sum+expected(i),0),registration.family+': same numeric placeholders as tabs');
+  for(let i=0;i<words.length;i++)assert.equal(await summary.locator(':scope > span').nth(i).locator('.tab-count[data-pending-count] > .sk').count(),expected(i),registration.family+': placeholder in declared numeric item '+i);
   assert.equal(await summary.locator('button,.summary-btn,b').count(),0,registration.family+': no data-dependent attention or numbers before response');
   const boxes=await summary.locator('.tab-count[data-pending-count]').evaluateAll(nodes=>nodes.map(e=>{const c=getComputedStyle(e),b=e.querySelector('.sk').getBoundingClientRect();return {display:c.display,width:e.getBoundingClientRect().width,barWidth:b.width,barHeight:b.height,text:e.textContent.trim()};}));
   assert.ok(boxes.every(b=>b.display==='inline-flex'&&b.width>0&&Math.abs(b.barWidth-b.width)<0.1&&b.barHeight===10&&b.text===''),registration.family+': number-sized bars');

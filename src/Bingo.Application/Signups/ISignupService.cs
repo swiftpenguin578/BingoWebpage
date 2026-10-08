@@ -119,6 +119,12 @@ public interface ISignupService
     Task<EventAccountMutationResult> SwitchParticipantPrimaryAsync(SwitchAdminPrimaryRequest request, CancellationToken cancellationToken = default)
         => SwitchAdminPrimaryAsync(request, cancellationToken);
 
+    /// <summary>U5-Q2: saves the whole Participants drawer atomically with stale checks.</summary>
+    Task<AdminParticipantDrawerSaveResult> SaveAdminParticipantDrawerAsync(
+        AdminParticipantDrawerSaveRequest request,
+        CancellationToken cancellationToken = default)
+        => Task.FromException<AdminParticipantDrawerSaveResult>(new NotSupportedException("Participant drawer saves are not available."));
+
     Task<ParticipantPaymentResult> SetPaymentAsync(Guid eventId, Guid participantId, Guid? actorAccountId, string actorName, PaymentStatus payment, CancellationToken cancellationToken = default)
         => Task.FromException<ParticipantPaymentResult>(new NotSupportedException("Participant payment is not available."));
 
@@ -172,7 +178,11 @@ public interface ISignupService
         => Task.FromException<PromotionFollowUpResult>(new NotSupportedException("Promotion follow-up is not available."));
 }
 
-public sealed record ParticipantLifecycleResult(bool Succeeded, string? Error, SignupStatus? Status = null, int? WaitingPosition = null, bool Changed = false, string? WomValidationConfirmationToken = null);
+// D2/P-6: EffectiveParticipantCap and AddedPlace carry the capacity outcome; the
+// Participants toast reads them instead of parsing text. PromotedParticipantIds lists
+// waiters confirmed by the same operation (withdrawal promotion).
+public sealed record ParticipantLifecycleResult(bool Succeeded, string? Error, SignupStatus? Status = null, int? WaitingPosition = null, bool Changed = false, string? WomValidationConfirmationToken = null,
+    int? EffectiveParticipantCap = null, bool AddedPlace = false, IReadOnlyList<Guid>? PromotedParticipantIds = null);
 // These baselines remain nullable for source compatibility with retained
 // callers; SignupService rejects a missing applicable baseline at its
 // authoritative mutation boundary before reading or changing roster state.
@@ -199,7 +209,8 @@ public sealed record ParticipantQueueMutationResult(
     int? WaitingPosition = null,
     Guid? PromotedParticipantId = null,
     int? EffectiveParticipantCap = null,
-    bool Changed = false);
+    bool Changed = false,
+    bool AddedPlace = false);
 public sealed record AdminParticipantRestoreRequest(
     Guid EventId,
     Guid ParticipantId,
@@ -309,7 +320,28 @@ public sealed record AdminParticipantChangeRequest(
     IReadOnlyDictionary<Guid, string> Answers,
     int? ExpectedResponseVersion = null,
     string? WomValidationConfirmationToken = null);
-public sealed record AdminParticipantResult(bool Succeeded, string? Error, Guid? ParticipantId = null, SignupStatus? Status = null, int? WaitingPosition = null, string? WomValidationConfirmationToken = null);
+public sealed record AdminParticipantResult(bool Succeeded, string? Error, Guid? ParticipantId = null, SignupStatus? Status = null, int? WaitingPosition = null, string? WomValidationConfirmationToken = null,
+    int? EffectiveParticipantCap = null, bool AddedPlace = false);
+// U5-Q2. Playing is null when accounts are not submitted (payment/note-only save);
+// then Informational is ignored. Answers is null when answers are not submitted.
+// AssignmentId names the current assignment an entry continues; a missing id or a
+// changed name is a new event-only account (U5-Q1).
+public sealed record AdminDrawerAccount(Guid? AssignmentId, string Name, decimal? Ehb, bool Primary = false);
+public sealed record AdminParticipantDrawerSaveRequest(
+    Guid EventId,
+    Guid ParticipantId,
+    Guid ActorAccountId,
+    string ActorName,
+    PaymentStatus Payment,
+    string? AdminNote,
+    PaymentStatus ExpectedPayment,
+    string? ExpectedAdminNote,
+    int? ExpectedResponseVersion = null,
+    IReadOnlyList<AdminDrawerAccount>? Playing = null,
+    IReadOnlyList<AdminDrawerAccount>? Informational = null,
+    IReadOnlyDictionary<Guid, string>? Answers = null);
+/// <summary>Outcome: saved, refused (definite, with the reason), stale or invalid (Field names the input).</summary>
+public sealed record AdminParticipantDrawerSaveResult(bool Succeeded, string? Error = null, string Outcome = "saved", bool Changed = false, string? Field = null);
 public sealed record ParticipantOwnershipTransferRequest(Guid EventId, Guid ParticipantId, Guid ActorAccountId, string ActorName, Guid? DestinationOwnerAccountId, Guid? ExpectedOwnerAccountId = null, bool Confirmed = false);
 public sealed record ParticipantOwnershipTransferResult(bool Succeeded, string? Error, bool Changed = false);
 public sealed record LiveWithdrawalRequest(Guid EventId, Guid ParticipantId, Guid ActorAccountId, string ActorName, long? ExpectedMembershipVersion = null);

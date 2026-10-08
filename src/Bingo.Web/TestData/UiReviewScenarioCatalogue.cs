@@ -10,8 +10,8 @@ public static class UiReviewScenarioCatalogue
     public static IReadOnlyList<UiReviewLink> Links(UiReviewScenarios scenarios, Uri appUrl)
     {
         var links = new List<UiReviewLink>();
-        void Add(string page, string name, string route, string username = "ReviewAdmin", bool hidden = false, bool anonymous = false) =>
-            links.Add(new(page, name, new Uri(appUrl, route).AbsoluteUri, username, hidden, anonymous));
+        void Add(string page, string name, string route, string username = "ReviewAdmin", bool hidden = false, bool anonymous = false, string? redirectTo = null) =>
+            links.Add(new(page, name, new Uri(appUrl, route).AbsoluteUri, username, hidden, anonymous, redirectTo));
         Add("Dashboard / Events", "One visible current event and more than eight upcoming setups", "/Admin/Index");
         Add("Dashboard / Events", "Events directory — discarded excluded", "/Admin/Events/Index");
         Add("Dashboard / Events", "Create a private draft", "/Admin/Events?create=1");
@@ -74,6 +74,29 @@ public static class UiReviewScenarioCatalogue
         Add("Accounts", "No accounts match / Clear search and filter", "/Admin/Accounts?q=nobody-here&role=superadmin", "ReviewAdmin");
         Add("Accounts", "Link to an account that isn’t available", "/Admin/Accounts?account=00000000-0000-0000-0000-000000000001", "ReviewAdmin");
         Add("Accounts / Catalogue / Audit", "Reviewed local catalogue", "/Admin/Catalogue/Index");
+        // U5 Participants binding scenarios: the open-signup event is full (capacity 4) with a waiting list and one withdrawn participant.
+        if (scenarios.Participants is { } people)
+        {
+            var root = $"/Admin/Events/Participants/{people.EventId}";
+            Add("Participants", "Full event — 4 of 4 confirmed, waiting list, Paid/Unpaid, search, sort", root, "ReviewAdmin");
+            Add("Participants", "Waiting tab — Confirm and add a place, Move to waiting list", root + "?tab=waiting", "ReviewAdmin");
+            Add("Participants", "Withdrawn tab — Restore, Restore and add a place", root + "?tab=withdrawn", "ReviewAdmin");
+            Add("Participants", "Search by Discord name, account or RSN", root + "?q=ur", "ReviewAdmin");
+            Add("Participants", "No matches / Clear search and filters", root + "?q=nobody-here&pay=paid", "ReviewAdmin");
+            if (people.ConfirmedId is { } confirmedId) Add("Participants", "Participant drawer — accounts, captain answers, private note, one Save", root + $"?participant={confirmedId}", "ReviewAdmin");
+            if (people.WaitingId is { } waitingId) Add("Participants", "Waiting participant drawer — Move/Confirm and Withdraw", root + $"?participant={waitingId}", "ReviewAdmin");
+            if (people.WithdrawnId is { } withdrawnId) Add("Participants", "Withdrawn participant drawer — read-only, Restore to edit", root + $"?participant={withdrawnId}", "ReviewAdmin");
+            Add("Participants", "Add participant — search ReviewWebsite, full event: Confirm and add a place or Waiting list", root + "?add=1", "ReviewAdmin");
+            Add("Participants", "Link to a participant that isn’t in this event", root + "?participant=00000000-0000-0000-0000-000000000001", "ReviewAdmin");
+            Add("Participants", "Old participant page URL redirects to the drawer", people.ConfirmedId is { } oldId ? $"/Admin/Events/Participant/{people.EventId}/Participants/{oldId}" : root, "ReviewAdmin",
+                redirectTo: people.ConfirmedId is { } drawerId ? root + $"?participant={drawerId}" : null);
+            foreach (var slug in new[] { "ur-cancelled", "ur-archived", "ur-current" })
+            {
+                var terminal = scenarios.Events.Single(value => value.Slug == slug);
+                Add("Participants", terminal.Name + $" [{terminal.State}] — read-only roster; payment and private note only where allowed", $"/Admin/Events/Participants/{terminal.Id}", "ReviewAdmin");
+            }
+        }
+
         // T2 Catalogue binding scenarios (lane T).
         Add("Catalogue", "Directory — search, category and Active/Inactive tabs", "/Admin/Catalogue");
         Add("Catalogue", "Search by drop name — “matches …” under the activity", "/Admin/Catalogue?q=onyx");
@@ -134,4 +157,4 @@ public static class UiReviewScenarioCatalogue
     };
 }
 
-public sealed record UiReviewLink(string Page, string Name, string Url, string Username, bool Hidden, bool Anonymous);
+public sealed record UiReviewLink(string Page, string Name, string Url, string Username, bool Hidden, bool Anonymous, string? ExpectedRedirectTo = null);

@@ -90,4 +90,7 @@
   <data name="AdminDesign.no estimate" xml:space="preserve"><value>no estimate</value></data>
   <data name="AdminDesign.manual" xml:space="preserve"><value>manual</value></data>
   <data name="AdminDesign.Evidence submitted" xml:space="preserve"><value>Evidence submitted</value></data>
+  <data name="AdminDesign.Confirmed" xml:space="preserve"><value>Confirmed</value></data>
+  <data name="AdminDesign.{0} confirmed" xml:space="preserve"><value>{0} confirmed</value></data>
+  <data name="AdminDesign.Add playing account" xml:space="preserve"><value>Add playing account</value></data>
 </root>

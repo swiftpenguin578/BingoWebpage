@@ -2400,6 +2400,7 @@
   <data name="Confirm the exceptional board correction and provide an Admin reason." xml:space="preserve"><value>Bekræft den ekstraordinære Board-rettelse, og angiv en Admin-begrundelse.</value></data>
   <data name="Confirm the restoration before continuing." xml:space="preserve"><value>Bekræft gendannelsen, før du fortsætter.</value></data>
   <data name="Confirm the withdrawal before continuing." xml:space="preserve"><value>Bekræft tilbagetrækningen, før du fortsætter.</value></data>
+  <data name="This participant isn't part of this event." xml:space="preserve"><value>Deltageren er ikke en del af dette event.</value></data>
   <data name="Confirm this published pre-formed correction." xml:space="preserve"><value>Bekræft denne publicerede rettelse af det forhåndsdannede roster.</value></data>
   <data name="Corrected board published as a replacement snapshot. The prior public snapshot remains in history." xml:space="preserve"><value>Det rettede Board blev publiceret som et erstatningssnapshot. Det tidligere offentlige snapshot findes stadig i historikken.</value></data>
   <data name="Development TEST 15 competition refresh is due." xml:space="preserve"><value>Opdateringen af Development TEST 15-konkurrencen er klar.</value></data>
@@ -4143,6 +4144,227 @@
   <data name="Correct published board…" xml:space="preserve"><value>Ret offentliggjort Board…</value></data>
   <data name="Not available in this event state" xml:space="preserve"><value>Ikke tilgængelig i eventets nuværende tilstand</value></data>
   <data name="Discard correction…" xml:space="preserve"><value>Kassér rettelse…</value></data>
+  <data name="Use up to 12 letters, numbers, spaces, - or _." xml:space="preserve"><value>Brug op til 12 bogstaver, tal, mellemrum, - eller _.</value></data>
+  <data name="A current event, participant, and administrator are required." xml:space="preserve"><value>Et aktuelt event, en deltager og en administrator er påkrævet.</value></data>
+  <data name="Choose Paid or Unpaid." xml:space="preserve"><value>Vælg Betalt eller Ikke betalt.</value></data>
+  <data name="The current participant version is required. Reload before saving." xml:space="preserve"><value>Deltagerens aktuelle version mangler. Genindlæs, før du gemmer.</value></data>
+  <data name="The event could not be found." xml:space="preserve"><value>Eventet blev ikke fundet.</value></data>
+  <data name="Private participant metadata is unavailable in this event lifecycle state." xml:space="preserve"><value>Private deltageroplysninger er ikke tilgængelige i eventets nuværende fase.</value></data>
+  <data name="The participant could not be found." xml:space="preserve"><value>Deltageren blev ikke fundet.</value></data>
+  <data name="Accounts and signup answers are locked because the draft has started or the event has moved on. Nothing was saved." xml:space="preserve"><value>Konti og tilmeldingssvar er låst, fordi draften er startet, eller eventet er gået videre. Intet blev gemt.</value></data>
+  <data name="Restore this participant before changing accounts or answers. Nothing was saved." xml:space="preserve"><value>Gendan deltageren, før du ændrer konti eller svar. Intet blev gemt.</value></data>
+  <data name="This participant changed while you were editing. The current details are shown; nothing was saved." xml:space="preserve"><value>Deltageren blev ændret, mens du redigerede. De aktuelle oplysninger vises; intet blev gemt.</value></data>
+  <data name="One of these accounts is already used by another participant in this event. Nothing was saved." xml:space="preserve"><value>En af disse konti bruges allerede af en anden deltager i dette event. Intet blev gemt.</value></data>
+  <data name="The event has no unambiguous primary playing account field." xml:space="preserve"><value>Eventet har ikke ét entydigt felt til den primære spillekonto.</value></data>
+  <data name="Keep at least one playing account." xml:space="preserve"><value>Behold mindst én spillekonto.</value></data>
+  <data name="Choose exactly one primary account." xml:space="preserve"><value>Vælg præcis én primær konto.</value></data>
+  <data name="There are more playing accounts than this event has slots for." xml:space="preserve"><value>Der er flere spillekonti, end eventet har pladser til.</value></data>
+  <data name="There are more alt accounts than this event has slots for." xml:space="preserve"><value>Der er flere alt-konti, end eventet har pladser til.</value></data>
+  <data name="Alt accounts have no EHB and can&#x27;t be primary." xml:space="preserve"><value>Alt-konti har ingen EHB og kan ikke være primære.</value></data>
+  <data name="Enter an RSN." xml:space="preserve"><value>Angiv et RSN.</value></data>
+  <data name="This account is already listed." xml:space="preserve"><value>Denne konto er allerede på listen.</value></data>
+  <data name="Enter an EHB from 0 to 100,000." xml:space="preserve"><value>Angiv en EHB fra 0 til 100.000.</value></data>
+  <data name="Already used by another participant in this event." xml:space="preserve"><value>Bruges allerede af en anden deltager i dette event.</value></data>
+  <data name="No configured account slot is free for this account." xml:space="preserve"><value>Der er ingen ledig kontoplads til denne konto.</value></data>
+  <data name="The changes could not be read. Nothing was saved." xml:space="preserve"><value>Ændringerne kunne ikke læses. Intet blev gemt.</value></data>
+  <data name="The team draft for {0} has started." xml:space="preserve"><value>Holddraften for {0} er startet.</value></data>
+  <data name="{0} is in progress." xml:space="preserve"><value>{0} er i gang.</value></data>
+  <data name="{0} is awaiting final review." xml:space="preserve"><value>{0} afventer endelig gennemgang.</value></data>
+  <data name="{0} is finalized." xml:space="preserve"><value>{0} er afsluttet.</value></data>
+  <data name="{0} is archived." xml:space="preserve"><value>{0} er arkiveret.</value></data>
+  <data name="Roster changes aren’t allowed in this event phase." xml:space="preserve"><value>Ændringer i deltagerlisten er ikke tilladt i denne fase af eventet.</value></data>
+  <data name=" · capacity now {0}" xml:space="preserve"><value> · kapacitet nu {0}</value></data>
+  <data name="+{0} account" xml:space="preserve"><value>+{0} konto</value></data>
+  <data name="+{0} accounts" xml:space="preserve"><value>+{0} konti</value></data>
+  <data name="A place is open, so they return as confirmed." xml:space="preserve"><value>Der er en ledig plads, så de vender tilbage som bekræftede.</value></data>
+  <data name="Accounts, signup answers and statuses can’t be changed. Payments and private notes can still be updated." xml:space="preserve"><value>Konti, tilmeldingssvar og statusser kan ikke ændres. Betalinger og private noter kan stadig opdateres.</value></data>
+  <data name="Actions for {0}" xml:space="preserve"><value>Handlinger for {0}</value></data>
+  <data name="Any" xml:space="preserve"><value>Alle</value></data>
+  <data name="Capacity {0} → {1}, and they get the new place" xml:space="preserve"><value>Kapacitet {0} → {1}, og de får den nye plads</value></data>
+  <data name="Clear search and filters" xml:space="preserve"><value>Ryd søgning og filtre</value></data>
+  <data name="Confirm and add a place" xml:space="preserve"><value>Bekræft og tilføj en plads</value></data>
+  <data name="Confirm and add a place…" xml:space="preserve"><value>Bekræft og tilføj en plads …</value></data>
+  <data name="Confirm people from the waiting list or add them directly." xml:space="preserve"><value>Bekræft personer fra ventelisten, eller tilføj dem direkte.</value></data>
+  <data name="Confirm {0} and add a place?" xml:space="preserve"><value>Bekræft {0} og tilføj en plads?</value></data>
+  <data name="AdminDesign.Confirmed" xml:space="preserve"><value>Bekræftet</value></data>
+  <data name="Confirming…" xml:space="preserve"><value>Bekræfter …</value></data>
+  <data name="Couldn’t load participants" xml:space="preserve"><value>Deltagerne kunne ikke indlæses</value></data>
+  <data name="Draft EHB" xml:space="preserve"><value>Draft-EHB</value></data>
+  <data name="Has a private admin note" xml:space="preserve"><value>Har en privat admin-note</value></data>
+  <data name="Joins at #{0}" xml:space="preserve"><value>Kommer ind som nr. {0}</value></data>
+  <data name="Locked" xml:space="preserve"><value>Låst</value></data>
+  <data name="Mark as paid" xml:space="preserve"><value>Markér som betalt</value></data>
+  <data name="Mark as unpaid" xml:space="preserve"><value>Markér som ubetalt</value></data>
+  <data name="Move to waiting list" xml:space="preserve"><value>Flyt til venteliste</value></data>
+  <data name="Move to waiting list…" xml:space="preserve"><value>Flyt til venteliste …</value></data>
+  <data name="Move {0} to the waiting list?" xml:space="preserve"><value>Flyt {0} til ventelisten?</value></data>
+  <data name="Moving…" xml:space="preserve"><value>Flytter …</value></data>
+  <data name="No confirmed participants" xml:space="preserve"><value>Ingen bekræftede deltagere</value></data>
+  <data name="No matches" xml:space="preserve"><value>Ingen resultater</value></data>
+  <data name="No one has withdrawn" xml:space="preserve"><value>Ingen har trukket sig</value></data>
+  <data name="No one waiting" xml:space="preserve"><value>Ingen venter</value></data>
+  <data name="No participants yet" xml:space="preserve"><value>Ingen deltagere endnu</value></data>
+  <data name="No participants" xml:space="preserve"><value>Ingen deltagere</value></data>
+  <data name="Nobody is on the waiting list to take this place." xml:space="preserve"><value>Der er ingen på ventelisten til at overtage pladsen.</value></data>
+  <data name="Nothing was changed. Try again." xml:space="preserve"><value>Intet blev ændret. Prøv igen.</value></data>
+  <data name="Only available when the event is full. With places open, nobody is waiting for this place." xml:space="preserve"><value>Kun muligt, når eventet er fuldt. Med ledige pladser venter ingen på denne plads.</value></data>
+  <data name="Only when the event is full" xml:space="preserve"><value>Kun når eventet er fuldt</value></data>
+  <data name="Open details" xml:space="preserve"><value>Åbn detaljer</value></data>
+  <data name="Open details for {0}" xml:space="preserve"><value>Åbn detaljer for {0}</value></data>
+  <data name="Participation status" xml:space="preserve"><value>Deltagerstatus</value></data>
+  <data name="Payment for {0}: paid. Activate to mark as unpaid." xml:space="preserve"><value>Betaling for {0}: betalt. Aktivér for at markere som ubetalt.</value></data>
+  <data name="Payment for {0}: unpaid. Activate to mark as paid." xml:space="preserve"><value>Betaling for {0}: ubetalt. Aktivér for at markere som betalt.</value></data>
+  <data name="People appear here when they sign up, or you can add someone from an existing website account." xml:space="preserve"><value>Personer vises her, når de tilmelder sig, eller du kan tilføje nogen fra en eksisterende webkonto.</value></data>
+  <data name="People join the waiting list once the confirmed roster is full." xml:space="preserve"><value>Personer kommer på ventelisten, når listen over bekræftede er fuld.</value></data>
+  <data name="Places open" xml:space="preserve"><value>Ledige pladser</value></data>
+  <data name="Private note" xml:space="preserve"><value>Privat note</value></data>
+  <data name="Restore" xml:space="preserve"><value>Gendan</value></data>
+  <data name="Restore and add a place" xml:space="preserve"><value>Gendan og tilføj en plads</value></data>
+  <data name="Restore to" xml:space="preserve"><value>Gendan til</value></data>
+  <data name="Restoring…" xml:space="preserve"><value>Gendanner …</value></data>
+  <data name="Roster locked" xml:space="preserve"><value>Deltagerliste låst</value></data>
+  <data name="Rows per page" xml:space="preserve"><value>Rækker pr. side</value></data>
+  <data name="Search RSN, account or Discord" xml:space="preserve"><value>Søg i RSN, konto eller Discord</value></data>
+  <data name="Select an active website account for this participant." xml:space="preserve"><value>Vælg en aktiv webkonto til deltageren.</value></data>
+  <data name="That didn’t go through." xml:space="preserve"><value>Det blev ikke gennemført.</value></data>
+  <data name="The event is full. Capacity increases by one and {0} gets the new place." xml:space="preserve"><value>Eventet er fuldt. Kapaciteten øges med én, og {0} får den nye plads.</value></data>
+  <data name="The roster for {0} didn’t load. Your filters are kept." xml:space="preserve"><value>Deltagerlisten for {0} blev ikke indlæst. Dine filtre er bevaret.</value></data>
+  <data name="The waiting list is empty" xml:space="preserve"><value>Ventelisten er tom</value></data>
+  <data name="Their accounts, answers and notes were kept." xml:space="preserve"><value>Deres konti, svar og noter er bevaret.</value></data>
+  <data name="Their payment stays recorded — handle any refund separately." xml:space="preserve"><value>Deres betaling forbliver registreret – håndtér eventuel tilbagebetaling separat.</value></data>
+  <data name="They’ll also be removed from {0}." xml:space="preserve"><value>De bliver også fjernet fra {0}.</value></data>
+  <data name="This participant changed while you were looking at it. The current list is shown; nothing was done." xml:space="preserve"><value>Deltageren blev ændret, mens du så på den. Den aktuelle liste vises; intet blev gjort.</value></data>
+  <data name="Volunteer" xml:space="preserve"><value>Frivillig</value></data>
+  <data name="Waiting · #{0}" xml:space="preserve"><value>Venter · nr. {0}</value></data>
+  <data name="We couldn’t confirm whether this happened. The current list is shown; check it before trying again." xml:space="preserve"><value>Vi kunne ikke bekræfte, om det skete. Den aktuelle liste vises; tjek den, før du prøver igen.</value></data>
+  <data name="Withdraw" xml:space="preserve"><value>Træk tilbage</value></data>
+  <data name="Withdraw {0}?" xml:space="preserve"><value>Træk {0} tilbage?</value></data>
+  <data name="Withdrawing…" xml:space="preserve"><value>Trækker tilbage …</value></data>
+  <data name="Withdrawn participants are kept here and can be restored." xml:space="preserve"><value>Tilbagetrukne deltagere gemmes her og kan gendannes.</value></data>
+  <data name="Withdraw…" xml:space="preserve"><value>Træk tilbage …</value></data>
+  <data name="You can restore them later." xml:space="preserve"><value>Du kan gendanne dem senere.</value></data>
+  <data name="alt {0}" xml:space="preserve"><value>alt {0}</value></data>
+  <data name="this filter" xml:space="preserve"><value>dette filter</value></data>
+  <data name="with {0}" xml:space="preserve"><value>med {0}</value></data>
+  <data name="AdminDesign.{0} confirmed" xml:space="preserve"><value>{0} er bekræftet</value></data>
+  <data name="{0} confirmed · capacity now {1}" xml:space="preserve"><value>{0} er bekræftet · kapacitet nu {1}</value></data>
+  <data name="{0} goes to the end of the waiting list (#{1}), and {2}, next on the waiting list, takes their confirmed place." xml:space="preserve"><value>{0} kommer sidst på ventelisten (nr. {1}), og {2}, den næste på ventelisten, overtager den bekræftede plads.</value></data>
+  <data name="{0} is full ({1}/{1}). Capacity increases to {2} and {3} gets the new place. Nobody else is promoted, and everyone else on the waiting list keeps their order." xml:space="preserve"><value>{0} er fuldt ({1}/{1}). Kapaciteten øges til {2}, og {3} får den nye plads. Ingen andre rykker op, og alle andre på ventelisten beholder deres rækkefølge.</value></data>
+  <data name="{0} is full, so they return to the waiting list unless you add a place." xml:space="preserve"><value>{0} er fuldt, så de vender tilbage til ventelisten, medmindre du tilføjer en plads.</value></data>
+  <data name="{0} left" xml:space="preserve"><value>{0} tilbage</value></data>
+  <data name="{0} marked as paid" xml:space="preserve"><value>{0} er markeret som betalt</value></data>
+  <data name="{0} marked as unpaid" xml:space="preserve"><value>{0} er markeret som ubetalt</value></data>
+  <data name="{0} moved to the waiting list (#{1}) · {2} confirmed" xml:space="preserve"><value>{0} er flyttet til ventelisten (nr. {1}) · {2} er bekræftet</value></data>
+  <data name="{0} of {1} confirmed" xml:space="preserve"><value>{0} af {1} bekræftet</value></data>
+  <data name="{0} restored to confirmed" xml:space="preserve"><value>{0} er gendannet som bekræftet</value></data>
+  <data name="{0} restored to the waiting list (#{1})" xml:space="preserve"><value>{0} er gendannet på ventelisten (nr. {1})</value></data>
+  <data name="{0} spot left" xml:space="preserve"><value>{0} ledig plads</value></data>
+  <data name="{0} spots · no signups yet" xml:space="preserve"><value>{0} pladser · ingen tilmeldinger endnu</value></data>
+  <data name="{0} unpaid" xml:space="preserve"><value>{0} ubetalt</value></data>
+  <data name="{0} will leave the confirmed roster, and {1}, next on the waiting list, will take their place." xml:space="preserve"><value>{0} forlader listen over bekræftede, og {1}, den næste på ventelisten, overtager pladsen.</value></data>
+  <data name="{0} will leave the confirmed roster. Nobody is waiting, so their place stays open for the next signup." xml:space="preserve"><value>{0} forlader listen over bekræftede. Ingen venter, så pladsen står åben til den næste tilmelding.</value></data>
+  <data name="{0} will leave the waiting list and everyone behind them moves up. No confirmed place is freed." xml:space="preserve"><value>{0} forlader ventelisten, og alle bagved rykker op. Ingen bekræftet plads bliver ledig.</value></data>
+  <data name="{0} withdrawn" xml:space="preserve"><value>{0} er trukket tilbage</value></data>
+  <data name="{0} withdrawn · {1} confirmed from the waiting list" xml:space="preserve"><value>{0} er trukket tilbage · {1} er bekræftet fra ventelisten</value></data>
+  <data name="{0}–{1} of {2}" xml:space="preserve"><value>{0}–{1} af {2}</value></data>
+  <data name="“{0}”" xml:space="preserve"><value>“{0}”</value></data>
+  <data name="“{0}” with paid payment" xml:space="preserve"><value>“{0}” med betaling: betalt</value></data>
+  <data name="“{0}” with unpaid payment" xml:space="preserve"><value>“{0}” med betaling: ubetalt</value></data>
+  <data name="No confirmed participants match {0}." xml:space="preserve"><value>Ingen bekræftede deltagere matcher {0}.</value></data>
+  <data name="No waiting participants match {0}." xml:space="preserve"><value>Ingen deltagere på ventelisten matcher {0}.</value></data>
+  <data name="No withdrawn participants match {0}." xml:space="preserve"><value>Ingen tilbagetrukne deltagere matcher {0}.</value></data>
+  <data name="No participants match {0}." xml:space="preserve"><value>Ingen deltagere matcher {0}.</value></data>
+  <data name="External roster member" xml:space="preserve"><value>Ekstern deltager</value></data>
+  <data name="#{0} of {1}" xml:space="preserve"><value>#{0} af {1}</value></data>
+  <data name="Add context for other admins" xml:space="preserve"><value>Tilføj kontekst til andre administratorer</value></data>
+  <data name="All {0} account slots for this event are used" xml:space="preserve"><value>Alle {0} kontopladser til denne begivenhed er brugt</value></data>
+  <data name="At least one playing account is required" xml:space="preserve"><value>Der kræves mindst én spillekonto</value></data>
+  <data name="Can’t be negative." xml:space="preserve"><value>Må ikke være negativ.</value></data>
+  <data name="Changes to {0} saved" xml:space="preserve"><value>Ændringer for {0} er gemt</value></data>
+  <data name="Check this field." xml:space="preserve"><value>Tjek dette felt.</value></data>
+  <data name="Couldn’t load this participant" xml:space="preserve"><value>Deltageren kunne ikke indlæses</value></data>
+  <data name="Draft value {0} EHB" xml:space="preserve"><value>Draftværdi {0} EHB</value></data>
+  <data name="EHB filled in from the saved account" xml:space="preserve"><value>EHB er udfyldt fra den gemte konto</value></data>
+  <data name="EHB for {0}" xml:space="preserve"><value>EHB for {0}</value></data>
+  <data name="Enter a number." xml:space="preserve"><value>Indtast et tal.</value></data>
+  <data name="Entry payment" xml:space="preserve"><value>Deltagerbetaling</value></data>
+  <data name="Fix the highlighted field to save." xml:space="preserve"><value>Ret det markerede felt for at gemme.</value></data>
+  <data name="Fix the {0} highlighted fields to save." xml:space="preserve"><value>Ret de {0} markerede felter for at gemme.</value></data>
+  <data name="Member since" xml:space="preserve"><value>Medlem siden</value></data>
+  <data name="No answer" xml:space="preserve"><value>Intet svar</value></data>
+  <data name="No request" xml:space="preserve"><value>Intet ønske</value></data>
+  <data name="No saved EHB" xml:space="preserve"><value>Ingen gemt EHB</value></data>
+  <data name="No team yet" xml:space="preserve"><value>Intet hold endnu</value></data>
+  <data name="No website account" xml:space="preserve"><value>Ingen hjemmesidekonto</value></data>
+  <data name="Not a saved account. Used for this event only." xml:space="preserve"><value>Ikke en gemt konto. Bruges kun til denne begivenhed.</value></data>
+  <data name="Not one of @{0}’s saved accounts. Used for this event only." xml:space="preserve"><value>Ikke en af @{0}s gemte konti. Bruges kun til denne begivenhed.</value></data>
+  <data name="Only for captain volunteers" xml:space="preserve"><value>Kun for kaptajnfrivillige</value></data>
+  <data name="Participant not found" xml:space="preserve"><value>Deltageren blev ikke fundet</value></data>
+  <data name="Participant · @{0}" xml:space="preserve"><value>Deltager · @{0}</value></data>
+  <data name="Primary" xml:space="preserve"><value>Primær</value></data>
+  <data name="Primary account" xml:space="preserve"><value>Primær konto</value></data>
+  <data name="RSN" xml:space="preserve"><value>RSN</value></data>
+  <data name="RSN for {0}" xml:space="preserve"><value>RSN for {0}</value></data>
+  <data name="Remove account" xml:space="preserve"><value>Fjern konto</value></data>
+  <data name="Requested co-captain" xml:space="preserve"><value>Ønsket medkaptajn</value></data>
+  <data name="Required. 0 is valid." xml:space="preserve"><value>Påkrævet. 0 er gyldigt.</value></data>
+  <data name="Roster is locked for this event. You can still change payment and the private note." xml:space="preserve"><value>Deltagerlisten er låst for denne begivenhed. Du kan stadig ændre betaling og den private note.</value></data>
+  <data name="Signup answers" xml:space="preserve"><value>Tilmeldingssvar</value></data>
+  <data name="Signup details" xml:space="preserve"><value>Tilmeldingsdetaljer</value></data>
+  <data name="This is already a playing account." xml:space="preserve"><value>Dette er allerede en spillekonto.</value></data>
+  <data name="This participant isn’t part of {0}. The link may be out of date." xml:space="preserve"><value>Denne deltager er ikke en del af {0}. Linket kan være forældet.</value></data>
+  <data name="Use 100,000 or less." xml:space="preserve"><value>Brug 100.000 eller mindre.</value></data>
+  <data name="Use {0} as primary account" xml:space="preserve"><value>Brug {0} som primær konto</value></data>
+  <data name="Volunteers to captain" xml:space="preserve"><value>Melder sig som kaptajn</value></data>
+  <data name="Was paid" xml:space="preserve"><value>Var betalt</value></data>
+  <data name="Was unpaid" xml:space="preserve"><value>Var ubetalt</value></data>
+  <data name="We couldn’t confirm whether your changes were saved, and the current details didn’t load. Your edits are still here; check the participant before saving again." xml:space="preserve"><value>Vi kunne ikke bekræfte, om dine ændringer blev gemt, og de aktuelle oplysninger blev ikke indlæst. Dine ændringer er her stadig; tjek deltageren, før du gemmer igen.</value></data>
+  <data name="We couldn’t confirm whether your changes were saved. The current details are shown; check them before saving again." xml:space="preserve"><value>Vi kunne ikke bekræfte, om dine ændringer blev gemt. De aktuelle oplysninger vises; tjek dem, før du gemmer igen.</value></data>
+  <data name="Withdrawn participants are read-only. Restore to edit accounts and signup answers; payment and the private note can still be changed." xml:space="preserve"><value>Tilbagetrukne deltagere er skrivebeskyttede. Gendan for at redigere konti og tilmeldingssvar; betaling og den private note kan stadig ændres.</value></data>
+  <data name="new account" xml:space="preserve"><value>ny konto</value></data>
+  <data name="{0} / {1}" xml:space="preserve"><value>{0} / {1}</value></data>
+  <data name="{0} EHB saved" xml:space="preserve"><value>{0} EHB gemt</value></data>
+  <data name="{0} of {1} account slots" xml:space="preserve"><value>{0} af {1} kontopladser</value></data>
+  <data name="· only admins see this" xml:space="preserve"><value>· kun administratorer kan se dette</value></data>
+  <data name="· optional" xml:space="preserve"><value>· valgfrit</value></data>
+  <data name="· optional, no EHB" xml:space="preserve"><value>· valgfrit, ingen EHB</value></data>
+  <data name="AdminDesign.Add playing account" xml:space="preserve"><value>Tilføj spillekonto</value></data>
+  <data name="· retired question" xml:space="preserve"><value>· tidligere spørgsmål</value></data>
+  <data name="Add to" xml:space="preserve"><value>Tilføj til</value></data>
+  <data name="All {0} account slots are used" xml:space="preserve"><value>Alle {0} kontopladser er brugt</value></data>
+  <data name="Already in event" xml:space="preserve"><value>Allerede med i begivenheden</value></data>
+  <data name="Already in this event" xml:space="preserve"><value>Allerede med i denne begivenhed</value></data>
+  <data name="Capacity will increase from {0} to {1} when you add this participant." xml:space="preserve"><value>Kapaciteten øges fra {0} til {1}, når du tilføjer denne deltager.</value></data>
+  <data name="Choose a website account to see its saved playing accounts." xml:space="preserve"><value>Vælg en hjemmesidekonto for at se dens gemte spillekonti.</value></data>
+  <data name="Choose a website account." xml:space="preserve"><value>Vælg en hjemmesidekonto.</value></data>
+  <data name="Couldn’t add the participant. Nothing was saved." xml:space="preserve"><value>Deltageren kunne ikke tilføjes. Intet blev gemt.</value></data>
+  <data name="Discord not linked" xml:space="preserve"><value>Discord er ikke tilknyttet</value></data>
+  <data name="EHB comes from the saved account and can be changed for this event after adding. Up to {0} playing accounts per participant." xml:space="preserve"><value>EHB kommer fra den gemte konto og kan ændres for denne begivenhed efter tilføjelsen. Op til {0} spillekonti pr. deltager.</value></data>
+  <data name="EHB comes from the saved account and can be changed for this event after adding. Up to {0} playing account per participant." xml:space="preserve"><value>EHB kommer fra den gemte konto og kan ændres for denne begivenhed efter tilføjelsen. Op til {0} spillekonto pr. deltager.</value></data>
+  <data name="Full · capacity {0} → {1}" xml:space="preserve"><value>Fuld · kapacitet {0} → {1}</value></data>
+  <data name="No EHB" xml:space="preserve"><value>Ingen EHB</value></data>
+  <data name="No saved EHB — update the account first" xml:space="preserve"><value>Ingen gemt EHB — opdater kontoen først</value></data>
+  <data name="No website accounts match “{0}”." xml:space="preserve"><value>Ingen hjemmesidekonti matcher “{0}”.</value></data>
+  <data name="Owns {0}" xml:space="preserve"><value>Ejer {0}</value></data>
+  <data name="Search by username, Discord or RSN" xml:space="preserve"><value>Søg efter brugernavn, Discord eller RSN</value></data>
+  <data name="Search website accounts" xml:space="preserve"><value>Søg i hjemmesidekonti</value></data>
+  <data name="Select at least one playing account." xml:space="preserve"><value>Vælg mindst én spillekonto.</value></data>
+  <data name="Select at least one saved Playing account." xml:space="preserve"><value>Vælg mindst én gemt spillekonto.</value></data>
+  <data name="Show" xml:space="preserve"><value>Vis</value></data>
+  <data name="That account’s saved playing accounts didn’t load. Try again." xml:space="preserve"><value>Kontoens gemte spillekonti blev ikke indlæst. Prøv igen.</value></data>
+  <data name="The event changed while you were adding. The current numbers are shown; nothing was added." xml:space="preserve"><value>Begivenheden blev ændret, mens du tilføjede. De aktuelle tal vises; intet blev tilføjet.</value></data>
+  <data name="This account has no playing accounts that can be added." xml:space="preserve"><value>Denne konto har ingen spillekonti, der kan tilføjes.</value></data>
+  <data name="We couldn’t confirm whether {0} was added. The current list is shown; check it before trying again." xml:space="preserve"><value>Vi kunne ikke bekræfte, om {0} blev tilføjet. Den aktuelle liste vises; tjek den, før du prøver igen.</value></data>
+  <data name="Website accounts couldn’t be searched. Try again." xml:space="preserve"><value>Der kunne ikke søges i hjemmesidekonti. Prøv igen.</value></data>
+  <data name="Withdrawn · restore instead" xml:space="preserve"><value>Trukket tilbage · gendan i stedet</value></data>
+  <data name="{0} EHB" xml:space="preserve"><value>{0} EHB</value></data>
+  <data name="{0} added to confirmed" xml:space="preserve"><value>{0} tilføjet som bekræftet</value></data>
+  <data name="{0} added to the waiting list (#{1})" xml:space="preserve"><value>{0} tilføjet til ventelisten (#{1})</value></data>
+  <data name="{0} of {1} spots left" xml:space="preserve"><value>{0} af {1} pladser tilbage</value></data>
+  <data name="{0} match" xml:space="preserve"><value>{0} match</value></data>
+  <data name="{0} matches" xml:space="preserve"><value>{0} match</value></data>
+  <data name="{0} saved account" xml:space="preserve"><value>{0} gemt konto</value></data>
+  <data name="{0} saved accounts" xml:space="preserve"><value>{0} gemte konti</value></data>
   <data name="Confirm that you want to permanently discard this empty event setup." xml:space="preserve"><value>Bekræft, at du vil slette denne tomme eventopsætning permanent.</value></data>
   <data name="This event changed while it was being discarded. Review it and try again." xml:space="preserve"><value>Eventet blev ændret, mens det blev slettet. Gennemgå det, og prøv igen.</value></data>
   <data name="The event changed while discard was being checked. Nothing was discarded; review its history and try again." xml:space="preserve"><value>Eventet blev ændret, mens sletningen blev kontrolleret. Intet blev slettet; gennemgå eventets historik, og prøv igen.</value></data>

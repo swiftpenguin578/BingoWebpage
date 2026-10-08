@@ -140,16 +140,33 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
             var response = await client.PostAsync($"{path}{(path.Contains('?') ? '&' : '?')}handler={handler}", Form(AntiforgeryToken(html), fields));
             Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
         }
-        var internalNames = new[] { "Internal Pre", "Internal Pick", "Internal Gone" };
+        // A10 (U5 item 1c, F04): the internal-participant form is retired; each owner is added from a
+        // saved Playing account with its stored EHB through the Participants Add (JSON outcome).
+        var internalNames = new[] { "Internal Pre", "Intern Pick", "Intern Gone" };
+        var savedIds = new Guid[internalNames.Length];
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            for (var index = 0; index < internalNames.Length; index++)
+            {
+                var character = new OsrsCharacter(Guid.NewGuid(), internalNames[index], internalNames[index].ToUpperInvariant(), now);
+                savedIds[index] = character.Id;
+                seed.AddRange(character, new AccountOsrsCharacter(Guid.NewGuid(), ownerIds[index], character.Id, ownerIds[index], true, 0, null, 8m, now));
+            }
+            await seed.SaveChangesAsync();
+        }
         for (var index = 0; index < internalNames.Length; index++)
         {
-            var name = internalNames[index];
-            await Post(participantsPath + "?addParticipant=1", "CreateInternalParticipant", new()
+            var html = await client.GetStringAsync(participantsPath + "?add=1");
+            long version;
+            await using (var read = new ApplicationDbContext(options)) version = await read.Events.Where(x => x.Id == setup.EventId).Select(x => x.Version).SingleAsync();
+            using var request = new HttpRequestMessage(HttpMethod.Post, participantsPath + "?handler=Add")
             {
-                ["InternalParticipant.OwnerAccountId"] = ownerIds[index].ToString(),
-                [$"InternalParticipant.AccountAnswers[{questionId}].CharacterName"] = name,
-                [$"InternalParticipant.AccountAnswers[{questionId}].Ehb"] = "8"
-            });
+                Content = new FormUrlEncodedContent(new List<KeyValuePair<string, string>> { new("owner", ownerIds[index].ToString()), new("accounts", savedIds[index].ToString()), new("primary", savedIds[index].ToString()), new("paid", "false"), new("addPlace", "false"), new("eventVersion", version.ToString(System.Globalization.CultureInfo.InvariantCulture)) })
+            };
+            request.Headers.Add("Accept", "application/json"); request.Headers.Add("RequestVerificationToken", AntiforgeryToken(html));
+            using var response = await client.SendAsync(request);
+            using var json = System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+            Assert.Equal("done", json.RootElement.GetProperty("outcome").GetString());
         }
         await Post(draftPath, "AddTeam", new() { ["name"] = "Genuine external", ["formationType"] = "Preformed", ["includedInDraft"] = "false" });
         Guid externalTeamId;
@@ -178,7 +195,7 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
         var poolSectionStart = pool.IndexOf("data-draft-participant-section", StringComparison.Ordinal);
         var poolSection = pool[poolSectionStart..pool.IndexOf("</table>", poolSectionStart, StringComparison.Ordinal)];
         Assert.Contains("Internal Pre", poolSection);
-        Assert.Contains("Internal Pick", poolSection);
+        Assert.Contains("Intern Pick", poolSection);
         Assert.DoesNotContain("Genuine external", poolSection);
         Assert.DoesNotContain("Retained Manual", poolSection);
         DraftModel? loaded = null;

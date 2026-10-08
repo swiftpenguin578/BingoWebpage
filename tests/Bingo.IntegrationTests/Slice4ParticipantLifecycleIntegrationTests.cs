@@ -154,9 +154,10 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests(PostgreSqlTestFix
             await db.SaveChangesAsync();
 
             var model = new Bingo.Web.Pages.Admin.Events.ParticipantsModel(db, Service(db));
-            var response = Assert.IsType<JsonResult>(await model.OnGetSearchOwnerAccountsAsync("owner", CancellationToken.None));
-            var matches = Assert.IsType<List<Bingo.Web.Pages.Admin.Events.ParticipantsModel.OwnerAccountOption>>(response.Value);
-            Assert.Equal(10, matches.Count);
+            // B-Participants-5 (A10): the Add search is bounded to the reference's eight results.
+            var response = Assert.IsType<JsonResult>(await model.OnGetSearchOwnerAccountsAsync(setup.EventId, "owner", CancellationToken.None));
+            var matches = Assert.IsType<List<Bingo.Web.Pages.Admin.Events.ParticipantOwnerOption>>(response.Value);
+            Assert.Equal(8, matches.Count);
             Assert.DoesNotContain(matches, item => item.Username.StartsWith("disabled", StringComparison.OrdinalIgnoreCase));
         }
 
@@ -222,9 +223,10 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests(PostgreSqlTestFix
         {
             PageContext = new PageContext(new ActionContext(AdminContext(setup.EnabledAdminId), new RouteData(), new PageActionDescriptor()))
         };
-        Assert.True((await model.OnGetAsync(setup.EventId, CancellationToken.None)) is PageResult);
-        Assert.DoesNotContain(model.Participants, row => row.Id == externalId);
-        Assert.Equal(4, model.Event!.Confirmed);
+        Assert.True((await model.OnGetAsync(setup.EventId, ct: CancellationToken.None)) is PageResult);
+        // G3b-3 / TD-2 B (A10): manual-team members are now listed on Participants (was hidden).
+        Assert.Contains(model.Participants, row => row.Id == externalId);
+        Assert.Equal(4, model.List.Counts.Confirmed);
     }
 
     [Fact]
@@ -485,8 +487,8 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests(PostgreSqlTestFix
         bingoEvent.OpenSignups(now);
         var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now);
         var regular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "regular", "Regular", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
-        var oldCharacter = new OsrsCharacter(Guid.NewGuid(), "Correction old", $"CORRECTION OLD {Guid.NewGuid():N}", now);
-        var newCharacter = new OsrsCharacter(Guid.NewGuid(), "Correction new", $"CORRECTION NEW {Guid.NewGuid():N}", now);
+        var oldCharacter = new OsrsCharacter(Guid.NewGuid(), "Correct old", $"CORRECTION OLD {Guid.NewGuid():N}", now);
+        var newCharacter = new OsrsCharacter(Guid.NewGuid(), "Correct new", $"CORRECTION NEW {Guid.NewGuid():N}", now);
         var participant = new EventParticipant(Guid.NewGuid(), bingoEvent.Id, SignupStatus.Confirmed, 1, now, SignupSource.Website);
         participant.AssignOwner(owner); participant.SetPaymentReceived(true); participant.SetAdminNotes("private correction note");
         db.AddRange(admin, owner, bingoEvent, form, regular, oldCharacter, newCharacter, participant,
@@ -675,21 +677,15 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests(PostgreSqlTestFix
         var setup = await SeedAsync(capacity: 1, confirmed: 1, waiting: 0);
         await using var pageDb = new ApplicationDbContext(options);
         var http = AdminContext(setup.EnabledAdminId);
-        var model = new Bingo.Web.Pages.Admin.Events.ParticipantModel(
-            pageDb,
-            new EventParticipantCharacterService(pageDb, TimeProvider.System),
-            Service(pageDb),
-            new PassthroughLocalizer(),
-            TimeProvider.System)
+        // A10 (U5 item 1b): the old detail page is redirect-only; Restore lives on the
+        // Participants page (JSON outcome). The stale-version refusal is unchanged.
+        var model = new Bingo.Web.Pages.Admin.Events.ParticipantsModel(pageDb, Service(pageDb), new PassthroughLocalizer())
         {
             PageContext = new PageContext(new ActionContext(http, new RouteData(), new PageActionDescriptor())),
             TempData = new TempDataDictionary(http, new DictionaryTempDataProvider())
         };
-        Assert.IsType<PageResult>(await model.OnGetAsync(setup.EventId, setup.ConfirmedParticipantId, CancellationToken.None));
-        var staleEventVersion = model.ExpectedEventVersion;
-        var staleResponseVersion = model.Input.ExpectedResponseVersion;
-        Assert.NotNull(staleEventVersion);
-        Assert.NotNull(staleResponseVersion);
+        var staleEventVersion = (await pageDb.Events.AsNoTracking().SingleAsync(x => x.Id == setup.EventId)).Version;
+        var staleResponseVersion = (await pageDb.EventParticipants.AsNoTracking().SingleAsync(x => x.Id == setup.ConfirmedParticipantId)).ResponseVersion;
 
         await using (var withdraw = new ApplicationDbContext(options))
         {
@@ -704,10 +700,13 @@ public sealed class Slice4ParticipantLifecycleIntegrationTests(PostgreSqlTestFix
             await concurrent.SaveChangesAsync();
         }
 
-        model.ConfirmLifecycleAction = true;
-        var response = await model.OnPostRestoreAsync(setup.EventId, setup.ConfirmedParticipantId, false, CancellationToken.None);
-        Assert.IsType<RedirectToPageResult>(response);
-        Assert.Contains("changed", model.TempData["StatusMessage"]?.ToString() ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+        var response = Assert.IsType<JsonResult>(await model.OnPostRestoreAsync(setup.EventId, new()
+        {
+            ParticipantId = setup.ConfirmedParticipantId, EventVersion = staleEventVersion, ResponseVersion = staleResponseVersion
+        }, CancellationToken.None));
+        var outcome = System.Text.Json.JsonSerializer.SerializeToElement(response.Value);
+        Assert.Equal("stale", outcome.GetProperty("outcome").GetString());
+        Assert.Contains("changed", outcome.GetProperty("message").GetString() ?? string.Empty, StringComparison.OrdinalIgnoreCase);
 
         await using var verify = new ApplicationDbContext(options);
         Assert.Equal(SignupStatus.Withdrawn, await verify.EventParticipants.Where(x => x.Id == setup.ConfirmedParticipantId).Select(x => x.SignupStatus).SingleAsync());

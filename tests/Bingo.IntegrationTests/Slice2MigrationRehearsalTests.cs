@@ -215,7 +215,8 @@ public sealed class Slice2MigrationRehearsalTests : IAsyncLifetime
                 ["Input.Password"] = retainedAdminPassword,
                 ["__RequestVerificationToken"] = AntiforgeryToken(login)
             }))) Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
-            var detail = await admin.GetAsync($"/Admin/Events/Participant/{eventId}/Participants/{participantId}");
+            // A10 (U5 item 1b): the drawer's current-state read replaces the old detail page.
+            var detail = await admin.GetAsync($"/Admin/Events/Participants/{eventId}?handler=Current&participant={participantId}");
             var detailHtml = await detail.Content.ReadAsStringAsync();
             Assert.True(detail.StatusCode == HttpStatusCode.OK, detailHtml);
             Assert.Contains(legacyDiscord, detailHtml, StringComparison.Ordinal);
