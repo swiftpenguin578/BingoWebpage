@@ -389,6 +389,44 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         }
     }
 
+    // U7-E1 (c) review L3: a non-holder cannot renew while another admin holds an active lease.
+    [Fact]
+    public async Task U7RenewEditingByANonHolderIsRefusedWithoutChangingTheOtherAdminsLease()
+    {
+        var fixture = await SeedApprovalBatchAsync();
+        var otherAdmin = Guid.NewGuid();
+        var otherExpiry = DateTimeOffset.UtcNow.AddMinutes(2);
+        otherExpiry = new DateTimeOffset(otherExpiry.Ticks - otherExpiry.Ticks % TimeSpan.TicksPerSecond, TimeSpan.Zero);
+        long version, controlVersion;
+        await using (var prepare = new ApplicationDbContext(options))
+        {
+            var board = await prepare.Boards.SingleAsync();
+            prepare.Entry(board).Property(x => x.EditorAccountId).CurrentValue = otherAdmin;
+            prepare.Entry(board).Property(x => x.EditorLeaseExpiresAt).CurrentValue = otherExpiry;
+            await prepare.SaveChangesAsync();
+            version = board.Version; controlVersion = board.EditControlVersion;
+        }
+        await using var factory = ApprovalBatchFactory();
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await LoginAsync(client, fixture.Admin.LoginName);
+        var displayed = await client.GetStringAsync(fixture.Path);
+        using var request = new HttpRequestMessage(HttpMethod.Post, fixture.Path + "?handler=RenewEditing")
+        {
+            Content = new FormUrlEncodedContent(new Dictionary<string, string> { ["__RequestVerificationToken"] = AntiforgeryToken(displayed) })
+        };
+        request.Headers.Add("X-Requested-With", "XMLHttpRequest");
+        using var response = await client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.False(System.Text.Json.JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("renewed").GetBoolean());
+        await using var verify = new ApplicationDbContext(options);
+        var after = await verify.Boards.AsNoTracking().SingleAsync();
+        Assert.Equal(otherAdmin, after.EditorAccountId);
+        Assert.Equal(otherExpiry, after.EditorLeaseExpiresAt);
+        Assert.Equal(version, after.Version);
+        Assert.Equal(controlVersion, after.EditControlVersion);
+        Assert.Empty(await verify.AuditEntries.Where(x => x.EventId == fixture.Event.Id).ToListAsync());
+    }
+
     // U7-Q3: the retired BoardPreview route redirects to the Board, also with team/tile segments.
     [Fact]
     public async Task U7RetiredBoardPreviewRouteRedirectsToTheBoard()

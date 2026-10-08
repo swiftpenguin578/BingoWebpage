@@ -260,12 +260,21 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests
         var f = await SeedAsync();
         using var admin = await ClientAsync(f.Admin);
         var path = $"/Admin/Events/Board/{f.Event.Id}";
-        Assert.DoesNotContain("data-discard-correction>", await admin.GetStringAsync(path));
+        // A10: was DoesNotContain/Contains on the server-rendered discard markup, the
+        // "All unpublished board edits in this correction will be lost." text and
+        // "handler=DiscardCorrection". The module offers "Discard correction…" only for
+        // data-view mode "correction" (admin-board-publication.js menuItems), enabled for the
+        // editing admin (control.who == "me"), and confirms with the served label below.
+        const string confirmation = "All unpublished edits in this correction will be lost, and the working board returns to the published version.";
+        var closed = await admin.GetStringAsync(path);
+        Assert.NotEqual("correction", BoardPageData.View(closed).GetProperty("mode").GetString());
         await StartCorrectionAsync(admin, f);
         var before = await RecoveryIntegrityAsync(f);
         var html = await admin.GetStringAsync(path);
-        Assert.Contains("All unpublished board edits in this correction will be lost.", html);
-        Assert.Contains("handler=DiscardCorrection", html);
+        var open = BoardPageData.View(html);
+        Assert.Equal("correction", open.GetProperty("mode").GetString());
+        Assert.Equal("me", open.GetProperty("control").GetProperty("who").GetString());
+        Assert.Equal(confirmation, BoardPageData.Labels(html).GetProperty(confirmation).GetString());
         Assert.Equal(before, await RecoveryIntegrityAsync(f));
         if (Environment.GetEnvironmentVariable("C20_RECOVERY_BROWSER_EXPORT") is { } export)
         {
@@ -274,7 +283,7 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests
             await File.WriteAllTextAsync(Path.Combine(export, "version.txt"), (await VersionAsync(f)).ToString(CultureInfo.InvariantCulture));
         }
         await DiscardAsync(admin, f);
-        Assert.DoesNotContain("data-discard-correction>", await admin.GetStringAsync(path));
+        Assert.NotEqual("correction", BoardPageData.View(await admin.GetStringAsync(path)).GetProperty("mode").GetString());
     }
 
     private Task DiscardAsync(HttpClient client, Fixture f) => PostBoardAsync(client, f, "DiscardCorrection", new() { ["confirmed"] = "true" });
