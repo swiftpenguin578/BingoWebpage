@@ -107,7 +107,7 @@
             <div class="dr-head"><div class="grow"><div class="eyebrow">@r.EventName</div><h2 class="dr-title">@T["Version {0}", version.Version]</h2><div class="dr-badges"><span class="badge @(version.Active ? "badge-success" : "badge-neutral")">@T[version.Active ? "Official" : "Retained"]</span></div></div><button class="icon-btn" type="button" data-final-close aria-label="@T["Close"]"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button></div>
             <div class="dr-body">
                 <section class="sec" aria-label="@T["Version summary"]">
-                    <dl class="kv fr-kv"><dt>@T["Published"]</dt><dd>@Model.Fmt(version.FinalizedAt) · @@@(version.FinalizedByUsername ?? "—")</dd>@if (version.UnfinalizedAt is { } reopened) { <dt>@T["Reopened"]</dt><dd>@Model.Fmt(reopened) · @@@(version.UnfinalizedByUsername ?? "—")</dd> }</dl>
+                    <dl class="kv fr-kv"><dt>@T["Published"]</dt><dd>@T["{0} by @{1}", Model.Fmt(version.FinalizedAt), version.FinalizedByUsername ?? "—"]</dd>@if (version.UnfinalizedAt is { } reopened) { <dt>@T["Reopened"]</dt><dd>@T["{0} by @{1}", Model.Fmt(reopened), version.UnfinalizedByUsername ?? "—"]</dd> }</dl>
                     @if (version.UnfinalizedAt is not null) { <div class="quote fr-dr-reason">@version.UnfinalizeReason</div> }
                     @if (version.FinalWomRefresh is { Status: not FinalWomRefreshStatus.Succeeded } outcome) { <p class="fr-official-note"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("warning")' /><span>@T[FinalizeModel.FinalWomRefreshDescription(outcome)]</span></p> }
                 </section>
