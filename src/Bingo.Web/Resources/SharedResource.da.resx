@@ -4845,6 +4845,8 @@
   <data name="Evidence can only be reviewed while the event is Live or awaiting final review." xml:space="preserve"><value>Dokumentation kan kun gennemgås, mens eventet er live eller afventer endelig gennemgang.</value></data>
   <data name="Team not found." xml:space="preserve"><value>Holdet blev ikke fundet.</value></data>
   <data name="The credited player is not eligible for this team at the evidence time." xml:space="preserve"><value>Den krediterede spiller kunne ikke bidrage til dette hold på dokumentationstidspunktet.</value></data>
+  <data name="Participants may submit evidence only for themselves." xml:space="preserve"><value>Deltagere kan kun indsende dokumentation for sig selv.</value></data>
+  <data name="The credited participant has no active Playing account at the evidence time." xml:space="preserve"><value>Den krediterede deltager har ingen aktiv spillende konto på dokumentationstidspunktet.</value></data>
   <data name="Choose a tile from the published event board." xml:space="preserve"><value>Vælg en tile fra eventets offentliggjorte plade.</value></data>
   <data name="Choose a requirement from that tile." xml:space="preserve"><value>Vælg et mål fra den tile.</value></data>
   <data name="Manual objectives do not use a drop." xml:space="preserve"><value>Manuelle mål bruger ikke et drop.</value></data>

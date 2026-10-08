@@ -84,16 +84,27 @@ public sealed class EvidenceAuthority(ApplicationDbContext db) : IEvidenceAuthor
         }
     }
 
-    public async Task<IReadOnlyList<EvidenceCandidate>> GetCurrentTeamCandidatesAsync(EvidenceActorScope scope, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<EvidenceCandidate>> GetCurrentTeamCandidatesAsync(EvidenceActorScope scope, DateTimeOffset now, CancellationToken cancellationToken = default)
     {
         if (scope.Kind is EvidenceActorKind.EmergencyCaptain or EvidenceActorKind.Administrator)
             throw new InvalidOperationException("This account is not available.");
+        // Name each candidate by the Playing account ResolveCreditedCharacterAsync
+        // would credit now: the active account after a switch, else the primary.
+        var at = ParticipantAttributionLock.AtDatabasePrecision(now.ToUniversalTime());
+        var active = db.ActiveCharactersAt(at);
         var candidates = from participant in db.EventParticipants.AsNoTracking()
                          join membership in db.TeamMemberships.AsNoTracking() on participant.Id equals membership.EventParticipantId
                          join character in db.PrimaryCharacters().AsNoTracking() on participant.Id equals character.ParticipantId
                          where participant.EventId == scope.EventId && membership.TeamId == scope.TeamId &&
                                membership.LeftAt == null
-                         select new { participant.Id, character.Name };
+                         select new
+                         {
+                             participant.Id,
+                             Name = (from current in active
+                                     join currentCharacter in db.OsrsCharacters on current.OsrsCharacterId equals currentCharacter.Id
+                                     where current.ParticipantId == participant.Id
+                                     select currentCharacter.DisplayName).FirstOrDefault() ?? character.Name
+                         };
         if (scope.Kind == EvidenceActorKind.Participant) candidates = candidates.Where(x => x.Id == scope.CreditedParticipantId);
         return (await candidates.OrderBy(x => x.Name).ToListAsync(cancellationToken)).Select(x => new EvidenceCandidate(x.Id, x.Name)).ToList();
     }

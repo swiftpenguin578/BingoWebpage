@@ -166,7 +166,7 @@ public sealed class DraftStartReadinessIntegrationTests(PostgreSqlTestFixture da
         await Assert.ThrowsAsync<InvalidOperationException>(() => identities.GenerateEmergencyCredentialLinkAsync(setup.AdminId, emergency.Id, CancellationToken.None));
         await Assert.ThrowsAsync<InvalidOperationException>(() => identities.GenerateResetLinkAsync(setup.AdminId, emergency.Id, CancellationToken.None));
         var authority = new EvidenceAuthority(db);
-        await Assert.ThrowsAsync<InvalidOperationException>(() => authority.GetCurrentTeamCandidatesAsync(new(EvidenceActorKind.EmergencyCaptain, emergency.Id, setup.EventId, setup.TeamId, Guid.Empty)));
+        await Assert.ThrowsAsync<InvalidOperationException>(() => authority.GetCurrentTeamCandidatesAsync(new(EvidenceActorKind.EmergencyCaptain, emergency.Id, setup.EventId, setup.TeamId, Guid.Empty), DateTimeOffset.UtcNow));
         foreach (var teamId in new[] { setup.TeamId, Guid.NewGuid() })
         {
             await Assert.ThrowsAsync<InvalidOperationException>(() => authority.AuthorizeAsync(emergency.Id, setup.EventId, teamId, setup.ParticipantId, clock.GetUtcNow()));
