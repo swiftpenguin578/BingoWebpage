@@ -10,8 +10,8 @@ public static class UiReviewScenarioCatalogue
     public static IReadOnlyList<UiReviewLink> Links(UiReviewScenarios scenarios, Uri appUrl)
     {
         var links = new List<UiReviewLink>();
-        void Add(string page, string name, string route, string username = "ReviewAdmin", bool hidden = false, bool anonymous = false) =>
-            links.Add(new(page, name, new Uri(appUrl, route).AbsoluteUri, username, hidden, anonymous));
+        void Add(string page, string name, string route, string username = "ReviewAdmin", bool hidden = false, bool anonymous = false, string? redirectTo = null) =>
+            links.Add(new(page, name, new Uri(appUrl, route).AbsoluteUri, username, hidden, anonymous, redirectTo));
         Add("Dashboard / Events", "One visible current event and more than eight upcoming setups", "/Admin/Index");
         Add("Dashboard / Events", "Events directory — discarded excluded", "/Admin/Events/Index");
         Add("Dashboard / Events", "Create a private draft", "/Admin/Events?create=1");
@@ -88,7 +88,8 @@ public static class UiReviewScenarioCatalogue
             if (people.WithdrawnId is { } withdrawnId) Add("Participants", "Withdrawn participant drawer — read-only, Restore to edit", root + $"?participant={withdrawnId}", "ReviewAdmin");
             Add("Participants", "Add participant — search ReviewWebsite, full event: Confirm and add a place or Waiting list", root + "?add=1", "ReviewAdmin");
             Add("Participants", "Link to a participant that isn’t in this event", root + "?participant=00000000-0000-0000-0000-000000000001", "ReviewAdmin");
-            Add("Participants", "Old participant page URL redirects to the drawer", people.ConfirmedId is { } oldId ? $"/Admin/Events/Participant/{people.EventId}/Participants/{oldId}" : root, "ReviewAdmin");
+            Add("Participants", "Old participant page URL redirects to the drawer", people.ConfirmedId is { } oldId ? $"/Admin/Events/Participant/{people.EventId}/Participants/{oldId}" : root, "ReviewAdmin",
+                redirectTo: people.ConfirmedId is { } drawerId ? root + $"?participant={drawerId}" : null);
             foreach (var slug in new[] { "ur-cancelled", "ur-archived", "ur-current" })
             {
                 var terminal = scenarios.Events.Single(value => value.Slug == slug);
@@ -156,4 +157,4 @@ public static class UiReviewScenarioCatalogue
     };
 }
 
-public sealed record UiReviewLink(string Page, string Name, string Url, string Username, bool Hidden, bool Anonymous);
+public sealed record UiReviewLink(string Page, string Name, string Url, string Username, bool Hidden, bool Anonymous, string? ExpectedRedirectTo = null);

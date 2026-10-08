@@ -110,7 +110,8 @@ public static class AdminEventPagePolicies
             // U5 1b: redirect-only old detail URL (A2); its write handlers are retired (A10).
             [typeof(ParticipantModel)] = Page(AdminEventPageKind.Participant, true, true,
                 ("GET:", AdminEventHandlerGate.Read)),
-            [typeof(BoardModel)] = Page(AdminEventPageKind.Board, true, false,
+            // D17 (brief 88): Board GETs (page, EditorData, Readback) load read-only on terminal events; POSTs keep D16.
+            [typeof(BoardModel)] = Page(AdminEventPageKind.Board, true, true,
                 ("GET:", AdminEventHandlerGate.Read),
                 ("GET:EditorData", AdminEventHandlerGate.Read),
                 ("GET:Readback", AdminEventHandlerGate.Read),
@@ -119,6 +120,7 @@ public static class AdminEventPagePolicies
                 ("POST:TakeEditing", AdminEventHandlerGate.Board),
                 ("POST:AcquireEditing", AdminEventHandlerGate.Board),
                 ("POST:ReleaseEditing", AdminEventHandlerGate.Board),
+                ("POST:RenewEditing", AdminEventHandlerGate.Board),
                 ("POST:CreateTile", AdminEventHandlerGate.Board),
                 ("POST:EditTile", AdminEventHandlerGate.Board),
                 ("POST:Move", AdminEventHandlerGate.Board),
@@ -132,7 +134,8 @@ public static class AdminEventPagePolicies
                 ("POST:ApproveState", AdminEventHandlerGate.Board),
                 ("POST:PublishState", AdminEventHandlerGate.Board),
                 ("POST:CorrectPublished", AdminEventHandlerGate.BoardCorrection)),
-            [typeof(BoardPreviewModel)] = Page(AdminEventPageKind.BoardPreview, true, false,
+            // U7-Q3: the retired preview route redirects to the Board in every viewable state.
+            [typeof(BoardPreviewModel)] = Page(AdminEventPageKind.BoardPreview, true, true,
                 ("GET:", AdminEventHandlerGate.Read)),
             // D17 (U6): Teams is a read-only view on terminal events; every POST but
             // ChangeRole keeps its Setup refusal and ChangeRole stays service-gated.

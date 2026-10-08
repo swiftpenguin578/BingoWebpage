@@ -500,6 +500,10 @@ public sealed class AuditAtomicityBatchIntegrationTests(PostgreSqlTestFixture da
             Assert.Equal(tiles.Select(value => (value.Id, value.RowIndex, value.ColumnIndex)),
                 persistedTiles.Select(value => (value.Id, value.RowIndex, value.ColumnIndex)));
             Assert.Equal(new[] { setup.EventId, setup.EventId }, notifier.Events);
+            // U7 B-Board-2 (A10): new or changed tile names are limited to 80 characters; a stored
+            // legacy 200-character name still saves unchanged, so the audit-fit proof keeps 200.
+            db.Entry(await db.BoardTiles.SingleAsync(value => value.Id == tiles[0].Id)).Property(value => value.NameSnapshot).CurrentValue = new string('ø', 200);
+            await db.SaveChangesAsync();
             var page = Context(new BoardModel(db, new Clock(now), new AuditWriter(db, new Clock(now)), new Notifier(), new MemoryStorage()), setup.AdminId);
             page.BoardVersion = (await db.Boards.SingleAsync()).Version;
             page.TileDraft = new BoardModel.TileDraftInput

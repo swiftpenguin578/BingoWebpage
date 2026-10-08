@@ -302,7 +302,8 @@ public sealed class PublishedContentRetentionIntegrationTests : IAsyncLifetime
         Assert.Equal(HttpStatusCode.NotFound, (await anonymous.GetAsync($"/Events/{fixture.Slug}/Teams/{fixture.TeamId}/Image")).StatusCode);
         await AssertImageAsync(admin, RetainedUrl(fixture, approval));
         var adminBoardUrl = $"/Admin/Events/Board/{fixture.EventId}";
-        Assert.Equal(HttpStatusCode.Redirect, (await admin.GetAsync(adminBoardUrl)).StatusCode);
+        // U7 D17 (A10): the Admin Board page loads read-only on terminal events; working artwork stays refused.
+        Assert.Equal(HttpStatusCode.OK, (await admin.GetAsync(adminBoardUrl)).StatusCode);
         Assert.Equal(HttpStatusCode.Redirect, (await admin.GetAsync(adminBoardUrl + $"?handler=TileImage&tileId={fixture.TileId}")).StatusCode);
         await PostAsync(admin, adminBoardUrl + "?handler=Remove", await admin.GetStringAsync($"/Admin/Events/Manage/{fixture.EventId}"), new() { ["tileId"] = fixture.TileId.ToString() });
         using var scope = factory.Services.CreateScope();
