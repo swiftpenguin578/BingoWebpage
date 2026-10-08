@@ -109,6 +109,8 @@ public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService ser
     private async Task<IActionResult> Decide(Guid id, string kind, Func<Task<DecisionOutcome?>> action, CancellationToken ct, Func<Task<int>>? amount = null)
     {
         DecisionOutcome outcome;
+        // C-CMP-1: a submission of a hidden event is refused exactly like an unknown id (no existence leak).
+        if (!await VisibleSubmissionAsync(id, ct)) return Answer(id, NotFoundOutcome(kind));
         try
         {
             outcome = await action() ?? new DecisionOutcome("saved", kind) { Amount = amount is null ? null : await amount() };
@@ -119,11 +121,14 @@ public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService ser
         return Answer(id, outcome);
     }
 
-    private Task<IActionResult> Refuse(Guid id, string message, CancellationToken ct)
+    private async Task<IActionResult> Refuse(Guid id, string message, CancellationToken ct)
     {
-        ct.ThrowIfCancellationRequested();
-        return Task.FromResult(Answer(id, new DecisionOutcome("refused", Request.Query["handler"].ToString().ToLowerInvariant()) { Message = Localize(message) }));
+        var kind = Request.Query["handler"].ToString().ToLowerInvariant();
+        if (!await VisibleSubmissionAsync(id, ct)) return Answer(id, NotFoundOutcome(kind));
+        return Answer(id, new DecisionOutcome("refused", kind) { Message = Localize(message) });
     }
+
+    private DecisionOutcome NotFoundOutcome(string kind) => new("refused", kind) { Message = Localize("Submission not found.") };
 
     private IActionResult Answer(Guid id, DecisionOutcome outcome)
     {
