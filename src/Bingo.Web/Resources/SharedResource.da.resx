@@ -5510,4 +5510,19 @@
   <data name="{0} will have {1} members, {2} below the drafted size of {3}." xml:space="preserve">
     <value>{0} får {1} medlemmer, {2} under den draftede størrelse på {3}.</value>
   </data>
+  <data name="Participant added to {0}." xml:space="preserve">
+    <value>Deltageren er føjet til {0}.</value>
+  </data>
+  <data name="Participant added to {0}. The team remains short ({1}/{2})." xml:space="preserve">
+    <value>Deltageren er føjet til {0}. Holdet mangler stadig spillere ({1}/{2}).</value>
+  </data>
+  <data name="Participant removed from {0}." xml:space="preserve">
+    <value>Deltageren er fjernet fra {0}.</value>
+  </data>
+  <data name="Participant removed from {0}. The team remains short ({1}/{2})." xml:space="preserve">
+    <value>Deltageren er fjernet fra {0}. Holdet mangler stadig spillere ({1}/{2}).</value>
+  </data>
+  <data name="the selected team" xml:space="preserve">
+    <value>det valgte hold</value>
+  </data>
 </root>
