@@ -196,7 +196,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
     {
         var item = await dbContext.Events.SingleOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return NotFound();
-        var reopenUntil = ParseEventLocal(ReopenUntilLocal, item.Timezone, nameof(ReopenUntilLocal), "Reopen cutoff")
+        var reopenUntil = ParseEventLocal(ReopenUntilLocal, item.Timezone, nameof(ReopenUntilLocal), "Reopen until")
             ?? (string.IsNullOrWhiteSpace(ReopenUntilLocal) ? ReopenUntil?.ToUniversalTime() : null);
         if (WantsJson)
         {
@@ -293,7 +293,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
             return CodeOutcome(id, false, "Check the verification code details and try again.", "invalid");
         if (string.IsNullOrWhiteSpace(code))
             return CodeOutcome(id, false, "Enter or generate a code first.", "invalid", "code");
-        var activates = ParseEventLocal(EvidenceCodeActivatesAtLocal, item.Timezone, nameof(EvidenceCodeActivatesAtLocal), "Activation time");
+        var activates = ParseEventLocal(EvidenceCodeActivatesAtLocal, item.Timezone, nameof(EvidenceCodeActivatesAtLocal), "Activates at");
         if (!string.IsNullOrWhiteSpace(EvidenceCodeActivatesAtLocal) && activates is null)
             return WantsJson && FieldError(nameof(EvidenceCodeActivatesAtLocal)) is { } invalidFrom
                 ? Invalid(invalidFrom, "from")
@@ -502,10 +502,20 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         var still = System.Text.RegularExpressions.Regex.Match(error, "^(.+) is still the current event\\. Contact the Super Admin to archive it\\.$");
         if (still.Success) return Localize("{0} is still the current event. Contact the Super Admin to archive it.", still.Groups[1].Value);
         var overlap = System.Text.RegularExpressions.Regex.Match(error, "^This event window overlaps (.+) \\(([^()]+)\\)\\.$");
-        if (overlap.Success) return Localize("This event window overlaps {0} ({1}).", overlap.Groups[1].Value, overlap.Groups[2].Value);
+        if (overlap.Success) return Localize("This event window overlaps {0} ({1}).", overlap.Groups[1].Value, LocalizeWindow(overlap.Groups[2].Value));
         var replacement = System.Text.RegularExpressions.Regex.Match(error, "^The replacement lifecycle window overlaps (.+)\\.$");
         if (replacement.Success) return Localize("The replacement lifecycle window overlaps {0}.", replacement.Groups[1].Value);
         return Localize(error);
+    }
+    // The lifecycle service formats the window ("dd MMM yyyy, HH:mm – dd MMM yyyy, HH:mm Zone") under the request culture; parse it with that same culture and show it in the request culture like every other date on this page.
+    private static string LocalizeWindow(string window)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(window, "^(.+?) – (.+?) (\\S+)$");
+        if (!match.Success) return window;
+        const string format = "dd MMM yyyy, HH:mm";
+        if (!DateTime.TryParseExact(match.Groups[1].Value, format, CultureInfo.CurrentCulture, DateTimeStyles.None, out var start)
+            || !DateTime.TryParseExact(match.Groups[2].Value, format, CultureInfo.CurrentCulture, DateTimeStyles.None, out var end)) return window;
+        return $"{start.ToString("d MMM yyyy, HH':'mm", CultureInfo.CurrentCulture)} – {end.ToString("d MMM yyyy, HH':'mm", CultureInfo.CurrentCulture)} {match.Groups[3].Value}";
     }
     private async Task<IActionResult> SignupResult(SignupLifecycleResult result, Guid id, string success, CancellationToken ct)
     {
@@ -568,7 +578,7 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         var timezone = TimeZoneInfo.FindSystemTimeZoneById(timezoneId);
         var local = DateTime.SpecifyKind(entered, DateTimeKind.Unspecified);
         if (timezone.IsInvalidTime(local)) { ModelState.AddModelError(field, Localize("That local time does not exist because the clocks change at that time.")); return null; }
-        if (timezone.IsAmbiguousTime(local)) { ModelState.AddModelError(field, Localize("{0} is ambiguous because of daylight-saving time. Choose another time.", label)); return null; }
+        if (timezone.IsAmbiguousTime(local)) { ModelState.AddModelError(field, Localize("{0} is ambiguous because of daylight-saving time. Choose another time.", Localize(label))); return null; }
         return new DateTimeOffset(local, timezone.GetUtcOffset(local)).ToUniversalTime();
     }
     public static IReadOnlyList<TimelineRow> EffectiveTimelineFor(EffectiveTimelineInput input)

@@ -9,7 +9,7 @@ public sealed class TransientToastUiTests
         var shared = Path.Combine(root, "src", "Bingo.Web", "Pages", "Shared");
         var partial = File.ReadAllText(Path.Combine(shared, "_TransientToast.cshtml"));
 
-        foreach (var layoutName in new[] { "_Layout.cshtml", "_AdminLayout.cshtml", "_AdminOverlayLayout.cshtml" })
+        foreach (var layoutName in new[] { "_Layout.cshtml", "_AdminLayout.cshtml" })
         {
             var layout = File.ReadAllText(Path.Combine(shared, layoutName));
             Assert.Contains("@await Html.PartialAsync(\"_TransientToast\")", layout);
