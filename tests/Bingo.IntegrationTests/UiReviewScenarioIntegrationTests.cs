@@ -86,7 +86,7 @@ public sealed class UiReviewScenarioIntegrationTests(ITestOutputHelper output, P
         var readiness = await scope.ServiceProvider.GetRequiredService<IEventLifecycleService>().GetStartReadinessAsync(closed.Id);
         Assert.Contains(readiness!.Blockers, value => value.Code == "CURRENT_EVENT_EXISTS");
         var owner = await db.Accounts.SingleAsync(value => value.LoginName == "ReviewOwner");
-        var refusal = await scope.ServiceProvider.GetRequiredService<ISubmissionService>().ApproveAsync(result.BlockedSubmissionId, owner.Id);
+        var refusal = await scope.ServiceProvider.GetRequiredService<ISubmissionService>().ApproveCurrentAsync(result.BlockedSubmissionId, owner.Id);
         Assert.NotNull(refusal.BlockingSubmission);
         Assert.Equal(0, refusal.ApprovedContribution);
         var lifecycle = new EventLifecycleService(db, scope.ServiceProvider.GetRequiredService<IEventSignupLifecycleService>(), new ReviewClock());

@@ -141,6 +141,7 @@
                     <form id="admin-review-reject-form" method="post" asp-page-handler="Reject" asp-route-eventId="@Model.Details.EventId" asp-route-search="@Model.Search" asp-route-status="@queueStatus" class="admin-review-reject-form">
                         <input asp-for="Input.ExpectedVersion" type="hidden" />
                         <input asp-for="Input.Reason" type="hidden" data-admin-review-reason />
+                        <input type="hidden" name="confirmed" value="true" />
                         <input asp-for="Search" type="hidden" />
                         <input asp-for="Status" type="hidden" />
                     </form>
@@ -150,6 +151,7 @@
                     <form id="admin-review-reverse-form" method="post" asp-page-handler="Reverse" asp-route-eventId="@Model.Details.EventId" asp-route-search="@Model.Search" asp-route-status="@queueStatus" class="admin-review-action-form">
                         <input asp-for="Input.ExpectedVersion" type="hidden" />
                         <input asp-for="Input.Reason" type="hidden" data-admin-review-reason />
+                        <input type="hidden" name="confirmed" value="true" />
                         <input asp-for="Search" type="hidden" />
                         <input asp-for="Status" type="hidden" />
                         <button class="admin-button-secondary action-danger-outline" type="button" data-admin-review-confirm data-admin-review-form="#admin-review-reverse-form" data-admin-review-title="@T["Reverse approval"]" data-admin-review-description="@T["Reverse this approval, remove its contribution, and recalculate later progress and rankings. The decision and reason will be recorded in the audit history."]" data-admin-review-action="@T["Reverse approval"]">@T["Reverse approval"]</button>

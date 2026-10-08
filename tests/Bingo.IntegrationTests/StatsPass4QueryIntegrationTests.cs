@@ -968,9 +968,9 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         db.Add(s); await db.SaveChangesAsync(); return s.Id;
     }
     private async Task ApproveStatsAsync(FullStatsFixture f, Guid submission)
-    { await using var db = new ApplicationDbContext(options); await new SubmissionService(db, null!, f.Clock).ApproveAsync(submission, f.Admin.Id); }
+    { await using var db = new ApplicationDbContext(options); await new SubmissionService(db, null!, f.Clock).ApproveCurrentAsync(submission, f.Admin.Id); }
     private async Task ReverseStatsAsync(FullStatsFixture f, Guid submission)
-    { await using var db = new ApplicationDbContext(options); await new SubmissionService(db, null!, f.Clock).ReverseAsync(submission, f.Admin.Id, "Synthetic reversal"); }
+    { await using var db = new ApplicationDbContext(options); await new SubmissionService(db, null!, f.Clock).ReverseCurrentAsync(submission, f.Admin.Id, "Synthetic reversal"); }
     private async Task PublishCurrentRosterAsync(FullStatsFixture f, bool retainPreviousEntries = false)
     {
         await using var db = new ApplicationDbContext(options);

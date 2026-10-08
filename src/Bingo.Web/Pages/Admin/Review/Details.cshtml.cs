@@ -30,6 +30,9 @@ public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService ser
     {
         Response.Headers.CacheControl = "no-store";
         if (User.GetAccountId() is not { } adminId) return Forbid();
+        // C-CMP-1: an unknown submission and one of a hidden event are indistinguishable Not Found.
+        try { if (!await VisibleSubmissionAsync(id, ct)) return NotFound(); }
+        catch (Exception ex) when (ex is not OperationCanceledException) { return new JsonResult(new SubmissionReviewReadback(null)); }
         try { return new JsonResult(await service.GetReviewReadbackAsync(id, adminId, ct)); }
         catch (InvalidOperationException) { return Forbid(); }
         catch (Exception ex) when (ex is not OperationCanceledException) { return new JsonResult(new SubmissionReviewReadback(null)); }
@@ -44,8 +47,8 @@ public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService ser
         catch (Exception ex) when (ex is not OperationCanceledException) { return StatusCode(StatusCodes.Status503ServiceUnavailable); }
     }
     public Task<IActionResult> OnPostApproveAsync(Guid id, CancellationToken ct) => Execute(id, async () => { var result = await service.ApproveAsync(id, User.GetAccountId()!.Value, ct, Input.ExpectedVersion); if (result.BlockingSubmission is { } block) { TempData[ApprovalBlockTempDataKey] = block.SubmissionId.ToString("D"); TempData["StatusMessage"] = Localize("Approve or reject the earlier upload first."); TempData[UiMessage.TypeKey] = UiMessageType.Error.ToString(); } else { TempData["StatusMessage"] = Localize("Approved with {0} contribution.", result.ApprovedContribution); TempData[UiMessage.TypeKey] = UiMessageType.Success.ToString(); } }, ct);
-    public Task<IActionResult> OnPostRejectAsync(Guid id, CancellationToken ct) => Execute(id, () => service.RejectAsync(id, User.GetAccountId()!.Value, Input.Reason ?? string.Empty, ct, Input.ExpectedVersion), ct, "Submission rejected.", requiresReason: true);
-    public Task<IActionResult> OnPostReverseAsync(Guid id, CancellationToken ct) => Execute(id, () => service.ReverseAsync(id, User.GetAccountId()!.Value, Input.Reason ?? string.Empty, ct, Input.ExpectedVersion), ct, "Approval reversed and later contributions recalculated.", requiresReason: true);
+    public Task<IActionResult> OnPostRejectAsync(Guid id, bool confirmed, CancellationToken ct) => !confirmed ? RefuseUnconfirmed(id, ct) : Execute(id, () => service.RejectAsync(id, User.GetAccountId()!.Value, Input.Reason ?? string.Empty, ct, Input.ExpectedVersion), ct, "Submission rejected.", requiresReason: true);
+    public Task<IActionResult> OnPostReverseAsync(Guid id, bool confirmed, CancellationToken ct) => !confirmed ? RefuseUnconfirmed(id, ct) : Execute(id, () => service.ReverseAsync(id, User.GetAccountId()!.Value, Input.Reason ?? string.Empty, ct, Input.ExpectedVersion), ct, "Approval reversed and later contributions recalculated.", requiresReason: true);
     public Task<IActionResult> OnPostEditAsync(Guid id, CancellationToken ct) => Execute(id, () => service.EditMetadataAsync(new(id, User.GetAccountId()!.Value, Input.BoardTileId, Input.RequirementId, Input.DropSnapshotId, Input.CreditedOsrsCharacterId, Input.Reason ?? string.Empty, Input.ExpectedVersion), ct), ct, "Metadata corrected.", requiresReason: true);
     private async Task<IActionResult> Execute(Guid id, Func<Task> action, CancellationToken ct, string? success = null, bool requiresReason = false)
     {
@@ -76,6 +79,20 @@ public sealed class DetailsModel(ApplicationDbContext db, ISubmissionService ser
         }
         return await RedirectAfterPost(id, ct);
     }
+
+    // RL-1/BR-4: Reject and Reverse need the explicit confirmation from the decision panel or dialog;
+    // without it nothing is written (no review action, audit entry, notification or version change).
+    public const string ConfirmationRequiredMessage = "Confirm this decision before it is saved. Nothing was changed.";
+    private async Task<IActionResult> RefuseUnconfirmed(Guid id, CancellationToken ct)
+    {
+        TempData["StatusMessage"] = Localize(ConfirmationRequiredMessage);
+        TempData[UiMessage.TypeKey] = UiMessageType.Error.ToString();
+        return await RedirectAfterPost(id, ct);
+    }
+
+    private Task<bool> VisibleSubmissionAsync(Guid id, CancellationToken ct) =>
+        (from submission in db.Submissions.AsNoTracking() join item in db.Events.AsNoTracking() on submission.EventId equals item.Id
+         where submission.Id == id && item.HiddenAt == null select submission.Id).AnyAsync(ct);
 
     private async Task<IActionResult> RedirectAfterPost(Guid id, CancellationToken ct)
     {

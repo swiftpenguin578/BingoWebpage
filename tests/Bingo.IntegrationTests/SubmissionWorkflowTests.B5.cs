@@ -122,17 +122,17 @@ public sealed partial class SubmissionWorkflowTests
         await using var db = new ApplicationDbContext(options);
         var first = earlierApproval ? await Service(db).CreateAsync(Command(setup)) : null;
         var created = await Service(db, new FixedTimeProvider(now.AddSeconds(1))).CreateAsync(Command(setup));
-        if (first is not null) await Service(db).ApproveAsync(first.SubmissionId, setup.AdminId);
+        if (first is not null) await Service(db).ApproveCurrentAsync(first.SubmissionId, setup.AdminId);
         var read = await Service(db).GetReviewReadbackAsync(created.SubmissionId, setup.AdminId);
         Assert.True(read.Known);
         var state = read.State!;
         Assert.Null(state.Contribution.BlockingSubmission);
         Assert.Equal(new SubmissionContributionNumbers(add, 2, remaining, used, target, completes), state.Contribution.Values);
         if (add == 0)
-            await Assert.ThrowsAsync<InvalidOperationException>(() => Service(db).ApproveAsync(created.SubmissionId, setup.AdminId));
+            await Assert.ThrowsAsync<InvalidOperationException>(() => Service(db).ApproveCurrentAsync(created.SubmissionId, setup.AdminId));
         else
         {
-            Assert.Equal(add, (await Service(db).ApproveAsync(created.SubmissionId, setup.AdminId)).ApprovedContribution);
+            Assert.Equal(add, (await Service(db).ApproveCurrentAsync(created.SubmissionId, setup.AdminId)).ApprovedContribution);
             var approved = (await Service(db).GetReviewReadbackAsync(created.SubmissionId, setup.AdminId)).State!;
             Assert.Equal(SubmissionStatus.Approved, approved.Status);
             Assert.Equal(state.Contribution.Values, approved.Contribution.Values);
@@ -151,7 +151,7 @@ public sealed partial class SubmissionWorkflowTests
         var read = (await Service(db).GetReviewReadbackAsync(later.SubmissionId, setup.AdminId)).State!;
         Assert.Null(read.Contribution.Values);
         Assert.Equal(new SubmissionApprovalBlock(first.SubmissionId, now), read.Contribution.BlockingSubmission);
-        var approval = await Service(db).ApproveAsync(later.SubmissionId, setup.AdminId);
+        var approval = await Service(db).ApproveCurrentAsync(later.SubmissionId, setup.AdminId);
         Assert.Equal(read.Contribution.BlockingSubmission, approval.BlockingSubmission);
         Assert.Equal(0, approval.ApprovedContribution);
     }
@@ -184,7 +184,7 @@ public sealed partial class SubmissionWorkflowTests
         Assert.Equal(SubmissionStatus.Reversed, reversed.Status); Assert.Equal(ReviewActionType.ReverseApproval, reversed.LatestAction!.Type);
         Assert.True(reversed.LatestAction.ReasonPresent); Assert.Equal(0, reversed.Contribution.Values!.Add);
         var rejectedId = (await service.CreateAsync(Command(setup))).SubmissionId;
-        await service.RejectAsync(rejectedId, actor.Id, "Other admin rejection");
+        await service.RejectCurrentAsync(rejectedId, actor.Id, "Other admin rejection");
         var rejected = (await service.GetReviewReadbackAsync(rejectedId, setup.AdminId)).State!;
         Assert.Equal(SubmissionStatus.Rejected, rejected.Status); Assert.Equal(ReviewActionType.Reject, rejected.LatestAction!.Type);
         Assert.Equal(actor.Id, rejected.LatestAction.ActorId); Assert.True(rejected.LatestAction.ReasonPresent);
