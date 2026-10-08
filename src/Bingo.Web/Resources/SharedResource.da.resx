@@ -4140,4 +4140,34 @@
   <data name="The event could not be changed." xml:space="preserve"><value>Eventet kunne ikke ændres.</value></data>
   <data name="This event window overlaps {0} ({1})." xml:space="preserve"><value>Eventets tidsrum overlapper {0} ({1}).</value></data>
   <data name="The replacement lifecycle window overlaps {0}." xml:space="preserve"><value>Det nye livscyklusvindue overlapper {0}.</value></data>
+  <data name="Teams can’t be added after the rosters are finalized. Correct the rosters by adding or removing members." xml:space="preserve">
+    <value>Hold kan ikke tilføjes, efter holdene er færdiggjort. Ret holdene ved at tilføje eller fjerne medlemmer.</value>
+  </data>
+  <data name="Another team already has this name." xml:space="preserve">
+    <value>Et andet hold har allerede dette navn.</value>
+  </data>
+  <data name="Teams can only be removed during team setup, before the event starts and before its configured end." xml:space="preserve">
+    <value>Hold kan kun fjernes under holdopsætningen, før eventet starter og før dets planlagte slutning.</value>
+  </data>
+  <data name="This team was already removed." xml:space="preserve">
+    <value>Dette hold er allerede fjernet.</value>
+  </data>
+  <data name="{0} now has members. Nothing was removed; check the team before trying again." xml:space="preserve">
+    <value>{0} har nu medlemmer. Intet blev fjernet; tjek holdet, før du prøver igen.</value>
+  </data>
+  <data name="{0} removed." xml:space="preserve">
+    <value>{0} fjernet.</value>
+  </data>
+  <data name="{0} removed. {1} player is signed up with no team." xml:space="preserve">
+    <value>{0} fjernet. {1} spiller er tilmeldt uden hold.</value>
+  </data>
+  <data name="{0} removed. {1} players are signed up with no team." xml:space="preserve">
+    <value>{0} fjernet. {1} spillere er tilmeldt uden hold.</value>
+  </data>
+  <data name="This team was removed." xml:space="preserve">
+    <value>Dette hold er fjernet.</value>
+  </data>
+  <data name="{0} was removed. Nothing was added." xml:space="preserve">
+    <value>{0} er fjernet. Intet blev tilføjet.</value>
+  </data>
 </root>

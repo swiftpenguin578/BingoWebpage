@@ -2049,24 +2049,24 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
         await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostPickAsync(setup.EventId, setup.PlayerIds[3], CancellationToken.None));
         await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostFinalizeAsync(setup.EventId, CancellationToken.None, true));
 
+        // B-Teams-4 (U6, A10): adding a team after finalization is retired. Concurrent and
+        // failing attempts are refused and leave no team or publication residue.
         await Task.WhenAll(
             ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddTeamAsync(setup.EventId, "Race external A", TeamFormationType.Preformed, null, CancellationToken.None, true, false)),
             ExecuteAsync(setup.EventId, setup.SecondAdminId, page => page.OnPostAddTeamAsync(setup.EventId, "Race external B", TeamFormationType.Preformed, null, CancellationToken.None, true, false)));
-        var raceTeamCount = 0;
         await using (var afterRace = new ApplicationDbContext(options))
         {
             var draft = await afterRace.DraftSessions.SingleAsync(x => x.EventId == setup.EventId);
             Assert.Single(await afterRace.DraftPublicationCycles.Where(x => x.DraftSessionId == draft.Id && x.SupersededAt == null).ToListAsync());
-            raceTeamCount = await afterRace.Teams.CountAsync(x => x.EventId == setup.EventId && (x.Name == "Race external A" || x.Name == "Race external B"));
-            Assert.InRange(raceTeamCount, 1, 2);
-            Assert.Equal(raceTeamCount + 1, await afterRace.DraftPublicationCycles.CountAsync(x => x.DraftSessionId == draft.Id));
+            Assert.Equal(0, await afterRace.Teams.CountAsync(x => x.EventId == setup.EventId && (x.Name == "Race external A" || x.Name == "Race external B")));
+            Assert.Equal(1, await afterRace.DraftPublicationCycles.CountAsync(x => x.DraftSessionId == draft.Id));
         }
 
         await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostAddTeamAsync(setup.EventId, "Audit failure external", TeamFormationType.Preformed, null, CancellationToken.None, true, false), new ThrowingAuditWriter());
         await using var verify = new ApplicationDbContext(options);
         Assert.False(await verify.Teams.AnyAsync(x => x.EventId == setup.EventId && x.Name == "Audit failure external"));
         var finalDraft = await verify.DraftSessions.SingleAsync(x => x.EventId == setup.EventId);
-        Assert.Equal(raceTeamCount + 1, await verify.DraftPublicationCycles.CountAsync(x => x.DraftSessionId == finalDraft.Id));
+        Assert.Equal(1, await verify.DraftPublicationCycles.CountAsync(x => x.DraftSessionId == finalDraft.Id));
         Assert.Empty(await verify.AuditEntries.Where(x => x.Details != null && x.Details.Contains("Injected rollback")).ToListAsync());
     }
 
