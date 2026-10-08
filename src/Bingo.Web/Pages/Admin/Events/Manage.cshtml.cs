@@ -507,14 +507,14 @@ public sealed class ManageModel(ApplicationDbContext dbContext, ISignupService s
         if (replacement.Success) return Localize("The replacement lifecycle window overlaps {0}.", replacement.Groups[1].Value);
         return Localize(error);
     }
-    // The lifecycle service words the window in English ("dd MMM yyyy, HH:mm – dd MMM yyyy, HH:mm Zone"); show it in the request culture like every other date on this page.
+    // The lifecycle service formats the window ("dd MMM yyyy, HH:mm – dd MMM yyyy, HH:mm Zone") under the request culture; parse it with that same culture and show it in the request culture like every other date on this page.
     private static string LocalizeWindow(string window)
     {
         var match = System.Text.RegularExpressions.Regex.Match(window, "^(.+?) – (.+?) (\\S+)$");
         if (!match.Success) return window;
         const string format = "dd MMM yyyy, HH:mm";
-        if (!DateTime.TryParseExact(match.Groups[1].Value, format, CultureInfo.InvariantCulture, DateTimeStyles.None, out var start)
-            || !DateTime.TryParseExact(match.Groups[2].Value, format, CultureInfo.InvariantCulture, DateTimeStyles.None, out var end)) return window;
+        if (!DateTime.TryParseExact(match.Groups[1].Value, format, CultureInfo.CurrentCulture, DateTimeStyles.None, out var start)
+            || !DateTime.TryParseExact(match.Groups[2].Value, format, CultureInfo.CurrentCulture, DateTimeStyles.None, out var end)) return window;
         return $"{start.ToString("d MMM yyyy, HH':'mm", CultureInfo.CurrentCulture)} – {end.ToString("d MMM yyyy, HH':'mm", CultureInfo.CurrentCulture)} {match.Groups[3].Value}";
     }
     private async Task<IActionResult> SignupResult(SignupLifecycleResult result, Guid id, string success, CancellationToken ct)
