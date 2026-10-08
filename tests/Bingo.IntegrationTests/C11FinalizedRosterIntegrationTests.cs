@@ -32,7 +32,7 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
+public sealed partial class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
     private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_c11").WithUsername("bingo").WithPassword("c11_fixture_only"));
