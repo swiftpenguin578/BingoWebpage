@@ -41,6 +41,7 @@
 :where([data-page-family="final-review"]) .fr-tl-row { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
 :where([data-page-family="final-review"]) .fr-tl-row>div:first-child { min-width:0; }
 :where([data-page-family="final-review"]) .fr-tl .tl-what { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+:where([data-page-family="final-review"]) .fr-tl .tl-item.is-reopen::before { background:var(--dk-warning-fg); }
 :where([data-page-family="final-review"]) .fr-tl-note { margin-top:4px; font-size:var(--dk-fs-small); color:var(--dk-text-3); }
 :where([data-page-family="final-review"]) .fr-reopen { padding:var(--dk-space-5) var(--dk-space-6); }
 :where([data-page-family="final-review"]) .fr-reopen .act-row { padding:0; border:0; }

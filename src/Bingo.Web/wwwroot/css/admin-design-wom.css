@@ -20,6 +20,7 @@
 :where([data-page-family="wom"]) .wm-tbl .th.wm-num{text-align:right}
 :where([data-page-family="wom"]) .wm-team{font-weight:600}
 :where([data-page-family="wom"]) .wm-missing{display:block;font-size:var(--dk-fs-control-sm);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+:where([data-page-family="wom"]) .wm-missing.is-none{color:var(--dk-text-3)}
 :where([data-page-family="wom"]) .wm-miss-box{padding:12px var(--dk-space-6) 14px;border-top:1px solid var(--dk-border-subtle)}
 :where([data-page-family="wom"]) .wm-miss-title{font-size:var(--dk-fs-control-sm);font-weight:600}
 :where([data-page-family="wom"]) .wm-miss-hint{margin:8px 0 0;font-size:var(--dk-fs-small);color:var(--dk-text-2)}
