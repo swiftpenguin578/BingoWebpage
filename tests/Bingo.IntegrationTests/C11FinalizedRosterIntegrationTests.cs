@@ -869,7 +869,9 @@ public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture dat
         Assert.Contains($"participant={seed.OtherWaitingId}", withdrawnSearch);
         Assert.Contains("First waiting", await admin.GetStringAsync(DrawerRead(seed, seed.OtherWaitingId)));
         var draft = await admin.GetStringAsync($"/Admin/Events/Draft/{seed.EventId}");
-        var finalizedRoster = Regex.Match(draft, "<ol class=\"finalized-roster-list\">(?<roster>[\\s\\S]*?)</ol>").Groups["roster"].Value;
+        // A10 (U6): the finalized roster is drawn from the page state's team members (frozen published names).
+        var finalizedRoster = string.Join("\n", DraftOperationsIntegrationTests.DraftPageState(draft).GetProperty("teams").EnumerateArray()
+            .SelectMany(team => team.GetProperty("members").EnumerateArray()).Select(member => member.GetProperty("name").GetString()));
         Assert.Contains("Leader", finalizedRoster);
         Assert.DoesNotContain("Departed C", finalizedRoster);
         Assert.DoesNotContain("Current renamed player", finalizedRoster);
@@ -1081,6 +1083,48 @@ public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture dat
         Assert.Contains("Waiting C", RosterSection(await admin.GetStringAsync(TeamsPath(seed))));
     }
 
+    // U6 review M1: a committed finalized correction is "done" whatever the WOM status; the provider
+    // text never reaches the status (AU14: the page's WOM line from the readback reports the sync).
+    [Fact]
+    public async Task HttpFinalizedCorrectionWithReadOnlyWomLinkIsDoneWithoutProviderText()
+    {
+        var seed = await SeedAsync();
+        await using (var db = Db())
+        {
+            var owner = await db.Accounts.SingleAsync(x => x.Id == seed.InternalOwnerId);
+            var character = new OsrsCharacter(Guid.NewGuid(), "Readonly add", "READONLY ADD", clock.Now);
+            db.AddRange(character, new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, character.Id, owner.Id, true, 0, null, 20m, clock.Now));
+            await db.SaveChangesAsync();
+        }
+        await using var factory = Factory(competition: new CompetitionManagementStub(new(true, Error: "SECRET provider text: linked competition is read-only", Status: "ReadOnly", ErrorCode: "ReadOnly")));
+        using var admin = await LoginAsync(factory, "c11-admin");
+        var draftPath = $"/Admin/Events/Draft/{seed.EventId}";
+        var draftPage = await admin.GetStringAsync(draftPath);
+        long teamVersion;
+        await using (var db = Db()) teamVersion = await db.Teams.Where(x => x.Id == seed.TeamId).Select(x => x.Version).SingleAsync();
+        using var request = new HttpRequestMessage(HttpMethod.Post, draftPath + "?handler=AddMember")
+        {
+            Content = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["teamId"] = seed.TeamId.ToString(), ["accountId"] = seed.InternalOwnerId.ToString(), ["confirmed"] = "true",
+                ["expectedTeamVersion"] = teamVersion.ToString(CultureInfo.InvariantCulture), ["rosterTeamId"] = seed.TeamId.ToString()
+            })
+        };
+        request.Headers.Add("Accept", "application/json"); request.Headers.Add("RequestVerificationToken", Token(draftPage));
+        using var response = await admin.SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadAsStringAsync();
+        using var json = System.Text.Json.JsonDocument.Parse(body);
+        Assert.Equal("done", json.RootElement.GetProperty("outcome").GetString());
+        Assert.Equal("success", json.RootElement.GetProperty("tone").GetString());
+        var message = json.RootElement.GetProperty("message").GetString() ?? string.Empty;
+        Assert.DoesNotContain("SECRET", message, StringComparison.Ordinal);
+        Assert.DoesNotContain("ReadOnly", message, StringComparison.Ordinal);
+        Assert.DoesNotContain("WOM", message, StringComparison.Ordinal);
+        await using var verify = Db();
+        Assert.True(await verify.TeamMemberships.AnyAsync(x => x.TeamId == seed.TeamId && x.LeftAt == null && verify.EventParticipants.Any(p => p.Id == x.EventParticipantId && p.AccountId == seed.InternalOwnerId)));
+    }
+
     [Fact]
     public async Task FinalizedRosterAddRequiresFreshTeamVersionReusesEligibleAccountsWithoutACap()
     {
@@ -1199,9 +1243,10 @@ public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture dat
         await using var factory = Factory();
         using var adminClient = await LoginAsync(factory, "c11-admin");
         var draftPage = await adminClient.GetStringAsync($"/Admin/Events/Draft/{seed.EventId}");
-        Assert.Contains("name=\"role\"", draftPage, StringComparison.Ordinal);
-        Assert.Contains("value=\"Captain\"", draftPage, StringComparison.Ordinal);
-        Assert.Contains("value=\"CoCaptain\"", draftPage, StringComparison.Ordinal);
+        // A10 (U6, U6-Q1): the correction Add keeps the role choice; the page state allows corrections
+        // and the page script posts Participant / Captain / CoCaptain.
+        Assert.True(DraftOperationsIntegrationTests.DraftPageState(draftPage).GetProperty("canCorrect").GetBoolean());
+        foreach (var role in new[] { "Participant", "Captain", "CoCaptain" }) DraftOperationsIntegrationTests.AssertDraftPageOffers(role);
         using var publicClient = factory.CreateClient();
         var publicPage = RosterSection(await publicClient.GetStringAsync(TeamsPath(seed)));
         Assert.Matches("(?s)<li class=\"is-captain\">\\s*<span>Added Captain</span>", publicPage);
@@ -1671,7 +1716,7 @@ public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture dat
         await transaction.CommitAsync();
     }
 
-    private WebApplicationFactory<Program> Factory(IInterceptor? interceptor = null, bool unavailablePlayerLookup = false) => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+    private WebApplicationFactory<Program> Factory(IInterceptor? interceptor = null, bool unavailablePlayerLookup = false, IEventCompetitionManagementService? competition = null) => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()).ConfigureServices(services =>
         {
             services.RemoveAll<TimeProvider>(); services.AddSingleton<TimeProvider>(clock);
@@ -1680,6 +1725,7 @@ public sealed class C11FinalizedRosterIntegrationTests(PostgreSqlTestFixture dat
             // Exercise lifecycle through its real HTTP action without a background scheduler racing the deterministic fixture clock.
             services.RemoveAll<IHostedService>();
             if (interceptor is not null) services.AddDbContext<ApplicationDbContext>(configuration => configuration.AddInterceptors(interceptor));
+            if (competition is not null) { services.RemoveAll<IEventCompetitionManagementService>(); services.AddSingleton(competition); }
         }));
 
     private async Task<Seed> SeedAsync()

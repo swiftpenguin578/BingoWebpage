@@ -7,6 +7,14 @@ module.exports = [
     textRows: { 'rv-sk-main':['control',1.45], 'rv-sk-sub':['small',1.45] }, reference: 'Review.dc.html', first: '.card', blocks: { first: '.card', toolbar: '.toolbar' },
     style: ['.rv-toolbar','justify-content','flex-start'], titleDa: 'Review',
     update: { control: '[data-review-status][value="Pending"]', action: 'click', request: true, selected: '[data-review-status][value="Pending"]:checked' } },
+  // U6: Teams / Draft. Geometry on the setup workspace; the in-place update probe is the running
+  // draft's pool sort (update.url), seeded only for this page by BINGO_PARITY_DRAFT (planner ruling, 8 Oct).
+  { family: 'draft', postSaveCount: 1, fixtureEnv: { BINGO_PARITY_DRAFT: '1' },
+    url: f => '/Admin/Events/Draft/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',
+    source: 'Pages/Admin/Events/Draft.cshtml', module: 'admin-draft.js',
+    textRows: { 'td-sk-line': ['control',1.45] }, reference: 'TeamsDraft.dc.html', referenceEvent: 'community-mini-bingo', first: '.td-ready', blocks: { first: '.td-ready' },
+    style: ['.td-ready-main','display','flex'], titleDa: 'Hold / draft',
+    update: { url: f => '/Admin/Events/Draft/' + f.events['clan-cup-pvm-week'], control: '#pool-sort-name', action: 'click', selected: '#pool-sort-name-opt.is-on' } },
   // U7: Board (Board.dc.html). One shared POST path (ctx.command) serves every Board command.
   // U7-E1 (c): plus one background POST, the edit-lease renewal (no busy state).
   { family: 'board', postSaveCount: 1, backgroundPostCount: 1, url: f => '/Admin/Events/Board/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',

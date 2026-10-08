@@ -58,7 +58,9 @@ public sealed class ManagedCompetitionUiTests
 
         Assert.Contains("maxlength=\"50\"", create);
         Assert.Contains("data-codepoint-limit=\"50\"", identity);
-        Assert.Contains("maxlength=\"30\"", draft);
+        // A10 (U6): the Teams page renders client-side; its team form enforces the 30-character provider limit.
+        var draftScript = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "js", "admin-draft.js"));
+        Assert.Contains("length > 30) return t('Use 30 characters or fewer.')", draftScript);
         Assert.Contains("MaximumTeamNameLength", handlers);
         Assert.Contains("!string.Equals(team.Name, name.Trim()", handlers);
     }
@@ -74,9 +76,11 @@ public sealed class ManagedCompetitionUiTests
         var participant = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Participant.cshtml"));
         var participantHandler = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Events", "Participant.cshtml.cs"));
 
-        Assert.Contains("name=\"includedInDraft\"", draft);
-        Assert.Contains("name=\"includedInDraft\" type=\"hidden\" value=\"false\"", draft);
-        Assert.True(draft.Split("name=\"includedInDraft\" type=\"hidden\" value=\"false\"", StringSplitOptions.None).Length - 1 >= 3);
+        // A10 (U6): the team form posts includedInDraft from its checkbox (true and false); no formationType.
+        var draftScript = File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "js", "admin-draft.js"));
+        Assert.Contains("includedInDraft: String(included)", draftScript);
+        Assert.Contains("values.includedInDraft = String(included)", draftScript);
+        Assert.DoesNotContain("formationType", draftScript);
         Assert.DoesNotContain("name=\"formationType\"", draft);
         Assert.DoesNotContain("asp-page-handler=\"AddExternalMember\"", draft);
         Assert.DoesNotContain("RosterCsv", draft);
