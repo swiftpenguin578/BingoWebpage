@@ -18,20 +18,21 @@ using Microsoft.Extensions.Localization;
 namespace Bingo.Web.Pages.Admin.Events;
 
 [Authorize(Policy = AuthorizationPolicies.Admin)]
-public sealed class WiseOldManModel(
+[AdminDesign]
+public sealed partial class WiseOldManModel(
     ApplicationDbContext dbContext,
     IEventCompetitionSynchronizationService competitionSynchronization,
     IEventCompetitionManagementService competitionManagement,
     IEventCompetitionActivityProjection activityProjection,
     IStringLocalizer<SharedResource>? text = null,
-    IHostEnvironment? environment = null) : PageModel
+    IHostEnvironment? environment = null,
+    TimeProvider? clock = null) : PageModel
 {
     public EventSummary? EventView { get; private set; }
     public EventCompetitionView? CompetitionIntegration { get; private set; }
     public EventCompetitionManagementView? CompetitionManagement { get; private set; }
     public EventCompetitionActivityProjection? Activity { get; private set; }
     public bool ShowDevelopmentCompetitionControl { get; private set; }
-    public bool IsHiddenInspection { get; private set; }
 
     [BindProperty, Range(1, long.MaxValue)] public long? CompetitionId { get; set; }
     [BindProperty] public long EventVersion { get; set; }
@@ -41,8 +42,15 @@ public sealed class WiseOldManModel(
     [BindProperty, StringLength(2000)] public string? CompetitionClearReason { get; set; }
     [BindProperty] public bool ConfirmManagedCompetitionDelete { get; set; }
     [BindProperty, Range(1, long.MaxValue)] public long? ManagedCompetitionDeleteId { get; set; }
-    public async Task<IActionResult> OnGetAsync(Guid id, [FromQuery(Name = "hidden")] bool hiddenInspection, CancellationToken ct)
-        => await LoadAsync(id, hiddenInspection, ct) ? Page() : NotFound();
+    public async Task<IActionResult> OnGetAsync(Guid id, CancellationToken ct)
+        => await LoadAsync(id, ct) ? Page() : NotFound();
+
+    public async Task<IActionResult> OnGetCurrentAsync(Guid id, CancellationToken ct)
+    {
+        Response.Headers.CacheControl = "no-store";
+        if (!await LoadAsync(id, ct)) return NotFound();
+        return new JsonResult(new { eventId = id, version = EventVersion.ToString(CultureInfo.InvariantCulture), state = EventView!.State.ToString(), integration = CompetitionIntegration, management = CompetitionManagement, activity = Activity });
+    }
 
     public async Task<IActionResult> OnPostCompetitionAsync(Guid id, CancellationToken ct)
     {
@@ -53,7 +61,7 @@ public sealed class WiseOldManModel(
         {
             var result = await competitionSynchronization.ConfigureAsync(id, EventVersion, CompetitionId, Actor, cancellationToken: ct);
             return RedirectWithStatus(id,
-                result.Succeeded ? Localize("Competition linked and validated.") : result.Error ?? Localize("The competition could not be configured."),
+                result.Succeeded ? Localize("Competition linked and validated.") : LocalizeConfigureError(result.Error, "The competition could not be configured."),
                 result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         }
         catch (UnauthorizedAccessException exception)
@@ -77,7 +85,7 @@ public sealed class WiseOldManModel(
                 id, EventVersion, null, Actor, confirmCompetitionClear: true,
                 competitionClearReason: CompetitionClearReason, cancellationToken: ct);
             return RedirectWithStatus(id,
-                result.Succeeded ? Localize("The external WOM link was disconnected. The remote competition was not changed.") : result.Error ?? Localize("The external WOM link could not be disconnected."),
+                result.Succeeded ? Localize("The external WOM link was disconnected. The remote competition was not changed.") : LocalizeConfigureError(result.Error, "The external WOM link could not be disconnected."),
                 result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
         }
         catch (UnauthorizedAccessException exception)
@@ -94,9 +102,9 @@ public sealed class WiseOldManModel(
             var message = result.Succeeded
                 ? Localize("WOM data fetch completed.")
                 : result.Skipped
-                    ? Localize("WOM data was not fetched because the backend cooldown is still active. Try again after the next permitted time.")
+                    ? RefreshSkipDescription(result.SkipReason)
                     : CompetitionRefreshFailure(result);
-            return RedirectWithStatus(id, message, result.Succeeded ? UiMessageType.Success : UiMessageType.Warning);
+            return RedirectWithStatus(id, message, result.Succeeded ? UiMessageType.Success : UiMessageType.Warning, result.Skipped ? "skipped" : result.Succeeded ? "applied" : "failed", result.ErrorKind, result.SkipReason, result.RetryAt);
         }
         catch (UnauthorizedAccessException exception)
         {
@@ -110,8 +118,8 @@ public sealed class WiseOldManModel(
         {
             var result = await competitionManagement.CreateAsync(id, EventVersion, Actor, ct);
             return RedirectWithStatus(id,
-                result.Succeeded ? Localize("Managed WOM competition creation was accepted and queued.") : LocalizeManagedError(result.ErrorCode, result.Error, "The managed WOM competition could not be created."),
-                result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+                result.Succeeded ? Localize(IsQueued(result, "Succeeded") ? "Managed WOM competition creation was accepted and queued." : "The WOM competition was created and linked.") : LocalizeManagedError(result.ErrorCode, result.Error, "The managed WOM competition could not be created."),
+                result.Succeeded ? UiMessageType.Success : UiMessageType.Error, IsQueued(result, "Succeeded") ? "queued" : result.Succeeded ? "applied" : "refused", result.ErrorCode, retryAt: result.RetryAt, status: result.Status, operationId: result.OperationId);
         }
         catch (UnauthorizedAccessException exception)
         {
@@ -133,7 +141,7 @@ public sealed class WiseOldManModel(
                     ? Localize("The management code was stored protected and remains unverified until a legitimate management operation succeeds.")
                     : Localize("The Wise Old Man management code was stored protected.")
                 : LocalizeManagedError(result.ErrorCode, result.Error, "The Wise Old Man management code could not be stored.");
-            return RedirectWithStatus(id, message, result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+            return RedirectWithStatus(id, message, result.Succeeded ? UiMessageType.Success : UiMessageType.Error, IsQueued(result, "Valid", "Unverified", "Unchanged") ? "queued" : result.Succeeded ? "applied" : "refused", result.ErrorCode, retryAt: result.RetryAt, status: result.Status, operationId: result.OperationId);
         }
         catch (UnauthorizedAccessException exception)
         {
@@ -158,8 +166,8 @@ public sealed class WiseOldManModel(
             var result = await competitionManagement.DeleteAsync(
                 id, EventVersion, ManagedCompetitionDeleteId.Value, ConfirmManagedCompetitionDelete, Actor, ct);
             return RedirectWithStatus(id,
-                result.Succeeded ? Localize("Website-created WOM deletion was accepted and queued.") : LocalizeManagedError(result.ErrorCode, result.Error, "The managed WOM competition could not be deleted."),
-                result.Succeeded ? UiMessageType.Success : UiMessageType.Error);
+                result.Succeeded ? Localize(IsQueued(result, "Succeeded") ? "Website-created WOM deletion was accepted and queued." : "The website-created WOM competition was deleted.") : LocalizeManagedError(result.ErrorCode, result.Error, "The managed WOM competition could not be deleted."),
+                result.Succeeded ? UiMessageType.Success : UiMessageType.Error, IsQueued(result, "Succeeded") ? "queued" : result.Succeeded ? "applied" : "refused", result.ErrorCode, retryAt: result.RetryAt, status: result.Status, operationId: result.OperationId);
         }
         catch (UnauthorizedAccessException exception)
         {
@@ -183,6 +191,11 @@ public sealed class WiseOldManModel(
         }
     }
 
+    // Only a definitive status is "applied"; any other successful status
+    // (for example an operation already Claimed by a worker) is still queued.
+    private static bool IsQueued(EventCompetitionManagementResult result, params string[] definitiveStatuses) =>
+        result.Pending || result.Succeeded && !definitiveStatuses.Contains(result.Status, StringComparer.Ordinal);
+
     public string FetchStatusLabel => CompetitionIntegration is null || !CompetitionIntegration.Configured
         ? Localize("Configuration")
         : CompetitionIntegration.LastErrorKind switch
@@ -204,10 +217,10 @@ public sealed class WiseOldManModel(
 
     public string ProvenanceLabel => CompetitionIntegration?.Provenance switch
     {
-        EventCompetitionProvenance.WebsiteCreated => Localize("Website-created · manageable").ToString(),
-        EventCompetitionProvenance.External when CompetitionIntegration.WriteCapability == EventCompetitionWriteCapability.Writable => Localize("External · manageable").ToString(),
-        EventCompetitionProvenance.External => Localize("External · read-only").ToString(),
-        _ => Localize("Unknown provenance · read-only").ToString()
+        EventCompetitionProvenance.WebsiteCreated => Localize("Website-managed").ToString(),
+        EventCompetitionProvenance.External when CompetitionIntegration.WriteCapability == EventCompetitionWriteCapability.Writable => Localize("Linked · can update").ToString(),
+        EventCompetitionProvenance.External => Localize("Linked · read only").ToString(),
+        _ => Localize("Unknown origin; contact an operator").ToString()
     };
 
     public string CapabilityExplanation => CompetitionIntegration?.Provenance == EventCompetitionProvenance.External
@@ -254,17 +267,15 @@ public sealed class WiseOldManModel(
         return string.IsNullOrWhiteSpace(message) ? Localize(fallback) : LocalizeManagedErrorText(message, fallback);
     }
 
-    private async Task<bool> LoadAsync(Guid id, bool hiddenInspection, CancellationToken ct)
+    private async Task<bool> LoadAsync(Guid id, CancellationToken ct)
     {
-        var isSuperAdmin = User.IsInRole("SuperAdmin");
         var item = await dbContext.Events.AsNoTracking()
-            .Where(value => value.Id == id && value.State != EventState.Discarded && (value.HiddenAt == null || isSuperAdmin && hiddenInspection))
-            .Select(value => new EventSummary(value.Id, value.Name, value.Slug, value.State, value.Version, value.EventStartsAt, value.EventEndsAt, value.ActualStartedAt, value.HiddenAt != null))
+            .Where(value => value.Id == id && value.State != EventState.Discarded && value.HiddenAt == null)
+            .Select(value => new EventSummary(value.Id, value.Name, value.Slug, value.State, value.Version, value.EventStartsAt, value.EventEndsAt, value.ActualStartedAt, value.HiddenAt != null, value.Timezone))
             .SingleOrDefaultAsync(ct);
         if (item is null) return false;
 
         EventView = item;
-        IsHiddenInspection = item.IsHidden;
         CompetitionIntegration = await competitionSynchronization.GetAsync(id, ct);
         CompetitionManagement = await competitionManagement.GetAsync(id, ct);
         Activity = await activityProjection.GetAsync(id, ct);
@@ -285,6 +296,35 @@ public sealed class WiseOldManModel(
             "Invalid" => Localize("Wise Old Man returned invalid competition details."),
             _ when retryAt is not null => Localize("WOM data is temporarily unavailable. Try again after {0}.", retryAt),
             _ => Localize("WOM data fetch failed.")
+        };
+    }
+
+    private static readonly System.Text.RegularExpressions.Regex ScheduleMismatchPattern = new(
+        @"^The Wise Old Man competition window must match the configured website UTC window exactly\. Website: (.+) to (.+); Wise Old Man: (.+) to (.+)\.$",
+        System.Text.RegularExpressions.RegexOptions.CultureInvariant | System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    // Link/Disconnect refusals come from the integration service in English.
+    // Known service sentences map to localized keys; any other text (including
+    // raw provider text) is replaced by the localized generic fallback.
+    private string LocalizeConfigureError(string? error, string fallback)
+    {
+        if (string.IsNullOrWhiteSpace(error)) return Localize(fallback);
+        var mismatch = ScheduleMismatchPattern.Match(error);
+        if (mismatch.Success)
+            return Localize("The Wise Old Man competition window must match the configured website UTC window exactly. Website: {0} to {1}; Wise Old Man: {2} to {3}.",
+                mismatch.Groups[1].Value, mismatch.Groups[2].Value, mismatch.Groups[3].Value, mismatch.Groups[4].Value);
+        return error switch
+        {
+            "This connection is not an external link. Use its existing management controls." or
+            "Wait for the current WOM operation to finish or be resolved before changing its link." or
+            "Wise Old Man returned a different competition ID." or
+            "The event was not found." or
+            "This event changed in another request. Reload before changing its competition." or
+            "Competition integration is read-only after live play." or
+            "A live event's competition cannot be cleared. Link a validated replacement with a matching event window." or
+            "The competition integration could not be saved safely. Reload and try again." or
+            "The competition could not be validated." => Localize(error),
+            _ => Localize(fallback)
         };
     }
 
@@ -313,8 +353,34 @@ public sealed class WiseOldManModel(
         };
     }
 
-    private RedirectToPageResult RedirectWithStatus(Guid id, string message, UiMessageType type)
+    public string RefreshSkipDescription(EventCompetitionRefreshSkipReason? reason) => Localize(reason switch
     {
+        EventCompetitionRefreshSkipReason.WithinHour => "The last successful fetch was less than an hour ago.",
+        EventCompetitionRefreshSkipReason.RetryDelay => "An automatic retry is pending.",
+        EventCompetitionRefreshSkipReason.NotDue => "The next fetch slot is not due yet.",
+        EventCompetitionRefreshSkipReason.RefreshInProgress => "A fetch is already running. Its lease expires at the next eligible time.",
+        EventCompetitionRefreshSkipReason.EventUnavailable => "Fetching is unavailable in this event state.",
+        EventCompetitionRefreshSkipReason.NoCompetition => "Link a competition before fetching data.",
+        EventCompetitionRefreshSkipReason.IncompleteEventWindow => "The event start and end must be recorded before fetching data.",
+        EventCompetitionRefreshSkipReason.ServiceUnavailable => "The Wise Old Man fetch service is unavailable.",
+        EventCompetitionRefreshSkipReason.EndWindowUnmatched => "Fetches are paused until the WOM end matches the event end exactly.",
+        EventCompetitionRefreshSkipReason.EndCouldNotBeUpdated => "The WOM end could not be updated. The last fetch before the end is retained.",
+        EventCompetitionRefreshSkipReason.EventNotInFinalReview => "The event is not in final review.",
+        _ => "WOM data was not fetched. Check the current connection before trying again."
+    });
+
+    private bool WantsJson => Request.GetTypedHeaders().Accept?.Any(value => value.MediaType.Value == "application/json") == true;
+    private IActionResult RedirectWithStatus(Guid id, string message, UiMessageType type, string? outcome = null,
+        string? errorCode = null, EventCompetitionRefreshSkipReason? skipReason = null, DateTimeOffset? retryAt = null, string? status = null, Guid? operationId = null)
+    {
+        // Never echo a submitted credential, including provider/authorization error text.
+        if (!string.IsNullOrEmpty(CompetitionVerificationCode)) message = message.Replace(CompetitionVerificationCode, "[redacted]", StringComparison.Ordinal);
+        if (!string.IsNullOrWhiteSpace(CompetitionVerificationCode)) message = message.Replace(CompetitionVerificationCode.Trim(), "[redacted]", StringComparison.Ordinal);
+        CompetitionVerificationCode = null;
+        ModelState.Remove(nameof(CompetitionVerificationCode));
+        if (WantsJson) return new JsonResult(new { succeeded = type == UiMessageType.Success,
+            outcome = outcome ?? (type == UiMessageType.Success ? "applied" : "refused"), message,
+            error = type == UiMessageType.Success ? null : message, errorCode, skipReason = skipReason?.ToString(), retryAt, status, operationId });
         TempData["StatusMessage"] = message;
         TempData[UiMessage.TypeKey] = type.ToString();
         CompetitionVerificationCode = null;
@@ -326,5 +392,5 @@ public sealed class WiseOldManModel(
     private string Localize(string key, params object[] arguments)
         => text?[key, arguments].Value ?? string.Format(CultureInfo.CurrentCulture, key, arguments);
 
-    public sealed record EventSummary(Guid Id, string Name, string Slug, EventState State, long Version, DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, DateTimeOffset? ActualStartedAt, bool IsHidden);
+    public sealed record EventSummary(Guid Id, string Name, string Slug, EventState State, long Version, DateTimeOffset? StartsAt, DateTimeOffset? EndsAt, DateTimeOffset? ActualStartedAt, bool IsHidden, string Timezone = "UTC");
 }

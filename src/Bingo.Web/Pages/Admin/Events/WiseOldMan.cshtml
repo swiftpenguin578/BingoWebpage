@@ -1,243 +1,76 @@
 @page "{id:guid}"
 @model Bingo.Web.Pages.Admin.Events.WiseOldManModel
-@using Bingo.Application.Integrations.WiseOldMan
 @using Bingo.Domain.Events
 @using Bingo.Domain.Integrations.WiseOldMan
+@using Bingo.Web.UI
 @{
-    ViewData["Title"] = T["Wise Old Man"];
-    ViewData["AdminPageDescription"] = T["Configure the event's Wise Old Man connection and fetch state."];
-    var eventView = Model.EventView;
-    var integration = Model.CompetitionIntegration;
-    var managed = Model.CompetitionManagement;
-    var activity = Model.Activity;
-    var preLive = eventView?.ActualStartedAt is null && eventView?.State is (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed);
-    var integrationEditable = eventView?.State is (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live);
-    var canManageCredential = integration?.Configured == true && integrationEditable && integration.Provenance is (EventCompetitionProvenance.WebsiteCreated or EventCompetitionProvenance.External) && managed?.Status is not ("Pending" or "Unknown");
-    var canDisconnect = integration?.Configured == true && integration.Provenance == EventCompetitionProvenance.External && eventView?.State is (EventState.Draft or EventState.SignupOpen or EventState.SignupClosed);
-    var canFetch = integration?.Configured == true && eventView?.State is EventState.Live or EventState.AwaitingFinalReview;
-    var preview = managed?.Preview;
-    var canCreate = preLive && preview?.Valid == true && managed?.Status is ("NotManaged" or "Failed" or "Cancelled") && (managed.LastOperationType is null or "Create");
-    var nextFetch = integration?.RetryDueAt ?? integration?.NormalDueAt;
-    var hasRequestBudget = integration?.RequestStatus.ObservedRemaining is not null || integration?.RequestStatus.ObservedLimit is not null || integration?.RequestStatus.ResetAt is not null;
+    ViewData["Title"] = "Wise Old Man";
+    ViewData["PageFamily"] = "wom";
+    var e = Model.EventView!;
+    var s = Model.CompetitionIntegration;
+    var m = Model.CompetitionManagement;
+    var a = Model.Activity;
+    var issue = Model.MainIssue;
+    var connected = s?.Configured == true;
 }
-
-@if (eventView is null)
-{
-    <section class="panel validation-summary" role="status">
-        <strong>@T["Wise Old Man workspace unavailable"]</strong>
-        <p>@T["This event is not available for Wise Old Man administration."]</p>
-    </section>
-}
-else
-{
-    <section class="event-manage-page event-wom-page" data-wom-workspace data-event-version="@eventView.Version">
-        <header class="event-overview-header">
-            <div>
-                <p class="event-overview-kicker">@T["Event workspace"]</p>
-                <h1>@T["Wise Old Man"]</h1>
-                <p class="event-overview-subtitle">@eventView.Name</p>
-            </div>
-            <div class="event-overview-header-actions">
-                <a class="btn admin-button-secondary" asp-page="Manage" asp-route-id="@eventView.Id">@T["Back to Overview"]</a>
-                @if (integration?.CompetitionId is { } linkedCompetitionId)
-                {
-                    <a class="btn admin-button-secondary" href="https://wiseoldman.net/competitions/@linkedCompetitionId" target="_blank" rel="noopener noreferrer">@T["Open WOM competition"]</a>
-                }
-            </div>
-        </header>
-
-        @if (Model.IsHiddenInspection)
-        {
-            <aside class="panel validation-summary" role="status"><strong>@T["Hidden event inspection"]</strong><p>@T["This event is quarantined. Wise Old Man actions are unavailable until the event is restored."]</p></aside>
-        }
-        @if (eventView.State is EventState.Cancelled or EventState.Finalized or EventState.Archived)
-        {
-            <aside class="panel validation-summary" role="status"><strong>@T["Wise Old Man inspection only"]</strong><p>@T["This event is terminal. The Wise Old Man connection and cached coverage can be inspected, but linking, credentials, fetches, managed writes and deletion are disabled."]</p></aside>
-        }
-
-        <div class="event-control-workspace">
-            <article class="panel event-admin-controls">
-                <header class="admin-section-heading event-overview-section-heading">
-                    <h2>@T["Connection overview"]</h2>
-                    <p>@T["Fetch and display are separate from upstream write capability. The website event dates remain authoritative."]</p>
-                </header>
-
-                <section class="event-admin-control-group event-wom-section" aria-labelledby="wom-connection-heading">
-                    <div class="event-wom-header">
-                        <h3 id="wom-connection-heading">@T["Connection"]</h3>
-                        @if (integration?.Configured != true)
-                        {
-                            <p class="event-control-status event-wom-status"><strong>@T["Status:"]</strong> <span class="event-wom-status-value event-wom-status-info">@T["Not configured"]</span></p>
-                            <p>@T["Linking an external competition fetches and displays its data. An optional management code can later enable supported writes without changing its external provenance."]</p>
-                        }
-                        else
-                        {
-                            <p class="event-control-status event-wom-status"><strong>@T["Competition:"]</strong> <span class="event-wom-status-value">@integration.CompetitionTitle · @integration.CompetitionId</span></p>
-                            <p class="event-control-status event-wom-status"><strong>@T["Provenance / capability:"]</strong> <span class="event-wom-status-value">@Model.ProvenanceLabel</span></p>
-                            <p>@Model.CapabilityExplanation</p>
-                        }
-                    </div>
-                    <div class="event-control-static">
-                        @if (!Model.IsHiddenInspection && integrationEditable && managed?.Enabled != true)
-                        {
-                            <form method="post" asp-page-handler="Competition" class="form-stack event-wom-form">
-                                <input asp-for="EventVersion" type="hidden" />
-                                <div class="event-create-field"><label asp-for="CompetitionId">@T["Competition ID"]</label><input asp-for="CompetitionId" class="form-control" inputmode="numeric" autocomplete="off" /></div>
-                                <button class="btn admin-button-secondary" type="submit">@(integration?.Configured == true ? T["Replace external link"] : T["Link external competition"])</button>
-                            </form>
-                        }
-                        @if (!Model.IsHiddenInspection && canDisconnect)
-                        {
-                            <form method="post" asp-page-handler="DisconnectCompetition" class="form-stack" data-lifecycle-confirm data-confirm-title="@T["Disconnect external WOM link"]" data-confirm-description="@T["Disconnect this external link from the event? The remote WOM competition will not be changed."]" data-confirm-action="@T["Disconnect"]" data-confirm-danger="true" data-confirm-field="ConfirmCompetitionClear" data-confirm-reason-field="CompetitionClearReason" data-confirm-require-reason="false">
-                                <input asp-for="EventVersion" type="hidden" />
-                                <input type="hidden" name="ConfirmCompetitionClear" value="false" />
-                                <input type="hidden" name="CompetitionClearReason" data-confirm-reason-value />
-                                <button class="btn event-create-cancel action-danger-outline" type="submit">@T["Disconnect"]</button>
-                            </form>
-                        }
-                        @if (!Model.IsHiddenInspection && integration?.Provenance == EventCompetitionProvenance.External && !canDisconnect)
-                        {
-                            <p class="event-control-status is-yellow">@T["Disconnect is unavailable after the event has started; the remote competition is never deleted."]</p>
-                        }
-                    </div>
-                </section>
-
-                <section class="event-admin-control-group event-wom-section" aria-labelledby="wom-fetch-heading">
-                    <div class="event-wom-header">
-                        <h3 id="wom-fetch-heading">@T["Fetch and coverage"]</h3>
-                        <p class="event-control-status event-wom-status"><strong>@T["Fetch state:"]</strong> <span class="event-wom-status-value">@Model.FetchStatusLabel</span></p>
-                        @if (integration?.Configured == true)
-                        {
-                            <p>@T["Last fetch:"] @(integration.LastSuccessfulAt is { } fetched ? DateTimePresentation.Format(fetched, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture) : T["Not yet"])</p>
-                            <p>@T["Last attempt:"] @(integration.LastAttemptAt is { } attempted ? DateTimePresentation.Format(attempted, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture) : T["Not yet"])</p>
-                            <p>@T["Next fetch:"] @(nextFetch is { } next ? DateTimePresentation.Format(next, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture) : T["Not scheduled"])</p>
-                            @if (integration.MissingAccounts.Count > 0)
-                            {
-                                <p class="event-control-status is-yellow"><strong>@T["Missing names:"]</strong> @string.Join(", ", integration.MissingAccounts)</p>
-                            }
-                        }
-                        else
-                        {
-                            <p>@T["Configure a competition before fetching data."]</p>
-                        }
-                    </div>
-                    <div class="event-control-static">
-                        @if (!Model.IsHiddenInspection && canFetch)
-                        {
-                            <form method="post" asp-page-handler="FetchCompetition" id="wom-fetch-form">
-                                <input asp-for="EventVersion" type="hidden" />
-                                <button class="btn admin-button-secondary" type="submit">@T["Fetch WOM data now"]</button>
-                            </form>
-                        }
-                        @if (hasRequestBudget)
-                        {
-                            <p class="event-wom-budget"><small>@T["Request budget:"] @(integration?.RequestStatus.ObservedRemaining?.ToString() ?? "—") @T["remaining"]@(integration?.RequestStatus.ObservedLimit is { } limit ? $" {T["of {0}", limit]}" : string.Empty)@(integration?.RequestStatus.ResetAt is { } reset ? $" · {T["reset"]} {DateTimePresentation.Format(reset, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)}" : string.Empty)@(integration?.RequestStatus.NextPermittedAt is { } permitted ? $" · {T["next permitted"]} {DateTimePresentation.Format(permitted, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)}" : string.Empty)</small></p>
-                        }
-                    </div>
-                </section>
-
-                <section class="event-admin-control-group event-wom-section" aria-labelledby="wom-coverage-heading">
-                    <div class="event-wom-header">
-                        <h3 id="wom-coverage-heading">@T["Roster coverage"]</h3>
-                        @if (activity is { } currentActivity && integration?.Configured == true)
-                        {
-                            <p>@T["Matched accounts:"] @currentActivity.MatchedAccountCount / @currentActivity.ExpectedAccountCount</p>
-                            @if (currentActivity.MissingAccountCount > 0)
-                            {
-                                <p class="event-control-status is-yellow">@T["Coverage is missing {0} account(s).", currentActivity.MissingAccountCount]</p>
-                            }
-                        }
-                        else
-                        {
-                            <p>@T["Coverage appears after the first successful fetch."]</p>
-                        }
-                    </div>
-                    <div class="event-control-static">
-                        @if (activity?.Teams.Count > 0)
-                        {
-                            <ul class="event-wom-preview-teams">
-                                @foreach (var team in activity.Teams)
-                                {
-                                    <li><strong>@team.TeamName</strong> · @team.MatchedAccountCount / @team.ExpectedAccountCount @T["accounts"] · @team.Participants.Count @T["participants"]</li>
-                                }
-                            </ul>
-                        }
-                        else
-                        {
-                            <p class="text-muted">@T["No team coverage is available for the current fetch state."]</p>
-                        }
-                    </div>
-                </section>
-
-                <section class="event-admin-control-group event-wom-section" aria-labelledby="wom-management-heading">
-                    <div class="event-wom-header">
-                        <h3 id="wom-management-heading">@T["Management and synchronization"]</h3>
-                        <p>@T["Creation requires a validated final team roster. Both a website draft publication and direct roster finalization are valid. For zero or one included team, direct roster finalization is valid; a website draft is not required."]</p>
-                        @if (managed is not null)
-                        {
-                            <p class="event-control-status event-wom-status"><strong>@T["Operation:"]</strong> <span class="event-wom-status-value">@Model.ManagedStatusLabel@(managed.CompetitionId is { } managedId ? $" · {managedId}" : string.Empty)@(managed.LastOperationType is { } operationType ? $" · {operationType}" : string.Empty)@(managed.PendingAt is { } pendingAt ? $" · {T["retry pending"]} {DateTimePresentation.Format(pendingAt, "dd MMM yyyy, HH:mm", provider: CultureInfo.CurrentCulture)}" : string.Empty)</span></p>
-                            <p class="event-control-status event-wom-status"><strong>@T["Credential:"]</strong> <span class="event-wom-status-value">@Model.CredentialLabel</span></p>
-                        }
-                        @if (managed?.CanWrite == true)
-                        {
-                            <p>@T["Automatic update-all:"] @Model.ManagedStatusLabel. @T["The next queued operation is shown above; no manual update-all control is exposed here."]</p>
-                        }
-                        else if (integration?.Configured == true)
-                        {
-                            <p>@T["Automatic update-all:"] @T["Unavailable for this read-only connection. Fetch and display remain available."]</p>
-                        }
-                    </div>
-                    <div class="event-control-static">
-                        @if (preview is { } currentPreview)
-                        {
-                            @if (!currentPreview.IsFinalizedPreLive)
-                            {
-                                <p class="event-control-status is-yellow">@T["Managed creation is waiting for a validated final team roster. Review Teams / Draft and finalize the roster before creating the WOM competition."]</p>
-                            }
-                            @if (currentPreview.Errors.Count > 0)
-                            {
-                                <ul class="event-wom-preview-errors">@foreach (var error in currentPreview.Errors) { <li>@Model.LocalizeManagedError(null, error, error)</li> }</ul>
-                            }
-                            @if (currentPreview.Teams.Count > 0)
-                            {
-                                <ul class="event-wom-preview-teams">@foreach (var team in currentPreview.Teams) { <li><strong>@team.Name</strong> · @(team.Empty ? T["Empty"] : T["{0} participant(s)", team.Participants.Count])</li> }</ul>
-                            }
-                        }
-                        @if (!Model.IsHiddenInspection && canCreate)
-                        {
-                            <form method="post" asp-page-handler="CreateManagedCompetition" class="form-stack">
-                                <input asp-for="EventVersion" type="hidden" />
-                                <button class="btn admin-button-secondary" type="submit">@T["Create managed WOM competition"]</button>
-                            </form>
-                        }
-                        @if (!Model.IsHiddenInspection && canManageCredential)
-                        {
-                            <form method="post" asp-page-handler="AdoptCompetitionCredential" class="form-stack event-wom-credential-form">
-                                <input asp-for="EventVersion" type="hidden" />
-                                <div class="event-create-field"><label asp-for="CompetitionVerificationCode">@T["Optional management code"]</label><input asp-for="CompetitionVerificationCode" type="password" autocomplete="new-password" class="form-control" /></div>
-                                <p><small>@T["This one-time input is stored protected and never shown again. A supported non-destructive check may validate it; otherwise the first legitimate management operation does."]</small></p>
-                                <button class="btn admin-button-secondary" type="submit">@(managed?.CredentialState is null or nameof(EventCompetitionCredentialStatus.NotApplicable) ? T["Save management code"] : T["Replace management code"])</button>
-                            </form>
-                        }
-                        @if (!Model.IsHiddenInspection && managed?.CanDelete == true && managed.CompetitionId is { } deleteId)
-                        {
-                            <form method="post" asp-page-handler="DeleteManagedCompetition" class="form-stack event-wom-delete-form" data-lifecycle-confirm data-confirm-title="@T["Delete website-created WOM competition"]" data-confirm-description="@T["Delete this website-created WOM competition from Wise Old Man? The remote competition and its history will be removed, and this cannot be undone. External competitions can only be disconnected."]" data-confirm-action="@T["Delete competition"]" data-confirm-danger="true" data-confirm-field="ConfirmManagedCompetitionDelete">
-                                <input asp-for="EventVersion" type="hidden" />
-                                <input asp-for="ManagedCompetitionDeleteId" type="hidden" value="@deleteId" />
-                                <input type="hidden" name="ConfirmManagedCompetitionDelete" value="false" />
-                                <button class="btn event-create-cancel action-danger-outline" type="submit">@T["Delete website-created WOM competition"]</button>
-                            </form>
-                        }
-                    </div>
-                </section>
-
-                @if (Model.ShowDevelopmentCompetitionControl)
-                {
-                    <form method="post" asp-page-handler="MakeDevelopmentCompetitionDue" class="form-stack">
-                        <button class="btn event-create-cancel" type="submit">@T["Make next refresh due (Development TEST 15)"]</button>
-                    </form>
-                }
-            </article>
-        </div>
-    </section>
-}
+@section HeaderTitle { <div class="wm-title"><h1 class="h1" id="page-h1" tabindex="-1">@T["Wise Old Man"]</h1><span class="badge @(issue is not null ? "badge-warning" : connected ? "badge-success" : "badge-neutral")">@T[issue is not null ? "Needs attention" : connected ? "Connected" : "Not connected"]</span></div> }
+@section HeaderSummary { @if (Model.ReadOnly) { <span>@T["Inspection only"] · </span> } else if (e.State == EventState.AwaitingFinalReview) { <span>@T["Event in final review"] · </span> }<span>@T["The website’s dates are the schedule"] · @T["Times in {0}", e.Timezone]</span> }
+<div class="wm-content" data-wom data-current="@Model.CurrentJson" data-labels="@Model.LabelsJson" data-event-id="@e.Id" data-timezone="@e.Timezone">
+    <div class="banner page-banner is-warning" data-wom-notice role="status" tabindex="-1" hidden></div>
+    @if (Model.ReadOnly) { <div class="banner is-info"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("lock")' /><span>@Model.ReadOnlyText</span></div> }
+    @if (issue is not null) { <div class="banner @issue.Class wm-issue" id="wm-issue" role="alert" tabindex="-1"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("warning")' /><span class="grow"><b>@issue.Title</b> @issue.Description</span></div> }
+    @if (connected)
+    {
+        <section class="card wm-hero" aria-labelledby="comp-title"><div class="wm-hero-head"><div class="wm-hero-text"><div class="eyebrow">@T["Competition #{0}", s!.CompetitionId!]</div><h2 class="wm-comp-title" id="comp-title" tabindex="-1">@(s.CompetitionTitle ?? T["Untitled competition"])</h2><p class="wm-cap"><span class="chip"><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 9.5 9.5 6.5M7 4.5l1-1a2.5 2.5 0 0 1 3.5 3.5l-1 1M9 11.5l-1 1A2.5 2.5 0 0 1 4.5 9l1-1"/></svg>@Model.ProvenanceLabel</span><span class="wm-cap-text">@T[s.Provenance == EventCompetitionProvenance.WebsiteCreated ? "Created by the website, which keeps it up to date." : s.Provenance == EventCompetitionProvenance.Unknown ? "Unknown origin; contact an operator" : m?.CanWrite == true ? "Made elsewhere. The website can update it but cannot delete it." : "Made elsewhere. The website reads its data but doesn’t change it."]</span></p></div><a class="btn" id="open-wom" href="https://wiseoldman.net/competitions/@s.CompetitionId" target="_blank" rel="noopener noreferrer">@T["Open on Wise Old Man"]<svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 3.5h6v6M12.5 3.5 6 10M10 13H3.5V6.5"/></svg></a></div>
+            <div class="stat-strip is-compact wm-stats"><div class="stat"><div class="stat-label">@T["Latest data"]</div><div class="stat-value" id="stat-data">@Model.Fmt(s.LastSuccessfulAt)</div><div class="stat-note">@T[s.LastSuccessfulAt is null ? Model.BeforeLive ? "Data appears after the event goes live." : "Waiting for the first fetch." : "Last successful fetch; previously fetched data is retained."]</div></div><div class="stat"><div class="stat-label">@T["Accounts found"]</div><div class="stat-value">@(s.LastSuccessfulAt is null ? "—" : T["{0} of {1}", a?.MatchedAccountCount ?? 0, a?.ExpectedAccountCount ?? 0])</div><div class="stat-note">@T["{0} playing accounts expected", a?.ExpectedAccountCount ?? 0]</div></div><div class="stat"><div class="stat-label">@T["Next scheduled fetch"]</div><div class="stat-value">@(Model.ReadOnly || Model.BeforeLive || Model.EndNeedsAttention ? "—" : Model.Fmt(s.RetryDueAt ?? s.NormalDueAt))</div><div class="stat-note">@Model.NextFetchNote</div></div></div>
+            <div class="wm-fetch"><form method="post" asp-page-handler="FetchCompetition" id="wom-fetch-form" data-wom-action="fetch"><button class="btn" id="fetch-btn" type="submit" disabled="@(Model.ReadOnly || !s.CanRefresh)" aria-describedby="fetch-why"><span class="spin" hidden></span><svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.5-3.6M13 2.8v2.8h-2.8"/></svg><span data-component-text>@T["Fetch now"]</span></button></form><span class="wm-fetch-why" id="fetch-why">@(s.RefreshSkipReason is null ? T["Fetch the current competition data."] : Model.RefreshSkipDescription(s.RefreshSkipReason)) @if (s.NextEligibleAt is { } eligible) { <span>@T["Next eligible time: {0}", Model.Fmt(eligible)]</span> }</span></div>
+        </section>
+        <section class="card wm-cov" aria-labelledby="cov-title"><div class="wm-card-head"><div><h2 class="sec-title" id="cov-title">@T["Account coverage"]</h2><p class="wm-sub">@T["Which playing accounts Wise Old Man has data for. A participant can play more than one account."]</p></div></div>
+            @if (s.LastSuccessfulAt is not null && a?.Teams.Count > 0)
+            {
+                <div class="tbl-wrap is-scroll"><div class="tbl wm-tbl sticky-first" role="table" aria-label="@T["Coverage by team"]"><div class="tr th-row" role="row"><div class="th c-name" role="columnheader">@T["Team"]</div><div class="th" role="columnheader">@T["Accounts found"]</div><div class="th wm-num" role="columnheader">@T["Participants"]</div><div class="th" role="columnheader">@T["Not found on Wise Old Man"]</div></div><div class="rows" role="rowgroup">
+                    @foreach (var team in a.Teams) { var missing = Model.MissingFor(team); var percent = team.ExpectedAccountCount == 0 ? 0 : Math.Clamp((int)Math.Round(100d * team.MatchedAccountCount / team.ExpectedAccountCount), 0, 100);
+                        <div class="tr row" role="row"><div class="td c-name" role="cell"><span class="cell-main wm-team">@team.TeamName</span></div><div class="td" role="cell"><span class="meter" aria-label="@T["{0} of {1} accounts found", team.MatchedAccountCount, team.ExpectedAccountCount]"><span class="meter-track"><span class="meter-fill @(percent < 100 ? "is-partial" : "")" style="width:@(percent)%"></span></span><span class="meter-label">@T["{0} of {1}", team.MatchedAccountCount, team.ExpectedAccountCount]</span></span></div><div class="td wm-num" role="cell">@team.ExpectedParticipantCount</div><div class="td" role="cell"><span class="wm-missing" title="@string.Join(", ", missing)">@(missing.Count > 0 ? string.Join(", ", missing) : T["None"])</span></div></div>
+                    }
+                </div></div></div>
+                @if (s.MissingAccounts.Count > 0) { <div class="wm-miss-box"><button class="disc-btn" id="miss-btn" type="button" aria-expanded="false" aria-controls="miss-list">@T["{0} accounts not found", s.MissingAccounts.Count]<partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></button><div id="miss-list" hidden><p class="wm-sub">@T[m?.CanWrite == true ? Model.BeforeLive ? "The website adds them with its next update." : "Teams are fixed on Wise Old Man since the event went live. Check these names on Wise Old Man." : "Add them to the competition on Wise Old Man; the website can’t change this competition."]</p><ul class="wm-miss-list">@foreach (var name in s.MissingAccounts) { <li>@name</li> }</ul></div></div> }
+            }
+            else { <div class="empty wm-empty"><partial name="_AdminDesignIcon" model='new AdminDesignIcon("participants")' /><div class="empty-title">@T[a?.ExpectedAccountCount > 0 ? "Account coverage is not available yet" : "No teams yet"]</div><div class="empty-text">@T["{0} playing accounts expected", a?.ExpectedAccountCount ?? 0]</div></div> }
+        </section>
+        <section class="card wm-sync" aria-labelledby="sync-title"><div class="wm-card-head"><h2 class="sec-title" id="sync-title">@T["Updates to Wise Old Man"]</h2></div><div class="wm-sync-body"><div class="transition"><div class="transition-ic"><partial name="_AdminDesignIcon" model='new AdminDesignIcon(Model.EndNeedsAttention || Model.OperationPending ? "schedule" : "check")' /></div><div class="transition-text"><div class="transition-title" id="sync-state">@Model.UpdateTitle</div><div class="transition-sub">@Model.UpdateDescription</div></div></div>
+            @if (Model.EndNeedsAttention) { <dl class="kv wm-kv"><dt>@T["Target end"]</dt><dd>@Model.Utc(s.EndUpdateTargetAt)</dd>@if (m?.EndUpdateNextAttemptAt is { } nextEnd && Model.EndStatus == EventCompetitionEndUpdateStatus.Pending) { <dt>@T["Next end-update attempt"]</dt><dd>@Model.Fmt(nextEnd)</dd> }@if (s.EndUpdateErrorCode is not null) { <dt>@T["End-update error"]</dt><dd>@Model.LocalizeManagedError(s.EndUpdateErrorCode, m?.LastError, "The WOM end could not be updated.")</dd> }</dl> }
+            @if (m?.LastAppliedAt is { } applied) { <p class="wm-sub">@T["Last confirmed update: {0}", Model.Fmt(applied)]</p> }
+            @if (Model.OperationPending && m?.NextAttemptAt is { } attempt) { <p class="wm-sub">@T["Next operation attempt: {0}", Model.Fmt(attempt)]</p> }
+            <dl class="status-rows"><div class="status-row"><dt>@T["Management code"]</dt><dd><span class="status-val" id="code-state" tabindex="-1">@Model.CredentialLabel</span><span class="status-sub">@T["The code is stored protected and is never displayed again."]</span></dd>
+                @if (!Model.ReadOnly && m?.CanManageCredential == true) { <form method="post" asp-page-handler="AdoptCompetitionCredential" data-wom-action="code" data-title="@T["Management code"]" data-description="@T["Lets the website update this competition. Its origin stays unchanged; an external competition can never be deleted here."]" data-action="@T["Save code"]"><input type="hidden" name="EventVersion" value="@e.Version" /><template data-wom-fields><div class="field"><label class="lbl" for="wom-code">@T["Management code"]</label><input class="input" asp-for="CompetitionVerificationCode" id="wom-code" type="password" autocomplete="new-password" maxlength="4000" /></div></template><button class="btn btn-sm" id="code-btn" type="submit">@T[m.CredentialStatus == EventCompetitionCredentialStatus.NotApplicable ? "Add code…" : "Replace code…"]</button></form> }
+            </div>@if (m?.CanWrite == true) { <div class="status-row"><dt>@T["Teams on Wise Old Man"]</dt><dd>@T[Model.BeforeLive ? "Kept in step with the finalized roster." : "Fixed since the event went live. Name and dates still update."]</dd></div> }</dl>
+        </div></section>
+    }
+    else
+    {
+        <section class="card wm-connect" aria-labelledby="connect-title"><div class="wm-card-head"><div><h2 class="sec-title" id="connect-title" tabindex="-1">@T["Connect a competition"]</h2><p class="wm-sub">@T[Model.ReadOnly ? "This event ended without a connection." : Model.BeforeLive ? "Data appears here after the event goes live. The website’s dates stay the schedule." : "Link an existing competition whose start and end match the event exactly in UTC."]</p></div></div>
+            @if (Model.OperationPending) { <div class="wm-op"><div class="transition"><div class="transition-text"><div class="transition-title">@T[m?.Status == "Unknown" ? "Creation outcome unknown" : "Creation queued"]</div><div class="transition-sub">@T["The website processes it in the background. It is not confirmed yet."]</div></div></div></div> }
+            <div class="wm-options"><div class="wm-option"><h3 class="wm-opt-title">@T["Create it on Wise Old Man"]</h3><p class="wm-opt-text">@T["The website creates the competition from this event’s name, dates and teams, and keeps it up to date."]</p><ul class="checklist wm-pre" data-create-checks aria-label="@T["What creating needs"]">@foreach (var check in Model.CreateChecks) { <li class="check-item @(check.Done ? "is-done" : "is-blocked")"><span class="check-mark" aria-hidden="true"><partial name="_AdminDesignIcon" model='new AdminDesignIcon(check.Done ? "check" : "error")' /></span><span class="grow"><span class="check-label">@check.Title</span><span class="check-sub">@check.Description</span></span>@if (!check.Done && check.Link is not null) { <a class="btn btn-sm" href="@check.Link" data-shell-link>@T[check.Link.Contains("Schedule", StringComparison.Ordinal) ? "Open Schedule" : "Open Teams / Draft"]<partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-right")' /></a> }</li> }</ul><div class="wm-opt-act"><form method="post" asp-page-handler="CreateManagedCompetition" data-wom-action="create" data-title="@T["Create competition"]" data-description="@T["Create the competition from the website’s name, exact dates and finalized teams? It will be queued and confirmed in the background."]" data-action="@T["Create competition"]"><input type="hidden" name="EventVersion" value="@e.Version" /><button class="btn btn-primary" id="create-btn" type="submit" disabled="@(Model.ReadOnly || m?.CanCreate != true)">@T["Create competition"]</button></form><span class="wm-opt-why">@T[Model.OperationPending ? "Already being processed." : m?.CanCreate == true ? "Queued and confirmed in the background." : "Complete the requirements first."]</span></div></div><div class="wm-option"><h3 class="wm-opt-title">@T["Link an existing competition"]</h3><p class="wm-opt-text">@T["The start and end must match the website exactly in UTC. Linking never imports dates or reuses an old management code."]</p><form method="post" asp-page-handler="Competition" data-wom-action="link" data-title="@T["Link competition"]" data-description="@T["The competition will be checked against the website’s exact start and end."]" data-action="@T["Link"]"><input type="hidden" name="EventVersion" value="@e.Version" /><template data-wom-fields><div class="field"><label class="lbl" for="wom-link-id">@T["Competition ID"]</label><input class="input" id="wom-link-id" name="CompetitionId" inputmode="numeric" autocomplete="off" placeholder="@T["e.g. 12345"]" /></div></template><button class="btn" id="link-btn" type="submit" disabled="@(Model.ReadOnly || s?.CanLink != true)">@T["Link competition…"]</button></form><a class="text-btn" asp-page="Schedule" asp-route-id="@e.Id" data-shell-link>@T["Open Schedule"]</a></div></div>
+        </section>
+    }
+    @if (connected && !Model.ReadOnly)
+    {
+        <section class="card" aria-labelledby="manage-title"><div class="wm-card-head"><h2 class="sec-title" id="manage-title">@T["Manage connection"]</h2></div><div class="wm-manage-body">
+            @if (s!.Provenance == EventCompetitionProvenance.External)
+            {
+                <div class="act-row"><div class="act-text"><div class="act-title">@T["Replace link"]</div><p class="act-sub">@T["Link a different competition whose dates match exactly. The old management code will not be reused."]</p></div><form method="post" asp-page-handler="Competition" data-wom-action="link" data-title="@T["Replace link"]" data-description="@T["The previous connection is replaced only after the new competition is validated."]" data-action="@T["Replace link"]"><input type="hidden" name="EventVersion" value="@e.Version" /><template data-wom-fields><div class="field"><label class="lbl" for="wom-link-id">@T["Competition ID"]</label><input class="input" id="wom-link-id" name="CompetitionId" inputmode="numeric" autocomplete="off" placeholder="@T["e.g. 12345"]" /></div></template><button class="btn" id="relink-btn" type="submit" disabled="@(!s.CanLink)">@T["Replace link…"]</button></form></div>
+                <div class="act-row"><div class="act-text"><div class="act-title">@T["Disconnect"]</div><p class="act-sub">@T[s.CanDisconnect ? "Removes the link from this event. The competition on Wise Old Man isn’t changed or deleted." : "Disconnect is unavailable once the event has started or while an operation is unresolved."]</p></div><form method="post" asp-page-handler="DisconnectCompetition" data-wom-action="disconnect" data-title="@T["Disconnect competition"]" data-description="@T["Remove this external link? The remote competition will not be changed or deleted."]" data-action="@T["Disconnect"]"><input type="hidden" name="EventVersion" value="@e.Version" /><input type="hidden" name="ConfirmCompetitionClear" value="true" /><template data-wom-fields><div class="field"><label class="lbl" for="wom-reason">@T["Reason (optional)"]</label><textarea class="textarea wm-reason" name="CompetitionClearReason" id="wom-reason" maxlength="2000"></textarea></div></template><button class="btn" id="disconnect-btn" type="submit" disabled="@(!s.CanDisconnect)">@T["Disconnect…"]</button></form></div>
+                <div class="act-row"><div class="act-text"><div class="act-title">@T["Delete competition"]</div><p class="act-sub">@T["Linked competitions can’t be deleted from the website."]</p></div></div>
+            }
+            else if (s.Provenance == EventCompetitionProvenance.WebsiteCreated)
+            {
+                <div class="act-row"><div class="act-text"><div class="act-title">@T["Delete competition"]</div><p class="act-sub">@T["Permanently deletes the website-created competition from Wise Old Man. Only available before the event has ever been live."]</p></div><form method="post" asp-page-handler="DeleteManagedCompetition" data-wom-action="delete" data-title="@T["Delete competition"]" data-description="@T["Delete this website-created competition from Wise Old Man? Its remote history is removed. This cannot be undone."]" data-action="@T["Delete competition"]"><input type="hidden" name="EventVersion" value="@e.Version" /><input type="hidden" name="ManagedCompetitionDeleteId" value="@s.CompetitionId" /><input type="hidden" name="ConfirmManagedCompetitionDelete" value="true" /><button class="btn btn-outline-danger" id="delete-btn" type="submit" disabled="@(m?.CanDelete != true)">@T["Delete competition…"]</button></form></div>
+            }
+            else { <p>@T["Unknown origin; contact an operator"]</p> }
+        </div></section>
+    }
+    @if (Model.OperationPending) { <div><button class="btn btn-sm" type="button" data-wom-readback>@T["Check current state"]</button></div> }
+    <section class="card wm-tech"><button class="disc-btn wm-tech-btn" id="tech-btn" type="button" aria-expanded="false" aria-controls="tech-body">@T["Technical details"]<partial name="_AdminDesignIcon" model='new AdminDesignIcon("chevron-down")' /></button><div id="tech-body" hidden><dl class="kv wm-kv"><dt>@T["Website window"]</dt><dd>@Model.Utc(e.StartsAt) – @Model.Utc(e.EndsAt)</dd><dt>@T["Window on WOM"]</dt><dd>@Model.Utc(s?.CompetitionStartsAt) – @Model.Utc(s?.CompetitionEndsAt)</dd><dt>@T["Last attempt"]</dt><dd>@Model.Fmt(s?.LastAttemptAt)</dd><dt>@T["Most recent error"]</dt><dd>@(s?.LastError ?? T["None"])</dd><dt>@T["Retries"]</dt><dd>@(s?.RetryCount ?? 0) · @Model.Fmt(s?.RetryDueAt)</dd><dt>@T["Request budget"]</dt><dd>@(s?.RequestStatus.ObservedRemaining is { } remaining ? T["{0} remaining", remaining] : T["Not reported"])</dd><dt>@T["WOM last updated"]</dt><dd>@Model.Fmt(s?.LastUpstreamUpdatedAt)</dd><dt>@T["End update"]</dt><dd>@Model.EndTitle · @T["Target end"]: @Model.Utc(s?.EndUpdateTargetAt)</dd><dt>@T["Last confirmed update"]</dt><dd>@Model.Fmt(m?.LastAppliedAt)</dd><dt>@T["Current operation"]</dt><dd>@Model.ManagedStatusLabel · @T[m?.OperationType?.ToString() ?? "None"] · @T[m?.OperationPhase?.ToString() ?? "None"]</dd>@if (m?.OperationId is { } operationId) { <dt>@T["Operation ID"]</dt><dd>@operationId</dd> }@if (m?.NextAttemptAt is { } nextAttempt) { <dt>@T["Next operation attempt"]</dt><dd>@Model.Fmt(nextAttempt)</dd> }</dl></div></section>
+</div>
+@section Styles { <link rel="stylesheet" href="~/css/admin-design-wom.css" asp-append-version="true" data-admin-page-style /> }
+@section Scripts { <script type="module" src="~/js/admin-wom.js" asp-append-version="true" data-admin-page-script></script> }

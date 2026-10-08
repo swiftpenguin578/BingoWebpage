@@ -1,0 +1,35 @@
+:where([data-page-family="final-review"]).page { max-width:1120px; }
+:where([data-page-family="final-review"]) .fr-content { display:grid; gap:var(--dk-space-5); }
+:where([data-page-family="final-review"]) .fr-title { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+:where([data-page-family="final-review"]) .fr-pub-head { display:flex; align-items:flex-start; gap:14px; padding:var(--dk-space-5) var(--dk-space-6); }
+:where([data-page-family="final-review"]) .fr-pub-act { display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex:none; max-width:260px; }
+:where([data-page-family="final-review"]) .fr-checks { padding:2px var(--dk-space-6) 8px; }
+:where([data-page-family="final-review"]) .fr-official-main { display:flex; align-items:flex-start; gap:14px; }
+:where([data-page-family="final-review"]) .fr-wom-note { margin-top:12px; }
+:where([data-page-family="final-review"]) .fr-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px 20px; padding:var(--dk-space-5) var(--dk-space-6) 12px; flex-wrap:wrap; }
+:where([data-page-family="final-review"]) .fr-how { margin:0 var(--dk-space-6) 14px; padding:12px 14px; }
+:where([data-page-family="final-review"]) .fr-tbl { --table-cols:minmax(260px,2.4fr) minmax(130px,1fr) 70px 70px 112px minmax(130px,1fr); --table-min:840px; }
+:where([data-page-family="final-review"]) .fr-num { text-align:right; justify-content:flex-end; }
+:where([data-page-family="final-review"]) .fr-team { display:flex; align-items:center; gap:12px; min-width:0; }
+:where([data-page-family="final-review"]) .fr-why { white-space:normal; }
+:where([data-page-family="final-review"]) .fr-hist .tl { padding:0 var(--dk-space-6) var(--dk-space-5); margin-top:0; }
+:where([data-page-family="final-review"]) .fr-tl-row { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+:where([data-page-family="final-review"]) .fr-reopen-block { display:flex; gap:6px; align-items:flex-start; margin:8px 0 0; }
+:where([data-page-family="final-review"]) .fr-sk-line { height:calc(var(--dk-fs-control) * 1.45); display:flex; align-items:center; }
+:where([data-page-family="final-review"]) .fr-sk-line .sk { width:40%; height:8px; }
+:where([data-page-family="final-review"]) .fr-sk-body { height:160px; margin-top:18px; }
+@media (max-width:720px) {
+:where([data-page-family="final-review"]) .fr-pub-head { flex-wrap:wrap; padding:var(--dk-space-4); }
+:where([data-page-family="final-review"]) .fr-pub-act { width:100%; align-items:stretch; max-width:none; }
+:where([data-page-family="final-review"]) .fr-checks { padding:2px var(--dk-space-4) 8px; }
+:where([data-page-family="final-review"]) .fr-card-head { padding:var(--dk-space-4) var(--dk-space-4) 10px; }
+:where([data-page-family="final-review"]) .fr-reopen .act-row { flex-direction:column; align-items:stretch; }
+:where([data-page-family="final-review"]) .fr-tl-row { flex-direction:column; }
+}
+
+:where([data-page-family="final-review"]) .page-banner,:where([data-page-family="final-review"]) .card,:where([data-page-family="final-review"]) .fade-in,:where([data-page-family="final-review"]) .results,:where([data-page-family="final-review"]) .empty{animation:none}
+
+:where([data-page-family="final-review"]) .fr-effects{display:flex;flex-direction:column;gap:6px;margin:12px 0;padding-left:20px;line-height:1.5}
+:where([data-page-family="final-review"]) .fr-top{display:flex;flex-direction:column;gap:8px;margin:12px 0;padding-left:0;list-style:none}
+:where([data-page-family="final-review"]) .dr-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+:where([data-page-family="final-review"]) .ro-row{flex-wrap:wrap;gap:12px}

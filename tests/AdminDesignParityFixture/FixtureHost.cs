@@ -199,6 +199,19 @@ internal static class FixtureHost
             account = await dashboardScope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Accounts.SingleAsync(value => value.LoginName == "ReviewAdmin");
             password = UiReviewScenarioSeeder.Password;
         }
+        // U9 / RC08: an owned PostgreSQL variation of the existing review fixtures.
+        // Only this process's synthetic current event is made ready for browser publication.
+        if (Environment.GetEnvironmentVariable("BINGO_PARITY_U9_READY") == "1")
+        {
+            var fixtureDb = dashboardScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var item = await fixtureDb.Events.SingleAsync(value => value.Id == ids["ur-current"]);
+            foreach (var pending in await fixtureDb.Submissions.Where(value => value.EventId == item.Id && value.Status == Bingo.Domain.Evidence.SubmissionStatus.Pending).ToListAsync())
+                pending.Reject("Controlled U9 publication fixture", Now);
+            item.CloseSubmissionsIfDue(Now);
+            await fixtureDb.SaveChangesAsync();
+        }
+        if (Environment.GetEnvironmentVariable("BINGO_PARITY_U9_WOM") is { } womVariant)
+            await U9ScenarioFixtures.SeedAsync(dashboardScope.ServiceProvider, ids, Now, womVariant);
         var dashboard = await dashboardScope.ServiceProvider.GetRequiredService<IAdminDashboardService>().GetAsync(account.Id);
         var directory = ActivatorUtilities.CreateInstance<Bingo.Web.Pages.Admin.Events.IndexModel>(dashboardScope.ServiceProvider);
         directory.PageContext = new Microsoft.AspNetCore.Mvc.RazorPages.PageContext(new Microsoft.AspNetCore.Mvc.ActionContext(new DefaultHttpContext
@@ -339,6 +352,17 @@ internal static class FixtureHost
     }
     private sealed class NoProviderCalls : HttpMessageHandler
     {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => throw new InvalidOperationException("No live provider requests are allowed in the parity fixture.");
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            // U9: a controlled management refusal exercises real persisted Retry outcomes.
+            // Reads and all ordinary fixture runs still fail closed; no request leaves this handler.
+            if (Environment.GetEnvironmentVariable("BINGO_PARITY_U9_WOM") is not null && request.Method != HttpMethod.Get)
+            {
+                var response = new HttpResponseMessage(HttpStatusCode.TooManyRequests) { Content = new StringContent("{}") };
+                response.Headers.RetryAfter = new System.Net.Http.Headers.RetryConditionHeaderValue(TimeSpan.FromMinutes(1));
+                return Task.FromResult(response);
+            }
+            throw new InvalidOperationException("No live provider requests are allowed in the parity fixture.");
+        }
     }
 }

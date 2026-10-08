@@ -309,7 +309,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
             {
                 await using var db = new ApplicationDbContext(options);
                 var service = new EventFinalizationService(db, new PublicBoardService(db, f.Clock), f.Clock);
-                if (state == "reopened") await service.UnfinalizeAsync(f.Event.Id, "Controlled Stats reopening", true, new(f.Admin.Id, f.Admin.LoginName));
+                if (state == "reopened") await service.UnfinalizeAsync(f.Event.Id, "Controlled Stats reopening", true, new(f.Admin.Id, f.Admin.LoginName), (await db.Events.SingleAsync(x => x.Id == f.Event.Id)).Version); // B-Final-2: valid reopen supplies current version.
             }
             var payload = await StatsCorrectionPayloadAsync(f, state);
             var stats = payload.GetProperty("stats"); var team = Assert.Single(stats.GetProperty("teams").EnumerateArray());

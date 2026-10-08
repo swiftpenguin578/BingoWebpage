@@ -34,6 +34,9 @@ public sealed partial class EventCompetitionManagementIntegrationTests
             {
                 var operation = await verify.EventCompetitionManagementOperations.SingleAsync();
                 Assert.Equal(clock.GetUtcNow().AddMinutes(minutes), operation.NextAttemptAt);
+                // U9-Q2: expose only the operation's stored end-update retry time.
+                var view = await CreateService(verify, writes, reads, clock).GetAsync(fixture.EventId);
+                Assert.Equal(operation.NextAttemptAt, view!.EndUpdateNextAttemptAt);
                 Assert.Equal(before + 1, operation.AttemptCount);
                 Assert.Equal(EventCompetitionManagementOperationPhase.Retry, operation.Phase);
             }

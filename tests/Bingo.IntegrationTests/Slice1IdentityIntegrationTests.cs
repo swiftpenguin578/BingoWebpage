@@ -1344,7 +1344,7 @@ public sealed partial class Slice1IdentityIntegrationTests(PostgreSqlTestFixture
         Environment.SetEnvironmentVariable("ASPNETCORE_ENVIRONMENT", "Development");
         try
         {
-            await finalization.UnfinalizeAsync(test84ForReopen.Id, "Focused re-finalization parity check.", true, actor);
+            await finalization.UnfinalizeAsync(test84ForReopen.Id, "Focused re-finalization parity check.", true, actor, test84ForReopen.Version); // B-Final-2: valid reopen supplies current version.
             var readiness = await finalization.GetReadinessAsync(test84ForReopen.Id) ?? throw new InvalidOperationException("TEST 84 readiness was not available after unfinalizing.");
             Assert.Equal(EventState.AwaitingFinalReview, readiness.State);
             Assert.Empty(readiness.Blockers);

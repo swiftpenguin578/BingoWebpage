@@ -153,7 +153,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         }
         var archived = await ReadStatsAsync(f); Assert.Equal(EventState.Archived, archived.State); Assert.Equal(rawCompleted, archived.Teams[0].OfficialCompletion!.CompletedAt);
         Assert.Equal(prices, JsonSerializer.Serialize(archived.Drops.Select(x => new { x.Item, x.ValueGp, x.PriceHour }))); Assert.Equal(rates, JsonSerializer.Serialize(archived.Luck.Sources));
-        await using (var db = new ApplicationDbContext(options)) await new EventFinalizationService(db, new PublicBoardService(db, f.Clock), f.Clock).UnfinalizeAsync(f.Event.Id, "Legitimate fixture reopening", true, new(f.Admin.Id, f.Admin.LoginName));
+        await using (var db = new ApplicationDbContext(options)) await new EventFinalizationService(db, new PublicBoardService(db, f.Clock), f.Clock).UnfinalizeAsync(f.Event.Id, "Legitimate fixture reopening", true, new(f.Admin.Id, f.Admin.LoginName), (await db.Events.SingleAsync(x => x.Id == f.Event.Id)).Version); // B-Final-2: valid reopen supplies current version.
         var reopened = await ReadStatsAsync(f); Assert.Equal(EventState.AwaitingFinalReview, reopened.State); Assert.Null(reopened.OfficialResult);
         Assert.Equal(live.Teams[0].Progress.BoardCompletedAt, reopened.Teams[0].Progress.BoardCompletedAt);
         await using var retained = new ApplicationDbContext(options); Assert.Equal(rawCompleted, (await retained.OfficialPlacements.SingleAsync()).BoardCompletedAt);

@@ -50,6 +50,45 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
 
     [Fact]
+    public async Task BFinal2Br12StructuredCurrentAndMissingReopenVersionAreHonest()
+    {
+        await ApproveAsync(fixture.First);
+        await RejectAsync(fixture.Replacement);
+        await using var factory = Factory();
+        using var client = factory.CreateClient(new() { AllowAutoRedirect = false });
+        await LoginAsync(client, "c33-admin");
+        var publish = Form(await client.GetStringAsync(FinalizeUrl), "Finalize");
+        publish.Fields["FinalizeConfirmation"] = "PUBLISH_OFFICIAL_RESULTS";
+        client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+        using var response = await client.PostAsync(publish.Action, new FormUrlEncodedContent(publish.Fields));
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.True(body.RootElement.GetProperty("succeeded").GetBoolean());
+        Assert.Equal("Archived", body.RootElement.GetProperty("current").GetProperty("state").GetString());
+        using var current = await client.GetAsync(FinalizeUrl + "?handler=Current");
+        Assert.Equal(HttpStatusCode.OK, current.StatusCode);
+        Assert.True(current.Headers.CacheControl!.NoStore);
+        using var readback = JsonDocument.Parse(await current.Content.ReadAsStringAsync());
+        Assert.Single(readback.RootElement.GetProperty("history").EnumerateArray());
+        client.DefaultRequestHeaders.Accept.Clear();
+        var reopen = Form(await client.GetStringAsync(FinalizeUrl), "Unfinalize");
+        reopen.Fields.Remove("ExpectedVersion");
+        reopen.Fields["Reason"] = "B-Final-2 / BR-12 missing version";
+        reopen.Fields["ConfirmLifecycleAction"] = "true";
+        await using var db = new ApplicationDbContext(options);
+        var transitions = await db.EventStateTransitions.CountAsync();
+        var audits = await db.AuditEntries.CountAsync();
+        client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+        using var refused = await client.PostAsync(reopen.Action, new FormUrlEncodedContent(reopen.Fields));
+        using var refusal = JsonDocument.Parse(await refused.Content.ReadAsStringAsync());
+        Assert.False(refusal.RootElement.GetProperty("succeeded").GetBoolean());
+        Assert.Equal("refused", refusal.RootElement.GetProperty("outcome").GetString());
+        Assert.Equal(EventState.Archived, (await db.Events.SingleAsync()).State);
+        Assert.Equal(transitions, await db.EventStateTransitions.CountAsync());
+        Assert.Equal(audits, await db.AuditEntries.CountAsync());
+    }
+
+    [Fact]
     public async Task ActualPublishFormRejectsStaleResultsThenPublishesCalculatedHistory()
     {
         await using var factory = Factory();
@@ -77,7 +116,7 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         await AssertNotFinalizedAsync();
         var staleHtml = WebUtility.HtmlDecode(await client.GetStringAsync(FinalizeUrl));
         Assert.Contains("This event changed in another session", staleHtml, StringComparison.Ordinal);
-        Assert.Contains("app-toast-error", staleHtml, StringComparison.Ordinal);
+        AssertStalePublishShownAsErrorToast(staleHtml); // A10: shared Admin toast.
         var finalReadiness = await ReadinessAsync();
         var finalForm = Form(await client.GetStringAsync(FinalizeUrl), "Finalize");
         await PostAsync(client, finalForm, ("FinalizeConfirmation", "PUBLISH_OFFICIAL_RESULTS"));
@@ -285,8 +324,16 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
         await AssertNotFinalizedAsync();
         var html = WebUtility.HtmlDecode(await client.GetStringAsync(FinalizeUrl));
         Assert.Contains("This event changed in another session", html);
-        Assert.Contains("app-toast-error", html);
-        Assert.DoesNotContain("app-toast-success", html);
+        AssertStalePublishShownAsErrorToast(html); // A10: shared Admin toast.
+    }
+
+    // The rendered error toast itself must carry the stale-publish message, and
+    // no polite status toast may carry it (the layout always contains unrelated
+    // is-error banner templates, so a page-wide match would prove nothing).
+    private static void AssertStalePublishShownAsErrorToast(string html)
+    {
+        Assert.Matches(new Regex(@"<div class=""toast is-error"" data-toast role=""alert"">(?:(?!</div>).)*?data-component-text>[^<]*This event changed in another session", RegexOptions.Singleline), html);
+        Assert.DoesNotMatch(new Regex(@"<div class=""toast\s*"" data-toast role=""status""[^>]*>(?:(?!</div>).)*?This event changed in another session", RegexOptions.Singleline), html);
     }
 
     [Fact]
@@ -344,23 +391,27 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
     [Fact]
     public async Task FinalizationPageExplainsAndDisplaysScoreTimeInEnglishAndDanish()
     {
+        await ApproveAsync(fixture.First); // gives team A a dated current-score time
         await using var factory = Factory();
         using var english = factory.CreateClient(new() { AllowAutoRedirect = false });
         await LoginAsync(english, "c33-admin");
         var englishHtml = WebUtility.HtmlDecode(await english.GetStringAsync(FinalizeUrl));
-        Assert.Contains("Rank order: completed boards by effective finish time", englishHtml, StringComparison.Ordinal);
-        Assert.Contains(">Score time</th>", englishHtml, StringComparison.Ordinal);
-        Assert.Contains(Regex.Matches(englishHtml, "<td data-label=\\\"Score time\\\"><span>(.*?)</span></td>")
-            .Cast<Match>(), match => match.Groups[1].Value != "—");
+        // A10 / AU12: shared table markup, same authoritative score-time values and rule explanation.
+        Assert.Contains("Completed boards first, then earlier completion.", englishHtml, StringComparison.Ordinal);
+        Assert.Contains(">Score reached</div>", englishHtml, StringComparison.Ordinal);
+        // The 1x1 fixture completes the board, so the Score reached cell (last cell of the row) reads
+        // "At completion" and the dated completion value sits in the Full board cell (second cell).
+        Assert.Matches(@"role=""cell""><span class=""tval[^""]*"">At completion</span></div></div>", englishHtml);
+        Assert.Matches(@"</div></div></div><div class=""td"" role=""cell""><span class=""tval[^""]*"">[0-9]{2} [A-Za-z]+ [0-9]{4}", englishHtml);
 
         using var danish = factory.CreateClient(new() { AllowAutoRedirect = false });
         danish.DefaultRequestHeaders.AcceptLanguage.ParseAdd("da");
         await LoginAsync(danish, "c33-admin");
         var danishHtml = WebUtility.HtmlDecode(await danish.GetStringAsync(FinalizeUrl));
-        Assert.Contains("Rangorden: fuldførte boards efter gældende sluttid", danishHtml, StringComparison.Ordinal);
-        Assert.Contains(">Scoretid</th>", danishHtml, StringComparison.Ordinal);
-        Assert.Contains(Regex.Matches(danishHtml, "<td data-label=\\\"Scoretid\\\"><span>(.*?)</span></td>")
-            .Cast<Match>(), match => match.Groups[1].Value != "—");
+        Assert.Contains("Fuldførte plader først, derefter tidligste fuldførelse.", danishHtml, StringComparison.Ordinal);
+        Assert.Contains(">Score opnået</div>", danishHtml, StringComparison.Ordinal);
+        Assert.Matches(@"role=""cell""><span class=""tval[^""]*"">Ved fuldførelse</span></div></div>", danishHtml);
+        Assert.Matches(@"</div></div></div><div class=""td"" role=""cell""><span class=""tval[^""]*"">[0-9]{2} ", danishHtml);
     }
 
     [Fact]

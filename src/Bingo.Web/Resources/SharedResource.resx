@@ -102,4 +102,5 @@
   <data name="AdminDesign.Pick {0}" xml:space="preserve">
     <value>Pick {0}</value>
   </data>
+  <data name="AdminDesign.None yet" xml:space="preserve"><value>None yet</value></data>
 </root>

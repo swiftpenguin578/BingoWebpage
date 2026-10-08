@@ -224,4 +224,37 @@ public sealed class AdminDesignLocalizationTests
         }
         finally { System.Globalization.CultureInfo.CurrentCulture = previous; }
     }
+
+    // U9 review L3: refusals shown inside the Final review and WOM dialogs reach Danish users through
+    // LocalizeRefusal / LocalizeConfigureError, so each service sentence needs a Danish entry.
+    [Fact]
+    public void EveryU9FinalReviewAndWomDialogRefusalHasADanishEntry()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Bingo.slnx"))) directory = directory.Parent;
+        var root = Assert.IsType<DirectoryInfo>(directory).FullName;
+        var entries = XDocument.Load(Path.Combine(root, "src", "Bingo.Web", "Resources", "SharedResource.da.resx"))
+            .Descendants("data").ToDictionary(item => item.Attribute("name")!.Value, item => item.Element("value")?.Value);
+        var missing = new List<string>();
+        foreach (var line in File.ReadLines(Path.Combine(root, "src", "Bingo.Infrastructure", "Events", "EventFinalizationService.cs")))
+            foreach (Match literal in Regex.Matches(line, "InvalidOperationException\\(\"(?<text>[^\"$]*)\"\\)"))
+                if (!entries.TryGetValue(literal.Groups["text"].Value, out var value) || string.IsNullOrWhiteSpace(value))
+                    missing.Add("Final review: " + literal.Groups["text"].Value);
+        foreach (var key in new[]
+        {
+            "This connection is not an external link. Use its existing management controls.",
+            "Wait for the current WOM operation to finish or be resolved before changing its link.",
+            "Wise Old Man returned a different competition ID.",
+            "This event changed in another request. Reload before changing its competition.",
+            "Competition integration is read-only after live play.",
+            "The competition integration could not be saved safely. Reload and try again.",
+            "The Wise Old Man competition window must match the configured website UTC window exactly. Website: {0} to {1}; Wise Old Man: {2} to {3}.",
+            "{0} is still live. End it first, then publish its results before reopening this event.",
+            "{0} is still live. End it first, then publish its results before finalizing this event.",
+            "Publish official results for {0} before finalizing this event.",
+            "Publish the results of {0} first.", "{0} is still the current event. Contact the Super Admin to archive it."
+        })
+            if (!entries.TryGetValue(key, out var danish) || string.IsNullOrWhiteSpace(danish)) missing.Add("pattern: " + key);
+        Assert.True(missing.Count == 0, "Missing Danish entries:\n" + string.Join('\n', missing.Distinct().Order()));
+    }
 }

@@ -338,7 +338,14 @@ public sealed class Slice10Pass103ActivityProjectionTests(PostgreSqlTestFixture 
         var workspaceRoute = $"/Admin/Events/WiseOldMan/{liveId}";
         var workspace = await client.GetStringAsync(workspaceRoute);
         Assert.Contains("Dev Activity Secondary", workspace, StringComparison.Ordinal);
-        Assert.Contains("Fetch state:</strong> <span class=\"event-wom-status-value\">Unavailable</span>", workspace, StringComparison.Ordinal);
+        // A10 (U9 WOM rebind): the old "Fetch state: Unavailable" status line no longer exists on the
+        // rebuilt page. The cached fetch state now shows as the issue banner derived from the stored
+        // LastErrorKind ("Unavailable"), which promises that previously fetched data is retained; the
+        // Fetch now control is a POST form, so merely rendering the page still makes no provider call.
+        Assert.Contains("id=\"wm-issue\"", workspace, StringComparison.Ordinal);
+        Assert.Contains("Wise Old Man isn", workspace, StringComparison.Ordinal); // apostrophe is HTML-encoded
+        Assert.Contains("t responding.", workspace, StringComparison.Ordinal);
+        Assert.Contains("Previously fetched data is retained.", workspace, StringComparison.Ordinal);
         Assert.Equal(0, fake.Calls);
 
         await using (var db = new ApplicationDbContext(options))

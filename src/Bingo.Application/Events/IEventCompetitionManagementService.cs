@@ -48,7 +48,8 @@ public sealed record EventCompetitionManagementView(
     EventCompetitionManagementOperationPhase? OperationPhase = null,
     EventCompetitionManagementOperationType? OperationType = null,
     DateTimeOffset? NextAttemptAt = null,
-    EventCompetitionCredentialStatus CredentialStatus = EventCompetitionCredentialStatus.NotApplicable);
+    EventCompetitionCredentialStatus CredentialStatus = EventCompetitionCredentialStatus.NotApplicable,
+    bool CanCreate = false, bool CanManageCredential = false, DateTimeOffset? EndUpdateNextAttemptAt = null);
 
 public interface IEventCompetitionManagementService
 {

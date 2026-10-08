@@ -36,7 +36,11 @@ public sealed partial class EventCompetitionSynchronizationService(
             .Where(x => x.EventId == eventId)
             .OrderByDescending(x => x.Generation)
             .FirstOrDefaultAsync(cancellationToken);
-        if (state is null) return new EventCompetitionView(0, null, null, null, null, null, null, null, null, [], null, null, null, null, 0, womStatus.GetStatus(), RefreshSkipReason: EventCompetitionRefreshSkipReason.NoCompetition);
+        var mutable = item.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed or EventState.Live;
+        var canLink = mutable && !await HasProtectedConnectionAsync(eventId, cancellationToken)
+            && !await HasUnresolvedManagementOperationAsync(eventId, cancellationToken)
+            && (state?.CompetitionId is null || state.Provenance == EventCompetitionProvenance.External);
+        if (state is null) return new EventCompetitionView(0, null, null, null, null, null, null, null, null, [], null, null, null, null, 0, womStatus.GetStatus(), RefreshSkipReason: EventCompetitionRefreshSkipReason.NoCompetition, CanLink: canLink);
         var management = await db.EventCompetitionManagements.AsNoTracking()
             .SingleOrDefaultAsync(x => x.EventId == eventId && x.Status != EventCompetitionManagementStatus.Deleted, cancellationToken);
         // Project the same decision on detached rows: readback never acquires a lease or calls WOM.
@@ -47,7 +51,7 @@ public sealed partial class EventCompetitionSynchronizationService(
             state.BeginReplacementGeneration(fingerprint, now);
         else state.ReconcileNormalSlot(item.ActualStartedAt, now);
         var eligibility = RefreshEligibility(item, state, manual: true, now);
-        return view with { RefreshSkipReason = eligibility.SkipReason, NextEligibleAt = eligibility.NextEligibleAt };
+        return view with { RefreshSkipReason = eligibility.SkipReason, NextEligibleAt = eligibility.NextEligibleAt, CanLink = canLink, CanDisconnect = canLink && item.ActualStartedAt is null && state.CompetitionId is not null };
     }
 
     public Task<EventCompetitionConfigurationResult> ConfigureAsync(
@@ -305,7 +309,7 @@ public sealed partial class EventCompetitionSynchronizationService(
         if (state.LeaseExpiresAt is { } leaseExpiry && leaseExpiry > now) return new(null, EventCompetitionRefreshSkipReason.RefreshInProgress, leaseExpiry);
         if (manual)
         {
-            if (state.LastSuccessfulAt is { } successfulAt && successfulAt.Add(NormalInterval) > now) return new(null, EventCompetitionRefreshSkipReason.NotDue, successfulAt.Add(NormalInterval));
+            if (state.LastSuccessfulAt is { } successfulAt && successfulAt.Add(NormalInterval) > now) return new(null, EventCompetitionRefreshSkipReason.WithinHour, successfulAt.Add(NormalInterval));
             if (state.RetryDueAt is { } retryDue && retryDue > now) return new(null, EventCompetitionRefreshSkipReason.RetryDelay, retryDue);
             var hasCompletedOrAttemptedRefresh = state.LastAttemptAt is not null || state.LastSuccessfulAt is not null;
             if (hasCompletedOrAttemptedRefresh && state.NormalDueAt is { } normalDue && normalDue > now) return new(null, EventCompetitionRefreshSkipReason.NotDue, normalDue);
