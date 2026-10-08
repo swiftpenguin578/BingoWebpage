@@ -4490,6 +4490,7 @@
   <data name="Version {0} published" xml:space="preserve"><value>Version {0} offentliggjort</value></data>
   <data name="Version {0} reopened" xml:space="preserve"><value>Version {0} genåbnet</value></data>
   <data name="{0} versions" xml:space="preserve"><value>{0} versioner</value></data>
+  <data name="1 version" xml:space="preserve"><value>1 version</value></data>
   <data name="Completed the board after {0}" xml:space="preserve"><value>Fuldførte pladen efter {0}</value></data>
   <data name="Event is in final review" xml:space="preserve"><value>Eventet er i slutgennemgang</value></data>
   <data name="Every submission has a decision." xml:space="preserve"><value>Alle indsendelser har en afgørelse.</value></data>
