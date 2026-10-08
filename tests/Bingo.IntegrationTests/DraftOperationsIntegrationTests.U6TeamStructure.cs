@@ -240,4 +240,31 @@ public sealed partial class DraftOperationsIntegrationTests
         Assert.Equal("Another team already has this name.", await ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
             page => page.OnPostUpdateTeamAsync(setup.EventId, secondId, "second", null, null, false, version, CancellationToken.None)));
     }
+    // AU14 (U6 1b): Undo names the pick the page shows as latest. When another pick is the
+    // latest one by then, nothing is undone; the matching id undoes exactly that pick.
+    [Fact]
+    public async Task U6UndoByPickIdRefusesAStaleLatestPickAndUndoesTheNamedOne()
+    {
+        var setup = await SeedAsync();
+        await StartAndScrambleAsync(setup);
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostPickAsync(setup.EventId, setup.PlayerIds[2], CancellationToken.None));
+        Guid firstPick;
+        await using (var read = new ApplicationDbContext(options)) firstPick = await read.DraftPicks.Where(value => value.UndoneAt == null).Select(value => value.Id).SingleAsync();
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostPickAsync(setup.EventId, setup.PlayerIds[3], CancellationToken.None));
+
+        Assert.Equal("The latest pick changed. Nothing was undone; the current board is shown.", await ExecuteAndReadStatusAsync(setup.EventId, setup.FirstAdminId,
+            page => page.OnPostUndoAsync(setup.EventId, CancellationToken.None, firstPick)));
+        await using (var read = new ApplicationDbContext(options))
+        {
+            Assert.Equal(2, await read.DraftPicks.CountAsync(value => value.UndoneAt == null));
+            Assert.Empty(await read.AuditEntries.Where(value => value.Action == "draft.pick_undone").ToListAsync());
+        }
+
+        Guid latest;
+        await using (var read = new ApplicationDbContext(options)) latest = await read.DraftPicks.Where(value => value.UndoneAt == null).OrderByDescending(value => value.PickNumber).Select(value => value.Id).FirstAsync();
+        await ExecuteAsync(setup.EventId, setup.FirstAdminId, page => page.OnPostUndoAsync(setup.EventId, CancellationToken.None, latest));
+        await using var verify = new ApplicationDbContext(options);
+        Assert.NotNull(await verify.DraftPicks.Where(value => value.Id == latest).Select(value => value.UndoneAt).SingleAsync());
+        Assert.Null(await verify.DraftPicks.Where(value => value.Id == firstPick).Select(value => value.UndoneAt).SingleAsync());
+    }
 }

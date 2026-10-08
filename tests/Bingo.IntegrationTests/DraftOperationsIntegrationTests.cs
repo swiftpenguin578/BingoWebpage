@@ -313,13 +313,16 @@ public sealed partial class DraftOperationsIntegrationTests(PostgreSqlTestFixtur
             Assert.True(await db.DraftPublicationRosters.AnyAsync(x => x.EventParticipantId == setup.PlayerIds[2] && x.TeamId == preformedTeamId));
             Assert.True(await db.DraftPublicationRosters.AnyAsync(x => x.EventParticipantId == retained.ParticipantId && x.TeamId == preformedTeamId));
         }
-        var finalizedEditor = await client.GetStringAsync(editor);
-        Assert.Contains($"name=\"membershipId\" value=\"{websiteMembershipId}\"", finalizedEditor, StringComparison.Ordinal);
-        Assert.Contains("Retained Manual", finalizedEditor, StringComparison.Ordinal);
-        var removalForms = Regex.Matches(finalizedEditor, """<form\b[^>]*action="[^"]*handler=RemoveMember[^"]*"[^>]*>.*?</form>""", RegexOptions.Singleline | RegexOptions.IgnoreCase)
-            .Select(match => match.Value).ToArray();
-        Assert.Contains(removalForms, form => form.Contains(websiteMembershipId.ToString(), StringComparison.Ordinal) && form.Contains("name=\"confirmed\" value=\"true\"", StringComparison.Ordinal));
-        Assert.Contains(removalForms, form => form.Contains(retainedMembershipId.ToString(), StringComparison.Ordinal) && form.Contains("name=\"confirmed\" value=\"true\"", StringComparison.Ordinal));
+        // A10 (U6): the finalized editor is drawn from its embedded state. Both members (the
+        // website signup and the retained manual member) are on the team with the correction
+        // open, and the page posts the confirmed RemoveMember (Remove from team…, S5).
+        var finalizedState = DraftPageState(await client.GetStringAsync(editor));
+        Assert.True(finalizedState.GetProperty("canCorrect").GetBoolean());
+        var preformedMembers = finalizedState.GetProperty("teams").EnumerateArray()
+            .Single(team => team.GetProperty("id").GetGuid() == preformedTeamId).GetProperty("members").EnumerateArray().ToList();
+        Assert.Contains(preformedMembers, member => member.GetProperty("id").GetGuid() == websiteMembershipId);
+        Assert.Contains(preformedMembers, member => member.GetProperty("id").GetGuid() == retainedMembershipId && member.GetProperty("name").GetString() == "Retained Manual");
+        AssertDraftPageOffers("RemoveMember");
 
         long websiteMembershipVersion;
         await using (var db = new ApplicationDbContext(options))
