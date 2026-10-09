@@ -28,27 +28,25 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class Slice7Pass71IntegrationTests : IAsyncLifetime
+public sealed class Slice7Pass71IntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
     private const string PreviousMigration = "20260730183704_AddPublishedBoardCorrectionFlag";
     private const string ImmediateSwitchOrderPreviousMigration = "20260922214708_AddTileCompletionFactsAndCurrentScoreReachedAt";
     private const string Slice7FoundationMigration = "20260730212304_AddSlice7LiveAccountAndTeamFocusFoundation";
     private const string FocusConstraintCorrectionMigration = "20260731170051_RemoveTeamFocusEventTeamAlternateKey";
     private const string FocusNormalizationMigration = "20260731180603_NormalizeCompletedTileFocusMarkers";
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_slice7_pass71")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
-        .Build();
+        );
     private readonly DateTimeOffset now = new(2026, 7, 30, 18, 0, 0, TimeSpan.Zero);
     private DbContextOptions<ApplicationDbContext> options = null!;
 
     public async Task InitializeAsync()
     {
-        await PostgreSqlReadiness.StartAsync(database);
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
-        await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
+        await database.StartAsync();
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
