@@ -4,6 +4,9 @@ Ideas and fixes to consider later. Nothing here is approved or scheduled; an ite
 becomes work only when the user picks it and it gets a brief. Bugs found in
 production are added under "Bug fixes" as they are noticed.
 
+An item is removed from this file once its work is committed and the user has
+approved it; Git history keeps the record. Do not mark items "done" here.
+
 Priority: **High** = needed before DKL BINGO OKTOBER 2026 goes Live (draft in about 5 days from 8 October 2026), in the order listed · **Normal** · **Maybe** = decide later.
 
 ## Ideas and improvements
