@@ -104,18 +104,6 @@ jobs:
       - name: Build
         run: dotnet build Bingo.slnx --configuration Release --no-restore
 
-      - name: Upload Integration build outputs
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: integration-build-${{ github.run_id }}
-          path: |
-            src/**/bin/Release/**
-            src/**/obj/**
-            tests/**/bin/Release/**
-            tests/**/obj/**
-          if-no-files-found: error
-          retention-days: 1
-
       - name: Prepare browser-test database
         run: dotnet run --project src/Bingo.Web --configuration Release --no-build -- --apply-catalogue-snapshot
 
@@ -154,9 +142,9 @@ jobs:
           retention-days: 14
 
   integration-discovery:
+    # Builds the Integration tests itself, in parallel with other-tests, so the
+    # shards do not wait for formatting and the other test projects.
     name: Discover Integration shards
-    needs: other-tests
-    if: ${{ always() && (needs.other-tests.result == 'success' || needs.other-tests.result == 'failure') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -177,15 +165,25 @@ jobs:
       - name: Restore Integration test project
         run: dotnet restore tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj
 
-      - name: Download Integration build outputs
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - name: Build Integration test project
+        run: dotnet build tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --no-restore
+
+      - name: Upload Integration build outputs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: integration-build-${{ github.run_id }}
-          path: .
+          path: |
+            src/**/bin/Release/**
+            src/**/obj/**
+            tests/**/bin/Release/**
+            tests/**/obj/**
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Discover and validate Integration partition
         id: partition
-        run: bash .github/scripts/partition-integration-tests.sh tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj Release 10 "$GITHUB_OUTPUT"
+        # Duration-balanced by .github/scripts/integration-test-timings.tsv.
+        run: bash .github/scripts/partition-integration-tests.sh tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj Release 8 "$GITHUB_OUTPUT"
 
   integration:
     name: Integration shard ${{ matrix.shard }}
@@ -240,7 +238,7 @@ jobs:
           EXPECTED_CASES: ${{ matrix.expected }}
         timeout-minutes: 45
         run: |
-          echo "Running $EXPECTED_CASES discovered Integration cases in shard ${{ matrix.shard }}"
+          echo "Running $EXPECTED_CASES discovered Integration cases in shard ${{ matrix.shard }} (~${{ matrix.seconds }}s planned)"
           dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --no-build --filter "$INTEGRATION_FILTER" --results-directory "TestResults/integration-${{ matrix.shard }}" --logger "trx;LogFileName=integration-${{ matrix.shard }}.trx" --collect "XPlat Code Coverage"
 
       - name: Upload Integration shard results
