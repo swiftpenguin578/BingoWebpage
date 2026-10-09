@@ -19,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         # Duration-balanced by scripts/browser-test-timings.json.
-        shard: [1, 2, 3, 4, 5, 6]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9]
     permissions:
       contents: read
     env:
@@ -255,7 +255,7 @@ jobs:
         timeout-minutes: 45
         run: |
           echo "Running $EXPECTED_CASES discovered Integration cases in shard ${{ matrix.shard }} (~${{ matrix.seconds }}s planned)"
-          dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --no-build --filter "$INTEGRATION_FILTER" --results-directory "TestResults/integration-${{ matrix.shard }}" --logger "trx;LogFileName=integration-${{ matrix.shard }}.trx" --collect "XPlat Code Coverage"
+          dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --no-build --filter "$INTEGRATION_FILTER" --results-directory "TestResults/integration-${{ matrix.shard }}" --logger "trx;LogFileName=integration-${{ matrix.shard }}.trx"
 
       - name: Upload Integration shard results
         if: always()
