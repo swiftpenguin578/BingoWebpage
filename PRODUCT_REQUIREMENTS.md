@@ -757,7 +757,11 @@ Ranking priority is:
 1. Full-board completion, ordered by immutable submission time of the final qualifying submission
 2. Most completed rows and columns
 3. Most completed tiles
-4. Highest credited EHB tie-break value, including existing proportional partial progress
+4. Highest credited EHB tie-break value: the sum of the expected EHB of the team's
+   completed tiles only; progress on incomplete tiles adds nothing (user decision,
+   9 October 2026). This changes only the placement comparison: public EHB and
+   Drop EHB displays keep proportional credit. Final review and the official result
+   snapshot of an AU12 event show and store this ranking value.
 5. Earlier current-score completion time
 
 AU12 selects this order through an explicit persisted event-creation rule. Only new events created through the ordinary creation service adopt AU12; all existing events keep
