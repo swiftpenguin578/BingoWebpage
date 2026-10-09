@@ -30,7 +30,10 @@ public sealed class PostgreSqlTestFixture : IAsyncLifetime
         lock (gate)
         {
             container ??= builder.WithLoopbackPort().Build();
-            prepareTemplate ??= prepare;
+            if (prepareTemplate is null)
+                prepareTemplate = prepare;
+            else if (!prepareTemplate.Equals(prepare))
+                throw new InvalidOperationException("This fixture's template is prepared once; every test in the class must request the same preparation.");
         }
         return new PostgreSqlTestDatabase(this);
     }
