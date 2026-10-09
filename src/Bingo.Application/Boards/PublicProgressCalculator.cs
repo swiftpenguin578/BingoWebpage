@@ -75,7 +75,8 @@ public static class PublicProgressCalculator
             allocatedContributions.Sum(value => value.EstimatedEhb),
             playerContributions)
         {
-            CurrentScoreReachedAt = currentScoreReachedAt
+            CurrentScoreReachedAt = currentScoreReachedAt,
+            CompletedTileEhb = completedTiles.Sum(value => value.EstimatedEhb)
         };
     }
 
@@ -229,7 +230,13 @@ public static class PublicProgressCalculator
         RankingEhb(left.Progress, rule) == RankingEhb(right.Progress, rule);
 
     private static decimal RankingEhb(CalculatedBoardProgress progress, PlacementRule rule) =>
-        rule == PlacementRule.CreditedEhbThenScoreTime ? decimal.Round(progress.EhbTiebreak, 4, MidpointRounding.AwayFromZero) : progress.EhbTiebreak;
+        rule == PlacementRule.CreditedEhbThenScoreTime ? decimal.Round(PlacementEhb(progress, rule), 4, MidpointRounding.AwayFromZero) : PlacementEhb(progress, rule);
+
+    // The credited EHB value that places teams and that Final review and the official
+    // snapshot show: AU12 counts only the expected EHB of complete tiles; the retained
+    // rule keeps the proportional Drop EHB total.
+    public static decimal PlacementEhb(CalculatedBoardProgress progress, PlacementRule rule) =>
+        rule == PlacementRule.CreditedEhbThenScoreTime ? progress.CompletedTileEhb : progress.EhbTiebreak;
 
     private static DateTimeOffset? ScoreTime(CalculatedBoardProgress progress) =>
         progress.BoardComplete ? progress.BoardCompletedAt : progress.CurrentScoreReachedAt;
@@ -247,6 +254,8 @@ public sealed record PersistedTileCompletionTime(bool IsComplete, DateTimeOffset
 public sealed record CalculatedBoardProgress(IReadOnlyList<CalculatedTileProgress> Tiles, int CompletedTiles, IReadOnlyList<int> CompletedRows, IReadOnlyList<int> CompletedColumns, bool BoardComplete, DateTimeOffset? BoardCompletedAt, decimal EhbTiebreak, IReadOnlyList<CalculatedPlayerContribution> Players)
 {
     public DateTimeOffset? CurrentScoreReachedAt { get; init; }
+    // Sum of the expected EHB of complete tiles only; incomplete-tile progress adds nothing.
+    public decimal CompletedTileEhb { get; init; }
 }
 public sealed record UnrankedTeamProgress(Guid TeamId, string TeamName, CalculatedBoardProgress Progress);
 public sealed record RankedTeamProgress(Guid TeamId, string TeamName, CalculatedBoardProgress Progress, int Rank);
