@@ -51,11 +51,64 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     await page.locator('#pool-search').fill('chin');
     await page.keyboard.press('Enter');
     await page.locator('.dmem:not(.is-pending)', { hasText: 'Chin Chomp' }).locator('.dmem-tag', { hasText: '#2' }).waitFor();
+    assert.equal(await page.locator('.dmem.is-new').count(), 1, 'the pick just made is highlighted once');
     assert.equal(await page.locator('#pool-search').inputValue(), '', 'Enter on a single match clears the search');
     const search = await page.locator('#pool-search').elementHandle();
     await page.locator('#pool-sort-name-opt').click();
     assert.equal(await page.locator('.pchip-name').first().innerText(), 'Barrows Bro', 'name sort');
     assert.equal(await search.evaluate(e => e.isConnected), true, 'sorting keeps the search control');
+
+    // ---- the live draft scales with the window (CSS zoom 1.0 at <= 1280 px wide, 1.5 at >= 1920, height-limited) ----
+    const scaleAt = async (width, height) => {
+      await page.setViewportSize({ width, height });
+      const expected = Math.min(1.5, Math.max(1, Math.min(1 + 0.5 * (width - 1280) / 640, height / 720)));
+      await page.waitForFunction(value => Math.abs(Number(getComputedStyle(document.querySelector('.page.is-live')).zoom) - value) < 0.001, expected);
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      return page.evaluate(() => {
+        const live = document.querySelector('.page.is-live'), grid = document.querySelector('.pool-grid');
+        return { zoom: Number(getComputedStyle(live).zoom), chip: document.querySelector('.pchip').getBoundingClientRect().height,
+          columns: getComputedStyle(grid).gridTemplateColumns.split(' ').length,
+          pageScroll: Math.max(document.scrollingElement.scrollHeight - innerHeight, document.querySelector('main.scroller').scrollHeight - document.querySelector('main.scroller').clientHeight, live.scrollHeight - live.clientHeight) };
+      });
+    };
+    // Every team at the October roster size (11 each), so the page itself must still not scroll: the pool absorbs it.
+    const fillRosters = () => page.evaluate(() => { for (const list of document.querySelectorAll('.dteam')) { const rows = list.querySelectorAll('.dmem'); const last = rows[rows.length - 1]; while (list.querySelectorAll('.dmem').length < 11) last.after(last.cloneNode(true)); } });
+    for (const [width, height, zoom] of [[1280, 720, 1], [1100, 900, 1], [1600, 900, 1.25], [1920, 1080, 1.5], [2560, 1440, 1.5], [1920, 600, 1]]) {
+      const before = await scaleAt(width, height);
+      assert.equal(before.zoom, zoom, `${width}x${height}: scale`);
+      assert.equal(Math.round(before.chip * 100) / 100, 34 * zoom, `${width}x${height}: chips scale with the page`);
+      await fillRosters();
+      if (height >= 720) assert.equal((await scaleAt(width, height)).pageScroll, 0, `${width}x${height}: the page does not scroll with full rosters`);
+    }
+    assert.ok((await scaleAt(1920, 1080)).columns <= 7, 'the pool keeps about six columns at 1920 px (not ten)');
+    // A menu opened from the scaled header stays at the opener (zoom must not double its fixed position).
+    await page.locator('#draft-more').click();
+    await page.waitForTimeout(400); // the menu's opening motion has finished
+    const spots = await page.evaluate(() => [document.querySelector('#draft-more').getBoundingClientRect(), document.querySelector('#draft-menu').getBoundingClientRect()].map(r => ({ top: r.top, right: r.right, left: r.left })));
+    assert.ok(Math.abs(spots[1].right - spots[0].right) <= 2 && spots[1].top >= spots[0].top && spots[1].top - spots[0].top <= 60 && spots[1].left >= 0, 'the menu opens at its button, inside the window ' + JSON.stringify(spots));
+    await page.keyboard.press('Escape');
+    await page.setViewportSize({ width: 1280, height: 860 });
+    await page.locator('#pool-search').fill('x'); await page.locator('#pool-search').fill(''); // re-render drops the synthetic rows
+    await page.locator('.pchip').first().waitFor();
+
+    // ---- only the chosen player shows the pending state; the previous pick's highlight is not replayed ----
+    let release; const gate = new Promise(resolve => { release = resolve; });
+    await page.route('**/Admin/Events/Draft/*?handler=Pick', async route => { await gate; await route.continue(); }, { times: 1 });
+    const second = (await page.locator('.pchip .pchip-name').nth(1).innerText()).trim();
+    await chip(second).click();
+    await page.locator('.dmem.is-pending').waitFor();
+    assert.deepEqual(await page.locator('.pchip.is-pending .pchip-name').allInnerTexts(), [second], 'only the chosen chip is pending');
+    assert.equal(await page.locator('.dmem.is-new').count(), 0, 'while the pick is pending, the earlier pick is not highlighted');
+    release();
+    await page.locator('.dmem:not(.is-pending)', { hasText: second }).waitFor();
+    assert.equal(await page.locator('.pchip.is-pending').count(), 0, 'no pending chip after the pick');
+    await page.waitForTimeout(1700);
+    await page.locator('#pool-search').fill('x'); await page.locator('#pool-search').fill('');
+    assert.equal(await page.locator('.dmem.is-new').count(), 0, 'no stale highlight once the pick has settled');
+    await page.locator('#undo-btn', { hasText: /Undo #3/ }).click(); // put it back so the following steps are unchanged
+    await chip(second).waitFor();
+    await page.locator('p.sr[aria-live="polite"]', { hasText: /Pick 3 undone/ }).waitFor({ state: 'attached' });
+    await page.locator('#undo-btn:not([disabled]):not(.is-busy)').waitFor();
 
     // ---- Undo the latest pick by its id ----
     await page.locator('#undo-btn', { hasText: 'Undo #2' }).click();

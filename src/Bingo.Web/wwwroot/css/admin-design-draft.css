@@ -50,5 +50,9 @@
 :where([data-page-family="draft"]) .td-sk-w60{width:60%}
 :where([data-page-family="draft"]) .td-sk-w66{width:66%}
 :where([data-page-family="draft"]) .td-sk-w70{width:70%}
+/* the live draft scales as one unit (admin-draft.js sets --draft-scale: 1 to 1.5 by window size); the shell does not */
+:where([data-page-family="draft"]).page.is-live{zoom:var(--draft-scale,1)}
+/* the shell positions this fixed menu in viewport pixels, so it cancels the page zoom and stays at shell size */
+:where([data-page-family="draft"]).page.is-live .td-menu{zoom:calc(1 / var(--draft-scale,1))}
 @media (max-width:860px){:where([data-page-family="draft"]).page.is-live{height:auto;min-height:100%}:where([data-page-family="draft"]) .td-live .pool{min-height:0}}
 @media (max-width:640px){:where([data-page-family="draft"]) .td-search{width:100%;order:5}:where([data-page-family="draft"]) .td-head-acts .btn{flex:1}:where([data-page-family="draft"]).page-head:has(.td-head-acts){flex-wrap:wrap}}
