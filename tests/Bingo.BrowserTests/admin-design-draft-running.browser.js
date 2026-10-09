@@ -51,6 +51,7 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     await page.locator('#pool-search').fill('chin');
     await page.keyboard.press('Enter');
     await page.locator('.dmem:not(.is-pending)', { hasText: 'Chin Chomp' }).locator('.dmem-tag', { hasText: '#2' }).waitFor();
+    assert.equal(await page.locator('.dmem.is-new').count(), 1, 'the pick just made is highlighted once');
     assert.equal(await page.locator('#pool-search').inputValue(), '', 'Enter on a single match clears the search');
     const search = await page.locator('#pool-search').elementHandle();
     await page.locator('#pool-sort-name-opt').click();
@@ -91,7 +92,6 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     await page.locator('.pchip').first().waitFor();
 
     // ---- only the chosen player shows the pending state; the previous pick's highlight is not replayed ----
-    assert.equal(await page.locator('.dmem.is-new').count(), 1, 'the pick just made is highlighted once');
     let release; const gate = new Promise(resolve => { release = resolve; });
     await page.route('**/Admin/Events/Draft/*?handler=Pick', async route => { await gate; await route.continue(); }, { times: 1 });
     const second = (await page.locator('.pchip .pchip-name').nth(1).innerText()).trim();
