@@ -78,7 +78,7 @@ public sealed class EventFinalizationService(ApplicationDbContext db, IPublicBoa
                 return new ProvisionalPlacement(value.TeamId, value.TeamName, value.Rank, value.Progress.BoardComplete,
                     value.Progress.BoardCompletedAt, null,
                     value.Progress.CompletedRows.Count + value.Progress.CompletedColumns.Count,
-                    value.Progress.CompletedTiles, value.Progress.EhbTiebreak, value.Progress.CurrentScoreReachedAt);
+                    value.Progress.CompletedTiles, PublicProgressCalculator.PlacementEhb(value.Progress, ev.PlacementRule), value.Progress.CurrentScoreReachedAt);
             }).ToList();
             if (placements.Count == 0)
                 blockers.Add(new("calculated-placements", "Calculated placements required", "The published board has no active teams to rank. Finalize the roster and recalculate the board before publishing official results.", "/Admin/Events/Board/" + eventId, false, false, null));
