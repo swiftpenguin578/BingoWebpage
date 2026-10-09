@@ -30,20 +30,19 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
+public sealed class C33FinalizationFreshnessTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
-        .WithDatabase("c33_freshness").WithUsername("bingo").WithPassword("bingo_test_password").Build();
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
+        .WithDatabase("c33_freshness").WithUsername("bingo").WithPassword("bingo_test_password"));
     private readonly DateTimeOffset now = new(2026, 9, 14, 12, 0, 0, TimeSpan.Zero);
     private DbContextOptions<ApplicationDbContext> options = null!;
     private Setup fixture = null!;
 
     public async Task InitializeAsync()
     {
-        await PostgreSqlReadiness.StartAsync(database);
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
+        await database.StartAsync();
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
         fixture = await SeedAsync(db);
     }
 
@@ -861,7 +860,7 @@ public sealed class C33FinalizationFreshnessTests : IAsyncLifetime
 
     private WebApplicationFactory<Program> Factory(IInterceptor? interceptor = null) => new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
     {
-        builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString());
+        builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString());
         builder.ConfigureServices(services =>
         {
             services.RemoveAll<IHostedService>();
