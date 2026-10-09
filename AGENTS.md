@@ -105,8 +105,11 @@ remain evidence of completed work, not competing defaults.
 
 - Do not revert, overwrite, stage or commit existing work without authorization.
   No destructive cleanup, branch deletion, push, merge or deployment without approval.
-  Exception (user, 9 October 2026): the planner may push work branches and open PRs
-  to run CI, and names every push in its report. Pushing to main, merging into main
+  Exception (user, 9 October 2026): the planner may push the working branch (e.g.
+  `october-live-readiness`) with one draft PR to main for the whole branch to run CI,
+  and names every push in its report. Ticket branches stay local: reviewed tickets
+  are merged locally into the working branch, then their branch and worktree are
+  removed. Pushing to main, merging into main
   and deploying always need the user's explicit approval.
   For branch cleanup/publication, follow `DELIVERY_PLAN.md` section 4.7.
 - Do not expose secrets or include real participant data in committed artifacts.
