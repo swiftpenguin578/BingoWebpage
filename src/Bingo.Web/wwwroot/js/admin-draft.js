@@ -90,6 +90,7 @@ export function init(region, ui = window.AdminUI) {
     if (blocked()) return;
     L.pending = Object.assign({ kind: o.kind, draft: o.draft }, o.pending || {});
     L.notice = null; L.own = o.kind;
+    L.fresh = null; // the last change's highlight ends when the next command starts; re-rendering would replay it
     o.layer?.setBusy(true);
     render();
     const result = await post(o.handler, o.values, !!o.quick);
@@ -517,7 +518,7 @@ export function init(region, ui = window.AdminUI) {
     void run({ handler: 'Pick', values: { participantId: pid }, kind: 'pick', quick: true, what: t('draft {0}', name), pending: { pid, teamId: turn.teamId, pickNo },
       verify: rb => rb.picks.some(x => x.participantId === pid && x.undoneAt == null),
       okText: t('{0} is on {1}.', name, teamName), notText: t('{0} wasn’t drafted.', name),
-      onOk: () => { L.fresh = pid; L.swap = L.swap === 'a' ? 'b' : 'a'; L.live = t('Pick {0}: {1} to {2}.', num(pickNo), name, teamName); render(); if (inGrid && next) focusSoon('pc-' + next.id, { preventScroll: true }); else if (!inGrid) focusSoon('pool-search'); } });
+      onOk: () => { L.fresh = pid; setTimeout(() => { if (L.fresh === pid) L.fresh = null; }, tokenMs('--dk-dur-flash') + 100); L.swap = L.swap === 'a' ? 'b' : 'a'; L.live = t('Pick {0}: {1} to {2}.', num(pickNo), name, teamName); render(); if (inGrid && next) focusSoon('pc-' + next.id, { preventScroll: true }); else if (!inGrid) focusSoon('pool-search'); } });
   }
   function undo() {
     const last = S.latestPick;
