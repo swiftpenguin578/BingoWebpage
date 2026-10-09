@@ -30,21 +30,19 @@ namespace Bingo.IntegrationTests;
 // U3 / DP:966–971 / C4: these existing operations now belong to SignupSetup;
 // terminal mutation/refusal, replay, version and data-integrity assertions are retained.
 
-public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
+public sealed class Slice4AuthenticatedSignupIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_slice4_authenticated_signup")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
-        .Build();
+        );
     private DbContextOptions<ApplicationDbContext> options = null!;
 
     public async Task InitializeAsync()
     {
-        await PostgreSqlReadiness.StartAsync(database);
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
-        await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
+        await database.StartAsync();
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
@@ -387,7 +385,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         Assert.True(await db.SignupQuestions.AsNoTracking().Where(x => x.Id == optional.Id).Select(x => x.Active).SingleAsync());
         Assert.True(await db.EventParticipantCharacters.AnyAsync(x => x.SignupQuestionId == optional.Id && x.ReleasedAt == null));
 
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var page = await client.GetStringAsync("/Account/Login");
         using (var login = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string> { ["Input.Username"] = admin.LoginName, ["Input.Password"] = "delete-password", ["__RequestVerificationToken"] = AntiforgeryToken(page) }))) Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
@@ -510,7 +508,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             Assert.True(created.Succeeded, created.Error);
             existingId = created.ParticipantId;
         }
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var page = await client.GetStringAsync("/Account/Login");
         using (var login = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string> { ["Input.Username"] = owner.LoginName, ["Input.Password"] = "conflict-password", ["__RequestVerificationToken"] = AntiforgeryToken(page) }))) Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
@@ -737,7 +735,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         await db.SaveChangesAsync();
         Assert.True((await Signup(db).SignUpAuthenticatedAsync(new(bingoEvent.Id, owner.Id,
             new Dictionary<Guid, AuthenticatedAccountAnswer> { [primary.Id] = new(main.Id, 18m) }, new Dictionary<Guid, string> { [answer.Id] = "original" }, null))).Succeeded);
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var page = await client.GetStringAsync("/Account/Login");
         using (var login = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string> { ["Input.Username"] = owner.LoginName, ["Input.Password"] = "retry-password", ["__RequestVerificationToken"] = AntiforgeryToken(page) }))) Assert.Equal(HttpStatusCode.Redirect, login.StatusCode);
@@ -907,7 +905,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
     {
         var fake = new FakeWiseOldManPlayerLookup();
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
-            .UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString())
+            .UseSetting("ConnectionStrings:Database", database.GetConnectionString())
             .ConfigureServices(services =>
             {
                 services.RemoveAll<IWiseOldManPlayerLookup>();
@@ -988,7 +986,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
 
         var fake = new FakeWiseOldManPlayerLookup();
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
-            .UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString())
+            .UseSetting("ConnectionStrings:Database", database.GetConnectionString())
             .ConfigureServices(services =>
             {
                 services.RemoveAll<IWiseOldManPlayerLookup>();
@@ -1185,7 +1183,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             loginName = owner.LoginName;
         }
 
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var slug = await EventSlugAsync(eventId);
         var login = await client.GetStringAsync("/Account/Login");
@@ -1276,7 +1274,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             regularId = regular.Id;
         }
 
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var slug = await EventSlugAsync(eventId);
         using var anonymous = await client.GetAsync($"/Events/{slug}/Signup");
@@ -1375,7 +1373,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             secondLogin = second.LoginName;
         }
 
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
         using var adminClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await LoginAsync(adminClient, adminLogin, "admin-password");
         var participantsUrl = $"/Admin/Events/SignupSetup/{eventId}";
@@ -1567,7 +1565,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             adminLogin = admin.LoginName;
         }
 
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var login = await client.GetStringAsync("/Account/Login");
         using (var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
@@ -1682,7 +1680,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             originalFormVersion = form.Version;
         }
 
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var login = await client.GetStringAsync("/Account/Login");
         using (var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
@@ -1731,7 +1729,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             loginName = admin.LoginName;
         }
 
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var login = await client.GetStringAsync("/Account/Login");
         using var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
@@ -1813,7 +1811,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             adminLogin = admin.LoginName;
         }
 
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var login = await client.GetStringAsync("/Account/Login");
         using (var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>
@@ -1874,7 +1872,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             new AccountOsrsCharacter(Guid.NewGuid(), owner.Id, alternate.Id, owner.Id, false, 1, null, 73.25m, now),
             new AccountOsrsCharacter(Guid.NewGuid(), borrower.Id, character.Id, borrower.Id, true, 0, null, 9m, now));
         await seed.SaveChangesAsync();
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
         using var a = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var b = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await Login(a, owner.LoginName);
@@ -2022,7 +2020,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             eventId = bingoEvent.Id; participantId = ownerParticipant.Id; waitingId = waitingParticipant.Id; slug = bingoEvent.Slug; ownerLogin = owner.LoginName; otherLogin = other.LoginName;
         }
 
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
         using var ownerClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var login = await ownerClient.GetStringAsync("/Account/Login");
         using (var signedIn = await ownerClient.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string> { ["Input.Username"] = ownerLogin, ["Input.Password"] = "owner-password", ["__RequestVerificationToken"] = AntiforgeryToken(login) }))) Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
@@ -2167,7 +2165,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             await retainedData.SaveChangesAsync();
         }
 
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
         using var ownerClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var otherClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await LoginAsync(ownerClient, ownerLogin, "notification-owner-password");
@@ -2325,7 +2323,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             formerAdminId = formerAdmin.Id;
         }
 
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
         using var anonymous = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var ownerClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var adminClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
@@ -2485,7 +2483,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             db.AddRange(new SignupAnswer(Guid.NewGuid(), confirmed.Id, answer.Id, "Custom answer", "WORKSPACE-ANSWER"), new SignupAnswer(Guid.NewGuid(), confirmed.Id, historical.Id, "Historical answer", "WORKSPACE-HISTORICAL"));
             await db.SaveChangesAsync();
         }
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await LoginAsync(client, admin.LoginName, "password");
         var route = $"/Admin/Events/Participants/{bingoEvent.Id}";
@@ -2511,7 +2509,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var now = DateTimeOffset.UtcNow; var admin = Website($"mutation-admin-{Guid.NewGuid():N}", now); admin.SetGlobalRole(GlobalRole.Admin); admin.SetPassword(new PasswordHasher<Account>().HashPassword(admin, "password"), false, now, incrementVersion: false);
         var bingoEvent = Event(admin.Id, now); var participant = new EventParticipant(Guid.NewGuid(), bingoEvent.Id, SignupStatus.Confirmed, 1, now, SignupSource.Website, null); var character = new OsrsCharacter(Guid.NewGuid(), "Mutation Main", $"MUTATION {Guid.NewGuid():N}", now); var form = new SignupForm(Guid.NewGuid(), bingoEvent.Id, now); var regular = new SignupQuestion(Guid.NewGuid(), form.Id, bingoEvent.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null, SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
         await using (var db = new ApplicationDbContext(options)) { db.AddRange(admin, bingoEvent, participant, character, form, regular, new EventParticipantCharacter(Guid.NewGuid(), bingoEvent.Id, participant.Id, character.Id, 0, now, admin.Id, regular.Id, EventCharacterRole.Playing, 1m, EhbSource.Manual, null)); await db.SaveChangesAsync(); }
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString())); using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString())); using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         var login = await client.GetStringAsync("/Account/Login"); using (var signedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string> { ["Input.Username"] = admin.LoginName, ["Input.Password"] = "password", ["__RequestVerificationToken"] = AntiforgeryToken(login) }))) Assert.Equal(HttpStatusCode.Redirect, signedIn.StatusCode);
         // A10 (U5 item 1b): the old detail page's native Payment/AdminNote forms are retired. The
         // same rules run on the Participants page: the row Payment toggle (Service gate) and the
@@ -2771,7 +2769,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
 
         var offlineLookup = new UnavailableWiseOldManPlayerLookup();
         await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder
-            .UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString())
+            .UseSetting("ConnectionStrings:Database", database.GetConnectionString())
             .ConfigureServices(services =>
             {
                 services.RemoveAll<IWiseOldManPlayerLookup>();
@@ -2860,7 +2858,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
                 new EventParticipantCharacter(Guid.NewGuid(), bingoEvent.Id, other.Id, reserved.Id, 0, now, admin.Id, regular.Id, EventCharacterRole.Playing, 7m, EhbSource.Manual, null));
             await db.SaveChangesAsync(); db.Add(new SignupAnswer(Guid.NewGuid(), first.Id, answer.Id, "Answer", "before")); await db.SaveChangesAsync();
         }
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await LoginAsync(client, admin.LoginName, "password");
         // A10 (U5 item 1b, U5-Q1/Q2): the old detail form is retired; the same correction runs through the
@@ -2974,7 +2972,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
             Assert.Equal("Participant ownership transfer is no longer available.", result.Error);
         }
 
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
         using var adminClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false }); await LoginAsync(adminClient, admin.LoginName, "password");
         // A10 (U5 item 1b): the old detail route only redirects; the Participants page and the
         // drawer read offer no ownership transfer, and a forged post to the old route is refused.
@@ -3062,7 +3060,7 @@ public sealed class Slice4AuthenticatedSignupIntegrationTests : IAsyncLifetime
         var participant = new EventParticipant(Guid.NewGuid(), bingoEvent.Id, SignupStatus.Confirmed, 1, now, SignupSource.Website); participant.AssignOwner(original);
         await using (var setup = new ApplicationDbContext(options)) { setup.AddRange(admin, original, destination, bingoEvent, participant); await setup.SaveChangesAsync(); }
 
-        var failingOptions = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).AddInterceptors(new ThrowOnOwnershipAudit()).Options;
+        var failingOptions = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).AddInterceptors(new ThrowOnOwnershipAudit()).Options;
         await using (var failing = new ApplicationDbContext(failingOptions))
         {
             var service = Signup(failing);
