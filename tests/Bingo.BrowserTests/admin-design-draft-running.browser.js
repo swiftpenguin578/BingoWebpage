@@ -90,6 +90,26 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     await page.locator('#pool-search').fill('x'); await page.locator('#pool-search').fill(''); // re-render drops the synthetic rows
     await page.locator('.pchip').first().waitFor();
 
+    // ---- only the chosen player shows the pending state; the previous pick's highlight is not replayed ----
+    assert.equal(await page.locator('.dmem.is-new').count(), 1, 'the pick just made is highlighted once');
+    let release; const gate = new Promise(resolve => { release = resolve; });
+    await page.route('**/Admin/Events/Draft/*?handler=Pick', async route => { await gate; await route.continue(); }, { times: 1 });
+    const second = (await page.locator('.pchip .pchip-name').nth(1).innerText()).trim();
+    await chip(second).click();
+    await page.locator('.dmem.is-pending').waitFor();
+    assert.deepEqual(await page.locator('.pchip.is-pending .pchip-name').allInnerTexts(), [second], 'only the chosen chip is pending');
+    assert.equal(await page.locator('.dmem.is-new').count(), 0, 'while the pick is pending, the earlier pick is not highlighted');
+    release();
+    await page.locator('.dmem:not(.is-pending)', { hasText: second }).waitFor();
+    assert.equal(await page.locator('.pchip.is-pending').count(), 0, 'no pending chip after the pick');
+    await page.waitForTimeout(1700);
+    await page.locator('#pool-search').fill('x'); await page.locator('#pool-search').fill('');
+    assert.equal(await page.locator('.dmem.is-new').count(), 0, 'no stale highlight once the pick has settled');
+    await page.locator('#undo-btn', { hasText: /Undo #3/ }).click(); // put it back so the following steps are unchanged
+    await chip(second).waitFor();
+    await page.locator('p.sr[aria-live="polite"]', { hasText: /Pick 3 undone/ }).waitFor({ state: 'attached' });
+    await page.locator('#undo-btn:not([disabled]):not(.is-busy)').waitFor();
+
     // ---- Undo the latest pick by its id ----
     await page.locator('#undo-btn', { hasText: 'Undo #2' }).click();
     await chip('Chin Chomp').waitFor();
