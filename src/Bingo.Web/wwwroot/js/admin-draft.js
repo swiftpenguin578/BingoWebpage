@@ -214,9 +214,18 @@ export function init(region, ui = window.AdminUI) {
       parts.push(liveEl);
       place(body, parts);
       pageEl?.classList.toggle('is-live', st === 'running');
+      fitScale();
       head?.classList.toggle('sr', st === 'running');
       side(st === 'running' && !L.loadError);
     });
+  }
+  // The running draft is screen-shared, so it grows with the window (CSS zoom, set on .page.is-live):
+  // 1.0 up to 1280 px wide, linear to 1.5 at 1920 px, and never more than the height allows (720 px tall = 1.0).
+  function fitScale() {
+    if (!pageEl) return;
+    const wide = 1 + 0.5 * (innerWidth - 1280) / 640, tall = innerHeight / 720;
+    const scale = Math.round(Math.min(1.5, Math.max(1, Math.min(wide, tall))) * 1000) / 1000;
+    pageEl.style.setProperty('--draft-scale', String(scale));
   }
   function renderHead(st) {
     const summary = head?.querySelector('.summary');
@@ -441,7 +450,8 @@ export function init(region, ui = window.AdminUI) {
     const duration = tokenMs('--dk-dur-reorder'), stagger = tokenMs('--dk-dur-reorder-stagger');
     const runs = [...r.board.children].map((el, i) => {
       const from = before.get(el.dataset.teamId), to = el.getBoundingClientRect(); if (!from) return null;
-      const dx = from.left - to.left, dy = from.top - to.top; if (!dx && !dy) return null;
+      const zoom = parseFloat(pageEl?.style.getPropertyValue('--draft-scale')) || 1; // the rects are window pixels, the transform is in the page's zoomed pixels
+      const dx = (from.left - to.left) / zoom, dy = (from.top - to.top) / zoom; if (!dx && !dy) return null;
       return el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration, delay: i * stagger, easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'backwards' }).finished.catch(() => {});
     });
     await Promise.all(runs);
@@ -975,6 +985,7 @@ export function init(region, ui = window.AdminUI) {
   const requested = new URL(location.href).searchParams.get('rosterTeamId');
   if (requested && team(requested.toLowerCase())) requestAnimationFrame(() => focusTeam(requested.toLowerCase()));
   const extensions = [];
+  addEventListener('resize', fitScale, { signal });
   connectHub();
-  release = () => { life.abort(); for (const stop of extensions) stop(); restoreSide(); pageEl?.classList.remove('is-live'); head?.classList.remove('sr'); };
+  release = () => { life.abort(); for (const stop of extensions) stop(); restoreSide(); pageEl?.classList.remove('is-live'); pageEl?.style.removeProperty('--draft-scale'); head?.classList.remove('sr'); };
 }
