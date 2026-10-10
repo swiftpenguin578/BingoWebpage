@@ -76,7 +76,7 @@ Cloudflare R2 evidence storage, Caddy and Docker on a single VPS, and GitHub Act
 
 Setup, running locally, seeding test data, tests and CI are in
 [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md). For the product and its rules, start
-with [`docs/PRODUCT_REQUIREMENTS.md`](docs/PRODUCT_REQUIREMENTS.md). Operating the
-production site is covered in [`docs/PRODUCTION_RUNBOOK.md`](docs/PRODUCTION_RUNBOOK.md).
+with [`docs/PRODUCT.md`](docs/PRODUCT.md). Operating the
+production site is covered in [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
 Agents and contributors: see [`AGENTS.md`](AGENTS.md) for the working rules and the
 list of authority documents.
