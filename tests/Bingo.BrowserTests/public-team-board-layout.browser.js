@@ -13,16 +13,16 @@ const html=`<div class="public-team-board" style="--public-board-columns:5"><div
   <dl class="team-metric-list"><div class="team-metric-row"><dt>Team total</dt><dd class="team-metric-value">+1.00</dd></div></dl>
   <details class="team-contributor-block" open><summary class="team-rail-subheading">Contributors</summary><ol class="team-contributor-list"><li><span class="team-contributor-rank">1</span><span class="team-contributor-name">Player</span><span class="team-contributor-value">+1</span></li></ol></details></section></aside>
  <div class="public-board-scroll"><div class="public-full-board">${Array.from({length:25},(_,i)=>tile(i,[1,12,25,48,100][i%5])).join('')}</div></div>
-</div></div></div>`;
+</div><nav class="public-team-switcher"><a href="#"><small>Previous team</small><strong>← #4 Team</strong></a><a class="next" href="#"><small>Next team</small><strong>#6 Team →</strong></a></nav></div></div>`;
 const measure=()=>{
  const rect=e=>e.getBoundingClientRect();
  let overlap=0;for(const t of document.querySelectorAll('.public-ui-team-board-tile')){const a=rect(t.querySelector('.public-ui-team-board-tile__position')),n=rect(t.querySelector('.public-ui-team-board-tile__number')),r=rect(t);const range=document.createRange();range.selectNodeContents(t.querySelector('.public-ui-team-board-tile__position'));const text=range.getBoundingClientRect();if(a.top<n.bottom&&n.top<a.bottom)overlap=Math.max(overlap,text.right-n.left);if(a.right>r.right)overlap=Math.max(overlap,a.right-r.right);}
- window.scrollTo(0,document.querySelector('.public-full-board').getBoundingClientRect().top+scrollY);
+ const sw=rect(document.querySelector('.public-team-switcher'));window.scrollTo(0,document.querySelector('.public-full-board').getBoundingClientRect().top+scrollY);
  const scrolledBoard=rect(document.querySelector('.public-full-board'));
  const ws=document.querySelector('.public-team-workspace'),cols=getComputedStyle(ws).gridTemplateColumns.split(' ').map(parseFloat),gap=parseFloat(getComputedStyle(ws).columnGap);
  const box=s=>{const e=document.querySelector(s),b=e.getBoundingClientRect();return{x:b.x,y:b.y,w:b.width,h:b.height}};
  const size=(s,p)=>parseFloat(getComputedStyle(document.querySelector(s))[p]);
- return{column:cols[1],overlap,scrolledBottom:scrolledBoard.bottom,innerH:innerHeight,sidebar:box('.public-team-sidebar'),board:box('.public-full-board'),legend:box('.public-team-board-legend'),tile:box('.public-ui-team-board-tile'),
+ return{switcher:{l:sw.left,r:sw.right},column:cols[1],overlap,scrolledBottom:scrolledBoard.bottom,innerH:innerHeight,sidebar:box('.public-team-sidebar'),board:box('.public-full-board'),legend:box('.public-team-board-legend'),tile:box('.public-ui-team-board-tile'),
   scrollW:document.documentElement.scrollWidth,innerW:innerWidth,
   numTop:size('.public-ui-team-board-tile__number','top'),numRight:size('.public-ui-team-board-tile__number','right'),numFont:size('.public-ui-team-board-tile__number','fontSize'),pointsWeight:size('.public-ui-team-board-tile__position','fontWeight'),
   points:size('.public-ui-team-board-tile__position','fontSize'),title:size('.public-ui-team-board-tile__title','fontSize'),
@@ -79,6 +79,7 @@ const measureTile=()=>{
     assert.ok(Math.abs(m.numTop-4)<0.5&&Math.abs(m.numRight-5.6)<0.5,`${name} ${w}x${h} tile number sits in the top-right corner (top ${m.numTop}, right ${m.numRight})`);
     assert.ok(Math.abs(m.points-8.96)<0.05&&m.pointsWeight===400,`${name} ${w}x${h} Points label keeps the old 0.56rem regular size (${m.points}/${m.pointsWeight})`);
     assert.ok(m.tile.w<120||m.overlap<=0,`${name} ${w}x${h} Points label overlaps the tile number by ${m.overlap}px`);
+    assert.ok(Math.abs(m.switcher.l-m.sidebar.x)<1.5&&Math.abs(m.switcher.r-(m.board.x+m.board.w))<1.5,`${name} ${w}x${h} team switcher row ${m.switcher.l}-${m.switcher.r} equals sidebar left ${m.sidebar.x} to board right ${m.board.x+m.board.w}`);
     log.push(`${w}x${h}: board ${Math.round(m.board.w)} tile ${Math.round(m.tile.w)} sidebar ${Math.round(m.sidebar.w)}`);
    };
    const wide=await at(1920,1080);fit(wide,1920,1080);
@@ -91,6 +92,7 @@ const measureTile=()=>{
    const laptop=await at(1470,956);fit(laptop,1470,956);
    assert.ok(laptop.sidebar.w>=340&&laptop.sidebar.w<=360,`${name} 1470 sidebar ${laptop.sidebar.w}`);
    fit(await at(1366,768),1366,768);
+   const w1100=await at(1100,800);assert.ok(Math.abs(w1100.switcher.l-w1100.sidebar.x)<1.5&&Math.abs(w1100.switcher.r-(w1100.board.x+w1100.board.w))<1.5,`${name} 1100 team switcher row ${w1100.switcher.l}-${w1100.switcher.r} vs sidebar ${w1100.sidebar.x} / board right ${w1100.board.x+w1100.board.w}`);
    const mid=await at(1000,800);
    assert.ok(mid.scrollW<=mid.innerW&&mid.board.w>=590&&mid.overlap<=6,`${name} 1000 wide: no page scroll, minimum board; the ~4px touch of 3-digit Points on 111px tiles was accepted by the user on 10 October 2026 and must stay within 6px (${mid.board.w}, ${mid.overlap})`);
    const phone=await at(390,844);
@@ -98,6 +100,7 @@ const measureTile=()=>{
    assert.ok(Math.abs(phone.numTop-4)<0.5&&Math.abs(phone.numRight-5.6)<0.5&&Math.abs(phone.points-8.96)<0.05,`${name} 390 number in the corner, Points at the old size`);
    // 111px tiles (390 phone, <=1000 wide): 'Points: 100' reaches ~4px into the tile number; accepted by the user on 10 October 2026, bounded to 6px.
    assert.ok(phone.overlap<=6,`${name} 390 Points label overlaps the tile number by ${phone.overlap}px, more than the accepted 6px`);
+   assert.ok(phone.switcher.l>=0&&phone.switcher.r<=phone.innerW+0.5,`${name} 390 team switcher stays inside the window`);
    assert.ok(phone.sidebar.y<phone.board.y&&Math.abs(phone.sidebar.x-phone.board.x)<1,`${name} 390 keeps the stacked order`);
    await page.evaluate(h=>{document.body.innerHTML=h},tileHtml);
    for(const [w,h] of [[1920,1080],[1470,700],[390,844]]){
