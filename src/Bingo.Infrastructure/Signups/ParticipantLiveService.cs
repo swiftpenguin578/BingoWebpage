@@ -44,6 +44,31 @@ public sealed class ParticipantLiveService(ApplicationDbContext db, TimeProvider
         return contexts;
     }
 
+    public async Task<PlayingAccountHeader?> GetPlayingAccountHeaderAsync(
+        Guid viewerAccountId,
+        string? preferredEventSlug,
+        CancellationToken cancellationToken = default)
+    {
+        var rows = await (from participant in db.EventParticipants.AsNoTracking()
+                          join item in db.Events.AsNoTracking() on participant.EventId equals item.Id
+                          join membership in db.TeamMemberships.AsNoTracking() on participant.Id equals membership.EventParticipantId
+                          join team in db.Teams.AsNoTracking() on membership.TeamId equals team.Id
+                          where participant.AccountId == viewerAccountId && item.HiddenAt == null && item.State == EventState.Live &&
+                                membership.LeftAt == null && team.Active && participant.EventId == team.EventId
+                          orderby item.EventStartsAt descending, item.Id
+                          select new { EventId = item.Id, item.Slug, ParticipantId = participant.Id })
+            .ToListAsync(cancellationToken);
+        var chosen = rows.FirstOrDefault(x => preferredEventSlug is not null && x.Slug == preferredEventSlug) ?? rows.FirstOrDefault();
+        if (chosen is null) return null;
+        var context = await GetContextAsync(chosen.EventId, chosen.ParticipantId, viewerAccountId, cancellationToken);
+        if (context is null) return null;
+        var credited = context.PlayingCharacters.SingleOrDefault(x => x.IsActive);
+        if (credited is null) return null;
+        return new PlayingAccountHeader(
+            chosen.EventId, chosen.ParticipantId, credited.Name, credited.CharacterId,
+            context.CanSwap ? context.PlayingCharacters.Where(x => !x.IsActive).ToList() : []);
+    }
+
     public async Task<ParticipantCharacterSwapResult> SwapAsync(
         ParticipantCharacterSwapRequest request,
         CancellationToken cancellationToken = default)
@@ -143,9 +168,12 @@ public sealed class ParticipantLiveService(ApplicationDbContext db, TimeProvider
             : null;
         planned ??= assignments.OrderBy(x => x.Assignment.RegistrationOrder).FirstOrDefault();
         var active = await db.ActiveCharacterAtAsync(row.Event.Id, row.Participant.Id, now, cancellationToken);
+        // Same source evidence crediting uses, so a Live participant with one account and no switch row is named too.
         var activeId = row.Event.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed
             ? planned?.Assignment.OsrsCharacterId
-            : active?.OsrsCharacterId;
+            : row.Event.State == EventState.Live
+                ? await db.CreditedPlayingCharacterIdAsync(row.Event.Id, row.Participant.Id, now, cancellationToken)
+                : active?.OsrsCharacterId;
         var activeAssignment = assignments.SingleOrDefault(x => x.Assignment.OsrsCharacterId == activeId);
         var hasPendingSwap = row.Event.State == EventState.Live && await db.EventParticipantCharacterSwaps.AsNoTracking()
             .AnyAsync(x => x.EventParticipantId == row.Participant.Id && x.EffectiveAtUtc > now, cancellationToken);
