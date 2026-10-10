@@ -6,7 +6,7 @@ docker network create bm-net >/dev/null
 echo "== caddy validate (production Caddyfile)"
 docker run --rm -e BINGO_DOMAIN=example.test -v "$PWD/$D/Caddyfile:/etc/caddy/Caddyfile:ro" -v "$PWD/$D/maintenance.html:/srv/maintenance/maintenance.html:ro" caddy:2-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile; echo "exit=$?"
 echo "== caddy adapt (head)"
-docker run --rm -e BINGO_DOMAIN=example.test -v "$PWD/$D/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine caddy adapt --config /etc/caddy/Caddyfile --adapter caddyfile --pretty | grep -c . 
+docker run --rm -e BINGO_DOMAIN=example.test -v "$PWD/$D/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine caddy adapt --config /etc/caddy/Caddyfile --adapter caddyfile --pretty | grep -c .
 docker run -d --name bm-stub --network bm-net --network-alias web -v "$PWD/stub.Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2-alpine >/dev/null
 docker run -d --name bm-caddy --network bm-net -p 127.0.0.1:18099:18099 -e BINGO_DOMAIN=localhost:18099 -v "$PWD/$D/Caddyfile:/etc/caddy/Caddyfile:ro" -v "$PWD/$D/maintenance.html:/srv/maintenance/maintenance.html:ro" caddy:2-alpine >/dev/null
 sleep 4
