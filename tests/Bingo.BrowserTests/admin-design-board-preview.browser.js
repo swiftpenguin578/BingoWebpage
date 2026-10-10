@@ -8,9 +8,6 @@ const path = require('node:path');
 const { chromium, webkit } = require('playwright');
 const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.cjs');
 
-const decode = text => text.replace(/&quot;/g, '"').replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16))).replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(+d)).replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-const encode = text => text.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
 (async () => {
   const name = process.env.PLAYWRIGHT_BROWSER || 'chromium';
   const engine = name === 'webkit' ? webkit : chromium;
@@ -30,23 +27,27 @@ const encode = text => text.replace(/&/g, '&amp;').replace(/"/g, '&quot;').repla
       const context = await browser.newContext({ viewport: { width: 1280, height: 860 }, reducedMotion: 'reduce', colorScheme: dark ? 'dark' : 'light' });
       const page = await login(context, fixture);
       const errors = []; page.on('pageerror', error => errors.push(error.message));
-      await page.route(fixture.origin + boardPath, async route => {
-        if (route.request().method() !== 'GET') return route.continue();
-        const response = await route.fetch(); let html = await response.text();
-        html = html.replace(/data-view="([^"]*)"/, (_, raw) => {
-          const view = JSON.parse(decode(raw));
+      // Rewrite the page's own view data before its script reads it (no network interception: WebKit drops subresources of fulfilled documents).
+      await page.addInitScript(({ scenario, names }) => {
+        const patch = () => {
+          const root = document.querySelector('[data-board]');
+          if (!root || root.dataset.pvPatched) return !!root;
+          const view = JSON.parse(root.dataset.view);
           Object.assign(view, { mode: scenario.mode, rows: scenario.rows, cols: scenario.cols, readOnly: false });
           view.tiles = scenario.positions.map((pos, i) => ({ id: 'tile-' + pos, pos, name: names[i], desc: '', ehb: i === 0 ? 0.2 : 1 + i * 0.7, noEstimate: false, needsVerification: false, overridden: false, manual: false, parts: 1, locked: false, art: i % 2 === 0 ? '/images/public-board/bosses/vorkath.png' : null, changed: false }));
-          return 'data-view="' + encode(JSON.stringify(view)) + '"';
-        });
-        await route.fulfill({ response, body: html });
-      });
+          root.dataset.view = JSON.stringify(view); root.dataset.pvPatched = '1';
+          return true;
+        };
+        const observer = new MutationObserver(() => { if (patch()) observer.disconnect(); });
+        observer.observe(document, { childList: true, subtree: true });
+      }, { scenario, names });
       const requests = [];
       page.on('request', request => { if (request.method() !== 'GET') requests.push(request.method() + ' ' + request.url()); });
       await page.goto(fixture.origin + boardPath);
       await page.locator('#preview-btn').waitFor();
       requests.length = 0;
-      await page.locator('#preview-btn').click();
+      await page.locator('#preview-btn').focus(); // WebKit does not focus a button on click, so open by keyboard
+      await page.keyboard.press('Enter');
       const layer = page.locator('.bd-pv');
       await layer.waitFor();
       assert.match(await layer.locator('.eyebrow').innerText(), scenario.eyebrow);
@@ -81,7 +82,7 @@ const encode = text => text.replace(/&/g, '&amp;').replace(/"/g, '&quot;').repla
       await page.setViewportSize({ width: 1280, height: 860 });
       await page.keyboard.press('Escape');
       await layer.waitFor({ state: 'detached' });
-      assert.equal(await page.evaluate(() => document.activeElement?.id), 'preview-btn', 'focus returns to Preview');
+      await page.waitForFunction(() => document.activeElement?.id === 'preview-btn', null, { timeout: 5000 }).catch(async () => assert.fail('focus returns to Preview, found: ' + await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 120))));
       await page.locator('#preview-btn').click(); await layer.waitFor();
       await page.mouse.click(4, 4);
       await layer.waitFor({ state: 'detached' });
