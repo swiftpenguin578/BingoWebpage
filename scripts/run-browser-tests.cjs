@@ -143,8 +143,9 @@ function runFile(file, browser) {
     child.on('error', spawnError => { error = spawnError; finish(); });
     child.on('exit', (code, signal) => {
       exit = { code, signal };
-      // Leftover group members (fixtures, grandchildren) die with a timed-out run.
-      if (timedOut) killTree(child, 'SIGKILL');
+      // Leftover group members (fixtures, grandchildren) die with the run, whether
+      // it timed out, failed or passed.
+      killTree(child, 'SIGKILL');
       // A process outside the group may still hold the pipes; do not wait for it.
       drain = setTimeout(finish, killGraceMs);
     });

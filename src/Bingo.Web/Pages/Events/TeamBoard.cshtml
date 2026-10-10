@@ -220,7 +220,7 @@
                     </span>
                     <span class="public-ui-team-board-tile__shade" aria-hidden="true"></span>
                     <span class="public-ui-team-board-tile__copy">
-                        <span class="public-ui-team-board-tile__position">R@(tile.Row + 1) · C@(tile.Column + 1)</span>
+                        <span class="public-ui-team-board-tile__position">@T["Points: {0}", TeamBoardModel.GetTilePoints(tile.EstimatedEhb)]</span>
                         <strong class="public-ui-team-board-tile__title">@tile.Name</strong>
                         <span class="public-ui-team-board-tile__progress-row">
                             @if (tile.Complete)
