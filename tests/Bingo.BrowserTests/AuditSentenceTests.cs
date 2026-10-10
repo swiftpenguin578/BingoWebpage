@@ -181,6 +181,45 @@ public sealed class AuditSentenceTests
         Assert.Equal(new AuditAffectedAccount(Owner.ToString(), null, false), Assert.Single(Affected(Entry("account.disabled", "account", Owner, "Spam"), AuditNames.Empty)));
     }
 
+    // Brief 147 item 3, B2: capped entries read the stored count; older entries list every id.
+    [Fact]
+    public void TeamRemovalShowsTheCountAndAtMostTenAccounts()
+    {
+        var names = Names();
+        var ids = Enumerable.Range(0, 30).Select(_ => Guid.NewGuid()).ToList();
+        foreach (var id in ids) { var participant = Guid.NewGuid(); names.Memberships[id] = new(participant, Team); names.Participants[participant] = new(null, "Player " + ids.IndexOf(id), EventId); }
+        var capped = Entry("draft.team_removed", "team", Team, J(new { before = new { Name = "Red Dragons", Active = true }, after = new { Name = "Red Dragons", Active = false, EndedMembershipCount = 30, EndedMembershipIds = ids.Take(25), EndedMembershipIdsOmitted = 5 } }), eventId: EventId);
+        var shown = InCulture("en-GB", () => AuditPresenter.Present(capped, Text, names));
+        Assert.Equal("chris removed the team Red Dragons; 30 members left the team.", shown.Summary);
+        Assert.Equal(10, shown.Affected!.Count);
+        Assert.Equal(20, shown.AffectedMore);
+        Assert.DoesNotContain(shown.Changes, change => change.Field.Contains("omitted", StringComparison.OrdinalIgnoreCase));
+        Assert.Equal("chris fjernede holdet Red Dragons; 30 medlemmer forlod holdet.", Sentence(capped, "da-DK", names));
+
+        // An entry stored before the cap: the full id list, no count.
+        var old = Entry("draft.team_removed", "team", Team, J(new { before = new { Name = "Red Dragons" }, after = new { Name = "Red Dragons", EndedMembershipIds = ids.Take(12) } }), eventId: EventId);
+        var oldShown = AuditPresenter.Present(old, Text, names);
+        Assert.Equal("chris removed the team Red Dragons; 12 members left the team.", oldShown.Summary);
+        Assert.Equal((10, 2), (oldShown.Affected!.Count, oldShown.AffectedMore));
+    }
+
+    // Brief 147 item 3, B3: a finalized-roster removal of someone not on the published roster.
+    [Fact]
+    public void RosterRemovalWithoutAPublishedNameFallsBackToTheCharacterName()
+    {
+        var notPublished = J(new { participant = new { id = Participant, name = (string?)null }, teamId = Team, teamName = "Red Dragons", onPublishedRoster = false });
+        var withStoredCharacter = Entry("roster.finalized_removed", "membership", Membership,
+            J(new { ownerAccountId = Owner, participantBefore = new { participantId = Participant, activePlayingAssignments = new[] { new { DisplayName = "Stored Zezima" } } } }), notPublished, notPublished, EventId);
+        var stored = AuditPresenter.Present(withStoredCharacter, Text, AuditNames.Empty);
+        Assert.Equal("Membership · Stored Zezima", stored.Target);
+        Assert.Equal("chris removed Stored Zezima from Red Dragons on the published roster.", stored.Summary);
+        Assert.DoesNotContain("null", stored.Target);
+
+        var withoutStoredCharacter = Entry("roster.finalized_removed", "membership", Membership, J(new { ownerAccountId = Owner }), notPublished, notPublished, EventId);
+        Assert.Equal("Membership · Zezima", AuditPresenter.Present(withoutStoredCharacter, Text, Names()).Target);
+        Assert.Equal($"Membership · {Membership}", AuditPresenter.Present(withoutStoredCharacter, Text, AuditNames.Empty).Target);
+    }
+
     private static string FindRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

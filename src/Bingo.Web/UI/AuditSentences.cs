@@ -63,6 +63,14 @@ internal sealed class AuditSentences
         }
     }
 
+    /// <summary>B2: a capped team removal stores the full count; older entries list every id.</summary>
+    public static int? AffectedTotal(AuditEntry entry)
+    {
+        if (entry.Action != "draft.team_removed") return null;
+        try { return new AuditSentences(entry, AuditNames.Empty, NoText.Instance).EndedMemberCount(); }
+        catch (Exception exception) when (exception is InvalidOperationException or FormatException or ArgumentException) { return null; }
+    }
+
     private List<AuditAffectedAccount> AffectedAccounts()
     {
         var result = new List<AuditAffectedAccount>();
@@ -76,7 +84,8 @@ internal sealed class AuditSentences
             if (participantId is not { } key) return;
             var known = names.Participants.GetValueOrDefault(key);
             var website = known?.AccountId is { } owner ? names.Accounts.GetValueOrDefault(owner) ?? owner.ToString() : null;
-            var playing = storedCharacter ?? known?.Character ?? (known is null ? key.ToString() : null);
+            // Neither a name nor an owner: the stored participant id (never an empty line).
+            var playing = storedCharacter ?? known?.Character ?? (website is null && key != Guid.Empty ? key.ToString() : null);
             result.Add(new(website, playing, website is not null));
         }
         void AddMembership(Guid? membershipId)
@@ -472,7 +481,11 @@ internal sealed class AuditSentences
         ?? (target is { } key && names.Submissions.TryGetValue(key, out var submission) ? submission.CharacterName : null)
         ?? "—";
 
-    private string RosterPlayer() => Str(after, "participant", "name") ?? Str(before, "participant", "name") ?? Player(Id(after, "participant", "id"));
+    // B3: published name → stored character name → the participant's current character → id.
+    private string RosterPlayer() => Str(after, "participant", "name") ?? Str(before, "participant", "name") ?? FirstPlaying(details) ?? Player(Id(after, "participant", "id"));
+
+    /// <summary>B3: the character name stored in a finalized-roster entry's participant snapshot.</summary>
+    public static string? StoredRosterCharacter(AuditEntry entry) => FirstPlaying(AuditNameResolver.Parse(entry.Details));
 
     private string RosterTeam() => Team(Id(after, "teamId"), Str(after, "teamName"));
 

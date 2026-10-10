@@ -15,7 +15,7 @@ public sealed record AuditAffectedAccount(string? Website, string? Playing, bool
 public sealed record AuditPresentation(string Action, string Actor, string Target, string? Reason,
     IReadOnlyList<AuditFieldChange> Changes, string ActionKey, string? Details, string? BeforeState, string? AfterState,
     string? LifecycleSummary = null, string? Context = null, bool Sensitive = false, bool TechnicalOnly = false, string? Summary = null,
-    IReadOnlyList<AuditAffectedAccount>? Affected = null);
+    IReadOnlyList<AuditAffectedAccount>? Affected = null, int AffectedMore = 0);
 
 /// <summary>Read-only, tolerant projection shared by full Audit and recent activity.</summary>
 public static class AuditPresenter
@@ -281,13 +281,20 @@ public static class AuditPresenter
             // T1-8: rows that read the same before and after (including empty → empty) are not changes.
             .Where(change => change.Before != change.After)
             .ToArray();
+        var affected = AuditSentences.Affected(entry, names);
         var reason = Reason(entry, details);
         var target = text[Targets.GetValueOrDefault(entry.TargetType, "Recorded target")].Value;
-        var targetName = after.GetValueOrDefault("Name")
-            ?? before.GetValueOrDefault("Name")
-            ?? after.FirstOrDefault(pair => pair.Key.EndsWith(" · Name", StringComparison.OrdinalIgnoreCase)).Value
-            ?? before.FirstOrDefault(pair => pair.Key.EndsWith(" · Name", StringComparison.OrdinalIgnoreCase)).Value;
+        // B3: a stored JSON null ("null") is no name (a finalized-roster removal of someone who was not
+        // on the published roster); fall back to the stored character name, then the current one.
+        static string? Named(string? value) => string.IsNullOrWhiteSpace(value) || value == "null" ? null : value;
+        var targetName = Named(after.GetValueOrDefault("Name"))
+            ?? Named(before.GetValueOrDefault("Name"))
+            ?? Named(after.FirstOrDefault(pair => pair.Key.EndsWith(" · Name", StringComparison.OrdinalIgnoreCase)).Value)
+            ?? Named(before.FirstOrDefault(pair => pair.Key.EndsWith(" · Name", StringComparison.OrdinalIgnoreCase)).Value);
+        if (targetName is null && entry.Action.StartsWith("roster.finalized_", StringComparison.Ordinal)) targetName = AuditSentences.StoredRosterCharacter(entry);
         if (string.IsNullOrWhiteSpace(targetName)) targetName = ResolvedTargetName(entry, names, before, after);
+        // B3: with no name at all, the record line ends with the stored id.
+        if (string.IsNullOrWhiteSpace(targetName) && entry.TargetType == "membership" && Guid.TryParse(entry.TargetId, out _)) targetName = entry.TargetId;
         if (!string.IsNullOrWhiteSpace(targetName)) target += $" · {targetName}";
         var targetIdentity = Guid.TryParse(entry.TargetId, out _) ? entry.TargetId : null;
         if (targetIdentity is null && !string.IsNullOrWhiteSpace(entry.TargetId)) target += $" · {entry.TargetId}";
@@ -311,7 +318,7 @@ public static class AuditPresenter
             TechnicalOnly: !sensitiveAction && !isCreation && !isDeletion && changes.Length == 0 && before.Keys.Union(after.Keys, StringComparer.OrdinalIgnoreCase)
                 .Any(key => !Sensitive(key) && IsTechnicalField(key) && before.GetValueOrDefault(key) != after.GetValueOrDefault(key)),
             Summary: AuditSentences.Build(entry, names, text),
-            Affected: AuditSentences.Affected(entry, names));
+            Affected: affected.Take(AffectedShown).ToList(), AffectedMore: Math.Max(AuditSentences.AffectedTotal(entry) ?? 0, affected.Count) - Math.Min(affected.Count, AffectedShown));
     }
 
     // Audit drawer "context" (reference Audit.dc.html present()): the reopening explanations, or
@@ -445,7 +452,10 @@ public static class AuditPresenter
             || name.EndsWith("Version", StringComparison.OrdinalIgnoreCase) || name.EndsWith("_version", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static readonly string[] TechnicalWords = ["lease", "concurrency", "rowversion", "xmin", "etag", "lockedby", "locked_by"];
+    private static readonly string[] TechnicalWords = ["lease", "concurrency", "rowversion", "xmin", "etag", "lockedby", "locked_by", "omitted"];
+
+    /// <summary>A8: the drawer lists at most this many affected accounts, then "and N more".</summary>
+    public const int AffectedShown = 10;
 
     private static string? Reason(AuditEntry entry, Dictionary<string, string> details)
     {

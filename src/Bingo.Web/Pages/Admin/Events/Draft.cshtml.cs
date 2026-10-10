@@ -1274,7 +1274,12 @@ public sealed partial class DraftModel(ApplicationDbContext db, TimeProvider tim
 
     private static object TeamAuditState(Team team) => new { team.Id, Name = AuditText(team.Name), AffiliationName = team.AffiliationName is null ? (JsonElement?)null : AuditText(team.AffiliationName), team.IncludedInDraft, team.ActiveImageAssetId, team.Active, team.DraftPosition };
     // Same flat team fields as TeamAuditState plus the memberships the removal ended (S7).
-    private static object TeamRemovalAuditState(Team team, IReadOnlyList<Guid> endedMembershipIds) => new { team.Id, Name = AuditText(team.Name), AffiliationName = team.AffiliationName is null ? (JsonElement?)null : AuditText(team.AffiliationName), team.IncludedInDraft, team.ActiveImageAssetId, team.Active, team.DraftPosition, EndedMembershipIds = endedMembershipIds };
+    // Brief 147 B2 (A8): the count is always stored and at most 25 ended membership ids, so the entry
+    // no longer grows with the team's size (4,000-character audit column). Older entries keep the full list.
+    public const int TeamRemovalAuditIdLimit = 25;
+    private static object TeamRemovalAuditState(Team team, List<Guid> endedMembershipIds) => endedMembershipIds.Count > TeamRemovalAuditIdLimit
+        ? new { team.Id, Name = AuditText(team.Name), AffiliationName = team.AffiliationName is null ? (JsonElement?)null : AuditText(team.AffiliationName), team.IncludedInDraft, team.ActiveImageAssetId, team.Active, team.DraftPosition, EndedMembershipCount = endedMembershipIds.Count, EndedMembershipIds = endedMembershipIds.Take(TeamRemovalAuditIdLimit).ToList(), EndedMembershipIdsOmitted = endedMembershipIds.Count - TeamRemovalAuditIdLimit }
+        : (object)new { team.Id, Name = AuditText(team.Name), AffiliationName = team.AffiliationName is null ? (JsonElement?)null : AuditText(team.AffiliationName), team.IncludedInDraft, team.ActiveImageAssetId, team.Active, team.DraftPosition, EndedMembershipCount = endedMembershipIds.Count, EndedMembershipIds = endedMembershipIds };
     private static JsonElement TeamOrderAuditState(IEnumerable<Team> teams)
     {
         var positions = teams.OrderBy(team => team.Id).Select(team => new { team.Id, team.DraftPosition }).ToArray();

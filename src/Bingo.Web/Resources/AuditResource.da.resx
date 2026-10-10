@@ -539,4 +539,5 @@
   <data name="Price observed at" xml:space="preserve"><value>Pris observeret</value></data>
   <data name="Rolls per completion" xml:space="preserve"><value>Rul pr. gennemførelse</value></data>
   <data name="Assumed participants" xml:space="preserve"><value>Antaget antal deltagere</value></data>
+  <data name="Ended membership count" xml:space="preserve"><value>Antal afsluttede medlemskaber</value></data>
 </root>
