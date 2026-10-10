@@ -3722,8 +3722,10 @@ body.public-event-shell.public-ui-pass1 .public-team-switcher strong { color: va
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar { color: var(--board-ink); background: var(--board-canvas); }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar :is(.public-ui-eligible-drop-table, .public-ui-disclosure) { color: var(--board-ink); background: var(--board-field); }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar .public-ui-supporting-text { color: var(--board-muted); }
-body.public-event-shell.public-ui-pass1 .tile-context-sidebar .public-ui-component-title { font-size: 2.2rem; line-height: 0.86; }
-body.public-event-shell.public-ui-pass1 .tile-context-sidebar .public-ui-section-heading { font-size: 1rem; }
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar .public-ui-component-title { font-size: 2.65rem; line-height: 0.86; }
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar .public-ui-overline { font-size: 0.85rem; }
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar :is(.public-ui-component-header__copy, .tile-context-sidebar__section-header) > .public-ui-supporting-text { font-size: 0.95rem; }
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar .public-ui-section-heading { font-size: 1.2rem; }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar .public-ui-data-value { color: var(--board-blue); font: 800 2.7rem/0.8 "Barlow Condensed ExtraBold", sans-serif; }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar .public-ui-sectioned-surface__section { border-color: var(--board-rule); }
 body.public-event-shell.public-ui-pass1 .public-ui-eligible-drop-table { border-color: var(--board-rule); border-radius: 0; }
@@ -4018,7 +4020,7 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__actions .public-u
   justify-content: center;
   padding: 0.45rem 0.55rem;
   border-radius: 0;
-  font: 600 0.86rem/1 "Barlow Condensed SemiBold", "Arial Narrow", sans-serif;
+  font: 600 0.95rem/1 "Barlow Condensed SemiBold", "Arial Narrow", sans-serif;
   letter-spacing: 0.06em;
   white-space: nowrap;
   text-transform: uppercase;
@@ -4060,7 +4062,7 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__progress-summary 
 }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__progress-summary .public-ui-data-value {
   color: var(--board-blue) !important;
-  font: 800 clamp(3rem, 4.2vw, 4.6rem)/0.75 "Barlow Condensed ExtraBold", sans-serif !important;
+  font: 800 clamp(3.6rem, 5vw, 5.5rem)/0.75 "Barlow Condensed ExtraBold", sans-serif !important;
 }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__progress-summary .tile-context-sidebar__value--complete {
   color: var(--board-sage) !important;
@@ -4068,7 +4070,7 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__progress-summary 
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__progress-summary .public-ui-data-label {
   margin-bottom: 0;
   color: var(--board-muted);
-  font: 600 clamp(0.9rem, 1.26vw, 1.38rem)/0.75 "Barlow Condensed SemiBold", sans-serif;
+  font: 600 clamp(1.1rem, 1.5vw, 1.65rem)/0.75 "Barlow Condensed SemiBold", sans-serif;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -4094,7 +4096,7 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__breakdown-row {
   padding: 0.55rem 0;
   color: var(--board-ink);
   border-top: 1px solid var(--board-rule);
-  font-size: 0.8rem;
+  font-size: 0.95rem;
   line-height: 1.25;
 }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__breakdown-row:first-child {
@@ -4106,20 +4108,20 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__breakdown-value {
   justify-content: flex-end;
   gap: 0.25rem;
   color: var(--board-coral);
-  font: 700 0.7rem/1 "Barlow Condensed SemiBold", sans-serif;
+  font: 700 0.85rem/1 "Barlow Condensed SemiBold", sans-serif;
   letter-spacing: 0.04em;
   text-align: right;
   text-transform: uppercase;
   white-space: nowrap;
 }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__breakdown-value small { font: inherit; }
-body.public-event-shell.public-ui-pass1 .tile-context-sidebar__breakdown-value .public-ui-state { font-size: 0.8rem; }
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar__breakdown-value .public-ui-state { font-size: 0.95rem; }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__status--complete { color: var(--board-sage); }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__eligible .tile-context-sidebar__section-header {
   gap: 0.5rem;
   margin-bottom: 0.35rem;
 }
-body.public-event-shell.public-ui-pass1 .tile-context-sidebar__eligible .tile-context-sidebar__section-header .public-ui-section-heading { font-size: 0.9rem; }
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar__eligible .tile-context-sidebar__section-header .public-ui-section-heading { font-size: 1.08rem; }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-disclosure {
   margin: 0;
   border: 0;
@@ -4160,7 +4162,7 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-disclosure >
   color: var(--board-ink);
   border: 0;
   cursor: pointer;
-  font: 700 0.85rem/1 "Barlow Condensed SemiBold", sans-serif;
+  font: 700 1.02rem/1 "Barlow Condensed SemiBold", sans-serif;
   list-style: none;
   text-transform: uppercase;
 }
@@ -4170,7 +4172,7 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-meta {
   align-items: center;
   gap: 0.35rem;
   color: var(--board-muted);
-  font: 600 0.65rem/1 "Barlow Condensed SemiBold", sans-serif;
+  font: 600 0.85rem/1 "Barlow Condensed SemiBold", sans-serif;
   white-space: nowrap;
 }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-meta svg {
@@ -4187,13 +4189,13 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-row {
   padding: 0.5rem 0;
   color: var(--board-ink);
   border-top: 1px solid var(--board-rule);
-  font: 400 0.68rem/1.2 "Geist Public UI", system-ui, sans-serif;
+  font: 400 0.85rem/1.2 "Geist Public UI", system-ui, sans-serif;
   line-height: 1.15;
 }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-row:first-child { border-top: 0; }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-row strong { font: inherit; }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-row span,
-body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-row small { color: var(--board-muted); text-align: right; white-space: nowrap; }
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-row small { color: var(--board-muted); font-size: inherit; text-align: right; white-space: nowrap; }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-summary-label--open { display: none; }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-disclosure--overflow[open] .tile-context-sidebar__drop-summary-label--closed { display: none; }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-disclosure--overflow[open] .tile-context-sidebar__drop-summary-label--open { display: inline; }
@@ -4215,10 +4217,10 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence .public-
 }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-row {
   display: grid;
-  grid-template-columns: 3.5rem minmax(0, 1fr);
-  gap: 0.65rem;
+  grid-template-columns: 4rem minmax(0, 1fr);
+  gap: 0.7rem;
   align-items: center;
-  min-height: 4.2rem;
+  min-height: 4.7rem;
   aspect-ratio: auto;
   padding: 0.55rem 0;
   color: var(--board-ink);
@@ -4232,8 +4234,8 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-row:firs
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-row img,
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-mark {
   display: grid;
-  width: 3.5rem;
-  height: 3.5rem;
+  width: 4rem;
+  height: 4rem;
   place-items: center;
   margin: 0;
   object-fit: cover;
@@ -4241,7 +4243,7 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-mark {
   border: 1px solid var(--board-rule);
 }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-row img { border: 0; }
-body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-mark { color: var(--board-sage); font-size: 1.15rem; }
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-mark { color: var(--board-sage); font-size: 1.35rem; }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-copy,
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-row > span:not(.public-ui-state) {
   position: static;
@@ -4254,18 +4256,19 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-row > sp
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-copy strong {
   overflow: hidden;
   color: var(--board-ink);
-  font: 800 0.85rem/1 "Barlow Condensed ExtraBold", sans-serif;
+  font: 800 1.02rem/1 "Barlow Condensed ExtraBold", sans-serif;
   text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
 }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-copy small {
-  overflow: hidden;
   color: var(--board-muted);
-  font-size: 0.72rem;
+  font-size: 0.88rem;
   line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
 }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__empty {
   display: grid;
@@ -4277,10 +4280,10 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__empty {
 }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__empty strong {
   color: var(--board-ink);
-  font: 800 0.9rem/1 "Barlow Condensed ExtraBold", sans-serif;
+  font: 800 1.06rem/1 "Barlow Condensed ExtraBold", sans-serif;
   text-transform: uppercase;
 }
-body.public-event-shell.public-ui-pass1 .tile-context-sidebar__empty-support { font-size: 0.68rem; }
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar__empty-support { font-size: 0.85rem; }
 
 @media (max-width: 1200px) {
   body.public-event-shell.public-ui-pass1 .public-board-masthead__art { display: none; }
@@ -4954,6 +4957,6 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar .tile-kc-section .
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar .tile-kc-section .team-contributor-list > li { grid-template-columns: minmax(2.5rem, max-content) minmax(0, 1fr) max-content; }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar .tile-kc-section .tile-kc-negative { color: var(--board-coral); }
 body.public-event-shell.public-ui-pass1 .tile-kc-section .tile-kc-metric-heading { margin-top: 0.7rem; }
-body.public-event-shell.public-ui-pass1 .tile-kc-section .tile-kc-status { margin: 0 0 0.6rem; font-size: 0.65rem; }
-body.public-event-shell.public-ui-pass1 .tile-kc-section .tile-kc-stale-notice { margin: 0 0 0.4rem; color: var(--board-muted); font: 400 0.65rem/1.3 "Geist Public UI", system-ui, sans-serif; }
-body.public-event-shell.public-ui-pass1 .tile-kc-player-status { grid-column: 1 / -1; color: var(--board-muted); font: 400 0.6rem/1.2 "Geist Public UI", system-ui, sans-serif; }
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar .tile-kc-section .tile-kc-status.team-rail-supporting { margin: 0 0 0.6rem; font-size: 1.1rem; }
+body.public-event-shell.public-ui-pass1 .tile-kc-section .tile-kc-stale-notice { margin: 0 0 0.4rem; color: var(--board-muted); font: 400 0.85rem/1.3 "Geist Public UI", system-ui, sans-serif; }
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar .tile-kc-player-status { grid-column: 1 / -1; color: var(--board-muted); font: 400 0.85rem/1.2 "Geist Public UI", system-ui, sans-serif; }
