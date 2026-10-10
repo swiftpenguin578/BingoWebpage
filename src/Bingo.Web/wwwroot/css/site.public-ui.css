@@ -1912,7 +1912,9 @@ body.public-ui-page-canvas .landing-shell-playing__button { display: inline-flex
 .landing-shell-playing__button svg { flex: 0 0 auto; width: 0.9rem; height: 0.9rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
 .landing-shell-playing__panel { position: absolute; z-index: 30; top: calc(100% + 0.35rem); right: 0; display: none; width: min(16rem, calc(100vw - 2rem)); box-sizing: border-box; padding: 0.5rem 0.75rem 0.65rem; color: var(--landing-text-primary); background: var(--landing-canvas); border: 1px solid var(--landing-rule); box-shadow: 0 1rem 2rem rgba(17, 21, 40, 0.2); }
 .landing-shell-playing__menu > .landing-shell-playing__panel:not([hidden]) { display: grid; }
-body.public-ui-page-canvas .landing-shell-playing__panel > .public-ui-section-heading { padding: 0.15rem 0.2rem 0.45rem; color: var(--landing-text-primary); font: 600 0.95rem/1.1 "Barlow Condensed SemiBold", sans-serif; letter-spacing: 0.06em; text-transform: uppercase; }
+/* One "Switch account" heading for every public page (event shell and canvas pages alike): same colour, font and underline. */
+html body.public-ui-page-canvas .landing-shell-playing__panel > .public-ui-section-heading { padding: 0.15rem 0.2rem 0.45rem; color: var(--landing-text-primary); font: 800 0.95rem/1.1 "Barlow Condensed ExtraBold", "Arial Narrow", sans-serif; letter-spacing: 0.01em; text-transform: uppercase; border-bottom: 1px solid #D8D5CC; }
+html[data-public-theme="dark"] body.public-ui-page-canvas .landing-shell-playing__panel > .public-ui-section-heading { border-bottom-color: #4B494B; }
 .landing-shell-playing__form { margin: 0; }
 .landing-shell-playing__option { width: 100%; padding: 0.55rem 0.2rem; overflow-wrap: anywhere; color: var(--landing-text-primary); text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--landing-rule); cursor: pointer; font: 500 0.95rem/1.2 "Geist Public UI", system-ui, sans-serif; letter-spacing: 0; }
 .landing-shell-playing__option:is(:hover, :focus-visible) { background: color-mix(in srgb, var(--landing-content-accent) 7%, var(--landing-canvas)); }
