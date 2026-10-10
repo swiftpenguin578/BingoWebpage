@@ -16,7 +16,6 @@ namespace Bingo.Web.Pages.Events;
 
 public sealed class TeamBoardModel(
     IPublicBoardService boards,
-    IParticipantLiveService live,
     ITeamFocusService focus,
     IEventCompetitionActivityProjection? activity = null,
     IEvidenceAuthority? evidenceAuthority = null,
@@ -27,7 +26,6 @@ public sealed class TeamBoardModel(
     public PublicTeamBoard? Previous { get; private set; }
     public PublicTeamBoard? Next { get; private set; }
     public PublicTileDetails? SelectedTile { get; private set; }
-    public ParticipantLiveContext? ParticipantContext { get; private set; }
     public bool CanOpenSubmissionWorkspace { get; private set; }
     public bool CanOpenCaptainWorkspace { get; private set; }
     public bool CanSubmit { get; private set; }
@@ -36,7 +34,7 @@ public sealed class TeamBoardModel(
     public EventCompetitionActivityProjection Activity { get; private set; } = null!;
     public EventCompetitionTeamActivity? TeamActivity { get; private set; }
 
-    public async Task<IActionResult> OnGetAsync(string slug, string teamSlug, string? tileRoute, Guid? participantId, CancellationToken cancellationToken, bool inspectFocus = false)
+    public async Task<IActionResult> OnGetAsync(string slug, string teamSlug, string? tileRoute, CancellationToken cancellationToken, bool inspectFocus = false)
     {
         if (!TryParseTileRoute(tileRoute, out var tileId)) return NotFound();
         var board = await boards.GetEventBoardAsync(slug, cancellationToken);
@@ -57,7 +55,6 @@ public sealed class TeamBoardModel(
             SelectedTile = await boards.GetTileAsync(slug, teamSlug, selectedTileId, cancellationToken);
             if (SelectedTile is null) return NotFound();
         }
-        if (!await LoadLiveContextAsync(participantId, cancellationToken)) return Forbid();
         if (User.GetAccountId() is { } actorAccountId && evidenceAuthority is not null)
         {
             try
@@ -97,20 +94,6 @@ public sealed class TeamBoardModel(
             && await CanSubmitAsync(accountId, board.EventId, team.TeamId, cancellationToken);
         var sequenceNumber = team.Tiles.ToList().FindIndex(value => value.TileId == tile.TileId) + 1;
         return Partial("_TileSidebar", new TileSidebarView(tile, canSubmit, board.EventId, team.TeamId, sequenceNumber));
-    }
-
-    private async Task<bool> LoadLiveContextAsync(Guid? participantId, CancellationToken cancellationToken)
-    {
-        var accountId = User.GetAccountId();
-        if (accountId is not { } viewerAccountId) return participantId is null;
-        var contexts = await live.GetTeamContextsAsync(Board.EventId, Team.TeamId, viewerAccountId, cancellationToken);
-        if (participantId is { } selected)
-        {
-            ParticipantContext = contexts.SingleOrDefault(context => context.ParticipantId == selected);
-            return ParticipantContext is not null;
-        }
-        ParticipantContext = contexts.Count > 0 ? contexts[0] : null;
-        return true;
     }
 
     private async Task<bool> CanSubmitAsync(Guid accountId, Guid eventId, Guid teamId, CancellationToken cancellationToken)

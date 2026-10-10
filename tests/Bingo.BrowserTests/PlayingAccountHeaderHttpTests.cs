@@ -81,6 +81,38 @@ public sealed class PlayingAccountHeaderHttpTests(BrowserTestApplicationFactory 
         Assert.DoesNotContain("data-playing-account", await waiting.GetStringAsync("/HowTo"));
     }
 
+    [Theory]
+    [InlineData("//evil.example/x")]
+    [InlineData("/\\evil.example/x")]
+    [InlineData("%2F%2Fevil.example/x")]
+    [InlineData("https://evil.example/x")]
+    [InlineData("javascript:alert(1)")]
+    public async Task UnsafeReturnUrlsFallBackToTheHomePage(string returnUrl)
+    {
+        var seed = await SeedAsync(secondAccount: true, live: true);
+        using var player = await SignInAsync(seed.Username);
+        var page = WebUtility.HtmlDecode(await player.GetStringAsync("/HowTo"));
+        var response = await PostSwitchAsync(player, page, seed, seed.FirstId, seed.SecondId, returnUrl);
+        Assert.Equal("/", response.Headers.Location?.OriginalString);
+    }
+
+    [Fact]
+    public async Task SwitchWithoutAnAntiforgeryTokenIsRefusedAndWritesNothing()
+    {
+        var seed = await SeedAsync(secondAccount: true, live: true);
+        using var player = await SignInAsync(seed.Username);
+        var response = await player.PostAsync("/playing-account/switch", new FormUrlEncodedContent(new Dictionary<string, string>
+        {
+            ["EventId"] = seed.EventId.ToString(),
+            ["ParticipantId"] = seed.ParticipantId.ToString(),
+            ["ExpectedCurrentCharacterId"] = seed.FirstId.ToString(),
+            ["NextCharacterId"] = seed.SecondId.ToString(),
+            ["returnUrl"] = "/HowTo"
+        }));
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        Assert.Equal(1, await SwapCountAsync(seed.ParticipantId));
+    }
+
     private sealed record Seed(string Username, Guid ParticipantId, Guid EventId, Guid FirstId, string FirstName, Guid SecondId, string SecondName);
 
     private async Task<string> SeedAccountAsync()

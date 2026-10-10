@@ -981,7 +981,6 @@
   <data name="Stop inspecting" xml:space="preserve"><value>Stop inspektion</value></data>
   <data name="Submission history" xml:space="preserve"><value>Indsendelseshistorik</value></data>
   <data name="Swap next minute" xml:space="preserve"><value>Skift næste minut</value></data>
-  <data name="Switch" xml:space="preserve"><value>Skift</value></data>
   <data name="Team focus and submission status" xml:space="preserve"><value>Holdfokus og indsendelsesstatus</value></data>
   <data name="Team history" xml:space="preserve"><value>Holdhistorik</value></data>
   <data name="Team progress" xml:space="preserve"><value>Holdets fremgang</value></data>
@@ -6223,4 +6222,13 @@
   <data name="Playing as {0}" xml:space="preserve"><value>Spiller som {0}</value></data>
   <data name="Switch account" xml:space="preserve"><value>Skift konto</value></data>
   <data name="You're now playing as {0}." xml:space="preserve"><value>Du spiller nu som {0}.</value></data>
+  <data name="You are not allowed to change this participant's active account." xml:space="preserve"><value>Du må ikke ændre denne deltagers aktive konto.</value></data>
+  <data name="Account swaps are available only while the event is live." xml:space="preserve"><value>Kontoskift er kun tilgængelige, mens eventet er live.</value></data>
+  <data name="Only confirmed participants can swap accounts." xml:space="preserve"><value>Kun bekræftede deltagere kan skifte konto.</value></data>
+  <data name="Choose one of this participant's current Playing accounts." xml:space="preserve"><value>Vælg en af deltagerens nuværende Playing-konti.</value></data>
+  <data name="This participant has no active Playing account yet." xml:space="preserve"><value>Deltageren har endnu ingen aktiv Playing-konto.</value></data>
+  <data name="The active account changed. Reload the participant context and try again." xml:space="preserve"><value>Den aktive konto er ændret. Genindlæs siden, og prøv igen.</value></data>
+  <data name="Choose a different Playing account." xml:space="preserve"><value>Vælg en anden Playing-konto.</value></data>
+  <data name="The participant changed while the swap was being saved. Reload and try again." xml:space="preserve"><value>Deltageren blev ændret, mens skiftet blev gemt. Genindlæs, og prøv igen.</value></data>
+  <data name="Another account change was saved first. Reload and try again." xml:space="preserve"><value>Et andet kontoskift blev gemt først. Genindlæs, og prøv igen.</value></data>
 </root>

@@ -61,8 +61,12 @@ public static class EventParticipantActiveCharacterQueries
                              where assignment.EventId == eventId && assignment.EventParticipantId == participantId && participant.EventId == eventId &&
                                    assignment.EventRole == EventCharacterRole.Playing && assignment.ReleasedAt == null
                              select assignment.OsrsCharacterId).ToListAsync(cancellationToken);
-        return playing.Count == 1 ? playing[0] : null;
+        return UnswitchedCreditedCharacterId(false, playing);
     }
+
+    /// <summary>The account credited when no switch transition is active: only a participant with no switch rows and exactly one Playing assignment.</summary>
+    public static Guid? UnswitchedCreditedCharacterId(bool hasSwapRows, IReadOnlyList<Guid> playingCharacterIds) =>
+        !hasSwapRows && playingCharacterIds.Count == 1 ? playingCharacterIds[0] : null;
 }
 
 public sealed class ActiveEventCharacter
