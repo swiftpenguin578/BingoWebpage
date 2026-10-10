@@ -1,6 +1,9 @@
+/* The board keeps the team board's 37rem (592px at the public 16px root) minimum so tiles stay as legible as there; narrow windows scroll the preview body sideways. */
+:where([data-page-family="board"]).bd-pv{max-width:100%}
+:where([data-page-family="board"]) .bd-pv-body{min-width:0}
 /* Board preview: the team board's not-started tile look (site.public-ui.css, body.public-ui-pass1 rules), copied under the preview only; the team board is unchanged. */
 @font-face{font-family:"Barlow Condensed ExtraBold";src:url("/fonts/public/BarlowCondensed-ExtraBold.woff2") format("woff2"),url("/fonts/public/BarlowCondensed-ExtraBold.ttf") format("truetype");font-style:normal;font-weight:800;font-display:swap}
-:where([data-page-family="board"]) .bd-pv-board{--board-surface:#FFFCF4;--board-ink:#111528;--board-rule:#B7B7B2;--board-canvas:#FFF9EC;display:grid;grid-template-columns:repeat(var(--bd-pv-cols),minmax(0,1fr));gap:0.6rem;width:min(100%,40rem,calc((100vh - 190px)*var(--bd-pv-cols)/var(--bd-pv-rows)));margin-inline:auto;padding:0.9rem;background:var(--board-canvas);color:var(--board-ink)}
+:where([data-page-family="board"]) .bd-pv-board{--board-surface:#FFFCF4;--board-ink:#111528;--board-rule:#B7B7B2;--board-canvas:#FFF9EC;display:grid;grid-template-columns:repeat(var(--bd-pv-cols),minmax(0,1fr));gap:0.6rem;width:min(100%,40rem,calc((100vh - 190px)*var(--bd-pv-cols)/var(--bd-pv-rows)));margin-inline:auto;padding:0.9rem;box-sizing:border-box;min-width:calc(592px + 1.8rem);background:var(--board-canvas);color:var(--board-ink)}
 :where([data-page-family="board"]):is(.theme-dark *) .bd-pv-board{--board-surface:#1F1E21;--board-ink:#F4EEDF;--board-rule:#4B494B;--board-canvas:#1B1A1D}
 :where([data-page-family="board"]) .bd-pv-board .bd-pv-empty{aspect-ratio:1;border:1px dashed var(--board-rule);min-width:0}
 :where([data-page-family="board"]) .bd-pv-board .public-ui-team-board-tile{position:relative;display:block;aspect-ratio:1;min-width:0;overflow:hidden;padding:0;margin:0;container-type:inline-size;isolation:isolate;color:var(--board-ink);background:var(--board-surface);border:1px solid var(--board-rule);border-radius:0;box-shadow:none;cursor:default}

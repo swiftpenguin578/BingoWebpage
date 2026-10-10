@@ -24,13 +24,13 @@ public sealed class BoardPreviewBossArtTests
 
         var art = BoardModel.BuildBossArtByTile(new Dictionary<Guid, IReadOnlyList<BoardRequirementSnapshot>> { [tile] = [requirement] }, ids, bosses)[tile];
 
-        // Callisto/Artio and both Chambers variants collapse to one image each (priority boss wins); the fifth family is cut.
+        // Callisto/Artio and both Chambers variants collapse to one image each (priority boss wins). Order is priority, then boss name:
+        // Callisto, Chambers of Xeric, Nex, Vorkath; Zulrah is the fifth and is cut.
         Assert.Equal(4, art.Count);
         Assert.All(art, url => Assert.StartsWith(OsrsWikiImageCache.EndpointPath + "?source=", url));
-        string[] expectedOrder = ["Callisto.png", "Vorkath.png", "CoX.png", "Zulrah.png"];
-        var decoded = art.Select(Uri.UnescapeDataString).ToArray();
-        Assert.True(Enumerable.Range(0, 4).All(index => decoded.Any(url => url.EndsWith(expectedOrder[index], StringComparison.Ordinal))));
-        Assert.DoesNotContain(decoded, url => url.EndsWith("Artio.png", StringComparison.Ordinal) || url.EndsWith("CoXCM.png", StringComparison.Ordinal));
+        string[] expectedOrder = ["Callisto.png", "CoX.png", "Nex.png", "Vorkath.png"];
+        for (var index = 0; index < expectedOrder.Length; index++)
+            Assert.EndsWith(expectedOrder[index], Uri.UnescapeDataString(art[index]), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -43,5 +43,17 @@ public sealed class BoardPreviewBossArtTests
         var result = BoardModel.BuildBossArtByTile(new Dictionary<Guid, IReadOnlyList<BoardRequirementSnapshot>> { [plain] = [plainRequirement], [shared] = [first, second] }, ids, [boss]);
         Assert.Empty(result[plain]);
         Assert.Single(result[shared]);
+    }
+
+    [Fact]
+    public void ImagesFollowRequirementPositionNotInputOrder()
+    {
+        var tile = Guid.NewGuid();
+        var second = Requirement(tile, 1); var first = Requirement(tile, 0);
+        var vorkath = Boss("Vorkath", "Vorkath.png"); var zulrah = Boss("Zulrah", "Zulrah.png");
+        var ids = new Dictionary<Guid, List<Guid>> { [first.Id] = [zulrah.BossId], [second.Id] = [vorkath.BossId] };
+        var art = BoardModel.BuildBossArtByTile(new Dictionary<Guid, IReadOnlyList<BoardRequirementSnapshot>> { [tile] = [second, first] }, ids, [vorkath, zulrah])[tile];
+        Assert.EndsWith("Zulrah.png", Uri.UnescapeDataString(art[0]), StringComparison.Ordinal);
+        Assert.EndsWith("Vorkath.png", Uri.UnescapeDataString(art[1]), StringComparison.Ordinal);
     }
 }

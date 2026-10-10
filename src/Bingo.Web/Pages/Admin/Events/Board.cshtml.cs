@@ -36,6 +36,8 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
 {
     public IReadOnlyList<BoardValidationIssue> ValidationIssues { get; private set; } = [];
     /// <summary>Boss artwork per tile, as the team board shows it for a tile without its own image (up to four, one per boss family).</summary>
+    public bool FrozenPublicArt { get; private set; }
+    public IReadOnlyDictionary<Guid, string> PublicTileImages { get; private set; } = new Dictionary<Guid, string>();
     public IReadOnlyDictionary<Guid, IReadOnlyList<string>> BossArtByTile { get; private set; } = new Dictionary<Guid, IReadOnlyList<string>>();
     public sealed record BossArtworkSource(Guid BossId, string Name, string ImageUrl);
 
@@ -47,15 +49,10 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
         IReadOnlyCollection<BossArtworkSource> bosses)
     {
         var bossById = bosses.ToDictionary(value => value.BossId);
-        List<string> ForRequirement(Guid requirementId) => (bossIdsByRequirement.GetValueOrDefault(requirementId) ?? [])
-            .Distinct().Where(bossById.ContainsKey).Select(id => bossById[id])
-            .Select(value => new { value.Name, ImageUrl = Bingo.Application.Catalogue.OsrsWikiImageUrl.Normalize(value.ImageUrl) })
-            .Where(value => !string.IsNullOrWhiteSpace(value.ImageUrl))
-            .GroupBy(value => Bingo.Application.Catalogue.BossArtworkFamily.Key(value.Name), StringComparer.OrdinalIgnoreCase)
-            .Select(family => family.OrderBy(value => Bingo.Application.Catalogue.BossArtworkFamily.Priority(value.Name)).ThenBy(value => value.Name).First().ImageUrl!)
-            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        return requirementsByTile.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<string>)pair.Value
-            .SelectMany(requirement => ForRequirement(requirement.Id)).Distinct(StringComparer.OrdinalIgnoreCase).Take(4)
+        IEnumerable<Bingo.Application.Catalogue.BossArtworkSelection.Candidate> Candidates(Guid requirementId) => (bossIdsByRequirement.GetValueOrDefault(requirementId) ?? [])
+            .Distinct().Where(bossById.ContainsKey).Select(id => new Bingo.Application.Catalogue.BossArtworkSelection.Candidate(bossById[id].Name, bossById[id].ImageUrl));
+        return requirementsByTile.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<string>)Bingo.Application.Catalogue.BossArtworkSelection
+            .ForTile(pair.Value.OrderBy(requirement => requirement.Position).ThenBy(requirement => requirement.Id).Select(requirement => Candidates(requirement.Id)))
             .Select(url => Bingo.Web.Catalogue.OsrsWikiImageCache.PublicUrl(url)!).ToList());
     }
     public string EventName { get; private set; } = string.Empty;
@@ -1684,6 +1681,15 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
         var artworkBossIds = bossIdsByRequirement.Values.SelectMany(value => value).Distinct().ToList();
         var artworkBosses = artworkBossIds.Count == 0 ? [] : await db.BossActivities.AsNoTracking().Where(value => artworkBossIds.Contains(value.Id) && value.ImageUrl != null).Select(value => new BossArtworkSource(value.Id, value.Name, value.ImageUrl!)).ToListAsync(ct);
         BossArtByTile = BuildBossArtByTile(requirementsByTile, bossIdsByRequirement, artworkBosses);
+        // A published board's tile images are the frozen ones players load from the public image route; the preview uses that same URL.
+        FrozenPublicArt = !useLiveDerivation && board.State == BoardState.Published && bingoEvent.HiddenAt is null && bingoEvent.State is not (EventState.Cancelled or EventState.Discarded);
+        if (FrozenPublicArt)
+        {
+            var references = frozenTiles.Values.Where(value => !string.IsNullOrWhiteSpace(value.ArtworkReference)).ToDictionary(value => value.BoardTileId, value => value.ArtworkReference!);
+            var storedKeys = references.Count == 0 ? [] : await db.BoardTileImageAssets.AsNoTracking().Where(image => image.EventId == id && references.Values.Contains(image.StorageKey)).Select(image => new { image.BoardTileId, image.StorageKey }).ToListAsync(ct);
+            PublicTileImages = storedKeys.Where(image => references.TryGetValue(image.BoardTileId, out var key) && key == image.StorageKey)
+                .Select(image => image.BoardTileId).Distinct().ToDictionary(tileId => tileId, tileId => $"/Events/{Uri.EscapeDataString(bingoEvent.Slug)}/Board/Tiles/{tileId}/Image");
+        }
         Tiles = useLiveDerivation
             ? BuildStoredTiles(boardTilesForEditors, requirementsByTile, liveDropsByRequirement, board.Columns)
             : BuildFrozenTiles(boardTilesForEditors, frozenTiles, board.Columns);

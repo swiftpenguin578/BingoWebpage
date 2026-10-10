@@ -88,10 +88,12 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
       assert.equal(await page.locator('.bd-ed').count(), 0, 'clicking a tile opens nothing');
       assert.equal(await layer.count(), 1, 'preview stays open after a tile click');
       await page.screenshot({ path: path.join(shots, `${scenario.rows}x${scenario.cols}-${scenario.mode}-${dark ? 'dark' : 'light'}-${name}.png`) });
-      // Narrow window: the board still fits.
+      // Narrow window: like the team board, the board keeps its 37rem minimum (tiles stay legible) and the preview body scrolls sideways.
       await page.setViewportSize({ width: 390, height: 800 });
-      const narrow = await board.boundingBox();
-      assert.ok(narrow.x >= 0 && narrow.x + narrow.width <= 391, 'board fits a narrow window');
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const narrow = await board.evaluate(el => ({ width: el.getBoundingClientRect().width, tile: el.querySelector('[data-pv-tile]').getBoundingClientRect().width, scrolls: el.parentElement.scrollWidth > el.parentElement.clientWidth, body: el.parentElement.clientWidth, panel: document.querySelector('.bd-pv').getBoundingClientRect().width, vw: innerWidth, rem: parseFloat(getComputedStyle(document.documentElement).fontSize) }));
+      assert.ok(narrow.width >= 592 && narrow.scrolls, 'board keeps the team board minimum width and scrolls sideways ' + JSON.stringify(narrow));
+      assert.ok(narrow.tile >= (scenario.cols === 3 ? 160 : 95), 'narrow tiles stay as large as on the team board: ' + narrow.tile);
       await page.screenshot({ path: path.join(shots, `${scenario.rows}x${scenario.cols}-narrow-${dark ? 'dark' : 'light'}-${name}.png`) });
       await page.setViewportSize({ width: 1280, height: 860 });
       await page.keyboard.press('Escape');
