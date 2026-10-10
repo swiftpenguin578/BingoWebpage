@@ -13,6 +13,9 @@ public sealed partial class OsrsWikiImageCache
     private const string WikiHost = "oldschool.runescape.wiki";
     private const long MaximumBytes = 8 * 1024 * 1024;
     private const int MaximumConcurrentDownloads = 1;
+    // Misses waiting for the single paced download slot. At one start per 500 ms
+    // a full queue drains in about a minute; beyond it requests are refused at once.
+    public const int MaximumPendingDownloads = 128;
     private static readonly TimeSpan DownloadPacing = TimeSpan.FromMilliseconds(500);
     private static readonly TimeSpan DefaultFailureCooldown = TimeSpan.FromSeconds(30);
     private static readonly Dictionary<string, string> Extensions = new(StringComparer.OrdinalIgnoreCase)
@@ -29,6 +32,7 @@ public sealed partial class OsrsWikiImageCache
     private readonly TimeProvider time;
     private readonly ConcurrentDictionary<string, Lazy<Task<CachedWikiImage>>> downloads = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, Failure> failures = new(StringComparer.Ordinal);
+    private readonly Lock pendingSync = new();
     private readonly ImageDownloadState downloadState;
     // Production registers TimeProvider.System as one singleton, so all cache
     // instances share this one-download policy. Separate clocks keep tests
@@ -58,8 +62,8 @@ public sealed partial class OsrsWikiImageCache
     public static string? PublicUrl(string? source)
     {
         var normalized = OsrsWikiImageUrl.Normalize(source);
-        return TryGetWikiUri(normalized, out _)
-            ? QueryString.Create("source", normalized!).ToUriComponent().Insert(0, EndpointPath)
+        return TryGetWikiUri(normalized, out var canonical)
+            ? QueryString.Create("source", canonical.AbsoluteUri).ToUriComponent().Insert(0, EndpointPath)
             : normalized;
     }
 
@@ -70,8 +74,9 @@ public sealed partial class OsrsWikiImageCache
         if (!TryGetWikiUri(normalized, out var sourceUri))
             throw new InvalidOperationException("Only HTTPS images hosted by the OSRS Wiki can be cached.");
 
-        var key = CacheKey(normalized!);
-        var existing = FindExisting(key);
+        var canonical = sourceUri.AbsoluteUri;
+        var key = CacheKey(canonical);
+        var existing = FindExisting(key) ?? FindLegacy(normalized!, canonical);
         if (existing is not null)
         {
             failures.TryRemove(key, out _);
@@ -81,9 +86,7 @@ public sealed partial class OsrsWikiImageCache
         if (failures.TryGetValue(key, out var failure) && failure.RetryAt > time.GetUtcNow())
             throw failure.CreateException();
 
-        var sharedDownload = downloads.GetOrAdd(key, _ => new Lazy<Task<CachedWikiImage>>(
-            () => DownloadAndRememberAsync(key, normalized!, sourceUri),
-            LazyThreadSafetyMode.ExecutionAndPublication));
+        var sharedDownload = PendingDownload(key, canonical, sourceUri);
         var download = sharedDownload.Value;
         _ = download.ContinueWith(
             completed =>
@@ -100,8 +103,31 @@ public sealed partial class OsrsWikiImageCache
     public bool IsCached(string source)
     {
         var normalized = OsrsWikiImageUrl.Normalize(source);
-        return TryGetWikiUri(normalized, out _) && FindExisting(CacheKey(normalized!)) is not null;
+        return TryGetWikiUri(normalized, out var canonical)
+            && (FindExisting(CacheKey(canonical.AbsoluteUri)) ?? FindLegacy(normalized!, canonical.AbsoluteUri)) is not null;
     }
+
+    // Joins an in-flight download or queues a new one, refusing new keys once the
+    // pending set is full so anonymous misses cannot build an unbounded backlog.
+    private Lazy<Task<CachedWikiImage>> PendingDownload(string key, string canonical, Uri sourceUri)
+    {
+        if (downloads.TryGetValue(key, out var existing)) return existing;
+        lock (pendingSync)
+        {
+            if (downloads.TryGetValue(key, out existing)) return existing;
+            if (downloads.Count >= MaximumPendingDownloads) throw new OsrsWikiImageQueueFullException();
+            var created = new Lazy<Task<CachedWikiImage>>(
+                () => DownloadAndRememberAsync(key, canonical, sourceUri),
+                LazyThreadSafetyMode.ExecutionAndPublication);
+            downloads[key] = created;
+            return created;
+        }
+    }
+
+    // Files cached before canonical keys were keyed by the uncanonicalized source
+    // (for example with a "?123" suffix). Read them; never download under that key.
+    private CachedWikiImage? FindLegacy(string normalized, string canonical) =>
+        string.Equals(normalized, canonical, StringComparison.Ordinal) ? null : FindExisting(CacheKey(normalized));
 
     private CachedWikiImage? FindExisting(string key)
     {
@@ -282,21 +308,34 @@ public sealed partial class OsrsWikiImageCache
     private static string CacheKey(string source) =>
         Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(source)));
 
+    // Accepts only HTTPS OSRS Wiki image files and returns their canonical form:
+    // lower-case host, default port, no user info, query or fragment, and each
+    // /images/ path segment re-escaped so encoding variants share one cache key.
     private static bool TryGetWikiUri(string? source, out Uri uri)
     {
-        if (Uri.TryCreate(source, UriKind.Absolute, out var parsed) &&
-            string.Equals(parsed.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) &&
-            string.Equals(parsed.Host, WikiHost, StringComparison.OrdinalIgnoreCase) &&
-            (parsed.AbsolutePath.StartsWith("/images/", StringComparison.OrdinalIgnoreCase) ||
-             parsed.AbsolutePath.StartsWith("/Special:Redirect/file/", StringComparison.OrdinalIgnoreCase) ||
-             parsed.AbsolutePath.StartsWith("/w/Special:Redirect/file/", StringComparison.OrdinalIgnoreCase)))
-        {
-            uri = parsed;
-            return true;
-        }
-
         uri = null!;
-        return false;
+        if (!Uri.TryCreate(source, UriKind.Absolute, out var parsed) ||
+            !string.Equals(parsed.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(parsed.Host, WikiHost, StringComparison.OrdinalIgnoreCase) ||
+            !parsed.IsDefaultPort ||
+            parsed.UserInfo.Length > 0)
+            return false;
+
+        string path;
+        if (parsed.AbsolutePath.StartsWith("/images/", StringComparison.OrdinalIgnoreCase))
+        {
+            var segments = parsed.AbsolutePath.Split('/').Select(segment => Uri.EscapeDataString(Uri.UnescapeDataString(segment))).ToArray();
+            if (segments.Length < 3 || segments[^1].Length == 0) return false;
+            path = string.Join('/', segments);
+        }
+        else if (parsed.AbsolutePath.StartsWith("/Special:Redirect/file/", StringComparison.OrdinalIgnoreCase) ||
+                 parsed.AbsolutePath.StartsWith("/w/Special:Redirect/file/", StringComparison.OrdinalIgnoreCase))
+            path = parsed.AbsolutePath;
+        else
+            return false;
+
+        uri = new Uri($"https://{WikiHost}{path}", UriKind.Absolute);
+        return true;
     }
 
     [LoggerMessage(1, LogLevel.Warning, "Could not cache OSRS Wiki image {Source}")]
@@ -318,3 +357,6 @@ public sealed partial class OsrsWikiImageCache
 }
 
 public sealed record CachedWikiImage(string Path, string MediaType);
+
+/// <summary>The pending-download limit is reached; the caller should answer without queueing.</summary>
+public sealed class OsrsWikiImageQueueFullException() : Exception("Too many OSRS Wiki images are waiting to be cached.");

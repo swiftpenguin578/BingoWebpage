@@ -676,6 +676,14 @@ app.MapGet(OsrsWikiImageCache.EndpointPath, async (string source, HttpContext co
     {
         return Results.BadRequest();
     }
+    catch (OsrsWikiImageQueueFullException)
+    {
+        // Answer at once instead of queueing more anonymous misses; clients show
+        // their no-art state as for any failed image.
+        context.Response.Headers.RetryAfter = "30";
+        context.Response.Headers.CacheControl = "no-store";
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    }
     catch (HttpRequestException)
     {
         // A provider failure stays local so rendered clients can enter their no-art state.
