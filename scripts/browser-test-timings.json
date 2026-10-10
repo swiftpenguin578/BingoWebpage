@@ -129,9 +129,7 @@
     "signup-refusals.browser.js [default]": 19,
     "signup-session-drafts.browser.js [default]": 18,
     "signup-settings-parity.browser.js [default]": 18,
-    "stats-production.test.js [default]": 20,
     "team-board-overlay.test.js [default]": 1,
-    "test:parity": 116,
     "transient-toast.test.js [default]": 1
   }
 }

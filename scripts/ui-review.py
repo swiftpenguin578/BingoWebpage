@@ -216,11 +216,10 @@ def main():
         stop_processes()
         if info and info["State"]["Running"]:
             run("docker", "stop", NAME)
-        print("Owned UI review app, reference server and PostgreSQL stopped.")
+        print("Owned UI review app and PostgreSQL stopped.")
         return
     stop_processes()
     port_free(5310)
-    port_free(5320)
     STATE.mkdir(parents=True, exist_ok=True)
     if info is None:
         port_free(PORT)
@@ -275,15 +274,12 @@ def main():
     try:
         records.append(start_process(["dotnet", str(ROOT / f"src/Bingo.Web/bin/{CONFIGURATION}/net10.0/Bingo.Web.dll")], env, STATE / "app.log"))
         PROCESSES.write_text(json.dumps(records))
-        records.append(start_process([sys.executable, "-m", "http.server", "5320", "--bind", "127.0.0.1", "--directory", str(ROOT / "docs/references/admin-ui")], env, STATE / "references.log"))
-        PROCESSES.write_text(json.dumps(records))
         ready("http://127.0.0.1:5310/Account/Login", STATE / "app.log")
-        ready("http://127.0.0.1:5320/", STATE / "references.log")
         capture_ready_processes(records)
     except Exception:
         stop_processes()
         raise
-    print("App: http://127.0.0.1:5310 | References: http://127.0.0.1:5320")
+    print("App: http://127.0.0.1:5310")
     catalogue = STATE / "scenarios.md"
     if catalogue.exists():
         print(catalogue.read_text())
