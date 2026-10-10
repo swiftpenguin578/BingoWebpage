@@ -197,11 +197,19 @@ restored database backup and never applies the snapshot during deployment.
   Cached binaries are operational data and are not committed.
 
 Price rules worth knowing: requests go to `https://prices.runescape.wiki/api/v1/osrs/`
-(bulk `/mapping` and `/1h`) with the DKLegacy contact User-Agent; two-sided hourly
+(bulk `/mapping` and `/1h`) with the exact header
+`DKLegacy - Community bingo item pricing - Discord: @chrisschmidt`; two-sided hourly
 prices use the midpoint rounded away from zero; a missing price is not evidence of
 untradeability; manual and untradeable values survive refresh; and a candidate
 outside 0.5x to 2x of a trusted positive value (or a change between zero and
 positive) is rejected and flagged. Event-start prices freeze once per event.
+Successful provider responses are cached for five minutes and failures for 30
+seconds; Wiki requests time out after 15 seconds and retry a transient 502, 503 or
+504 once. WOM validation reads boss keys from
+`/v2/efficiency/rates?type=main&metric=ehb` through the shared request limiter and
+never imports efficiency rates. The default WOM User-Agent identifies DKLegacy with
+the operator's Discord contact; overrides must keep a valid contact-bearing
+structured User-Agent.
 
 ## Test
 

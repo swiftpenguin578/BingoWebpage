@@ -20,7 +20,7 @@ Authority is resolved in this order:
 2. `UI_PAGE_MATRIX.md` owns page families, canonical references, protected
    composition, exceptions, current approval/status, and next gate.
 3. `UI_SYSTEM.md` owns global primitives and rules shared by those pages.
-4. `DELIVERY_PLAN.md` owns documentation/UI pass order and release gates.
+4. `DELIVERY_PLAN.md` owns delivery procedures and release gates.
 Selector presence and page-local CSS cannot override these active sources. A canonical reference is
 not the same thing as approval in the current regression.
 

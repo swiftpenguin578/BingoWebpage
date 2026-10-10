@@ -391,7 +391,7 @@ fields lock and Save becomes Check again; departure offers Check again by defaul
 or Leave anyway, warning that the change may already have happened. A lost session
 retains and displays the unsaved input before sign-in; route refusal is never
 success. The uncertain server response renders the posted draft from pre-write
-context without a database read and tolerates rollback failure. 
+context without a database read and tolerates rollback failure.
 
 **Acceptance outcome:** Concurrent edits retain untouched current values, same-field
 conflicts require an explicit current resolution, and stale schedule consequences
@@ -477,6 +477,8 @@ never recreated or replaced by a same-label field. Preserve the submitted reques
 and baseline while its result is uncertain. Existing post-first-response optional
 normalization and explicit AU07 outcome remain authoritative. These operations
 create event form fields only. Ordinary forms gain request identity transport.
+
+**Co-captain request and signup code.** The standard optional text question "Co-captain (optional)" exists on every event form (created with new events and backfilled on existing forms; an Admin can disable and re-enable it on Signup setup). It is a single-line input placed right after Captain volunteer. The signup form shows it only while Captain volunteer is checked; unchecking hides and disables it so its value is not submitted, and a value typed earlier returns if the box is checked again before submit. The server enforces the same rule: when volunteering is false it ignores supplied co-captain text and stores an empty answer, clearing any saved one. The answer is not shown on public signup tables or to non-owner, non-Admin draft projections, and it does not assign any role. A signup code is at most 100 characters (longer input is rejected before any change); enabling it with a blank field keeps the existing stored hash, enabling it with no stored hash requires input, and disabling clears it. Decimal EHB input on Signup and My accounts round-trips identically in English and Danish pages (the invariant culture is used for the stored and posted value).
 
 ### 4.6 `ADM-RULES-01` and `PUB-HOWTO-01` — Permanent guidance
 
@@ -1029,6 +1031,8 @@ distinct where specified.
 **Failure and recovery:** Stale/invalid filters return safe empty or validation feedback without weakening authorization. Reading detail never mutates the entry or resolves a business action.
 
 **Acceptance outcome:** Admins can trace actor/time/before-after history without turning the audit view into an editable or secret-bearing data export.
+
+**Contract details (AU16, AU21, AU22).** Audit: the history of a hidden event stays readable under ordinary Audit permission (never beyond it), a single entry can be read by authorised Admins, an exact action filter is distinct from an action-area (prefix) filter, calendar dates are timezone-aware (including daylight-saving days), and immutable redaction and secret exclusion are preserved. Catalogue: adding a drop adopts a shared item only by explicit choice; creation retries cannot duplicate or crash, every intended field and the shared-image scope are explicit, and item provenance, price invalidation and dependency-safe deletion are preserved. Accounts: a password-reset response is transient and bound to its target account, so a late response can never show one account's secret in another's view; no secret is stored in history, logs, storage or readback, and loss of permission or sessions is handled.
 
 ### 9.4 `ADM-ACCOUNT-OVERVIEW-01` — Account overview
 
