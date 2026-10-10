@@ -33,12 +33,7 @@
             : T["Wise Old Man is temporarily unavailable."],
         _ => T["Activity cache is current."]
     };
-    var publicBossArtwork = new[]
-    {
-        "/images/public-board/bosses/chambers-of-xeric.png",
-        "/images/public-board/bosses/vorkath.png",
-        "/images/public-board/bosses/araxxor.png"
-    };
+    // Reworked artworks for Chambers of Xeric, Vorkath and Araxxor are kept in wwwroot/images/public-board/bosses for later use; every tile uses its default artwork.
     ViewData["BodyClass"] = "public-event-shell public-ui-pass1 public-team-board-route";
 }
 @if (Model.Focus is { IsVisible: true })
@@ -180,27 +175,13 @@
                 var progressPercent = tile.Target == 0 ? 0 : Math.Min(100, tile.Approved * 100 / tile.Target);
                 var stateLabel = tile.Complete ? T["Complete"] : tile.Approved > 0 ? T["In progress"] : T["Not started"];
                 var tileStateClass = tile.Complete ? "public-ui-team-board-tile--complete" : tile.Approved > 0 ? "public-ui-team-board-tile--in-progress" : "public-ui-team-board-tile--not-started";
-                var isBossTile = tile.BossImageUrls.Count > 0;
-                var bossArtwork = isBossTile
-                    ? tile.Name switch
-                    {
-                        var name when string.Equals(name, "Chambers of Xeric", StringComparison.OrdinalIgnoreCase) => publicBossArtwork[0],
-                        var name when string.Equals(name, "Vorkath", StringComparison.OrdinalIgnoreCase) => publicBossArtwork[1],
-                        var name when string.Equals(name, "Araxxor", StringComparison.OrdinalIgnoreCase) => publicBossArtwork[2],
-                        _ => null
-                    }
-                    : null;
                 var focusPresentation = TeamBoardModel.GetFocusPresentation(tile, Model.Focus?.Markers ?? []);
                 <a class="public-tile public-ui-nested-container public-ui-team-board-tile @tileStateClass @(focusPresentation.Tile ? "public-ui-team-board-tile--focused" : null) @(focusPresentation.Row ? "public-ui-team-board-tile--row-focused" : null) @(focusPresentation.Column ? "public-ui-team-board-tile--column-focused" : null)"
                    aria-label="@T["{0}. {1}, {2} of {3}.", tile.Name, stateLabel, tile.Approved, tile.Target]"
                    asp-page="/Events/TeamBoard" asp-route-slug="@Model.Board.EventSlug" asp-route-teamSlug="@Model.Team.TeamSlug" asp-route-tileRoute="@($"Tiles/{tile.TileId}")">
                     <span class="public-ui-team-board-tile__number" aria-hidden="true">@((tile.Row * Model.Board.Columns + tile.Column + 1).ToString("00"))</span>
                     <span class="public-ui-team-board-tile__art" aria-hidden="true">
-                        @if (bossArtwork is not null)
-                        {
-                            <img class="public-ui-team-board-tile__art-image" src="@bossArtwork" alt="" loading="lazy" />
-                        }
-                        else if (!string.IsNullOrWhiteSpace(tile.ImageUrl))
+                        @if (!string.IsNullOrWhiteSpace(tile.ImageUrl))
                         {
                             <img class="public-ui-team-board-tile__art-image" src="@WikiImages.GetPublicUrl(tile.ImageUrl)" alt="" loading="lazy" />
                         }

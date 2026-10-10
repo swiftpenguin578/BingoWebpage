@@ -68,7 +68,7 @@ module.exports = [
   { family: 'audit', postSaveCount: 0, fixedSummary: { words: [/^Times in Copenhagen time \(UTC[+-]\d{2}:\d{2}\)$/], wordsDa: [/^Tider i københavnsk tid \(UTC[+-]\d{2}:\d{2}\)$/] },
     url: () => '/Admin/Audit', fixture: 'community-audit', source: 'Pages/Admin/Audit/Index.cshtml', module: 'admin-audit.js',
     textRows: { 'au-sk-main':['control',1.45], 'au-sk-sub':['small',1.45] }, first: '.card', blocks: { first: '.card', toolbar: '.toolbar', table: '.au-tbl' },
-    style: ['.au-tbl','--table-min','880px'], titleDa: 'Audit',
+    style: ['.au-tbl','--table-min','940px'], titleDa: 'Audit',
     update: { control: '#actor-input', action: 'input', value: 'ReviewOwner' } },
   { family: 'signupsetup', postSaveCount: 1, url: f => '/Admin/Events/SignupSetup/' + f.events['autumn-bingo-2027'], fixture: 'autumn-bingo-2027',
     source: 'Pages/Admin/Events/SignupSetup.cshtml', module: 'admin-signup-setup.js',

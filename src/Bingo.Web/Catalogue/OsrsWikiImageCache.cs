@@ -53,7 +53,9 @@ public sealed partial class OsrsWikiImageCache
         Directory.CreateDirectory(root);
     }
 
-    public string? GetPublicUrl(string? source)
+    public string? GetPublicUrl(string? source) => PublicUrl(source);
+
+    public static string? PublicUrl(string? source)
     {
         var normalized = OsrsWikiImageUrl.Normalize(source);
         return TryGetWikiUri(normalized, out _)

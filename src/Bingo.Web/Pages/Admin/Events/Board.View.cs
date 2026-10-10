@@ -71,8 +71,9 @@ public sealed partial class BoardModel
                 manual,
                 parts = editor?.Requirements.Count ?? 0,
                 locked = ProtectedTileIds.Contains(tile.Id),
-                // Working artwork is refused on terminal events (D17 keeps that route rule).
-                art = TerminalReadOnly ? null : editor?.ImageUrl,
+                // Working artwork is refused on terminal events (D17 keeps that route rule); a published board shows the frozen image players see.
+                art = FrozenPublicArt ? PublicTileImages.GetValueOrDefault(tile.Id) : TerminalReadOnly ? null : editor?.ImageUrl,
+                bossArt = BossArtByTile.GetValueOrDefault(tile.Id) ?? [],
                 changed = board.PublishedCorrectionInProgress && different.Contains(tile.Id)
             };
         }).ToList();
