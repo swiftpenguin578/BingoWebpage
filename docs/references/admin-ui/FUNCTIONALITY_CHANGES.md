@@ -11,7 +11,7 @@ Reference composition acceptance is owned by `UI_PAGE_MATRIX.md`: all 15 named
 pages are visually accepted. Source-review defects remain open; visual acceptance
 does not approve false outcomes, lost drafts or missing authorization safeguards.
 The reference freeze and AU01–AU10 evidence are committed at `1e8d457`;
-[durable evidence](reviews/2026-10-02/README.md) records the exact identities.
+durable evidence records the exact identities.
 
 | Area | Application state | Remaining work |
 | --- | --- | --- |
@@ -94,17 +94,17 @@ This wording clarification changes neither approved behavior nor delivery status
 | Shared UI | Accepted Admin light/dark styling includes filled primaries and horizontal table scrolling; reuse shared tokens/components/behavior and add consistent new primitives only when needed. Protect dirty drafts, pending targets, stale conflicts, focus and route/history recovery. Reduced motion/no-animation closing must work. A brief spinner minimum is presentation-only; it neither delays backend work nor shows success before confirmation, and repeat submission stays blocked | References frozen at canvas 42 / artifact `1790965722-e7ad`; final search-X centering included. Production integration pending; no exact spinner duration newly approved |
 
 Detailed review anchors: [Participants F01–F06](#approved-application-changes),
-[Dashboard](../../../PRODUCT_REQUIREMENTS.md#community-dashboard--approved-backend-scope-2026-10-01),
-[Events directory](../../../PRODUCT_REQUIREMENTS.md#events-directory-data--approved-au04-2026-10-02),
-[lifecycle/signup/results/WOM decisions](../../../PRODUCT_REQUIREMENTS.md#approved-admin-simplification-target--2026-09-26),
-[Identity/Schedule contracts](../../../FUNCTIONAL_CONTRACTS.md#43-adm-event-02--identity-and-public-description),
-[Teams](../../../PRODUCT_REQUIREMENTS.md#171-version-one-draft-flow),
-[Board/ranking tickets](../../../DELIVERY_PLAN.md#au11--tile-local-ehb-override-for-every-objective-type),
-[Catalogue](../../../PRODUCT_REQUIREMENTS.md#9-boss-activity-item-and-drop-catalogue),
-[ownership](../../../PRODUCT_REQUIREMENTS.md#54-super-admin),
-[Audit](../../../FUNCTIONAL_CONTRACTS.md#93-adm-audit-01--immutable-audit-history),
-[Luck](../../../PRODUCT_REQUIREMENTS.md#luck-percentile-and-kc-comparison--approved-implementation-2026-10-01)
-and [shared UI](../../../UI_SYSTEM.md#approved-admin-reference-direction--2-october-2026).
+[Dashboard](../../PRODUCT_REQUIREMENTS.md#community-dashboard--approved-backend-scope-2026-10-01),
+[Events directory](../../PRODUCT_REQUIREMENTS.md#events-directory-data--approved-au04-2026-10-02),
+[lifecycle/signup/results/WOM decisions](../../PRODUCT_REQUIREMENTS.md#approved-admin-simplification-target--2026-09-26),
+[Identity/Schedule contracts](../../FUNCTIONAL_CONTRACTS.md#43-adm-event-02--identity-and-public-description),
+[Teams](../../PRODUCT_REQUIREMENTS.md#171-version-one-draft-flow),
+[Board/ranking tickets](../../PRODUCT_REQUIREMENTS.md#10-tile-model),
+[Catalogue](../../PRODUCT_REQUIREMENTS.md#9-boss-activity-item-and-drop-catalogue),
+[ownership](../../PRODUCT_REQUIREMENTS.md#54-super-admin),
+[Audit](../../FUNCTIONAL_CONTRACTS.md#93-adm-audit-01--immutable-audit-history),
+[Luck](../../PRODUCT_REQUIREMENTS.md#luck-percentile-and-kc-comparison)
+and [shared UI](../../UI_SYSTEM.md#approved-admin-reference-direction--2-october-2026).
 
 ### Decisions resolved — 2026-10-02
 
@@ -121,7 +121,7 @@ and [shared UI](../../../UI_SYSTEM.md#approved-admin-reference-direction--2-octo
   preserve evidence history, reasons and separate approval. No saved-account or
   roster rewrite is implied.
 
-AU17a/AU17/AU19/AU14 are backend implemented, remediation round 2 done, Claude recheck pending, binding pending; original evidence under `reviews/2026-10-04/au-b5/`, remediation evidence under `reviews/2026-10-04/au-b5-remediation/` and round 2 under `reviews/2026-10-05/au-b5-remediation-2/`. AU20/AU12 status
+AU17a/AU17/AU19/AU14 are backend implemented, remediation round 2 done, Claude recheck pending, binding pending; original evidence under review evidence (removed; see Git history), remediation evidence under review evidence (removed; see Git history) and round 2 under review evidence (removed; see Git history). AU20/AU12 status
 follows their owning delivery records. Conflict overwrite/re-send and
 scheduled-slot relaxation for WOM remain deferred, not implicitly approved.
 
@@ -278,10 +278,10 @@ the report's earlier all-read-only recommendation; ownership confirmation is set
 | Accounts A7 | Normalized search and strict query/page handling | RC11 + AU22 binding |
 | Accounts A8 | Header Transfer locks background scrolling | RC11 |
 
-Reports: [Board/Audit](reviews/2026-10-02/remaining-seven/board-audit-review.md),
-[Review/Final Review](reviews/2026-10-02/remaining-seven/review-finalreview-review.md),
-[WOM/Catalogue](reviews/2026-10-02/remaining-seven/wom-catalogue-review.md),
-[Accounts](reviews/2026-10-02/remaining-seven/accounts-review.md).
+Reports: Board/Audit,
+Review/Final Review,
+WOM/Catalogue,
+Accounts.
 Their small route-integer, actual-action-label, range-validation and calendar-date
 notes travel with the same page correction, not extra tickets. Mock provider/font
 failures and deliberately simulated URLs are not missing production features.
@@ -318,10 +318,10 @@ Luck, Participants and Dashboard backend work is complete, not queued to rebuild
 | AU18 | Final Review: per-version final WOM outcome and reopen/version history | Approved, narrowed; assigned B2; no current-event readiness row; publish/reopen refusal unchanged |
 | AU19 | Board: tile-targeted approval issues, preview comparison and uncertain-action readback | B5 backend implemented, remediation round 2 done, Claude recheck pending, binding pending; original backend `992f6b1`; PostgreSQL 62/62; external Claude recheck and RC05 binding pending |
 | AU20 | WOM: exact configured-window matching, structured outcomes and replacement/recovery | Approved; queued, not dispatched; transport and scope details remain in the ticket |
-| AU21 | Catalogue: explicit shared-item adoption, rename and recovery scope | B4 remediation implemented in `c4c52a4`; external Claude review pending; structured confirmation and Add-drop image coverage in `reviews/2026-10-04/au-b4/remediation/` |
+| AU21 | Catalogue: explicit shared-item adoption, rename and recovery scope | B4 remediation implemented in `c4c52a4`; external Claude review pending; structured confirmation and Add-drop image coverage in review evidence (removed; see Git history) |
 | AU22 | Accounts: accurate projections and target-bound reset response | Approved defect fix; queued, not dispatched |
-| AU23 | Catalogue: ordinary rate-text N x rolls, SuperAdmin roll groups, final-chance input | B4 backend implemented in `00dfd40`; remediation evidence covers the full catalogue path and remains pending external Claude review; new groups default; retire Only after input; preserve columns/history and production groups; no parent-EHB ticket; evidence `reviews/2026-10-04/au-b4/remediation/` |
-| CAT-1 | Catalogue: informational team size moves from drops to activity | B4 remediation implemented in `c2d2220`; external Claude review pending; integer >=1/default 1 editable by every Admin, HTTP binding rejects invalid input, migration precheck and snapshots preserved; evidence `reviews/2026-10-04/au-b4/remediation/` |
+| AU23 | Catalogue: ordinary rate-text N x rolls, SuperAdmin roll groups, final-chance input | B4 backend implemented in `00dfd40`; remediation evidence covers the full catalogue path and remains pending external Claude review; new groups default; retire Only after input; preserve columns/history and production groups; no parent-EHB ticket; evidence review evidence (removed; see Git history) |
+| CAT-1 | Catalogue: informational team size moves from drops to activity | B4 remediation implemented in `c2d2220`; external Claude review pending; integer >=1/default 1 editable by every Admin, HTTP binding rejects invalid input, migration precheck and snapshots preserved; evidence review evidence (removed; see Git history) |
 | AU24 | Accounts: typed ownership transfer destination confirmation | Approved; queued, not dispatched |
 
 The 4 October Catalogue decision is implemented in the B4 backend for AU23/CAT-1;
@@ -362,29 +362,29 @@ Earlier prompts asking Claude to implement these same fixes are superseded.
 - **RC01 — Overview:** correct the permanent-link destination explanation; evidence-code
   failure/stale/uncertain simulations; hidden-event failed-load Restore visibility;
   manual versus scheduled signup-opening eligibility; cancelled Stats README fact.
-  Evidence: `docs/references/admin-ui/reviews/2026-10-02/earlier-pages/overview-status-extract.md`.
+  Evidence: review evidence (removed; see Git history).
 - **RC02 — Signup setup:** compare complete intended question values and do not resolve an
   uncertain add by label alone; retain each uncertain settings request's baseline
   across other-card saves; protect dirty inline account renames; say waiting-list
   order rather than signup order. Evidence and exact source lines:
-  `docs/references/admin-ui/reviews/2026-10-02/earlier-pages/signup-setup/review.md` (20 captured files
+  review evidence (removed; see Git history) (20 captured files
   stable before/after; no runtime/browser/tests or edits by reviewer).
 - **RC03 — Schedule/shared picker:** preserve unchanged exact UTC instants and
   compare full submitted schedule on uncertain readback; retain legacy overdue
   enabled-opening exception; use shared DST-safe conversion for Overview picker
   consumers; keep picker footer reachable in short viewports. Add read-failure
   recovery to readback mock and fix related README claims. Evidence:
-  `docs/references/admin-ui/reviews/2026-10-02/earlier-pages/schedule/review.md`.
+  review evidence (removed; see Git history).
 - **RC04 — Teams / Draft:** immutable pick identity for Undo/readback; no false
   attribution or safe-retry claims for picks/redraws; match team identity and all
   intended saved fields including inclusion; report actual WOM synchronization
   status separately from locally republished rosters. Queued, not fixed. Evidence:
-  `docs/references/admin-ui/reviews/2026-10-02/earlier-pages/teams-identity/teams-review.md`.
+  review evidence (removed; see Git history).
   The reported forced 250ms feedback minimum is a pending presentation choice;
   preserve it for now given the user's preference for brief visible feedback.
 - **Identity:** named correction SOURCE PASS, 2 October. Twelve files stable;
   reviewer did not execute browser/runtime checks. AU08/AU09 are technically complete; UI binding remains
-  pending. Evidence: `docs/references/admin-ui/reviews/2026-10-02/earlier-pages/teams-identity/identity-review.md`.
+  pending. Evidence: review evidence (removed; see Git history).
 
 No concrete shared-token/component regression was found in the Overview or Signup
 setup source reviews. Their tests remain Claude-reported, not independent execution.
@@ -648,7 +648,7 @@ independent review; the planner did not rerun checks or independently review sou
 - Same-character EHB release-and-append history, deterministic microsecond-precise
   WOM provenance and repeat behavior: 1/1,
   ehb-correction-proof-parsed.log/.trx/.meta.
-- Durable evidence folder: `reviews/2026-10-03/doc-ticket-cleanup/h1/participants/`.
+- Durable evidence folder: review evidence (removed; see Git history).
   Runs overlap; do not sum them as unique coverage or claim a full-suite pass.
 - Earlier scoped formatter command/exit 0 was verified from
   format-scoped-final-exact.meta. The later changed-test formatter exit 0 remains
@@ -700,7 +700,7 @@ supersedes that implementation status; D10 UI integration remains pending.
 D01–D09 are implemented, executed at affected boundaries and independently
 source-reviewed PASS. D10 remains deferred UI integration/manual acceptance.
 Recorded completion/evidence is retained in
-`reviews/2026-10-03/doc-ticket-cleanup/h1/dashboard/dashboard-review-final.meta`
+review evidence (removed; see Git history)
 and the adjacent Dashboard metadata; CURRENT_STATUS owns the active assignment.
 The final focused PostgreSQL run was 8/9 with an initialization-only failure,
 followed by that isolated proof passing 1/1; affected original login proof 1/1
@@ -719,7 +719,7 @@ people sets and aggregates; B2 adds official recap/EHB/history, current-event ca
 and community figures. Account-population/card/chronology decisions are approved; Live inclusion was
 revised and approved 1 October. Bounded readiness precedes implementation. No implementation, executable
 Dashboard proof, independent implementation review or UI integration is claimed.
-The implementation checkout's CURRENT_STATUS and MANUAL_TEST_CHECKLIST carry
+The implementation checkout carried
 ownership and deferred journeys. D01–D09 must later retain completed evidence;
 D10 remains deferred UI integration, not a backend-completion claim.
 
@@ -960,8 +960,8 @@ unchanged. Eight focused PostgreSQL cases pass after a fixture-only correction.
 Independent review found the missing backend attention filter; its named correction
 passes its focused PostgreSQL case 1/1; same-reviewer recheck subsequently passed as recorded under AU04. Layout/filter
 URL/navigation binding and manual acceptance remain deferred. Original evidence:
-`reviews/2026-10-02/au04/implementation/handoff.md`; corrected evidence:
-`reviews/2026-10-02/au04/implementation/remediation-handoff.md`.
+review evidence (removed; see Git history); corrected evidence:
+review evidence (removed; see Git history).
 
 ### E03 — Create event modal and journey
 
@@ -1157,14 +1157,14 @@ Components and README synchronized with canvas version 31; no production edits o
 Git publication reported. All validation, route, theme, keyboard, reduced-motion
 and regression checks are Claude-reported, not independently verified. Independent source comparison is complete: **CHANGES REQUIRED**, R1–R4.
 All 15 captured files remained stable; no runtime/tests/browser checks were run.
-User supplies visual acceptance. Evidence: `docs/references/admin-ui/reviews/2026-10-02/earlier-pages/schedule/review.md`.
+User supplies visual acceptance. Evidence: review evidence (removed; see Git history).
 
 Track implementation and remaining items separately:
 - AU10 technically complete (2 October): unchanged exact/repeated-hour UTC preservation,
   lifecycle field errors and authorized immutable full-state readback. Focused PG/HTTP
   12/12, affected Live 1/1, controlled transport, Release build and scoped checks PASS;
   fresh independent Astra/high review PASS, no findings. Evidence
-  `reviews/2026-10-02/au10/review/review.md`. Full UI binding remains deferred.
+  review evidence (removed; see Git history). Full UI binding remains deferred.
 - RC03: four named reference fixes and qualified README/read-failure recovery; queued.
   Shared reuse otherwise confirmed; no whole-site extraction or redesign needed.
 - UI integration: shared picker with unchanged event-local posting semantics and
