@@ -13,6 +13,9 @@
 :where([data-page-family="audit"]) .au-tbl .cell-main{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 :where([data-page-family="audit"]) .au-tbl .name-btn{max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 :where([data-page-family="audit"]) .au-tbl .cell-tags{flex-wrap:nowrap;min-width:0}
+:where([data-page-family="audit"]) .au-tbl .actor{display:flex;max-width:100%}
+:where([data-page-family="audit"]) .au-tbl .actor .cell-main{min-width:0}
+:where([data-page-family="audit"]) .au-tbl .cell-tags .pill{display:block;flex:0 1 auto;min-width:0;max-width:100%;line-height:20px;overflow:hidden;text-overflow:ellipsis}
 :where([data-page-family="audit"]) .au-date{font-variant-numeric:tabular-nums}
 :where([data-page-family="audit"]) .au-tbl .c-name .cell-sub{font-variant-numeric:tabular-nums}
 :where([data-page-family="audit"]) .au-muted{color:var(--dk-text-3)}
