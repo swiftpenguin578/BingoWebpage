@@ -1,7 +1,0 @@
-# Round4 item4 — Keep editing focus
-
-Authority: brief60 item4 /59 N3. The shared shell records the last focused editable control inside the active page. A rejected navigation/language guard restores it only if still connected and no underlying layer remains. Ordinary layer opener behavior stays unchanged. A mobile drawer is closed first so the page field is no longer inert; this is necessary to make Keep editing usable. No dirty draft is discarded and no language POST is made on refusal.
-
-Supplemental exact assertions in shell and language browser tests prove the edited field is active after Keep editing. Both files passed in Chromium and WebKit (4 executions). Existing history/pending/disposal/one-POST/timing assertions remain. Real Kestrel mobile preferences check passed4/0 across both engines: edited field focused, main not inert, no POST/draft loss, then reopening the drawer and proceeding retains the original language and breakpoint assertions. The new focus assertion waits for the existing dialog exit animation; its initial immediate sampling happened while the dialog was still closing. No production timing or assertion tolerance changed. The old test kept the drawer open before a second attempt; it now explicitly reopens it under the item4 field-focus requirement.
-
-Latest whole BrowserTests gate150/0/0 remains applicable; final batch reruns it after remaining .NET/resource edits. No independent review/manual Safari acceptance claimed. Diff clean.

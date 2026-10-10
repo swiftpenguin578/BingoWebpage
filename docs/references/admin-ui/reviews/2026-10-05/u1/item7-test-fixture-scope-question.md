@@ -1,7 +1,0 @@
-# Item7 test-fixture scope question — before binding
-
-Brief43 item7.1 explicitly allows timezone browser test lines63–115 (success target) and EventCreationUiTests markup changes under A10. Existing `identity-timezone-confirmation.browser.js` fixtures load only legacy admin-confirmation/editor-guard/event-identity scripts. `identity-readback.transport.js` loads the classic identity script/global createIdentityReadbackSession and asserts the AU09 two-outcome protocol without a version. New shell page modules expose init/dispose; new Identity must use AdminFetch and A14's versioned three-outcome flow.
-
-Today: those tests exercise the legacy runtime and protocol. Required binding: shared shell/module/fetch runtime and A14 outcomes. Options: authorize narrow fixture/loader adaptation with precise old→new→A10/A14 evidence and all safety assertions retained; or retain obsolete legacy adapter paths solely to satisfy the old fixtures. Recommendation is the former. A14 is explicit behavior authority, but the brief's named timezone line scope makes broader fixture edits uncertain. Reported to dispatcher before any item7 edit. No failed new production behavior is being asserted here; this is a prospective test-scope boundary, not an executed baseline failure.
-
-Preserve pending/reason/stale/newline/immutable-tuple/no-retry protections and recorded expectations. Item7 production and test edits have not started. Resume same implementer after dispatcher/planner resolves the scope.
