@@ -3722,6 +3722,10 @@ body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile:is(.public-ui
 body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile--complete::after { content: none; display: none; }
 body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile:focus-visible { outline: 2px solid var(--board-blue) !important; outline-offset: 3px; }
 body.public-event-shell.public-ui-pass1 .public-team-switcher { width: min(100%, 58.4rem); margin-top: 1.4rem; margin-inline: 0; border-top: 1px solid var(--board-blue); }
+/* Side by side (sidebar left of the board): the row spans from the sidebar's left edge to the board's right edge, i.e. sidebar column (max 22rem) + gap + board size. */
+@media (min-width: 901px) {
+  body.public-event-shell.public-ui-pass1 .public-team-switcher { width: min(100%, calc(22rem + 1.4rem + max(40rem, 100dvh - 3rem))); }
+}
 body.public-event-shell.public-ui-pass1 .public-team-switcher a { color: var(--board-blue); background: transparent; border: 0; border-radius: 0; }
 body.public-event-shell.public-ui-pass1 .public-team-switcher strong { color: var(--board-ink); }
 
