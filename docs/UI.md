@@ -436,7 +436,7 @@ Every page has an explicit state in this table; a page or state without an appro
 | Admin WOM competitions on Overview (creation preview/validation, automatic link, management feedback, errors/recovery, before-Live deletion, event/team name inputs) | awaiting manual review | 2026-09-22 |
 | Admin Catalogue | approved | 2026-10-07 |
 | Admin Accounts | approved | 2026-10-07 |
-| Admin Audit (readable sentences, Affected account column and drawer row, search while typing, 940 px table) | awaiting the user's visual acceptance | — |
+| Admin Audit (readable sentences, one-name Affected account column and drawer row, search while typing without a filter chip, 940 px table) | approved | 2026-10-10 |
 | Discord Settings/link/login feedback and Admin Last login | manually accepted | 2026-09-14 |
 | Public UI catalogue `/Admin/PublicUi` | historical specimen, direct link only, not an approval target | — |
 | UI reference gallery `/Admin/UiReferences` | retired; redirects to `/Admin` | 2026-10-08 |
