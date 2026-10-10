@@ -1902,7 +1902,7 @@ body.public-ui-page-canvas .landing-shell-account { display: inline-flex; min-he
 .landing-shell-sign-in { min-height: 2.5rem; border-bottom: 0; }
 .landing-shell-playing { min-width: 0; font: 600 1.05rem/1.1 "Barlow Condensed SemiBold", sans-serif; letter-spacing: 0.03em; }
 .landing-shell-playing--bar { display: flex; flex: 0 1000 auto; justify-content: flex-end; min-width: 4.5rem; max-width: clamp(8rem, 24vw, 21rem); margin-left: auto; margin-right: clamp(0.5rem, 1vw, 1.5rem); }
-.landing-shell-playing--bar + .landing-shell-actions { margin-left: 0; }
+@media (min-width: 761px) { .landing-shell-playing--bar + .landing-shell-actions { margin-left: 0; } }
 .landing-shell-playing--strip { display: none; justify-content: flex-end; padding: 0.3rem 1.5rem 0.45rem; border-top: 1px solid rgba(255, 255, 255, 0.16); }
 @media (max-width: 760px) { .landing-shell-playing--bar { display: none; } .landing-shell-playing--strip { display: flex; } }
 .landing-shell-playing__label, .landing-shell-playing__button { min-width: 0; overflow: hidden; color: #fff; text-overflow: ellipsis; white-space: nowrap; }
@@ -1912,6 +1912,7 @@ body.public-ui-page-canvas .landing-shell-playing__button { display: inline-flex
 .landing-shell-playing__button svg { flex: 0 0 auto; width: 0.9rem; height: 0.9rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
 .landing-shell-playing__panel { position: absolute; z-index: 30; top: calc(100% + 0.35rem); right: 0; display: none; width: min(16rem, calc(100vw - 2rem)); box-sizing: border-box; padding: 0.5rem 0.75rem 0.65rem; color: var(--landing-text-primary); background: var(--landing-canvas); border: 1px solid var(--landing-rule); box-shadow: 0 1rem 2rem rgba(17, 21, 40, 0.2); }
 .landing-shell-playing__menu > .landing-shell-playing__panel:not([hidden]) { display: grid; }
+body.public-ui-page-canvas .landing-shell-playing__panel > .public-ui-section-heading { padding: 0.15rem 0.2rem 0.45rem; color: var(--landing-text-primary); font: 600 0.95rem/1.1 "Barlow Condensed SemiBold", sans-serif; letter-spacing: 0.06em; text-transform: uppercase; }
 .landing-shell-playing__form { margin: 0; }
 .landing-shell-playing__option { width: 100%; padding: 0.55rem 0.2rem; overflow-wrap: anywhere; color: var(--landing-text-primary); text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--landing-rule); cursor: pointer; font: 500 0.95rem/1.2 "Geist Public UI", system-ui, sans-serif; letter-spacing: 0; }
 .landing-shell-playing__option:is(:hover, :focus-visible) { background: color-mix(in srgb, var(--landing-content-accent) 7%, var(--landing-canvas)); }
