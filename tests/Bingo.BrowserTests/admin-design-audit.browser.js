@@ -33,6 +33,10 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     await page.waitForFunction(() => location.search === '' && !document.querySelector('.filter-chip') && !document.querySelector('[data-update-skeleton]') && document.querySelectorAll('[data-audit-row]').length > 5);
     assert.ok(await page.locator('[data-audit-row] .pill', { hasText: 'Automated' }).count() > 0, 'automated entries are marked');
     assert.ok(await page.locator('.actor.is-system', { hasText: 'System' }).count() > 0);
+    // Brief 147: the record line is a sentence and Affected account is a column ("—" when none).
+    assert.deepEqual(await page.locator('.au-tbl .th-row [role="columnheader"]').allInnerTexts(), ['When', 'Action', 'Event', 'Actor', 'Affected account', 'Recorded']);
+    assert.equal(await page.locator('[data-audit-row]').first().locator('[role="cell"]').count(), 6);
+    assert.ok(await page.locator('[data-audit-row] [role="cell"]:nth-child(5)', { hasText: '—' }).count() > 0, 'entries without an affected account show a dash');
     await page.locator('#actor-input').fill('@reviewowner');
     await page.locator('#actor-input').press('Enter');
     await page.waitForFunction(() => new URL(location.href).searchParams.get('actor') === 'reviewowner' && document.querySelector('.filter-chip') && !document.querySelector('[data-update-skeleton]'));

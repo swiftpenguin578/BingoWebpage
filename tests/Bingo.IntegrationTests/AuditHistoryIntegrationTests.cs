@@ -502,6 +502,9 @@ public sealed class AuditHistoryIntegrationTests(PostgreSqlTestFixture databaseF
         Assert.Null(removed.EventId);
         Assert.Equal("Names bingo", model.EventOf(removed)?.Name);
         Assert.Equal("Participant · Zezima", AuditPresenter.Present(model.Entries.Single(entry => entry.Action == "participant.payment_updated"), text, model.Names).Target);
+        // Item 2: the affected accounts come from the same batch.
+        Assert.Equal(new AuditAffectedAccount("lena", "Zezima", true), Assert.Single(AuditPresenter.Present(model.Entries.Single(entry => entry.Action == "participant.payment_updated"), text, model.Names).Affected!));
+        Assert.Empty(AuditPresenter.Present(model.Entries.Single(entry => entry.Action == "team.updated"), text, model.Names).Affected!);
 
         // The number of queries does not grow with the number of entries.
         var all = await db.AuditEntries.AsNoTracking().Where(entry => entry.ActorUsername == "names-admin").ToListAsync();

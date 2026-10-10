@@ -154,6 +154,33 @@ public sealed class AuditSentenceTests
             Assert.Equal(Regex.Count(format, @"\{\d\}"), Regex.Count(danish[format]!, @"\{\d\}"));
     }
 
+    // Brief 147 item 2: the affected website and/or playing account, derived from stored data.
+    [Fact]
+    public void AffectedAccountsAreDerivedFromStoredData()
+    {
+        static IReadOnlyList<AuditAffectedAccount> Affected(AuditEntry entry, AuditNames? names = null) => AuditPresenter.Present(entry, Text, names ?? Names()).Affected!;
+
+        // None: "—" on the page.
+        Assert.Empty(Affected(Entry("board.published", "board", Guid.NewGuid(), "Published", eventId: EventId)));
+        Assert.Empty(Affected(Entry("event.started", "event", EventId, eventId: EventId)));
+        // Both a website account (looked up now: current owner) and a playing account.
+        Assert.Equal(new AuditAffectedAccount("Lena", "Zezima", true), Assert.Single(Affected(Entry("participant.payment_updated", "participant", Participant, null, "{\"payment\":\"Unpaid\"}", "{\"payment\":\"Paid\"}", EventId))));
+        Assert.Equal(new AuditAffectedAccount("Lena", "Zezima", true), Assert.Single(Affected(Entry("team.member_removed", "membership", Membership, "Wrong team"))));
+        // Website account only.
+        Assert.Equal(new AuditAffectedAccount("Lena", null, false), Assert.Single(Affected(Entry("account.disabled", "account", Owner, "Spam"))));
+        // Playing account only (no owner), and the stored credited name on evidence.
+        Assert.Equal(new AuditAffectedAccount(null, "Lynx Titan", false), Assert.Single(Affected(Entry("participant.promoted", "participant", Other, null, "WaitingList", "Confirmed", EventId))));
+        Assert.Equal(new AuditAffectedAccount("Lena", "Zezima", true), Assert.Single(Affected(Entry("submission.rejected", "submission", Guid.NewGuid(), "Blurry", J(new { CreditedParticipantId = Participant, CreditedCharacterName = "Zezima" }), J(new { CreditedParticipantId = Participant, CreditedCharacterName = "Zezima" }), EventId))));
+        // Finalized roster entries store the owner and the published name: not "current".
+        Assert.Equal(new AuditAffectedAccount("Lena", "Zezima", false), Assert.Single(Affected(Entry("roster.finalized_added", "membership", Membership,
+            J(new { ownerAccountId = Owner }), J(new { participant = new { id = Participant, name = (string?)null } }), J(new { participant = new { id = Participant, name = "Zezima" }, teamId = Team, teamName = "Red Dragons" }), EventId))));
+        // Several accounts (A3: the column says "Multiple accounts", the drawer lists them).
+        var replaced = Affected(Entry("participant.live_replaced", "membership", Membership, null, J(new { departedParticipantId = Participant }), J(new { replacementParticipantId = Other, replacementName = "Lynx Titan" }), EventId));
+        Assert.Equal([new AuditAffectedAccount("Lena", "Zezima", true), new AuditAffectedAccount(null, "Lynx Titan", false)], replaced);
+        // Unknown records: the stored id instead of a name, never a failure.
+        Assert.Equal(new AuditAffectedAccount(Owner.ToString(), null, false), Assert.Single(Affected(Entry("account.disabled", "account", Owner, "Spam"), AuditNames.Empty)));
+    }
+
     private static string FindRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

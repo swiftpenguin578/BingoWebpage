@@ -49,6 +49,127 @@ internal sealed class AuditSentences
         }
     }
 
+    /// <summary>
+    /// Brief 147 item 2: the website account and/or playing (OSRS) account an entry concerns,
+    /// derived at display time from stored data. A participant's owner and character are looked up
+    /// now, so they are marked as current (A4); names stored in the entry are used as they are.
+    /// </summary>
+    public static IReadOnlyList<AuditAffectedAccount> Affected(AuditEntry entry, AuditNames names)
+    {
+        try { return new AuditSentences(entry, names, NoText.Instance).AffectedAccounts(); }
+        catch (Exception exception) when (exception is InvalidOperationException or FormatException or KeyNotFoundException or ArgumentException)
+        {
+            return [];
+        }
+    }
+
+    private List<AuditAffectedAccount> AffectedAccounts()
+    {
+        var result = new List<AuditAffectedAccount>();
+        void AddAccount(Guid? id, string? stored = null)
+        {
+            if (id is null && stored is null) return;
+            result.Add(new(id is { } key && names.Accounts.TryGetValue(key, out var name) ? name : stored ?? id!.Value.ToString(), null, false));
+        }
+        void AddParticipant(Guid? participantId, string? storedCharacter = null)
+        {
+            if (participantId is not { } key) return;
+            var known = names.Participants.GetValueOrDefault(key);
+            var website = known?.AccountId is { } owner ? names.Accounts.GetValueOrDefault(owner) ?? owner.ToString() : null;
+            var playing = storedCharacter ?? known?.Character ?? (known is null ? key.ToString() : null);
+            result.Add(new(website, playing, website is not null));
+        }
+        void AddMembership(Guid? membershipId)
+        {
+            if (membershipId is { } key && names.Memberships.TryGetValue(key, out var membership)) AddParticipant(membership.ParticipantId);
+        }
+
+        switch (entry.Action)
+        {
+            case var key when key.StartsWith("account.", StringComparison.Ordinal) || key == "logout":
+                AddAccount(target, target is null ? entry.TargetId : null);
+                break;
+            case "participant.primary_switched":
+                AddParticipant(target, Id(after, "primaryCharacterId") is { } primary && names.Characters.TryGetValue(primary, out var primaryName) ? primaryName : null);
+                break;
+            case "participant.event_account_added" or "participant.event_account_corrected":
+                AddParticipant(target, Id(after, "characterId") is { } added && names.Characters.TryGetValue(added, out var addedName) ? addedName : null);
+                break;
+            case "participant.event_account_removed":
+                AddParticipant(target, Id(before, "characterId") is { } removed && names.Characters.TryGetValue(removed, out var removedName) ? removedName : null);
+                break;
+            case "participant.prelive_replaced" or "participant.live_replaced":
+                AddParticipant(Id(before, "departedParticipantId"));
+                AddParticipant(Id(after, "replacementParticipantId"), Str(after, "replacementName"));
+                break;
+            case "participant.ownership_transferred":
+                AddAccount(Id(before, "accountId"));
+                AddAccount(Id(after, "accountId"), Str(after, "username"));
+                break;
+            case var key when key.StartsWith("participant.", StringComparison.Ordinal) && entry.TargetType == "participant":
+                AddParticipant(target);
+                break;
+            case "roster.finalized_added" or "roster.finalized_removed":
+                var ownerId = Id(details, "ownerAccountId");
+                var character = Str(after, "participant", "name") ?? Str(before, "participant", "name") ?? FirstPlaying(details)
+                    ?? (Id(after, "participant", "id") is { } rosterParticipant ? names.Participants.GetValueOrDefault(rosterParticipant)?.Character : null);
+                result.Add(new(ownerId is { } owner ? names.Accounts.GetValueOrDefault(owner) ?? owner.ToString() : null, character, false));
+                break;
+            case "team.member_added" when entry.TargetType == "team":
+                AddParticipant(Plain(entry.Details) is { Length: > 36 } addedText && Guid.TryParse(addedText[..36], out var addedParticipant) ? addedParticipant : null);
+                break;
+            case "team.member_added" or "team.member_removed" or "team.member_moved" or "team.membership_role_changed" or "team.role_roster_published"
+                or "roster.finalized_added.wom_sync" or "roster.finalized_removed.wom_sync":
+                AddMembership(target);
+                break;
+            case "draft.pick_recorded" or "draft.pick_undone":
+                AddParticipant(Id(after, "pick", "EventParticipantId"));
+                break;
+            case "draft.team_removed":
+                foreach (var ended in Ids(after, "EndedMembershipIds")) AddMembership(ended);
+                break;
+            case "team.inclusion_changed":
+                foreach (var participant in Ids(after, "AffectedParticipantIds")) AddParticipant(participant);
+                break;
+            case "event.signup_administration_updated":
+                foreach (var participant in Ids(details, "promotedParticipantIds")) AddParticipant(participant);
+                break;
+            case var key when key.StartsWith("submission.", StringComparison.Ordinal):
+                var credited = Id(after, "CreditedParticipantId") ?? Id(before, "CreditedParticipantId")
+                    ?? (target is { } submission && names.Submissions.TryGetValue(submission, out var known) ? known.ParticipantId : null);
+                if (credited is not null || Str(after, "CreditedCharacterName") is not null)
+                    AddParticipant(credited ?? Guid.Empty, Str(after, "CreditedCharacterName") ?? Str(before, "CreditedCharacterName")
+                        ?? (target is { } stored && names.Submissions.TryGetValue(stored, out var storedSubmission) ? storedSubmission.CharacterName : null));
+                break;
+        }
+        return result.Where(account => account.Website is not null || account.Playing is not null)
+            .DistinctBy(account => (account.Website, account.Playing)).ToList();
+    }
+
+    private static string? FirstPlaying(JsonElement? element)
+    {
+        foreach (var name in new[] { "participantBefore", "participantAfter" })
+            if (Path(element, [name, "activePlayingAssignments"]) is { ValueKind: JsonValueKind.Array } assignments)
+                foreach (var assignment in assignments.EnumerateArray())
+                    if (Str(assignment, "DisplayName") is { } display) return display;
+        return null;
+    }
+
+    private static IEnumerable<Guid> Ids(JsonElement? element, params string[] path)
+    {
+        if (Path(element, path) is not { ValueKind: JsonValueKind.Array } values) yield break;
+        foreach (var value in values.EnumerateArray())
+            if (value.ValueKind == JsonValueKind.String && Guid.TryParse(value.GetString(), out var id)) yield return id;
+    }
+
+    private sealed class NoText : IStringLocalizer<AuditResource>
+    {
+        public static readonly NoText Instance = new();
+        public LocalizedString this[string name] => new(name, name);
+        public LocalizedString this[string name, params object[] arguments] => new(name, name);
+        public IEnumerable<LocalizedString> GetAllStrings(bool includeParentCultures) => [];
+    }
+
     private string Actor => entry.ActorUsername;
 
     private string L(string format, params object?[] args) => text[format, args.Select(arg => arg ?? "—").ToArray()].Value;

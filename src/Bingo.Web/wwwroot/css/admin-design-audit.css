@@ -7,7 +7,7 @@
 :where([data-page-family="audit"]) .au-filters{flex:1;min-width:0}
 :where([data-page-family="audit"]) .au-filters .search{width:240px}
 :where([data-page-family="audit"]) .au-actor-err{margin:-4px 0 12px}
-:where([data-page-family="audit"]) .au-tbl{--table-cols:132px minmax(250px,2.2fr) minmax(150px,1fr) minmax(120px,.8fr) 150px;--table-min:880px}
+:where([data-page-family="audit"]) .au-tbl{--table-cols:132px minmax(250px,2.2fr) minmax(150px,1fr) minmax(120px,.8fr) minmax(150px,1fr) 150px;--table-min:1040px}
 :where([data-page-family="audit"]) .au-tbl .td{padding-top:11px;padding-bottom:11px}
 :where([data-page-family="audit"]) .au-tbl .row{cursor:pointer}
 :where([data-page-family="audit"]) .au-tbl .cell-main{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

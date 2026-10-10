@@ -896,4 +896,7 @@
   <data name="The price service is limiting requests." xml:space="preserve"><value>Pristjenesten begrænser forespørgsler.</value></data>
   <data name="The price service isn’t responding." xml:space="preserve"><value>Pristjenesten svarer ikke.</value></data>
   <data name="the Wise Old Man metric" xml:space="preserve"><value>Wise Old Man-metrikken</value></data>
+  <data name="Affected account" xml:space="preserve"><value>Berørt konto</value></data>
+  <data name="Multiple accounts" xml:space="preserve"><value>Flere konti</value></data>
+  <data name="current owner" xml:space="preserve"><value>nuværende ejer</value></data>
 </root>
