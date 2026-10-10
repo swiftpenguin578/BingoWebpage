@@ -782,6 +782,7 @@ a.name-btn{display:inline-block;max-width:100%}
 .check-item:first-child{border-top:0}
 .check-mark{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;border:1.5px solid var(--dk-border-strong);color:var(--dk-surface);margin-top:1px}
 .check-mark .ic{width:11px;height:11px;stroke-width:2.2}
+.check-item.is-blocked .check-mark .ic{width:12px;height:12px}
 .check-item.is-done .check-mark{background:var(--dk-accent);border-color:var(--dk-accent)}
 .check-label{font-size:var(--dk-fs-control);color:var(--dk-text)}
 .check-item.is-done .check-label{color:var(--dk-text-2)}

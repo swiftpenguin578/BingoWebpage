@@ -1,0 +1,8 @@
+{"engine":"webkit","theme":"light","label":"check-mark mark-alert (Final review + WOM checklists)","svg":"12px","svgLeft":31,"svgInHostDx":0,"markDotCentreOffsetPx":0,"markToDotGapPx":1.38,"inkTopToBottomPx":6.88}
+{"engine":"webkit","theme":"light","label":"warning (WOM banner, Final review notes)","svg":"16px","svgLeft":40,"svgInHostDx":-110,"markDotCentreOffsetPx":0,"markToDotGapPx":1.25,"inkTopToBottomPx":12}
+{"engine":"webkit","theme":"light","label":"error","svg":"16px","svgLeft":40,"svgInHostDx":-110,"markDotCentreOffsetPx":0,"markToDotGapPx":1.75,"inkTopToBottomPx":13.5}
+{"engine":"webkit","theme":"light","label":"uncertain","svg":"16px","svgLeft":40,"svgInHostDx":-110,"markDotCentreOffsetPx":0,"markToDotGapPx":1.75,"inkTopToBottomPx":13.5}
+{"engine":"webkit","theme":"dark","label":"check-mark mark-alert (Final review + WOM checklists)","svg":"12px","svgLeft":31,"svgInHostDx":0,"markDotCentreOffsetPx":0,"markToDotGapPx":1.38,"inkTopToBottomPx":6.88}
+{"engine":"webkit","theme":"dark","label":"warning (WOM banner, Final review notes)","svg":"16px","svgLeft":40,"svgInHostDx":-110,"markDotCentreOffsetPx":0,"markToDotGapPx":1.13,"inkTopToBottomPx":12}
+{"engine":"webkit","theme":"dark","label":"error","svg":"16px","svgLeft":40,"svgInHostDx":-110,"markDotCentreOffsetPx":0,"markToDotGapPx":1.75,"inkTopToBottomPx":13.5}
+{"engine":"webkit","theme":"dark","label":"uncertain","svg":"16px","svgLeft":40,"svgInHostDx":-110,"markDotCentreOffsetPx":0,"markToDotGapPx":1.75,"inkTopToBottomPx":13.5}

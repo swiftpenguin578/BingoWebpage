@@ -6,4 +6,20 @@ www.{$BINGO_DOMAIN} {
     encode zstd gzip
     respond /health/ready 404
     reverse_proxy web:8080
+
+    # Only Caddy's own proxy failures (upstream down, refused, timed out) reach
+    # handle_errors; responses the app itself sends (including its own 503) pass
+    # through unchanged.
+    handle_errors {
+        @upstream_down expression {err.status_code} in [502, 503, 504]
+        handle @upstream_down {
+            root * /srv/maintenance
+            rewrite * /maintenance.html
+            header Retry-After 60
+            header Cache-Control "no-store"
+            file_server {
+                status 503
+            }
+        }
+    }
 }

@@ -1,0 +1,7 @@
+{
+    auto_https off
+}
+:8080 {
+    respond /app503* "APP-RESPONSE 503" 503
+    respond "APP-RESPONSE 200" 200
+}
