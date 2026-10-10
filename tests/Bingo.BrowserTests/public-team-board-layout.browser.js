@@ -28,6 +28,32 @@ const measure=()=>{
   heading:size('.team-rail-heading','fontSize'),supporting:size('.team-rail-supporting','fontSize'),metric:size('.team-metric-value','fontSize'),
   contributor:size('.team-contributor-name','fontSize'),rank:size('.team-contributor-rank','fontSize')};
 };
+
+// Selected-tile sidebar: the real class structure of _TileSidebar/_TileActivity with long names, every section and the expanded disclosures.
+const longName='Averyveryveryverylongplayername_with_underscores_and_more';
+const dropRow=n=>`<div class="tile-context-sidebar__drop-row"><strong>${n}</strong><span>1/1500</span><small>×2</small></div>`;
+const evidence=(n,manual)=>manual?`<article class="tile-context-sidebar__evidence-row public-ui-evidence-gallery__cell public-ui-evidence-gallery__cell--manual"><span class="tile-context-sidebar__evidence-mark public-ui-state public-ui-state--success" aria-hidden="true">✓</span><span class="tile-context-sidebar__evidence-copy"><strong>${n}</strong><small>Manual completion</small><small>Manual completion · <time>3 days ago</time></small></span></article>`
+ :`<button type="button" class="tile-context-sidebar__evidence-row public-ui-evidence-gallery__cell"><img alt="" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"/><span class="tile-context-sidebar__evidence-copy"><strong>${n}</strong><small>Voidwaker hilt of the very long item name</small><small>Araxxor · <time>3 days ago</time></small></span></button>`;
+const tileHtml=`<div class="public-team-board"><div class="public-team-workspace"><aside class="public-team-sidebar public-ui-surface public-ui-surface--charcoal public-ui-sectioned-surface tile-context-sidebar public-ui-auto-hide-scrollbar" data-tile-context-sidebar><div class="tile-context-sidebar__content">
+ <section class="tile-context-sidebar__section tile-context-sidebar__actions"><div class="public-ui-action-list public-ui-action-list--split"><a class="public-ui-action public-ui-action--compact tile-context-sidebar__action--overview" href="#">Team overview</a><a class="public-ui-action public-ui-action--commit public-ui-action--compact" href="#">Submit drop</a></div></section>
+ <section class="tile-context-sidebar__section tile-context-sidebar__progress"><header class="public-ui-component-header"><div class="public-ui-component-header__copy"><span class="public-ui-overline">Tile 06</span><h2 class="public-ui-component-title">Phosani's Nightmare and a very long tile name</h2><p class="public-ui-supporting-text">Collect a Voidwaker hilt; Collect a Voidwaker blade; Collect a Voidwaker gem</p></div></header><div class="tile-context-sidebar__progress-summary"><strong class="public-ui-data-value">100/100</strong><span class="public-ui-data-label">Drops</span></div></section>
+ <section class="tile-context-sidebar__section tile-context-sidebar__breakdown"><header class="tile-context-sidebar__section-header"><h3 class="public-ui-section-heading">Completion breakdown</h3></header><div class="tile-context-sidebar__breakdown-list"><div class="tile-context-sidebar__breakdown-row"><span>Collect a Voidwaker hilt of the very long item name</span><span class="tile-context-sidebar__breakdown-value tile-context-sidebar__status--complete"><strong>3 OF 3</strong><small>approved</small><span class="public-ui-state public-ui-state--success">✓</span></span></div></div></section>
+ <section class="tile-context-sidebar__section tile-context-sidebar__eligible"><header class="tile-context-sidebar__section-header"><h3 class="public-ui-section-heading">Eligible drops</h3><small class="public-ui-supporting-text">6</small></header>
+  <div class="tile-context-sidebar__drop-groups"><details class="tile-context-sidebar__drop-disclosure" open><summary><span>Calvar'ion and Vet'ion with a long boss name</span><span class="tile-context-sidebar__drop-meta">2 drops <svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span></summary><div class="tile-context-sidebar__drop-rows">${dropRow('Voidwaker hilt of the very long item name')}${dropRow('Short')}</div></details></div>
+  <details class="tile-context-sidebar__drop-disclosure tile-context-sidebar__drop-disclosure--overflow" open><summary><span class="tile-context-sidebar__drop-summary-label tile-context-sidebar__drop-summary-label--closed">View all 6</span><span class="tile-context-sidebar__drop-summary-label tile-context-sidebar__drop-summary-label--open">Show less</span><span class="tile-context-sidebar__drop-meta"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></span></summary><div class="tile-context-sidebar__drop-rows">${dropRow('Another long drop name here')}</div></details></section>
+ <section class="tile-context-sidebar__section tile-kc-section" data-tile-activity><h2 class="team-rail-heading">KC &amp; Luck</h2><p class="team-rail-supporting">Full-event KC · Drops credited to this tile</p><p class="tile-kc-stale-notice">Last available result · <time>9 Oct 12:00</time></p>
+  <dl class="team-metric-list"><div class="team-metric-row"><dt>Team total</dt><dd class="team-metric-value tile-kc-negative">42.5%</dd><dd class="team-metric-value"><span>+1,234</span></dd></div></dl><h3 class="team-rail-subheading tile-kc-metric-heading">Phosani's Nightmare</h3>
+  <p class="team-rail-supporting tile-kc-status">Waiting for activity data</p>
+  <details class="team-contributor-block" open><summary class="team-rail-subheading"><span>Contributors</span></summary><ul class="team-contributor-list"><li><span class="team-contributor-rank">61.2%</span><span class="team-contributor-name">${longName}</span><strong class="team-contributor-value">+12</strong><small class="tile-kc-player-status">Waiting for activity update</small></li></ul></details></section>
+ <section class="tile-context-sidebar__section tile-context-sidebar__evidence public-ui-evidence-gallery-section"><header class="tile-context-sidebar__section-header"><h3 class="public-ui-section-heading">Approved submissions</h3><small class="public-ui-supporting-text">2</small></header><div class="public-ui-evidence-gallery">${evidence(longName,false)}${evidence('Manual player',true)}</div></section>
+ <section class="tile-context-sidebar__section tile-context-sidebar__evidence"><div class="tile-context-sidebar__empty"><strong>No approved evidence yet</strong><span class="tile-context-sidebar__empty-support">Approved submissions will appear here.</span></div></section>
+</div></aside></div></div>`;
+const measureTile=()=>{
+ const sb=document.querySelector('[data-tile-context-sidebar]'),sizes=[],walk=document.createTreeWalker(sb,NodeFilter.SHOW_TEXT);
+ while(walk.nextNode()){const n=walk.currentNode,e=n.parentElement;if(!n.textContent.trim()||getComputedStyle(e).display==='none'||!e.getBoundingClientRect().width)continue;sizes.push([parseFloat(getComputedStyle(e).fontSize),n.textContent.trim().slice(0,24)]);}
+ const content=sb.querySelector('.tile-context-sidebar__content'),over=[...sb.querySelectorAll('.tile-context-sidebar__content *')].filter(e=>e.getBoundingClientRect().right>sb.getBoundingClientRect().right+0.5&&!e.closest('svg')).length;
+ return{sizes,min:Math.min(...sizes.map(x=>x[0])),minText:sizes.sort((a,b)=>a[0]-b[0])[0],scrollW:content.scrollWidth,clientW:content.clientWidth,over,width:sb.getBoundingClientRect().width};
+};
 (async()=>{
  for(const [name,engine] of [['chromium',chromium],['webkit',webkit]]){
   const browser=await engine.launch({headless:true,...(engine===chromium?{channel:process.env.PLAYWRIGHT_CHANNEL||'chromium'}:{})});
@@ -66,6 +92,14 @@ const measure=()=>{
    assert.ok(phone.scrollW<=phone.innerW,`${name} 390 no horizontal page scroll`);
    assert.ok(phone.overlap<=0,`${name} 390 Points label overlaps the tile number by ${phone.overlap}px`);
    assert.ok(phone.sidebar.y<phone.board.y&&Math.abs(phone.sidebar.x-phone.board.x)<1,`${name} 390 keeps the stacked order`);
+   await page.evaluate(h=>{document.body.innerHTML=h},tileHtml);
+   for(const [w,h] of [[1920,1080],[1470,700],[390,844]]){
+    await page.setViewportSize({width:w,height:h});
+    const t=await page.evaluate(measureTile);
+    assert.ok(t.min>=13.5,`${name} ${w}x${h} tile sidebar text under 13.5px: ${t.minText}`);
+    assert.ok(t.scrollW<=t.clientW&&t.over===0,`${name} ${w}x${h} tile sidebar no horizontal overflow (${t.scrollW}/${t.clientW}, ${t.over} elements past the edge)`);
+    if(w>=1470)assert.ok(t.width>=340&&t.width<=360,`${name} ${w} tile sidebar width ${t.width}`);
+   }
    console.log(name,log.join(' | '));
    console.log(`PASS ${name} public team board layout`);
   }finally{await browser.close();}
