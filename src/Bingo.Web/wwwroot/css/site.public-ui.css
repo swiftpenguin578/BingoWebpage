@@ -3910,8 +3910,10 @@ body.public-event-shell.public-ui-pass1 .public-ui-submission-drawer .public-ui-
   body.public-event-shell.public-ui-pass1 .public-team-board .public-team-workspace > .public-team-board-legend { padding-top: 1rem; }
   body.public-event-shell.public-ui-pass1 .public-team-board .public-team-workspace > .public-board-scroll { grid-column: 1; grid-row: 3; }
   body.public-event-shell.public-ui-pass1 .public-team-board .public-team-workspace > .public-ui-submission-drawer { left: 0; width: 100%; max-width: 100%; }
-  body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-sidebar-section { padding: 0 0.9rem 0.85rem; border-right: 0; border-bottom: 0; }
-  body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-sidebar-section::after { top: 0; right: 0.9rem; bottom: 0; left: auto; width: 2px; height: auto; }
+  body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-sidebar-section { padding: 0 1.4rem 0.85rem 0.9rem; border-right: 0; border-bottom: 0; }
+  body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-sidebar-section:last-child { padding-right: 0.9rem; }
+  /* Vertical column divider: centred in the gap between two columns' content, and it stops above the horizontal rule under the sections. */
+  body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-sidebar-section::after { top: 0; right: 0.2rem; bottom: 0.85rem; left: auto; width: 2px; height: auto; }
   body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-sidebar-section + .team-sidebar-section { padding-top: 0; }
   body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-sidebar-section:last-child::after { content: none; }
   body.public-event-shell.public-ui-pass1 .public-ui-recent-drops-layout,

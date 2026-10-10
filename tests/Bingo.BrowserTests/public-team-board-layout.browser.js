@@ -56,6 +56,27 @@ const measureTile=()=>{
  const dn=[...sb.querySelectorAll('.tile-context-sidebar__evidence-copy small')].find(e=>e.textContent.includes('very long item name')),dbg=dn&&[getComputedStyle(dn).textOverflow,dn.scrollWidth,dn.clientWidth,dn.scrollHeight,dn.clientHeight,getComputedStyle(dn).display],cut=!dn||getComputedStyle(dn).textOverflow==='ellipsis'||dn.scrollWidth>dn.clientWidth+0.5||dn.scrollHeight>dn.clientHeight+0.5,rowH=dn&&dn.closest('.tile-context-sidebar__evidence-row').getBoundingClientRect().height,imgH=dn&&dn.closest('.tile-context-sidebar__evidence-row').querySelector('img').getBoundingClientRect().height;
  return{dbg,cut,rowH,imgH,sizes,min:Math.min(...sizes.map(x=>x[0])),minText:sizes.sort((a,b)=>a[0]-b[0])[0],scrollW:content.scrollWidth,clientW:content.clientWidth,over,width:sb.getBoundingClientRect().width};
 };
+// Three-column team statistics (721-900px, above the board): real class structure of TeamBoard.cshtml with the longest realistic values.
+const statsHtml=`<div class="public-team-board" style="--public-board-columns:5"><div class="public-team-workspace"><aside class="public-team-sidebar public-ui-surface public-ui-surface--charcoal public-ui-sectioned-surface">
+ <section class="team-sidebar-section team-progress-section"><h2 class="team-rail-heading">Team progress</h2><dl class="team-progress-summary"><div class="team-progress-row"><dt class="team-progress-label">Completion</dt><dd class="team-progress-value">100%</dd></div><div class="team-progress-row"><dt class="team-progress-label">Tiles</dt><dd class="team-progress-value">25 / 25</dd></div><div class="team-progress-row"><dt class="team-progress-label">rows</dt><dd class="team-progress-value">12</dd></div></dl><div class="public-ui-progress-meter team-progress-meter"><span style="width:100%"></span></div></section>
+ <section class="team-sidebar-section team-ehb-section"><h2 class="team-rail-heading">Drop EHB</h2><p class="team-rail-supporting">Approved bingo progress · Combined expected tile effort</p><dl class="team-metric-list"><div class="team-metric-row"><dt>Team total</dt><dd class="team-metric-value"><span>+1,234.56</span></dd></div></dl><details class="team-contributor-block" open><summary class="team-rail-subheading"><span>Contributors</span></summary><ol class="team-contributor-list"><li><span class="team-contributor-rank">01</span><span class="team-contributor-name">Averyverylongplayername</span><strong class="team-contributor-value">+1,234.56</strong></li></ol></details></section>
+ <section class="team-sidebar-section team-activity-section"><h2 class="team-rail-heading">EHB</h2><p class="team-rail-supporting">Wise Old Man · Updated</p><dl class="team-metric-list"><div class="team-metric-row"><dt>Team total</dt><dd class="team-metric-value"><span>+1,234.56</span></dd></div></dl><details class="team-contributor-block" open><summary class="team-rail-subheading"><span>Contributors</span></summary><ol class="team-contributor-list"><li><span class="team-contributor-rank">01</span><span class="team-contributor-name">Averyverylongplayername</span><strong class="team-contributor-value">+1,234.56</strong></li></ol></details></section>
+</aside></div></div>`;
+const measureStats=()=>{
+ const sb=document.querySelector('.public-team-sidebar'),secs=[...sb.querySelectorAll(':scope > .team-sidebar-section')],sbr=sb.getBoundingClientRect();
+ const cs=getComputedStyle(sb),horizontalTop=sbr.bottom-parseFloat(cs.borderBottomWidth);
+ const divs=secs.slice(0,-1).map(sec=>{const r=sec.getBoundingClientRect(),a=getComputedStyle(sec,'::after'),w=parseFloat(a.width),right=parseFloat(a.right),top=parseFloat(a.top),bottom=parseFloat(a.bottom);return{l:r.right-right-w,r:r.right-right,top:r.top+top,bottom:r.bottom-bottom};});
+ const problems=[];
+ secs.forEach((sec,i)=>{const r=sec.getBoundingClientRect(),pr=parseFloat(getComputedStyle(sec).paddingRight);
+  for(const v of sec.querySelectorAll('.team-progress-value,.team-metric-value,.team-contributor-value,.team-progress-label,.team-metric-row dt')){const b=v.getBoundingClientRect();const range=document.createRange();range.selectNodeContents(v);const t=range.getBoundingClientRect();
+   if(v.scrollWidth>v.clientWidth+0.5)problems.push(`${v.className||v.tagName} scroll ${v.scrollWidth}>${v.clientWidth} in section ${i}`);
+   const limit=i<divs.length?divs[i].l-4:r.right+0.5;
+   if(t.right>limit)problems.push(`${v.className||v.tagName} text right ${t.right.toFixed(1)} past ${limit.toFixed(1)} in section ${i}`);
+   if(i>0&&t.left<divs[i-1].r+4)problems.push(`${v.className||v.tagName} text left ${t.left.toFixed(1)} before divider ${(divs[i-1].r+4).toFixed(1)} in section ${i}`);}});
+ const f=sel=>parseFloat(getComputedStyle(document.querySelector(sel)).fontSize);
+ return{problems,cols:getComputedStyle(sb).gridTemplateColumns.split(' ').length,divs,horizontalTop,scrollW:document.documentElement.scrollWidth,innerW:innerWidth,
+  sizes:{value:f('.team-metric-value'),progress:f('.team-progress-value'),contributor:f('.team-contributor-value'),supporting:f('.team-rail-supporting'),heading:f('.team-rail-heading')}};
+};
 (async()=>{
  for(const [name,engine] of [['chromium',chromium],['webkit',webkit]]){
   const browser=await engine.launch({headless:true,...(engine===chromium?{channel:process.env.PLAYWRIGHT_CHANNEL||'chromium'}:{})});
@@ -102,6 +123,16 @@ const measureTile=()=>{
    assert.ok(phone.overlap<=6,`${name} 390 Points label overlaps the tile number by ${phone.overlap}px, more than the accepted 6px`);
    assert.ok(phone.switcher.l>=0&&phone.switcher.r<=phone.innerW+0.5,`${name} 390 team switcher stays inside the window`);
    assert.ok(phone.sidebar.y<phone.board.y&&Math.abs(phone.sidebar.x-phone.board.x)<1,`${name} 390 keeps the stacked order`);
+   // 721-900px: three statistics columns above the board; values stay inside their column and the vertical dividers stop above the horizontal rule.
+   await page.evaluate(h=>{document.body.innerHTML=h},statsHtml);
+   for(const theme of ['light','dark']){await page.evaluate(t=>document.documentElement.setAttribute('data-public-theme',t),theme);
+    for(const w of [721,750,800,850,900]){await page.setViewportSize({width:w,height:900});const m=await page.evaluate(measureStats);
+     assert.equal(m.cols,3,`${name} ${theme} ${w} three columns`);
+     assert.deepEqual(m.problems,[],`${name} ${theme} ${w} values clip at the column dividers`);
+     for(const d of m.divs)assert.ok(d.bottom<=m.horizontalTop-2,`${name} ${theme} ${w} vertical divider bottom ${d.bottom} must stop above the horizontal divider top ${m.horizontalTop}`);
+     assert.ok(m.scrollW<=m.innerW,`${name} ${theme} ${w} no horizontal scroll`);}}
+   await page.setViewportSize({width:720,height:900});assert.equal((await page.evaluate(measureStats)).cols,1,`${name} 720 stacked`);
+   await page.evaluate(()=>document.documentElement.removeAttribute('data-public-theme'));
    await page.evaluate(h=>{document.body.innerHTML=h},tileHtml);
    for(const [w,h] of [[1920,1080],[1470,700],[390,844]]){
     await page.setViewportSize({width:w,height:h});
