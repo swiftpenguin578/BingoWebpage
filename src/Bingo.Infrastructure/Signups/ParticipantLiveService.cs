@@ -70,7 +70,7 @@ public sealed class ParticipantLiveService(ApplicationDbContext db, TimeProvider
         var active = await db.ActiveCharacterAtAsync(chosen.EventId, chosen.ParticipantId, now, cancellationToken);
         var creditedId = active?.OsrsCharacterId ?? await UnswitchedCreditedIdAsync(chosen.EventId, chosen.ParticipantId, assignments, cancellationToken);
         var credited = assignments.SingleOrDefault(x => x.Assignment.OsrsCharacterId == creditedId);
-        if (credited is null) return null;
+        if (credited is null) return new PlayingAccountHeader(chosen.EventId, chosen.ParticipantId, null, null, []);
         var canSwap = assignments.Count > 1 && chosen.SignupStatus == SignupStatus.Confirmed &&
                       chosen.EventEndsAt is { } endsAt && now < endsAt &&
                       !await db.EventParticipantCharacterSwaps.AsNoTracking()

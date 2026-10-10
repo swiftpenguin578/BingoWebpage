@@ -255,7 +255,11 @@
     @if (playingAccount is not null)
     {
         <div class="landing-shell-playing" data-playing-account>
-            @if (playingAccount.SwitchTargets.Count == 0)
+            @if (playingAccount.CreditedCharacterName is null)
+            {
+                <span class="landing-shell-playing__label">@T["No active playing account – contact an admin"]</span>
+            }
+            else if (playingAccount.SwitchTargets.Count == 0)
             {
                 <span class="landing-shell-playing__label">@T["Playing as {0}", playingAccount.CreditedCharacterName]</span>
             }

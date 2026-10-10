@@ -754,7 +754,7 @@ public sealed class Slice7Pass71IntegrationTests(PostgreSqlTestFixture databaseF
             var header = await service.GetPlayingAccountHeaderAsync(fixture.OwnerId, null);
             Assert.Equal(fixture.PrimaryCharacterId, header!.CreditedCharacterId);
             Assert.Equal(fixture.SecondPlayingCharacterId, Assert.Single(header.SwitchTargets).CharacterId);
-            var swap = await service.SwapAsync(new(fixture.EventId, fixture.ParticipantId, header.CreditedCharacterId,
+            var swap = await service.SwapAsync(new(fixture.EventId, fixture.ParticipantId, header.CreditedCharacterId!.Value,
                 header.SwitchTargets[0].CharacterId, fixture.OwnerId, "owner"));
             Assert.True(swap.Succeeded, swap.Error);
         }
@@ -795,6 +795,38 @@ public sealed class Slice7Pass71IntegrationTests(PostgreSqlTestFixture databaseF
             await left.TeamMemberships.Where(x => x.EventParticipantId == fixture.ParticipantId)
                 .ExecuteUpdateAsync(x => x.SetProperty(m => m.LeftAt, now.AddMinutes(2)));
             Assert.Null(await new ParticipantLiveService(left, new FixedTimeProvider(now.AddMinutes(3))).GetPlayingAccountHeaderAsync(fixture.OwnerId, null));
+        }
+    }
+
+    [Fact]
+    public async Task LiveHeaderReportsNoNameableAccountForTwoAccountsWithoutActivationRowsAndForAReleasedActiveAccount()
+    {
+        var fixture = await SeedFixtureAsync(includeInformational: false, secondPlaying: true, includeTeam: true, administrator: true, publishRoster: true);
+        await StartLiveAsync(fixture);
+        var at = now.AddMinutes(1);
+        await using (var clear = new ApplicationDbContext(options))
+            await clear.EventParticipantCharacterSwaps.Where(x => x.EventParticipantId == fixture.ParticipantId).ExecuteDeleteAsync();
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var header = await new ParticipantLiveService(db, new FixedTimeProvider(at)).GetPlayingAccountHeaderAsync(fixture.OwnerId, null);
+            Assert.NotNull(header);
+            Assert.Null(header!.CreditedCharacterName);
+            Assert.Empty(header.SwitchTargets);
+        }
+
+        await using (var restore = new ApplicationDbContext(options))
+        {
+            restore.EventParticipantCharacterSwaps.Add(new EventParticipantCharacterSwap(
+                Guid.NewGuid(), fixture.EventId, fixture.ParticipantId, null, fixture.PrimaryCharacterId, now, now, null, "test"));
+            await restore.SaveChangesAsync();
+            await restore.EventParticipantCharacters.Where(x => x.EventParticipantId == fixture.ParticipantId && x.OsrsCharacterId == fixture.PrimaryCharacterId)
+                .ExecuteUpdateAsync(x => x.SetProperty(a => a.ReleasedAt, now.AddSeconds(30)));
+        }
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var header = await new ParticipantLiveService(db, new FixedTimeProvider(at)).GetPlayingAccountHeaderAsync(fixture.OwnerId, null);
+            Assert.NotNull(header);
+            Assert.Null(header!.CreditedCharacterName);
         }
     }
 

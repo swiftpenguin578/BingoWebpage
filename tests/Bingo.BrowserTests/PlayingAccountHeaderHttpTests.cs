@@ -76,6 +76,14 @@ public sealed class PlayingAccountHeaderHttpTests(BrowserTestApplicationFactory 
         using var anonymous = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false, BaseAddress = new Uri("https://localhost") });
         Assert.DoesNotContain("data-playing-account", await anonymous.GetStringAsync("/HowTo"));
 
+        var unnamed = await SeedAsync(secondAccount: true, live: true, activationRow: false);
+        using var stuck = await SignInAsync(unnamed.Username);
+        var stuckPage = WebUtility.HtmlDecode(await stuck.GetStringAsync("/HowTo"));
+        Assert.Contains("No active playing account – contact an admin", stuckPage);
+        Assert.DoesNotContain("public-ui-header-playing-panel", stuckPage);
+        using var stuckDanish = await SignInAsync(unnamed.Username, "da");
+        Assert.Contains("Ingen aktiv spillekonto – kontakt en admin", WebUtility.HtmlDecode(await stuckDanish.GetStringAsync("/HowTo")));
+
         var notLive = await SeedAsync(secondAccount: true, live: false);
         using var waiting = await SignInAsync(notLive.Username);
         Assert.DoesNotContain("data-playing-account", await waiting.GetStringAsync("/HowTo"));
@@ -127,7 +135,7 @@ public sealed class PlayingAccountHeaderHttpTests(BrowserTestApplicationFactory 
         return username;
     }
 
-    private async Task<Seed> SeedAsync(bool secondAccount, bool live)
+    private async Task<Seed> SeedAsync(bool secondAccount, bool live, bool activationRow = true)
     {
         var username = "ph-" + Guid.NewGuid().ToString("N");
         var owner = Account.CreateWebsite(Guid.NewGuid(), username, username.ToUpperInvariant(), At);
@@ -156,7 +164,7 @@ public sealed class PlayingAccountHeaderHttpTests(BrowserTestApplicationFactory 
             db.EventParticipantCharacters.Add(new(Guid.NewGuid(), eventId, participantId, second.Id, 1, At.AddDays(-3), owner.Id, null, EventCharacterRole.Playing, 9, EhbSource.Manual, null));
         }
         // The one-account Live player deliberately has no account-switch row; the two-account player has the go-live activation row.
-        if (live && secondAccount)
+        if (live && secondAccount && activationRow)
             db.EventParticipantCharacterSwaps.Add(new EventParticipantCharacterSwap(Guid.NewGuid(), eventId, participantId, null, first.Id, At.AddHours(-4), At.AddHours(-4), null, null));
         await db.SaveChangesAsync();
         return new(username, participantId, eventId, first.Id, first.DisplayName, second.Id, second.DisplayName);
