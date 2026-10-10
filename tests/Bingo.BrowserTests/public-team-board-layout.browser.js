@@ -52,7 +52,8 @@ const measureTile=()=>{
  const sb=document.querySelector('[data-tile-context-sidebar]'),sizes=[],walk=document.createTreeWalker(sb,NodeFilter.SHOW_TEXT);
  while(walk.nextNode()){const n=walk.currentNode,e=n.parentElement;if(!n.textContent.trim()||getComputedStyle(e).display==='none'||!e.getBoundingClientRect().width)continue;sizes.push([parseFloat(getComputedStyle(e).fontSize),n.textContent.trim().slice(0,24)]);}
  const content=sb.querySelector('.tile-context-sidebar__content'),over=[...sb.querySelectorAll('.tile-context-sidebar__content *')].filter(e=>e.getBoundingClientRect().right>sb.getBoundingClientRect().right+0.5&&!e.closest('svg')).length;
- return{sizes,min:Math.min(...sizes.map(x=>x[0])),minText:sizes.sort((a,b)=>a[0]-b[0])[0],scrollW:content.scrollWidth,clientW:content.clientWidth,over,width:sb.getBoundingClientRect().width};
+ const dn=[...sb.querySelectorAll('.tile-context-sidebar__evidence-copy small')].find(e=>e.textContent.includes('very long item name')),dbg=dn&&[getComputedStyle(dn).textOverflow,dn.scrollWidth,dn.clientWidth,dn.scrollHeight,dn.clientHeight,getComputedStyle(dn).display],cut=!dn||getComputedStyle(dn).textOverflow==='ellipsis'||dn.scrollWidth>dn.clientWidth+0.5||dn.scrollHeight>dn.clientHeight+0.5,rowH=dn&&dn.closest('.tile-context-sidebar__evidence-row').getBoundingClientRect().height,imgH=dn&&dn.closest('.tile-context-sidebar__evidence-row').querySelector('img').getBoundingClientRect().height;
+ return{dbg,cut,rowH,imgH,sizes,min:Math.min(...sizes.map(x=>x[0])),minText:sizes.sort((a,b)=>a[0]-b[0])[0],scrollW:content.scrollWidth,clientW:content.clientWidth,over,width:sb.getBoundingClientRect().width};
 };
 (async()=>{
  for(const [name,engine] of [['chromium',chromium],['webkit',webkit]]){
@@ -98,6 +99,8 @@ const measureTile=()=>{
     const t=await page.evaluate(measureTile);
     assert.ok(t.min>=13.5,`${name} ${w}x${h} tile sidebar text under 13.5px: ${t.minText}`);
     assert.ok(t.scrollW<=t.clientW&&t.over===0,`${name} ${w}x${h} tile sidebar no horizontal overflow (${t.scrollW}/${t.clientW}, ${t.over} elements past the edge)`);
+    assert.ok(!t.cut,`${name} ${w}x${h} long evidence drop name is not truncated ${JSON.stringify(t.dbg)}`);
+    assert.ok(t.rowH>=t.imgH,`${name} ${w}x${h} evidence row holds its thumbnail`);
     if(w>=1470)assert.ok(t.width>=340&&t.width<=360,`${name} ${w} tile sidebar width ${t.width}`);
    }
    console.log(name,log.join(' | '));

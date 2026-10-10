@@ -4262,12 +4262,13 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-copy str
   white-space: nowrap;
 }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-copy small {
-  overflow: hidden;
   color: var(--board-muted);
   font-size: 0.88rem;
   line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
 }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__empty {
   display: grid;
@@ -4956,6 +4957,6 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar .tile-kc-section .
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar .tile-kc-section .team-contributor-list > li { grid-template-columns: minmax(2.5rem, max-content) minmax(0, 1fr) max-content; }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar .tile-kc-section .tile-kc-negative { color: var(--board-coral); }
 body.public-event-shell.public-ui-pass1 .tile-kc-section .tile-kc-metric-heading { margin-top: 0.7rem; }
-body.public-event-shell.public-ui-pass1 .tile-context-sidebar .tile-kc-section .tile-kc-status.team-rail-supporting { margin: 0 0 0.6rem; font-size: 0.91rem; }
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar .tile-kc-section .tile-kc-status.team-rail-supporting { margin: 0 0 0.6rem; font-size: 1.1rem; }
 body.public-event-shell.public-ui-pass1 .tile-kc-section .tile-kc-stale-notice { margin: 0 0 0.4rem; color: var(--board-muted); font: 400 0.85rem/1.3 "Geist Public UI", system-ui, sans-serif; }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar .tile-kc-player-status { grid-column: 1 / -1; color: var(--board-muted); font: 400 0.85rem/1.2 "Geist Public UI", system-ui, sans-serif; }
