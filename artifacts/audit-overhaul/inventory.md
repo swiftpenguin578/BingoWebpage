@@ -275,7 +275,7 @@ Each member adds 39 characters. The save fails (and the removal rolls back) abov
 
 Brief item 4 (actor search while typing) does not change this inventory: the actor filter matches the stored `ActorUsername` only and is independent of the proposed texts and the Affected account column. (Filtering by affected account is the separate backlog row “Audit: filter by affected account”.)
 
-## Open questions for the user
+## Open questions for the user (decided 10 October 2026 — see “User decisions and implementation” at the end)
 
 - **Q1 — Danish terms.** The audit's Danish labels mix “Begivenhed/Event”, “Plade/Board”, “Dokumentation/Bevis”. Options: (a) use the site's dominant words **event / board / bevis** in all audit Danish texts and relabel the existing audit labels to match; (b) keep the current audit labels and only add new sentences; (c) another choice per word. **Recommendation: (a)** — consistent with the rest of the Danish site; it also fixes `event.finalized` = `event.ended` (“Begivenhed afsluttet”) by making finalized “Event færdiggjort”.
 - **Q2 — Where the sentence appears.** Options: (a) the sentence replaces the action label in the list row and the drawer title (label stays only in the Action filter); (b) the label stays as the row/drawer title and the sentence is a new line under it (list sub-line and drawer Summary); (c) sentence in the drawer only. **Recommendation: (b)** — keeps the approved layout and the filter vocabulary, and the sentence replaces today's record line (“Participant”) without adding a row.
@@ -311,3 +311,21 @@ Brief item 4 (actor search while typing) does not change this inventory: the act
 - `submission.corrected` — W: submission → `submissions.credited_participant_id` → participant owner; P: `CreditedCharacterName` stored in Before/After (reliable). ⚠ if the credited player changed, both before and after are affected.
 - `team.inclusion_changed` — Several W/P: `AffectedParticipantIds`. ⚠ multiple — see Q3.
 - `team.member_added` — W/P: participant id parsed from the Details prefix (team target) or membership id (draft_publication). ⚠ parsing legacy text.
+
+## User decisions and implementation (10 October 2026)
+
+The user approved this inventory with decisions A1–A10 (brief 147, “User decisions on the inventory”). Where a decision changed a proposed text, the implemented behaviour is:
+
+- **A1 (Q1 a):** Danish audit texts use *event / board / bevis*; existing audit labels were relabelled (e.g. “Begivenhed startet” → “Event startet”, “Plade offentliggjort” → “Board offentliggjort”, “Dokumentation godkendt” → “Bevis godkendt”); `event.finalized` is now “Event færdiggjort” (no longer equal to `event.ended`).
+- **A2 (Q2):** the action label stays the row/drawer title; the sentence replaces the record line under it in the list and is shown at the top of the drawer summary. The drawer “Record” row keeps “type · name” (now with resolved names).
+- **A3 (user, replaces the Q3 proposal):** one affected account → it is shown in the column; more than one → the column says **“Multiple accounts” / “Flere konti”** and the drawer lists all of them (at most 10, then “and N more” / “og N mere”, A8). This applies to every multi-account row above (team removal, inclusion change, cap change, replacements, ownership transfer).
+- **A4:** an owner or character looked up at display time is marked “(current owner)” / “(nuværende ejer)” in the drawer.
+- **A5:** masking unchanged; the masked actions get sentences without values (“changed the signup code settings of {event}”). Showing their safe values is the backlog row “Audit: show safe values of "code" settings”.
+- **A6:** entries stored without an event show the event derived from their team, membership or draft (display only; the event filter still uses the stored event id).
+- **A7:** `logout` → “Signed out” / “Logget ud” (sentence “{actor} signed out.”), in the Accounts area and in the label completeness test.
+- **A8:** new `draft.team_removed` entries store `EndedMembershipCount` and at most 25 `EndedMembershipIds` (+ `EndedMembershipIdsOmitted`); worst case about 2,200 characters. Older entries (full list) display the same way.
+- **A9:** the Affected account column is filled even when it is the actor's own account.
+- **A10:** automatic entries use passive sentences.
+- **B3:** fallback order as proposed: stored published name → stored character name (`participantBefore.activePlayingAssignments`) → the participant's current character → the membership id.
+
+**Final wording** lives in `src/Bingo.Web/UI/AuditSentences.cs` (English formats) and `src/Bingo.Web/Resources/AuditResource.da.resx` (Danish); `AuditSentenceTests` checks that every format has a Danish entry with the same placeholders. Small wording differences from the proposals above: payment reads “marked {player} as paid/unpaid”; start/signup-opening blockers are counted (“1 start blocker(s) were open”) instead of named (codes stay in Technical details); tile positions read “row r, column c”; board names are quoted; the main-account switch reads “made {new} the main account instead of {old}”; the review-only submission actions (Review page history) got sentences too; notification-only keys (`participant.accounts_changed`, `prelive_withdrawn`, `restored`, `waiting`) have no sentence.

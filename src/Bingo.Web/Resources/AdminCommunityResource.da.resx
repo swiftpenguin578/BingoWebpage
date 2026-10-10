@@ -572,7 +572,7 @@
   <data name="Catalogue" xml:space="preserve"><value>Katalog</value></data>
   <data name="Search accounts" xml:space="preserve"><value>Søg i konti</value></data>
   <data name="Filter by actor" xml:space="preserve"><value>Filtrer efter udførende</value></data>
-  <data name="Matches actors whose name contains what you type. Press Enter to apply." xml:space="preserve"><value>Matcher udførende, hvis navn indeholder det, du skriver. Tryk Enter for at anvende.</value></data>
+  <data name="Matches actors whose name contains what you type. The list updates as you type." xml:space="preserve"><value>Matcher udførende, hvis navn indeholder det, du skriver. Listen opdateres, mens du skriver.</value></data>
   <data name="Only technical fields changed. See Technical details." xml:space="preserve"><value>Kun tekniske felter blev ændret. Se Tekniske oplysninger.</value></data>
   <!-- Lane T (T2): Catalogue -->
   <data name="Roll group can only be changed by the Super Admin." xml:space="preserve"><value>Kastegruppen kan kun ændres af Super Admin.</value></data>

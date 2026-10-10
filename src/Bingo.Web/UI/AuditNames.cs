@@ -140,13 +140,6 @@ public static class AuditNameResolver
         return names;
     }
 
-    internal static IEnumerable<Guid> GuidsIn(string? raw)
-    {
-        if (raw is null) yield break;
-        foreach (Match match in GuidText.Matches(raw))
-            if (Guid.TryParse(match.Value, out var id)) yield return id;
-    }
-
     internal static JsonElement? Parse(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw)) return null;

@@ -1,5 +1,9 @@
 # Current project status
 
+## Audit overhaul (brief 147) — 10 October 2026
+
+Branch `audit-overhaul` (worktree `/Users/christopher/Documents/BingoWebpage-audit`, merged `audit-docs-round` at `c0478a0a`). Items 0–4 committed locally, awaiting independent review and the planner's whole-suite run: inventory `e9b53ed1` (`artifacts/audit-overhaul/inventory.md`, decisions A1–A10 recorded at its end), item 1 readable sentences `38e1e93f`, item 2 Affected account `54b76efb`, item 3 B2/B3 `f5d37854`, item 4 actor search while typing (this commit). Checks: touched .NET classes pass (Browser `~Audit` 49/0, Integration `AuditHistory`+`DraftOperations` 94/0); `admin-design-audit.browser.js` passes in Chromium and WebKit; Release build 0 warnings; full JS runner 128/130 — the two failures are `admin-design-page-conformance` [chromium]/[webkit] timing out at 120 s (known list in BACKLOG.md); both pass when run alone without the runner timeout (85 cases + Danish checks). User visual acceptance of the changed Audit page is pending (`docs/UI_PAGE_MATRIX.md`).
+
 ## Final candidate (D1) — 8 October 2026
 
 **Feature branch** `codex/participants-functionality`, head `2dccc075`: U1–U11, the C8 Luck proof, the ImageSharp 4.1.2 upgrade (`f18ba2e0`) and the notification-footer fix (`2dccc075`) are merged. Planner-held worktree `/Users/christopher/Documents/BingoWebpage-feature`. Decisions and evidence: `review-notes/08-decisions.md` in the main folder (from "Parallel lanes to finish by Friday 9 October").

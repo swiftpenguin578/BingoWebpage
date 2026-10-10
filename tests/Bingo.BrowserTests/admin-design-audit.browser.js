@@ -37,9 +37,15 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     assert.deepEqual(await page.locator('.au-tbl .th-row [role="columnheader"]').allInnerTexts(), ['When', 'Action', 'Event', 'Actor', 'Affected account', 'Recorded']);
     assert.equal(await page.locator('[data-audit-row]').first().locator('[role="cell"]').count(), 6);
     assert.ok(await page.locator('[data-audit-row] [role="cell"]:nth-child(5)', { hasText: '—' }).count() > 0, 'entries without an affected account show a dash');
-    await page.locator('#actor-input').fill('@reviewowner');
-    await page.locator('#actor-input').press('Enter');
+    // Brief 147 item 4: the search applies while typing (250 ms debounce, no Enter); focus stays in
+    // the field and fast typing sends only the last query.
+    const actorRequests = [];
+    page.on('request', request => { const url = new URL(request.url()); if (url.pathname === '/Admin/Audit' && url.searchParams.has('actor')) actorRequests.push(url.searchParams.get('actor')); });
+    await page.locator('#actor-input').pressSequentially('@reviewowner', { delay: 25 });
     await page.waitForFunction(() => new URL(location.href).searchParams.get('actor') === 'reviewowner' && document.querySelector('.filter-chip') && !document.querySelector('[data-update-skeleton]'));
+    assert.deepEqual(actorRequests, ['reviewowner'], 'fast typing sends only the last query');
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'actor-input', 'focus stays in the field while the list updates');
+    assert.equal(await page.locator('#actor-input').inputValue(), '@reviewowner', 'the typed text is kept');
     const actorRows = await page.locator('[data-audit-row]').count();
     assert.ok(actorRows > 0);
     assert.equal(await page.locator('[data-audit-row] .actor', { hasText: '@ReviewOwner' }).count(), actorRows);

@@ -43,7 +43,9 @@ public sealed class AuditUiTests(BrowserTestApplicationFactory factory)
         Assert.DoesNotContain("username", index, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("ui.update(", script);
         Assert.DoesNotContain(" fetch(", script);
-        Assert.DoesNotContain("setTimeout", script);
+        // Brief 147 item 4: the actor search applies while typing (250 ms debounce, as on Participants).
+        Assert.Contains("timer = setTimeout(commitActor, 250)", script);
+        Assert.Contains("ui.supersedeUpdate()", script);
         Assert.DoesNotContain("setInterval", script);
         foreach (var file in new[] { "Index.cshtml", "_AuditEntryDrawer.cshtml" })
             Assert.DoesNotContain("style=\"", File.ReadAllText(Path.Combine(pages, file)));
