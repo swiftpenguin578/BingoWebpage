@@ -47,6 +47,31 @@ public sealed partial class SubmissionWorkflowTests
     }
 
     [Fact]
+    public async Task OrdinaryParticipantSubmissionDrawerStaysLockedToSelf()
+    {
+        var setup = await SeedAsync(3, true);
+        var (actor, _) = await AddWebsiteCaptainAsync(setup, TeamMembershipRole.Participant, true);
+        await using var db = new ApplicationDbContext(options);
+        var page = new Bingo.Web.Pages.Captain.SubmitModel(db, Service(db), new EvidenceAuthority(db), new FixedTimeProvider(now),
+            new PassthroughLocalizer(), NullLogger<Bingo.Web.Pages.Captain.SubmitModel>.Instance)
+        {
+            MetadataProvider = new EmptyModelMetadataProvider(),
+            PageContext = new PageContext
+            {
+                ViewData = new ViewDataDictionary(new EmptyModelMetadataProvider(), new ModelStateDictionary()),
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, actor.ToString())], "test"))
+                }
+            }
+        };
+        Assert.IsType<PartialViewResult>(await page.OnGetDrawerAsync(setup.TileId, setup.EventId, setup.TeamId, CancellationToken.None));
+        Assert.False(page.CanChooseCreditedParticipant);
+        Assert.Equal(page.DefaultParticipantId, Assert.Single(page.Players).Id);
+        Assert.Equal(page.DefaultParticipantId, page.Input.CreditedParticipantId);
+    }
+
+    [Fact]
     public async Task FormerTeamMemberIsNotASubmissionCandidateOrEligibleCredit()
     {
         var setup = await SeedAsync(3, true);
