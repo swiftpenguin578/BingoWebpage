@@ -145,7 +145,7 @@ Test projects: `tests/Bingo.Domain.Tests`, `tests/Bingo.Application.Tests`, `tes
 
 ### JavaScript and Playwright checks
 
-Every `tests/Bingo.BrowserTests/*.js` file runs in its own Node process:
+Every `tests/Bingo.BrowserTests/*.js` file runs in its own Node process. Locally run only the files your change touches (`PLAYWRIGHT_BROWSER=chromium|webkit node tests/Bingo.BrowserTests/<file>`); the full runner runs in GitHub CI (see ../AGENTS.md). Setup and the full runner:
 
 ```sh
 pnpm install --frozen-lockfile
