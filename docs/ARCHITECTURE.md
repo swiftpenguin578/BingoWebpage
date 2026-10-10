@@ -360,6 +360,7 @@ Owns data invariants, calculations, architecture and the authentication/authoriz
 - Participant announcements reuse the generic SignalR invalidation connection; personalized state comes from authenticated announcement endpoints enforcing account/event membership; nothing private is broadcast to public groups; mutations use anti-forgery. Announcements add no idle polling, recipient fan-out, extra realtime service or scheduled job; the existing 100-viewer capacity evidence stands, with no extra load-test gate; performance is reassessed from observed behaviour.
 - Realtime refresh uses bounded targeted queries, coalesces approval bursts and never reloads the page or redraws an active board/submission workspace; the Drops feed refreshes affected entries preserving filters, scroll and an open popup.
 - The site stays usable without realtime; a normal refresh retrieves authoritative state.
+- The SignalR browser client (`@microsoft/signalr` 8.0.7, MIT) is vendored in `wwwroot/lib/microsoft-signalr/` and loaded same-origin by the shared layout and the Draft page; pages load no third-party CDN scripts.
 
 ## 12. Security baseline
 
