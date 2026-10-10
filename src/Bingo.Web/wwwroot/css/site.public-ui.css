@@ -4874,7 +4874,7 @@ body.public-event-shell.public-ui-pass1 .public-dashboard-view > .public-ui-lead
   visibility: hidden;
 }
 .drop-announcement::before { position: absolute; top: -3px; right: -1px; left: -1px; width: auto; height: 3px; background: var(--drop-accent); content: ""; transform-origin: left; }
-.drop-announcement[data-countdown="running"]::before { animation: drop-announcement-countdown 10s linear forwards; }
+.drop-announcement[data-countdown="running"]::before { animation: drop-announcement-countdown 6s linear forwards; }
 .drop-announcement[data-countdown="held"]::before { transform: scaleX(1); }
 .drop-announcement[data-visible="true"] { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); visibility: visible; }
 .drop-announcement[data-transition]:not([data-transition="dismiss"]) { transition: height 320ms cubic-bezier(.2, .75, .25, 1), opacity 320ms ease, transform 320ms ease, visibility 320ms ease; }
