@@ -33,6 +33,7 @@ Priority: **High** = needed before DKL BINGO OKTOBER 2026 goes Live (draft in ab
 | Review queue waiting-time indicator | Normal | Admin Review page shows how long submissions have been waiting, with a warning when the oldest waits longer than a threshold (e.g. 30 min), so busy evenings get noticed (user, 10 October 2026). |
 | Captain notification for teammate submissions | Normal | Captains get a notification when a teammate's submission is rejected or needs changes, so they can help sort it out (user, 10 October 2026). |
 | Location data in public evidence | Normal — after the event | Approved screenshots are served byte-for-byte, so EXIF/GPS data in a photo is public (report 164 F05). After DKL BINGO OKTOBER 2026: reject uploads carrying GPS/EXIF and ask the player to re-save (small), or serve a stripped copy (medium). (User, 10 October 2026.) |
+| Personal-data deletion procedure | Normal — after the event | The privacy page promises deletion but there is no procedure (report 164 F06). Runbook section in docs/OPERATIONS.md: verify the requester; delete login, Discord link, saved OSRS accounts, notifications, private notes, payment status; keep results/rosters/evidence/audit with the name pseudonymised ("Deleted player N"); record the request so a backup restore does not undo it. Script later if requests happen. Do together with "Location data in public evidence". (User, 10 October 2026.) |
 
 ## Bug fixes
 
