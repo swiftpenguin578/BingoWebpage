@@ -84,7 +84,7 @@ const measureTile=()=>{
    const wide=await at(1920,1080);fit(wide,1920,1080);
    assert.ok(wide.sidebar.w>=340&&wide.sidebar.w<=360,`${name} 1920 sidebar ${wide.sidebar.w}`);
    assert.ok(Math.abs(wide.legend.w-wide.board.w)<1&&Math.abs(wide.legend.x-wide.board.x)<1,`${name} legend follows the board`);
-   assert.ok(wide.numFont>=60&&wide.title>=22&&wide.tile.w>=140,`${name} tile text scales with the tile (${wide.points}/${wide.title}/${wide.tile.w})`);
+   assert.ok(wide.numFont>=60&&wide.title>=22&&wide.tile.w>=140,`${name} tile text scales with the tile (${wide.numFont}/${wide.title}/${wide.tile.w})`);
    assert.ok(wide.heading>=22.5&&wide.supporting>=15.5&&wide.metric>=14.4&&wide.contributor>=13.5&&wide.rank>=13.5,`${name} sidebar text sizes ${JSON.stringify([wide.heading,wide.supporting,wide.metric,wide.contributor,wide.rank])}`);
    fit(await at(1920,950),1920,950);
    fit(await at(1470,700),1470,700);
@@ -92,11 +92,12 @@ const measureTile=()=>{
    assert.ok(laptop.sidebar.w>=340&&laptop.sidebar.w<=360,`${name} 1470 sidebar ${laptop.sidebar.w}`);
    fit(await at(1366,768),1366,768);
    const mid=await at(1000,800);
-   assert.ok(mid.scrollW<=mid.innerW&&mid.board.w>=590,`${name} 1000 wide: no page scroll, minimum board; label overlap at 111px tiles is an open decision (review 136) (${mid.board.w}, ${mid.overlap})`);
+   assert.ok(mid.scrollW<=mid.innerW&&mid.board.w>=590&&mid.overlap<=6,`${name} 1000 wide: no page scroll, minimum board; the ~4px touch of 3-digit Points on 111px tiles was accepted by the user on 10 October 2026 and must stay within 6px (${mid.board.w}, ${mid.overlap})`);
    const phone=await at(390,844);
    assert.ok(phone.scrollW<=phone.innerW,`${name} 390 no horizontal page scroll`);
    assert.ok(Math.abs(phone.numTop-4)<0.5&&Math.abs(phone.numRight-5.6)<0.5&&Math.abs(phone.points-8.96)<0.05,`${name} 390 number in the corner, Points at the old size`);
-   // 111px tiles (390 phone, <=1000 wide): 'Points: 100' reaches ~4px into the tile number; open decision, see review 136.
+   // 111px tiles (390 phone, <=1000 wide): 'Points: 100' reaches ~4px into the tile number; accepted by the user on 10 October 2026, bounded to 6px.
+   assert.ok(phone.overlap<=6,`${name} 390 Points label overlaps the tile number by ${phone.overlap}px, more than the accepted 6px`);
    assert.ok(phone.sidebar.y<phone.board.y&&Math.abs(phone.sidebar.x-phone.board.x)<1,`${name} 390 keeps the stacked order`);
    await page.evaluate(h=>{document.body.innerHTML=h},tileHtml);
    for(const [w,h] of [[1920,1080],[1470,700],[390,844]]){
