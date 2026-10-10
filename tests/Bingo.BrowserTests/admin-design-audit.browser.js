@@ -41,19 +41,57 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     // the field and fast typing sends only the last query.
     const actorRequests = [];
     page.on('request', request => { const url = new URL(request.url()); if (url.pathname === '/Admin/Audit' && url.searchParams.has('actor')) actorRequests.push(url.searchParams.get('actor')); });
-    await page.locator('#actor-input').pressSequentially('@reviewowner', { delay: 25 });
-    await page.waitForFunction(() => new URL(location.href).searchParams.get('actor') === 'reviewowner' && document.querySelector('.filter-chip') && !document.querySelector('[data-update-skeleton]'));
+    const historyBefore = await page.evaluate(() => history.length);
+    const appliedActor = () => page.evaluate(() => new URL(document.querySelector('[data-audit-directory]').dataset.directoryCanonical, location.href).searchParams.get('actor') || '');
+    const settled = actorValue => page.waitForFunction(value => new URL(document.querySelector('[data-audit-directory]').dataset.directoryCanonical, location.href).searchParams.get('actor') === value
+      && new URL(location.href).searchParams.get('actor') === value && document.querySelector('.filter-chip') && !document.querySelector('[data-update-skeleton]'), actorValue, { timeout: 15000 });
+    const actorInput = page.locator('#actor-input');
+    await actorInput.pressSequentially('@reviewowner', { delay: 25 });
+    await settled('reviewowner');
     assert.deepEqual(actorRequests, ['reviewowner'], 'fast typing sends only the last query');
     assert.equal(await page.evaluate(() => document.activeElement?.id), 'actor-input', 'focus stays in the field while the list updates');
-    assert.equal(await page.locator('#actor-input').inputValue(), '@reviewowner', 'the typed text is kept');
+    assert.equal(await actorInput.inputValue(), '@reviewowner', 'the typed text is kept');
     const actorRows = await page.locator('[data-audit-row]').count();
     assert.ok(actorRows > 0);
     assert.equal(await page.locator('[data-audit-row] .actor', { hasText: '@ReviewOwner' }).count(), actorRows);
+    // Review 156 M1: debounced searches replace the URL and add no history entry (as on Participants).
+    await actorInput.press('Backspace');
+    await settled('reviewowne');
+    await actorInput.press('r');
+    await settled('reviewowner');
+    assert.equal(await page.evaluate(() => history.length), historyBefore, 'searching adds no history entries');
+    // Back therefore leaves the searches behind and returns to the entry before Clear all.
     await page.goBack();
-    await page.waitForFunction(() => location.search === '' && !document.querySelector('.filter-chip'));
-    assert.equal(await page.locator('#actor-input').inputValue(), '');
+    await settled('ReviewOwner'); // wait for that read to finish before going forward again
     await page.goForward();
-    await page.waitForFunction(() => new URL(location.href).searchParams.get('actor') === 'reviewowner' && document.querySelector('.filter-chip'));
+    await settled('reviewowner');
+
+    // Review 156 M2: with slow responses, typing back to a cancelled value and Escape still show
+    // rows for the value in the field and the URL.
+    const slow = url => url.pathname === '/Admin/Audit' && url.searchParams.has('actor');
+    await page.route(slow, async route => { await new Promise(resolve => setTimeout(resolve, 1200)); await route.continue().catch(() => {}); });
+    await actorInput.fill('');
+    await page.waitForFunction(() => !new URL(location.href).searchParams.has('actor') && !document.querySelector('.filter-chip') && !document.querySelector('[data-update-skeleton]'));
+    const revSent = page.waitForRequest(request => new URL(request.url()).searchParams.get('actor') === 'rev');
+    await actorInput.pressSequentially('rev', { delay: 25 });
+    await revSent; // "rev" is in flight
+    await actorInput.press('x'); // cancels it
+    await actorInput.press('Backspace'); // back to "rev"
+    await settled('rev');
+    assert.equal(await actorInput.inputValue(), 'rev');
+    assert.equal(await page.locator('[data-audit-row] .actor', { hasText: '@ReviewOwner' }).count(), await page.locator('[data-audit-row]').count(), 'the rows match "rev"');
+    const revzSent = page.waitForRequest(request => new URL(request.url()).searchParams.get('actor') === 'revz');
+    await actorInput.press('z');
+    await revzSent; // "revz" is in flight
+    const revRead = page.waitForResponse(response => new URL(response.url()).searchParams.get('actor') === 'rev');
+    await actorInput.press('Escape');
+    assert.equal(await actorInput.inputValue(), 'rev', 'Escape restores the applied value');
+    await revRead;
+    await settled('rev');
+    assert.equal(await appliedActor(), 'rev');
+    assert.equal(await page.locator('.filter-chip', { hasText: 'revz' }).count(), 0, 'the cancelled search never applies');
+    await page.unroute(slow);
+    assert.equal(await page.evaluate(() => history.length), historyBefore, 'still no history entries');
 
     // Event menu: ordered as on Events with state hints; hidden events marked (AU16).
     await page.locator('.filter-chip').click();
