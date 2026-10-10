@@ -258,7 +258,7 @@
             <a class="public-ui-header-context-link @(isLeaderboardsView ? "is-current" : null)" aria-current="@(isLeaderboardsView ? "page" : null)" asp-page="/Events/Board" asp-route-slug="@eventSlug" asp-route-view="leaderboards">@T["Leaderboards"]</a>
             @if (eventSlug != "det-store-danske-sommerbingo-2026")
             {
-                <a class="public-ui-header-context-link @(isStatsPage ? "is-current" : null)" aria-current="@(isStatsPage ? "page" : null)" asp-page="/Events/Stats" asp-route-slug="@eventSlug">@T["Stats"]<span class="drop-navigation-new">WIP</span></a>
+                <a class="public-ui-header-context-link @(isStatsPage ? "is-current" : null)" aria-current="@(isStatsPage ? "page" : null)" asp-page="/Events/Stats" asp-route-slug="@eventSlug">@T["Stats"]</a>
             }
             <a class="public-ui-header-context-link @(isTeamsPage ? "is-current" : null)" aria-current="@(isTeamsPage ? "page" : null)" asp-page="/Events/Teams" asp-route-slug="@eventSlug">@T["Teams"]</a>
             @if (captainNavigation is not null)
