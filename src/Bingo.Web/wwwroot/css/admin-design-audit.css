@@ -7,7 +7,7 @@
 :where([data-page-family="audit"]) .au-filters{flex:1;min-width:0}
 :where([data-page-family="audit"]) .au-filters .search{width:240px}
 :where([data-page-family="audit"]) .au-actor-err{margin:-4px 0 12px}
-:where([data-page-family="audit"]) .au-tbl{--table-cols:132px minmax(200px,1.6fr) minmax(120px,1fr) minmax(110px,.7fr) minmax(150px,1.1fr) 150px;--table-min:940px}
+:where([data-page-family="audit"]) .au-tbl{--table-cols:132px minmax(188px,1.6fr) minmax(120px,1fr) minmax(110px,.7fr) minmax(150px,1.1fr) 162px;--table-min:940px}
 :where([data-page-family="audit"]) .au-tbl .td{padding-top:11px;padding-bottom:11px}
 :where([data-page-family="audit"]) .au-tbl .row{cursor:pointer}
 :where([data-page-family="audit"]) .au-tbl .cell-main{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -15,7 +15,7 @@
 :where([data-page-family="audit"]) .au-tbl .cell-tags{flex-wrap:nowrap;min-width:0}
 :where([data-page-family="audit"]) .au-tbl .actor{display:flex;max-width:100%}
 :where([data-page-family="audit"]) .au-tbl .actor .cell-main{min-width:0}
-:where([data-page-family="audit"]) .au-tbl .cell-tags .pill{display:block;flex:0 1 auto;min-width:0;max-width:100%;line-height:20px;overflow:hidden;text-overflow:ellipsis}
+:where([data-page-family="audit"]) .au-tbl .cell-tags .au-pill-free{display:block;flex:0 1 auto;min-width:0;max-width:100%;line-height:20px;overflow:hidden;text-overflow:ellipsis}
 :where([data-page-family="audit"]) .au-date{font-variant-numeric:tabular-nums}
 :where([data-page-family="audit"]) .au-tbl .c-name .cell-sub{font-variant-numeric:tabular-nums}
 :where([data-page-family="audit"]) .au-muted{color:var(--dk-text-3)}
