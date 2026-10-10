@@ -1,0 +1,36 @@
+== caddy validate (production Caddyfile)
+Valid configuration
+exit=0
+== caddy adapt (head)
+196
+== (a) upstream up: GET /  (expect 200 APP-RESPONSE 200, no Retry-After)
+HTTP/2 200 
+APP-RESPONSE 200
+== (a) upstream up, app returns 503: GET /app503 (expect 503 APP-RESPONSE 503, no Retry-After, no maintenance page)
+HTTP/2 503 
+APP-RESPONSE 503
+== /health/ready (expect 404 from Caddy)
+HTTP/2 404 
+== stop upstream
+== (b) no upstream: GET / (expect 503 + Retry-After: 60 + maintenance page)
+HTTP/2 503 
+cache-control: no-store
+content-type: text/html; charset=utf-8
+retry-after: 60
+<meta http-equiv="refresh" content="30">
+<h1>The site is being updated</h1>
+<h1 lang="da">Siden opdateres</h1>
+== (b) no upstream: GET /health/live (expect 503 maintenance, not 200)
+HTTP/2 503 
+retry-after: 60
+== (b) no upstream: /health/ready still 404
+HTTP/2 404 
+== (b) no upstream: POST / (expect 503 maintenance)
+HTTP/2 503 
+retry-after: 60
+== www redirect
+HTTP/2 301 
+location: https://localhost:18099/x?y=1
+== restart upstream: recovers (expect 200)
+HTTP/2 200 
+APP-RESPONSE 200
