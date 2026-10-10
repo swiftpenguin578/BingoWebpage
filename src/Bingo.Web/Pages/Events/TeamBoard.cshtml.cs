@@ -163,6 +163,10 @@ public sealed class TeamBoardModel(
         public Guid NextCharacterId { get; set; }
     }
 
+    /// <summary>Tile EHB shown as whole "Points": nearest integer (midpoint away from zero), never below 1.</summary>
+    public static int GetTilePoints(decimal estimatedEhb) =>
+        Math.Max(1, (int)Math.Round(estimatedEhb, 0, MidpointRounding.AwayFromZero));
+
     public static TeamFocusPresentation GetFocusPresentation(
         PublicTileProgress tile,
         IReadOnlyList<TeamFocusMarkerView> markers)
