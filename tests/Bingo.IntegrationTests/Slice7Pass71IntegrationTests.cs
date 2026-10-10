@@ -798,6 +798,21 @@ public sealed class Slice7Pass71IntegrationTests(PostgreSqlTestFixture databaseF
         }
     }
 
+    [Fact]
+    public async Task LiveHeaderLookupStaysWithinASmallQueryBudget()
+    {
+        var fixture = await SeedFixtureAsync(includeInformational: false, secondPlaying: true, includeTeam: true, administrator: true, publishRoster: true);
+        await StartLiveAsync(fixture);
+        var commands = new List<string>();
+        var counted = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString())
+            .LogTo(commands.Add, [Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.CommandExecuted]).Options;
+        await using var db = new ApplicationDbContext(counted);
+        var header = await new ParticipantLiveService(db, new FixedTimeProvider(now.AddMinutes(1))).GetPlayingAccountHeaderAsync(fixture.OwnerId, null);
+        Assert.NotNull(header);
+        Console.WriteLine($"HEADER_QUERY_COUNT={commands.Count}");
+        Assert.True(commands.Count <= 5, $"The header lookup ran {commands.Count} queries.");
+    }
+
     private async Task StartLiveAsync(Fixture fixture)
     {
         await using var start = new ApplicationDbContext(options);

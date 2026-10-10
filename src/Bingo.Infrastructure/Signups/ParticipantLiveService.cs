@@ -49,6 +49,7 @@ public sealed class ParticipantLiveService(ApplicationDbContext db, TimeProvider
         string? preferredEventSlug,
         CancellationToken cancellationToken = default)
     {
+        var now = time.GetUtcNow();
         var rows = await (from participant in db.EventParticipants.AsNoTracking()
                           join item in db.Events.AsNoTracking() on participant.EventId equals item.Id
                           join membership in db.TeamMemberships.AsNoTracking() on participant.Id equals membership.EventParticipantId
@@ -56,17 +57,37 @@ public sealed class ParticipantLiveService(ApplicationDbContext db, TimeProvider
                           where participant.AccountId == viewerAccountId && item.HiddenAt == null && item.State == EventState.Live &&
                                 membership.LeftAt == null && team.Active && participant.EventId == team.EventId
                           orderby item.EventStartsAt descending, item.Id
-                          select new { EventId = item.Id, item.Slug, ParticipantId = participant.Id })
+                          select new { EventId = item.Id, item.Slug, item.EventEndsAt, participant.SignupStatus, ParticipantId = participant.Id })
             .ToListAsync(cancellationToken);
         var chosen = rows.FirstOrDefault(x => preferredEventSlug is not null && x.Slug == preferredEventSlug) ?? rows.FirstOrDefault();
         if (chosen is null) return null;
-        var context = await GetContextAsync(chosen.EventId, chosen.ParticipantId, viewerAccountId, cancellationToken);
-        if (context is null) return null;
-        var credited = context.PlayingCharacters.SingleOrDefault(x => x.IsActive);
+        if (!await db.Accounts.AsNoTracking().AnyAsync(
+                x => x.Id == viewerAccountId && x.Active && x.AccountType == AccountType.WebsiteAccount, cancellationToken))
+            return null;
+
+        var assignments = await PlayingAssignmentsAsync(chosen.ParticipantId, cancellationToken);
+        // Same source evidence crediting uses (CreditedPlayingCharacterIdAsync), without repeating its lookups.
+        var active = await db.ActiveCharacterAtAsync(chosen.EventId, chosen.ParticipantId, now, cancellationToken);
+        var creditedId = active?.OsrsCharacterId ?? await UnswitchedCreditedIdAsync(chosen.EventId, chosen.ParticipantId, assignments, cancellationToken);
+        var credited = assignments.SingleOrDefault(x => x.Assignment.OsrsCharacterId == creditedId);
         if (credited is null) return null;
+        var canSwap = assignments.Count > 1 && chosen.SignupStatus == SignupStatus.Confirmed &&
+                      chosen.EventEndsAt is { } endsAt && now < endsAt &&
+                      !await db.EventParticipantCharacterSwaps.AsNoTracking()
+                          .AnyAsync(x => x.EventParticipantId == chosen.ParticipantId && x.EffectiveAtUtc > now, cancellationToken);
         return new PlayingAccountHeader(
-            chosen.EventId, chosen.ParticipantId, credited.Name, credited.CharacterId,
-            context.CanSwap ? context.PlayingCharacters.Where(x => !x.IsActive).ToList() : []);
+            chosen.EventId, chosen.ParticipantId, credited.Character.DisplayName, credited.Assignment.OsrsCharacterId,
+            canSwap
+                ? assignments.Where(x => x.Assignment.OsrsCharacterId != creditedId)
+                    .Select(x => new ParticipantPlayingCharacter(x.Assignment.OsrsCharacterId, x.Character.DisplayName, false)).ToList()
+                : []);
+    }
+
+    private async Task<Guid?> UnswitchedCreditedIdAsync(Guid eventId, Guid participantId, List<AssignmentRow> assignments, CancellationToken cancellationToken)
+    {
+        var hasSwapRows = await db.EventParticipantCharacterSwaps.AsNoTracking()
+            .AnyAsync(x => x.EventId == eventId && x.EventParticipantId == participantId, cancellationToken);
+        return EventParticipantActiveCharacterQueries.UnswitchedCreditedCharacterId(hasSwapRows, assignments.Select(x => x.Assignment.OsrsCharacterId).ToList());
     }
 
     public async Task<ParticipantCharacterSwapResult> SwapAsync(
@@ -172,7 +193,7 @@ public sealed class ParticipantLiveService(ApplicationDbContext db, TimeProvider
         var activeId = row.Event.State is EventState.Draft or EventState.SignupOpen or EventState.SignupClosed
             ? planned?.Assignment.OsrsCharacterId
             : row.Event.State == EventState.Live
-                ? await db.CreditedPlayingCharacterIdAsync(row.Event.Id, row.Participant.Id, now, cancellationToken)
+                ? active?.OsrsCharacterId ?? await UnswitchedCreditedIdAsync(row.Event.Id, row.Participant.Id, assignments, cancellationToken)
                 : active?.OsrsCharacterId;
         var activeAssignment = assignments.SingleOrDefault(x => x.Assignment.OsrsCharacterId == activeId);
         var hasPendingSwap = row.Event.State == EventState.Live && await db.EventParticipantCharacterSwaps.AsNoTracking()
