@@ -38,6 +38,40 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     await page.locator('[data-audit-directory]').waitFor();
     assert.ok(await page.locator('[data-audit-row] .pill', { hasText: 'Automated' }).count() > 0, 'automated entries are marked');
     assert.ok(await page.locator('.actor.is-system', { hasText: 'System' }).count() > 0);
+    // Long values stay inside their cell on one line: ellipsis, never a spill into the next column.
+    const longActor = '@' + 'SeedEvidenceCaptain'.repeat(4);
+    await page.evaluate(actor => {
+      const row = [...document.querySelectorAll('[data-audit-row]')].find(r => r.querySelector('.actor:not(.is-system)'));
+      const span = row.querySelector('.actor:not(.is-system)'); span.title = actor; span.querySelector('.cell-main').textContent = actor;
+      row.setAttribute('data-long-row', '');
+      const tags = row.querySelector('[role="cell"]:nth-child(6) .cell-tags');
+      for (const text of ['A very long recorded summary pill', 'Another long pill label']) { const pill = document.createElement('span'); pill.className = 'pill is-neutral au-pill-free'; pill.textContent = text; tags.append(pill); }
+      row.querySelector('.au-date').textContent = '27 September 2027 and more words';
+    }, longActor);
+    const squeezed = await page.evaluate(() => [...document.querySelectorAll('[data-audit-row]:not([data-long-row]) .pill')].filter(p => p.scrollWidth > p.clientWidth).map(p => p.textContent));
+    assert.deepEqual(squeezed, [], 'ordinary pills are never truncated');
+    assert.ok(await page.locator('[data-audit-row]:not([data-long-row]) .pill', { hasText: '2 changes' }).count() > 0);
+    if (process.env.AUDIT_ACTOR_SHOT) await page.screenshot({ path: process.env.AUDIT_ACTOR_SHOT });
+    const longRow = page.locator('[data-long-row]');
+    const measure = () => longRow.evaluate(row => [...row.querySelectorAll('[role="cell"]')].map(cell => {
+      const box = cell.getBoundingClientRect();
+      const inner = box.right - parseFloat(getComputedStyle(cell).paddingRight);
+      const spill = [...cell.querySelectorAll('*')].filter(el => !(el instanceof SVGElement) && el.getBoundingClientRect().right > inner + 0.5).map(el => el.className || el.tagName);
+      return { spill, scroll: cell.scrollWidth - cell.clientWidth, height: Math.round(box.height) };
+    }));
+    for (const width of [1100, 1440, 1280]) {
+      await page.setViewportSize({ width, height: 860 });
+      const fit = await measure();
+      assert.deepEqual(fit.map(f => f.spill), fit.map(() => []), 'no element spills out of its cell');
+      assert.ok(fit.every(f => f.scroll <= 0), 'no cell scrolls horizontally');
+      assert.ok(fit.every(f => f.height < 70), 'the row stays one line');
+    }
+    const actorMain = longRow.locator('.actor:not(.is-system) .cell-main');
+    assert.equal(await actorMain.evaluate(el => getComputedStyle(el).textOverflow + '/' + getComputedStyle(el).overflow), 'ellipsis/hidden');
+    assert.ok(await actorMain.evaluate(el => el.scrollWidth > el.clientWidth), 'the long actor is truncated');
+    assert.equal(await longRow.locator('.actor:not(.is-system)').getAttribute('title'), longActor, 'the title carries the full name');
+    assert.equal(await page.locator('[data-audit-row] .actor:not(.is-system):not([title])').count(), 0, 'every actor has a title');
+    assert.equal(await page.locator('[data-audit-row] .actor.is-system').first().getAttribute('title'), 'System');
     // Brief 147: the record line is a sentence and Affected account is a column ("—" when none).
     assert.deepEqual(await page.locator('.au-tbl .th-row [role="columnheader"]').allInnerTexts(), ['When', 'Action', 'Event', 'Actor', 'Affected account', 'Recorded']);
     assert.equal(await page.locator('[data-audit-row]').first().locator('[role="cell"]').count(), 6);
