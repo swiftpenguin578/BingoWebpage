@@ -1,6 +1,8 @@
 ﻿@using Bingo.Web.Navigation
 @using Bingo.Web.UI
+@using Bingo.Web.Security
 @inject SharedShellService SharedShell
+@inject Bingo.Application.Signups.IParticipantLiveService ParticipantLive
 @{
     var submissionContext = Model switch
     {
@@ -10,6 +12,9 @@
     };
     var shell = await SharedShell.GetAsync(User, ViewContext.RouteData.Values, Context.RequestAborted,
         contextEventId: submissionContext.EventId, contextTeamId: submissionContext.TeamId);
+    var playingAccount = User.Identity?.IsAuthenticated == true && User.GetAccountId() is { } playingViewerId
+        ? await ParticipantLive.GetPlayingAccountHeaderAsync(playingViewerId, ViewContext.RouteData.Values["slug"]?.ToString(), Context.RequestAborted)
+        : null;
     var captainNavigation = shell.CaptainNavigation;
     var submissionNavigation = shell.SubmissionNavigation;
     var currentPage = ViewContext.RouteData.Values["page"]?.ToString();
@@ -247,6 +252,35 @@
                     </div>
             </div>
     </nav>
+    @if (playingAccount is not null)
+    {
+        <div class="landing-shell-playing" data-playing-account>
+            @if (playingAccount.SwitchTargets.Count == 0)
+            {
+                <span class="landing-shell-playing__label">@T["Playing as {0}", playingAccount.CreditedCharacterName]</span>
+            }
+            else
+            {
+                <div class="landing-shell-playing__menu" data-public-ui-popover>
+                    <button type="button" class="landing-shell-playing__button" aria-expanded="false" aria-controls="public-ui-header-playing-panel"><span>@T["Playing as {0}", playingAccount.CreditedCharacterName]</span><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg></button>
+                    <div id="public-ui-header-playing-panel" class="landing-shell-playing__panel" data-public-ui-popover-panel hidden>
+                        <strong class="public-ui-header-popover__heading public-ui-section-heading">@T["Switch account"]</strong>
+                        @foreach (var target in playingAccount.SwitchTargets)
+                        {
+                            <form method="post" asp-page="/PlayingAccount" class="landing-shell-playing__form">
+                                <input type="hidden" name="returnUrl" value="@($"{Context.Request.PathBase}{Context.Request.Path}{Context.Request.QueryString}")" />
+                                <input type="hidden" name="EventId" value="@playingAccount.EventId" />
+                                <input type="hidden" name="ParticipantId" value="@playingAccount.ParticipantId" />
+                                <input type="hidden" name="ExpectedCurrentCharacterId" value="@playingAccount.CreditedCharacterId" />
+                                <input type="hidden" name="NextCharacterId" value="@target.CharacterId" />
+                                <button type="submit" class="landing-shell-playing__option">@target.Name</button>
+                            </form>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    }
     </header>
     @if (hasEventContextNavigation)
     {

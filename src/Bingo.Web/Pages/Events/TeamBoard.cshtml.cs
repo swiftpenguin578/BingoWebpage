@@ -20,8 +20,7 @@ public sealed class TeamBoardModel(
     ITeamFocusService focus,
     IEventCompetitionActivityProjection? activity = null,
     IEvidenceAuthority? evidenceAuthority = null,
-    TimeProvider? time = null,
-    IStringLocalizer<SharedResource>? text = null) : PageModel
+    TimeProvider? time = null) : PageModel
 {
     public PublicEventBoard Board { get; private set; } = null!;
     public PublicTeamBoard Team { get; private set; } = null!;
@@ -100,26 +99,6 @@ public sealed class TeamBoardModel(
         return Partial("_TileSidebar", new TileSidebarView(tile, canSubmit, board.EventId, team.TeamId, sequenceNumber));
     }
 
-    public async Task<IActionResult> OnPostSwapAsync(string slug, string teamSlug, CancellationToken cancellationToken)
-    {
-        var accountId = User.GetAccountId();
-        if (accountId is null) return Challenge();
-        var board = await boards.GetEventBoardAsync(slug, cancellationToken);
-        var team = board?.Teams.SingleOrDefault(value => value.TeamSlug == teamSlug);
-        if (board is null || team is null) return NotFound();
-        var result = await live.SwapAsync(new(
-            board.EventId, Input.ParticipantId, Input.ExpectedCurrentCharacterId, Input.NextCharacterId,
-            accountId.Value, User.Identity?.Name ?? "participant"), cancellationToken);
-        TempData["StatusMessage"] = result.Succeeded
-            ? (text?["Playing account changed to {0}, active from {1}.", result.CharacterName!, result.EffectiveAtUtc!.Value.ToString("dd MMM yyyy HH:mm:ss.ffffff 'UTC'", CultureInfo.InvariantCulture)].Value ?? $"Playing account changed to {result.CharacterName}, active from {result.EffectiveAtUtc!.Value:dd MMM yyyy HH:mm:ss.ffffff 'UTC'}.")
-            : (text?[result.Error ?? "The account swap could not be saved."].Value ?? result.Error ?? "The account swap could not be saved.");
-        TempData[Bingo.Web.UI.UiMessage.TypeKey] = (result.Succeeded ? Bingo.Web.UI.UiMessageType.Success : Bingo.Web.UI.UiMessageType.Error).ToString();
-        return RedirectToPage(new { slug, teamSlug, participantId = Input.ParticipantId });
-    }
-
-    [BindProperty]
-    public SwapInput Input { get; set; } = new();
-
     private async Task<bool> LoadLiveContextAsync(Guid? participantId, CancellationToken cancellationToken)
     {
         var accountId = User.GetAccountId();
@@ -154,13 +133,6 @@ public sealed class TeamBoardModel(
         if (segments.Length != 2 || !string.Equals(segments[0], "Tiles", StringComparison.OrdinalIgnoreCase) || !Guid.TryParse(segments[1], out var parsed)) return false;
         tileId = parsed;
         return true;
-    }
-
-    public sealed class SwapInput
-    {
-        public Guid ParticipantId { get; set; }
-        public Guid ExpectedCurrentCharacterId { get; set; }
-        public Guid NextCharacterId { get; set; }
     }
 
     public static TeamFocusPresentation GetFocusPresentation(

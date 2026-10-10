@@ -18,6 +18,16 @@ public interface IParticipantLiveService
         Guid viewerAccountId,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// The playing account shown in the public header: the signed-in website account's participant on a team
+    /// of a Live event (the preferred event when it qualifies, else the most recently started Live event),
+    /// named by the account submissions are credited to now. Null when there is none.
+    /// </summary>
+    Task<PlayingAccountHeader?> GetPlayingAccountHeaderAsync(
+        Guid viewerAccountId,
+        string? preferredEventSlug,
+        CancellationToken cancellationToken = default);
+
     Task<ParticipantCharacterSwapResult> SwapAsync(
         ParticipantCharacterSwapRequest request,
         CancellationToken cancellationToken = default);
@@ -55,3 +65,10 @@ public sealed record ParticipantCharacterSwapResult(
     string? Error = null,
     DateTimeOffset? EffectiveAtUtc = null,
     string? CharacterName = null);
+
+public sealed record PlayingAccountHeader(
+    Guid EventId,
+    Guid ParticipantId,
+    string CreditedCharacterName,
+    Guid CreditedCharacterId,
+    IReadOnlyList<ParticipantPlayingCharacter> SwitchTargets);
