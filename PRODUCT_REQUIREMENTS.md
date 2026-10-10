@@ -782,7 +782,7 @@ never the reversal/review clock. Existing full-board finish remains higher prior
 Exact equality across all competitive inputs gives shared placement; no discretionary
 tie procedure or new manual timestamp correction is introduced.
 
-EHB is used for board estimation, line balancing, player contribution statistics, and final tie-breaking. It does not otherwise award team points.
+EHB is used for board estimation, line balancing, player contribution statistics, and final tie-breaking. It does not otherwise award team points. The public team board shows each tile's expected EHB to players as "Points: N" (Danish "Point: N"), N rounded to the nearest whole number and never below 1 (user decision, 9 October 2026); this label is a display of tile EHB, not a separate scoring model.
 
 ## 9. Boss, activity, item, and drop catalogue
 
