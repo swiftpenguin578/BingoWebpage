@@ -561,10 +561,13 @@ body.public-event-shell .public-ui-team-board-tile--complete:hover { box-shadow:
 .public-ui-team-board-tile__art { display: grid; overflow: hidden; background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--public-ui-charcoal-surface) 84%, var(--public-ui-flat-surface)), var(--public-ui-charcoal-surface) 68%); }
 .public-ui-team-board-tile__art > .public-ui-team-board-tile__art-image { width: 100%; height: 100%; object-fit: cover; }
 .public-ui-team-board-tile__placeholder { display: grid; place-items: center; color: color-mix(in srgb, var(--public-ui-data-blue) 48%, transparent); font-size: 2rem; }
-.public-ui-team-board-tile__boss-art-grid { display: grid; width: 100%; height: 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); }
-.public-ui-team-board-tile__boss-art-grid img { width: 100%; height: 100%; padding: 8%; object-fit: contain; filter: drop-shadow(0 0.35rem 0.6rem rgba(0, 0, 0, 0.5)); }
-.public-ui-team-board-tile__boss-art-grid--count-1 img { grid-area: 1 / 1 / 3 / 3; padding: 12%; }
-.public-ui-team-board-tile__boss-art-grid--count-2 img:first-child { grid-area: 1 / 1 / 3 / 2; }
+.public-ui-team-board-tile__boss-art-grid { position: relative; display: block; width: 100%; height: 100%; }
+/* Boss images are stacked in place; boss-art-fade.js marks the one on show (is-active) and only opacity animates. Without script the first boss stays visible. */
+.public-ui-team-board-tile__boss-art-grid img { position: absolute; inset: 0; width: 100%; height: 100%; padding: 8%; object-fit: contain; filter: drop-shadow(0 0.35rem 0.6rem rgba(0, 0, 0, 0.5)); opacity: 0; transition: opacity var(--boss-fade-ms, 1500ms) ease-in-out; }
+.public-ui-team-board-tile__boss-art-grid img:first-child, .public-ui-team-board-tile__boss-art-grid img.is-active { opacity: 1; }
+.public-ui-team-board-tile__boss-art-grid[data-boss-fade] img:first-child:not(.is-active) { opacity: 0; }
+@media (prefers-reduced-motion: reduce) { .public-ui-team-board-tile__boss-art-grid img { transition: none; } }
+.public-ui-team-board-tile__boss-art-grid--count-1 img { padding: 12%; }
 
 body.public-event-shell.public-ui-historical-board :is(.public-ui-team-board-tile__art-image, .public-ui-team-board-tile__boss-art-grid img) {
   animation: public-ui-historical-tile-colour 18s ease-in-out infinite alternate;
@@ -574,14 +577,6 @@ body.public-event-shell.public-ui-historical-board :is(.public-ui-team-board-til
   from { filter: drop-shadow(0 0.35rem 0.6rem rgba(0, 0, 0, 0.42)) saturate(0.68) brightness(0.92) sepia(0.04) hue-rotate(-4deg); }
   to { filter: drop-shadow(0 0.35rem 0.6rem rgba(0, 0, 0, 0.42)) saturate(0.78) brightness(0.95) sepia(0.07) hue-rotate(6deg); }
 }
-.public-ui-team-board-tile__boss-art-grid--count-2 img:last-child { grid-area: 1 / 2 / 3 / 3; }
-.public-ui-team-board-tile__boss-art-grid--count-3, .public-ui-team-board-tile__boss-art-grid--count-4 { width: 82%; height: 60%; align-self: start; justify-self: center; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); transform: translateY(10%); }
-.public-ui-team-board-tile__boss-art-grid--count-3 img, .public-ui-team-board-tile__boss-art-grid--count-4 img { position: relative; width: 100%; height: 100%; padding: 0; object-fit: contain; }
-.public-ui-team-board-tile__boss-art-grid--count-3 img:nth-child(1), .public-ui-team-board-tile__boss-art-grid--count-4 img:nth-child(1) { z-index: 2; transform: translate(6%, 2%) scale(1.04); }
-.public-ui-team-board-tile__boss-art-grid--count-3 img:nth-child(2), .public-ui-team-board-tile__boss-art-grid--count-4 img:nth-child(2) { z-index: 3; transform: translate(-6%, 2%) scale(1.04); }
-.public-ui-team-board-tile__boss-art-grid--count-3 img:nth-child(3) { z-index: 4; width: 52%; grid-column: 1 / 3; justify-self: center; transform: translateY(-16%) scale(1.04); }
-.public-ui-team-board-tile__boss-art-grid--count-4 img:nth-child(3) { z-index: 4; transform: translate(6%, -16%) scale(1.04); }
-.public-ui-team-board-tile__boss-art-grid--count-4 img:nth-child(4) { z-index: 5; transform: translate(-6%, -16%) scale(1.04); }
 .public-ui-team-board-tile__shade { z-index: 1; display: block; background: linear-gradient(to bottom, transparent 48%, rgba(8, 10, 14, 0.68) 72%, rgba(8, 10, 14, 0.94) 100%); }
 .public-ui-team-board-tile__copy { z-index: 2; display: flex; flex-direction: column; justify-content: end; gap: 0.2rem; padding: 0.42rem; }
 .public-ui-team-board-tile__position { display: none; }
@@ -3688,7 +3683,6 @@ body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile--in-progress:
 body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile__art { z-index: 0; inset: auto -8% -10% auto; display: block; width: 44%; height: 48%; overflow: visible; background: transparent; }
 body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile__art-image { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 0.25rem 0.4rem rgba(0, 0, 0, 0.35)); }
 body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile__placeholder { display: none; }
-body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile__boss-art-grid { display: block; width: 100%; height: 100%; }
 body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile__boss-art-grid img { width: 100%; height: 100%; padding: 0; object-fit: contain; }
 body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile__shade { z-index: 1; display: block; background: none; }
 body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile__number { position: absolute; z-index: 1; top: 0.25rem; right: 0.35rem; color: transparent; -webkit-text-stroke: 1px color-mix(in srgb, var(--board-ink) 22%, transparent); font: 800 clamp(2rem, 53cqw, 5rem)/0.8 "Barlow Condensed ExtraBold", sans-serif; }

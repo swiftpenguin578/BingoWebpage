@@ -23,9 +23,12 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
       { mode: 'draft', rows: 3, cols: 3, positions: [0, 1, 2, 3, 4, 5, 6, 7, 8], eyebrow: /current draft values/ },
       { mode: 'published', rows: 5, cols: 5, positions: [...Array(25).keys()].filter(p => p !== 12), eyebrow: /what players see now/ },
     ];
-    for (const dark of [false, true]) for (const scenario of scenarios) {
-      const context = await browser.newContext({ viewport: { width: 1280, height: 860 }, reducedMotion: 'reduce', colorScheme: dark ? 'dark' : 'light' });
+    // Boss fade (brief 153): every scenario runs with reduced motion (first boss static); one extra run keeps motion on with a frozen page clock.
+    const runs = [...[false, true].flatMap(dark => scenarios.map(scenario => ({ dark, scenario, motion: false }))), { dark: false, scenario: scenarios[0], motion: true }];
+    for (const { dark, scenario, motion } of runs) {
+      const context = await browser.newContext({ viewport: { width: 1280, height: 860 }, reducedMotion: motion ? 'no-preference' : 'reduce', colorScheme: dark ? 'dark' : 'light' });
       const page = await login(context, fixture);
+      if (motion) await page.clock.install();
       const errors = []; page.on('pageerror', error => errors.push(error.message));
       // Rewrite the page's own view data before its script reads it (no network interception: WebKit drops subresources of fulfilled documents).
       await page.addInitScript(({ scenario, names }) => {
@@ -50,6 +53,7 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
       await page.goto(fixture.origin + boardPath);
       await page.locator('#preview-btn').waitFor();
       requests.length = 0;
+      if (motion) await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000)); // frozen until the fade checks are done
       await page.locator('#preview-btn').focus(); // WebKit does not focus a button on click, so open by keyboard
       await page.keyboard.press('Enter');
       const layer = page.locator('.bd-pv');
@@ -79,6 +83,41 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
         } else assert.equal(await tile.locator('img').count(), 0, 'placeholder tile has no image');
       }
       await page.waitForFunction(() => [...document.querySelectorAll('.bd-pv-board img')].every(img => img.complete && img.naturalWidth > 0), null, { timeout: 10000 });
+      // Boss fade: tiles with several bosses show exactly one at a time; single-boss and own-image tiles are unchanged.
+      const fadeState = () => board.evaluate(el => [...el.querySelectorAll('[data-pv-tile]')].map(tile => { const g = tile.querySelector('.public-ui-team-board-tile__boss-art-grid'); return { n: tile.querySelectorAll('img').length, boss: !!g, fade: g ? g.hasAttribute('data-boss-fade') : false, active: g ? g.dataset.bossActive ?? null : null, visible: [...tile.querySelectorAll('img')].filter(i => +getComputedStyle(i).opacity === 1).length, sameBox: g ? new Set([...g.querySelectorAll('img')].map(i => { const r = i.getBoundingClientRect(); return [r.x, r.y, r.width, r.height].join(','); })).size === 1 : true }; }));
+      let fade = await fadeState();
+      fade.forEach((t, i) => {
+        if (!t.boss) return;
+        assert.equal(t.visible, 1, `tile ${i} shows exactly one boss`); assert.equal(t.sameBox, true, `tile ${i} bosses are stacked in place`);
+        assert.equal(t.fade, t.n > 1, `tile ${i} fades only with several bosses`);
+        assert.equal(t.active, t.n > 1 ? '0' : null, `tile ${i} starts on the first boss`);
+      });
+      if (!motion) {
+        assert.equal(await page.evaluate(() => window.BossArtFade.displayMs), 6000);
+      } else {
+        fs.mkdirSync(path.join(process.cwd(), 'artifacts/boss-fade'), { recursive: true });
+        await board.locator('[data-pv-tile]').nth(7).screenshot({ path: path.join(process.cwd(), 'artifacts/boss-fade', `preview-4-boss-tile-before-${name}.png`) });
+        const multi = fade.map((t, i) => (t.n > 1 && t.boss ? i : -1)).filter(i => i >= 0); // draft 3x3: tiles 1 (2 bosses) and 7 (4 bosses)
+        assert.deepEqual(multi, [1, 7], 'fixture has a 2-boss and a 4-boss tile');
+        // The clock was frozen just before the preview opened, so its schedule starts at 0: tile 1 switches at 6000 + 700 ms, tile 7 at 6000 + 2350 ms (staggered).
+        await page.clock.runFor(6699); fade = await fadeState();
+        assert.deepEqual(multi.map(i => fade[i].active), ['0', '0'], 'nothing switches before 6 s');
+        await page.clock.runFor(2); fade = await fadeState();
+        assert.deepEqual(multi.map(i => fade[i].active), ['1', '0'], 'tile 1 switches first');
+        await page.clock.runFor(1700); fade = await fadeState();
+        assert.deepEqual(multi.map(i => fade[i].active), ['1', '1'], 'tile 7 switches later (staggered)');
+        await new Promise(resolve => setTimeout(resolve, 1800)); fade = await fadeState();
+        assert.deepEqual(multi.map(i => fade[i].visible), [1, 1], 'one boss visible after the cross-fade');
+        await board.locator('[data-pv-tile]').nth(7).screenshot({ path: path.join(process.cwd(), 'artifacts/boss-fade', `preview-4-boss-tile-after-${name}.png`) });
+        // Hidden tab pauses; closing the preview stops its timers (no errors, nothing left to switch).
+        await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' }); document.dispatchEvent(new Event('visibilitychange')); });
+        const frozen = multi.map(i => fade[i].active); await page.clock.runFor(60000); fade = await fadeState();
+        assert.deepEqual(multi.map(i => fade[i].active), frozen, 'hidden tab: no switching');
+        await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' }); document.dispatchEvent(new Event('visibilitychange')); });
+        await page.clock.runFor(6000); fade = await fadeState();
+        assert.notDeepEqual(multi.map(i => fade[i].active), frozen, 'resumes after the tab is visible again');
+        await page.clock.resume();
+      }
       // Board only: no progress, state labels, links, buttons or focusable tiles.
       assert.equal(await board.locator('.public-ui-team-board-tile__progress-row, .public-ui-team-board-tile__progress, a, button, [tabindex], [role=button]').count(), 0, 'tiles are plain, with no progress or interaction');
       assert.equal(await layer.locator('.public-team-sidebar, .public-team-switcher, .public-team-board-legend, .bd-ed').count(), 0, 'no sidebar, switcher, legend or tile view');
@@ -106,7 +145,7 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
       assert.deepEqual(errors, []);
       await context.close();
     }
-    console.log('PASS board preview: board only, names/points/order/art, not-started look, no interaction, fits 3x3/5x5/narrow, light and dark, closes with Escape/outside click, no writes (' + name + ').');
+    console.log('PASS board preview: board only, names/points/order/art, not-started look, no interaction, fits 3x3/5x5/narrow, light and dark, closes with Escape/outside click, no writes, boss fade one-at-a-time/staggered/paused/reduced motion (' + name + ').');
   } finally {
     if (browser) await browser.close();
     await fixture.close();

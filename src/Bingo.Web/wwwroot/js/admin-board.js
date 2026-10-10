@@ -540,6 +540,7 @@ export async function init(region, ui = window.AdminUI) {
     content.dataset.pageFamily = 'board';
     const layer = ui.openLayer({ title: t('Preview'), content }); layer.element.dataset.pageFamily = 'board';
     layer.element.classList.add('bd-pv'); layer.element.dataset.pageFamily = 'board';
+    if (window.BossArtFade) window.BossArtFade.start(board);
   };
 
   /* ---------------- paint ---------------- */
