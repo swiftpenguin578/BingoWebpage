@@ -1,5 +1,5 @@
 {
-  "source": "CI run 38050109769 (javascript-results-1..9 results.json; runs that timed out are recorded at the 120 s limit). Unlisted runs use the defaults. Refresh from the shard results.json artifacts with scripts/update-browser-test-timings.cjs.",
+  "source": "CI run 38050109769 (javascript-results-1..9 results.json; runs that timed out are recorded at the 120 s limit). Unlisted runs use the defaults. Refresh from the shard results.json artifacts with scripts/update-browser-test-timings.cjs. admin-design-wom-connection/-fetch are estimates: the former admin-design-wom entry (109 s Chromium, 125 s WebKit timeout) halved by scenario count.",
   "defaultBrowserSeconds": 30,
   "defaultNodeSeconds": 2,
   "seconds": {
@@ -95,8 +95,10 @@
     "admin-design-unknown-timezone.browser.js [webkit]": 17,
     "admin-design-ur.browser.js [chromium]": 48,
     "admin-design-ur.browser.js [webkit]": 44,
-    "admin-design-wom.browser.js [chromium]": 109,
-    "admin-design-wom.browser.js [webkit]": 125,
+    "admin-design-wom-connection.browser.js [chromium]": 55,
+    "admin-design-wom-connection.browser.js [webkit]": 63,
+    "admin-design-wom-fetch.browser.js [chromium]": 54,
+    "admin-design-wom-fetch.browser.js [webkit]": 62,
     "admin-save-timing.source.js [default]": 1,
     "admin-stale-change.browser.js [default]": 7,
     "board-page.test.js [default]": 1,
