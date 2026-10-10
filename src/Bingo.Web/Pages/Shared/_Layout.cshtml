@@ -276,11 +276,11 @@
             <a class="public-ui-header-context-link @(isTeamsPage ? "is-current" : null)" aria-current="@(isTeamsPage ? "page" : null)" asp-page="/Events/Teams" asp-route-slug="@eventSlug">@T["Teams"]</a>
             @if (captainNavigation is not null)
             {
-                <a class="public-ui-header-context-link @(isSubmissionsPage ? "is-current" : null)" aria-current="@(isSubmissionsPage ? "page" : null)" href="@captainNavigation.Url">@T["Captain"]</a>
+                <a class="public-ui-header-context-link @(isSubmissionsPage ? "is-current" : null)" aria-current="@(isSubmissionsPage ? "page" : null)" href="@captainNavigation.Url">@T["Submissions"]</a>
             }
             else if (submissionNavigation is not null)
             {
-                <a class="public-ui-header-context-link @(isSubmissionsPage ? "is-current" : null)" aria-current="@(isSubmissionsPage ? "page" : null)" href="@submissionNavigation.Url">@T["submissions"]</a>
+                <a class="public-ui-header-context-link @(isSubmissionsPage ? "is-current" : null)" aria-current="@(isSubmissionsPage ? "page" : null)" href="@submissionNavigation.Url">@T["Submissions"]</a>
             }
         </nav>
     }

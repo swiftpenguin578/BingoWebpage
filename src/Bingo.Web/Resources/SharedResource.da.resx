@@ -310,7 +310,7 @@
   <data name="Your account is no longer available for Discord linking." xml:space="preserve"><value>Din konto kan ikke længere tilknytte Discord.</value></data>
   <data name="Your linked Discord account was replaced." xml:space="preserve"><value>Din tilknyttede Discord-konto blev erstattet.</value></data>
   <data name="Your Discord account is linked." xml:space="preserve"><value>Din Discord-konto er tilknyttet.</value></data>
-  <data name="submissions" xml:space="preserve"><value>indsendelser</value></data>
+  <data name="Submissions" xml:space="preserve"><value>Indsendelser</value></data>
   <data name="Captain workspace" xml:space="preserve"><value>Kaptajnarbejdsområde</value></data>
   <data name="Current screenshot code" xml:space="preserve"><value>Nuværende skærmbilledekode</value></data>
   <data name="No active code" xml:space="preserve"><value>Ingen aktiv kode</value></data>
