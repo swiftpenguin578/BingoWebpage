@@ -20,7 +20,7 @@
         || null;
     const MOTION_MS = 320;
     const HEIGHT_MS = MOTION_MS * 2;
-    const DISPLAY_MS = 10000;
+    const DISPLAY_MS = 6000;
     const label = (name, fallback) => root.dataset[name] || fallback;
     let snapshot = null;
     let queue = [];
