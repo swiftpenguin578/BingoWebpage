@@ -137,8 +137,10 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
       // Board only: no progress, state labels, links, buttons or focusable tiles.
       assert.equal(await board.locator('.public-ui-team-board-tile__progress-row, .public-ui-team-board-tile__progress, a, button, [tabindex], [role=button]').count(), 0, 'tiles are plain, with no progress or interaction');
       assert.equal(await layer.locator('.public-team-sidebar, .public-team-switcher, .public-team-board-legend, .bd-ed').count(), 0, 'no sidebar, switcher, legend or tile view');
+      // Measure only once the modal's open animation (it scales/moves the panel) and the fonts have settled.
+      await layer.evaluate(el => Promise.all([document.fonts.ready, ...el.getAnimations({ subtree: true }).map(animation => animation.finished)]));
       const box = await board.boundingBox(), modal = await layer.boundingBox();
-      assert.ok(box.x >= modal.x && box.x + box.width <= modal.x + modal.width + 1 && box.y + box.height <= 860, 'board fits the modal and window');
+      assert.ok(box.x >= modal.x && box.x + box.width <= modal.x + modal.width + 1 && box.y + box.height <= 860, `board fits the modal and window ${JSON.stringify({ box, modal })}`);
       await board.locator('[data-pv-tile]').first().click();
       assert.equal(await page.locator('.bd-ed').count(), 0, 'clicking a tile opens nothing');
       assert.equal(await layer.count(), 1, 'preview stays open after a tile click');
