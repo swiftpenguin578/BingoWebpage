@@ -131,7 +131,11 @@ const measureStats=()=>{
      assert.deepEqual(m.problems,[],`${name} ${theme} ${w} values clip at the column dividers`);
      for(const d of m.divs)assert.ok(d.bottom<=m.horizontalTop-2,`${name} ${theme} ${w} vertical divider bottom ${d.bottom} must stop above the horizontal divider top ${m.horizontalTop}`);
      assert.ok(m.scrollW<=m.innerW,`${name} ${theme} ${w} no horizontal scroll`);}}
-   await page.setViewportSize({width:720,height:900});assert.equal((await page.evaluate(measureStats)).cols,1,`${name} 720 stacked`);
+   // Single-column layout is unchanged from 619f6bd5: every section has zero side padding, 0.85rem bottom (+0.85rem top after the first) and the full sidebar width.
+   for(const w of [720,390]){await page.setViewportSize({width:w,height:900});
+    const r=await page.evaluate(()=>{const sb=document.querySelector('.public-team-sidebar'),sw=sb.getBoundingClientRect().width,rem=parseFloat(getComputedStyle(document.documentElement).fontSize);return{cols:getComputedStyle(sb).gridTemplateColumns.split(' ').length,secs:[...sb.querySelectorAll(':scope > .team-sidebar-section')].map(e=>{const c=getComputedStyle(e);return{pl:c.paddingLeft,pr:c.paddingRight,pt:parseFloat(c.paddingTop)/rem,pb:parseFloat(c.paddingBottom)/rem,full:Math.abs(e.getBoundingClientRect().width-sw)<1.5};})};});
+    assert.equal(r.cols,1,`${name} ${w} stacked`);
+    r.secs.forEach((x,i)=>assert.deepEqual(x,{pl:'0px',pr:'0px',pt:i?0.85:0,pb:0.85,full:true},`${name} ${w} section ${i} padding/width as at 619f6bd5: ${JSON.stringify(x)}`));}
    await page.evaluate(()=>document.documentElement.removeAttribute('data-public-theme'));
    await page.evaluate(h=>{document.body.innerHTML=h},tileHtml);
    for(const [w,h] of [[1920,1080],[1470,700],[390,844]]){
