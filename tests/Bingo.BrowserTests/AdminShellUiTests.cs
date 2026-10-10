@@ -92,7 +92,7 @@ public sealed class AdminShellUiTests
         Assert.Contains("currentPage", publicLayout);
         Assert.Contains("isPublicBoardsPage", publicLayout);
         Assert.Contains("@if (captainNavigation is not null)", publicLayout);
-        Assert.Contains("href=\"@captainNavigation.Url\">@T[\"Captain\"]", publicLayout);
+        Assert.Contains("href=\"@captainNavigation.Url\">@T[\"Submissions\"]", publicLayout);
         Assert.Contains("class=\"public-ui-header-context-link @(isSubmissionsPage ? \"is-current\" : null)\"", publicLayout);
         Assert.Contains("isSubmissionsPage", publicLayout);
         Assert.Contains("StartsWith(\"/Events/\"", publicLayout);
