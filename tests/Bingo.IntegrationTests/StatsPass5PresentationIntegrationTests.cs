@@ -83,7 +83,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
             }
             var scopedHtml = await ordinary.GetStringAsync(route);
             Assert.Contains($"/Submissions?eventId={f.Event.Id}&amp;teamId={f.Team.Id}", scopedHtml, StringComparison.Ordinal);
-            Assert.Contains(">Captain</a>", scopedHtml, StringComparison.Ordinal);
+            Assert.Contains(">Submissions</a>", scopedHtml, StringComparison.Ordinal);
         }
 
         using (var noToken = await owner.PostAsync(route + "?handler=Artwork", new FormUrlEncodedContent([]))) Assert.Equal(HttpStatusCode.BadRequest, noToken.StatusCode);
