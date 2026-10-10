@@ -1,2 +1,0 @@
-command=dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --no-restore --configuration Release --filter FullyQualifiedName~SameCharacterEhbCorrectionAppendsHistoryAndRepeatIsNoOp --logger trx --results-directory /private/tmp/participants-backend-remediation-20260930
-exit_code=0
