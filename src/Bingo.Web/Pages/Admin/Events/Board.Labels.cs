@@ -125,7 +125,7 @@ public sealed partial class BoardModel
         "Board resized to {0} × {1}.",
         "resize the board to {0} × {1}",
         "Close preview",
-        "Not supported yet",
+        "Points: {0}",
         "Draft · private",
         "Approved · private",
         "Published",

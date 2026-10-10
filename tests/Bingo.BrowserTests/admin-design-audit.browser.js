@@ -22,31 +22,121 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     await page.locator('#au-notice', { hasText: 'Some filters in the link weren’t recognised.' }).waitFor();
     assert.equal(new URL(page.url()).search, '?actor=ReviewOwner');
     assert.equal(await page.locator('#actor-input').inputValue(), 'ReviewOwner');
-    assert.equal(await page.locator('.filter-chip').count(), 1);
+    // Brief 159 item 2: the actor search is the search box, never a chip; no chip means no Clear all (as on Participants).
+    assert.equal(await page.locator('.filter-chip').count(), 0);
+    assert.equal(await page.locator('#clear-all').count(), 0);
     assert.equal(await page.evaluate(() => document.scrollingElement.scrollHeight <= innerHeight), true, 'the document never scrolls');
     // U3-Q10: the summary is only the time zone line.
     assert.match(await page.locator('.page-head .summary').innerText(), /^Times in Copenhagen time \(UTC[+-]\d\d:\d\d\)$/);
     assert.equal(await page.locator('.page-head .summary > span').count(), 1);
 
-    // Clear all, then the actor search (C-AUD-3: "@" ignored, case ignored), pushed to history.
-    await page.locator('#clear-all').click();
+    // Clear the search with its own button, then the actor search (C-AUD-3: "@" ignored, case ignored), pushed to history.
+    await page.locator('[data-audit-actor-clear]').click();
     await page.waitForFunction(() => location.search === '' && !document.querySelector('.filter-chip') && !document.querySelector('[data-update-skeleton]') && document.querySelectorAll('[data-audit-row]').length > 5);
+    // The search box replaces the URL; a separate visit keeps an entry to go Back to.
+    await page.goto(fixture.origin + '/Admin/Audit?page=1');
+    await page.locator('[data-audit-directory]').waitFor();
     assert.ok(await page.locator('[data-audit-row] .pill', { hasText: 'Automated' }).count() > 0, 'automated entries are marked');
     assert.ok(await page.locator('.actor.is-system', { hasText: 'System' }).count() > 0);
-    await page.locator('#actor-input').fill('@reviewowner');
-    await page.locator('#actor-input').press('Enter');
-    await page.waitForFunction(() => new URL(location.href).searchParams.get('actor') === 'reviewowner' && document.querySelector('.filter-chip') && !document.querySelector('[data-update-skeleton]'));
+    // Long values stay inside their cell on one line: ellipsis, never a spill into the next column.
+    const longActor = '@' + 'SeedEvidenceCaptain'.repeat(4);
+    await page.evaluate(actor => {
+      const row = [...document.querySelectorAll('[data-audit-row]')].find(r => r.querySelector('.actor:not(.is-system)'));
+      const span = row.querySelector('.actor:not(.is-system)'); span.title = actor; span.querySelector('.cell-main').textContent = actor;
+      row.setAttribute('data-long-row', '');
+      const tags = row.querySelector('[role="cell"]:nth-child(6) .cell-tags');
+      for (const text of ['A very long recorded summary pill', 'Another long pill label']) { const pill = document.createElement('span'); pill.className = 'pill is-neutral au-pill-free'; pill.textContent = text; tags.append(pill); }
+      row.querySelector('.au-date').textContent = '27 September 2027 and more words';
+    }, longActor);
+    const squeezed = await page.evaluate(() => [...document.querySelectorAll('[data-audit-row]:not([data-long-row]) .pill')].filter(p => p.scrollWidth > p.clientWidth).map(p => p.textContent));
+    assert.deepEqual(squeezed, [], 'ordinary pills are never truncated');
+    assert.ok(await page.locator('[data-audit-row]:not([data-long-row]) .pill', { hasText: '2 changes' }).count() > 0);
+    if (process.env.AUDIT_ACTOR_SHOT) await page.screenshot({ path: process.env.AUDIT_ACTOR_SHOT });
+    const longRow = page.locator('[data-long-row]');
+    const measure = () => longRow.evaluate(row => [...row.querySelectorAll('[role="cell"]')].map(cell => {
+      const box = cell.getBoundingClientRect();
+      const inner = box.right - parseFloat(getComputedStyle(cell).paddingRight);
+      const spill = [...cell.querySelectorAll('*')].filter(el => !(el instanceof SVGElement) && el.getBoundingClientRect().right > inner + 0.5).map(el => el.className || el.tagName);
+      return { spill, scroll: cell.scrollWidth - cell.clientWidth, height: Math.round(box.height) };
+    }));
+    for (const width of [1100, 1440, 1280]) {
+      await page.setViewportSize({ width, height: 860 });
+      const fit = await measure();
+      assert.deepEqual(fit.map(f => f.spill), fit.map(() => []), 'no element spills out of its cell');
+      assert.ok(fit.every(f => f.scroll <= 0), 'no cell scrolls horizontally');
+      assert.ok(fit.every(f => f.height < 70), 'the row stays one line');
+    }
+    const actorMain = longRow.locator('.actor:not(.is-system) .cell-main');
+    assert.equal(await actorMain.evaluate(el => getComputedStyle(el).textOverflow + '/' + getComputedStyle(el).overflow), 'ellipsis/hidden');
+    assert.ok(await actorMain.evaluate(el => el.scrollWidth > el.clientWidth), 'the long actor is truncated');
+    assert.equal(await longRow.locator('.actor:not(.is-system)').getAttribute('title'), longActor, 'the title carries the full name');
+    assert.equal(await page.locator('[data-audit-row] .actor:not(.is-system):not([title])').count(), 0, 'every actor has a title');
+    assert.equal(await page.locator('[data-audit-row] .actor.is-system').first().getAttribute('title'), 'System');
+    // Brief 147: the record line is a sentence and Affected account is a column ("—" when none).
+    assert.deepEqual(await page.locator('.au-tbl .th-row [role="columnheader"]').allInnerTexts(), ['When', 'Action', 'Event', 'Actor', 'Affected account', 'Recorded']);
+    assert.equal(await page.locator('[data-audit-row]').first().locator('[role="cell"]').count(), 6);
+    assert.ok(await page.locator('[data-audit-row] [role="cell"]:nth-child(5)', { hasText: '—' }).count() > 0, 'entries without an affected account show a dash');
+    // Brief 159 (A11): the column names one account, never "@website · character".
+    assert.equal(await page.locator('[data-audit-row] [role="cell"]:nth-child(5)', { hasText: '·' }).count(), 0, 'the affected column shows one name');
+    // Brief 147 item 4: the search applies while typing (250 ms debounce, no Enter); focus stays in
+    // the field and fast typing sends only the last query.
+    const actorRequests = [];
+    page.on('request', request => { const url = new URL(request.url()); if (url.pathname === '/Admin/Audit' && url.searchParams.has('actor')) actorRequests.push(url.searchParams.get('actor')); });
+    const historyBefore = await page.evaluate(() => history.length);
+    const appliedActor = () => page.evaluate(() => new URL(document.querySelector('[data-audit-directory]').dataset.directoryCanonical, location.href).searchParams.get('actor') || '');
+    const settled = actorValue => page.waitForFunction(value => document.querySelector('[data-audit-directory]') && new URL(document.querySelector('[data-audit-directory]').dataset.directoryCanonical, location.href).searchParams.get('actor') === (value || null)
+      && new URL(location.href).searchParams.get('actor') === (value || null) && !document.querySelector('.filter-chip') && !document.querySelector('[data-update-skeleton]'), actorValue, { timeout: 15000 });
+    const actorInput = page.locator('#actor-input');
+    await actorInput.pressSequentially('@reviewowner', { delay: 25 });
+    await settled('reviewowner');
+    assert.deepEqual(actorRequests, ['reviewowner'], 'fast typing sends only the last query');
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'actor-input', 'focus stays in the field while the list updates');
+    assert.equal(await actorInput.inputValue(), '@reviewowner', 'the typed text is kept');
     const actorRows = await page.locator('[data-audit-row]').count();
     assert.ok(actorRows > 0);
     assert.equal(await page.locator('[data-audit-row] .actor', { hasText: '@ReviewOwner' }).count(), actorRows);
+    // Review 156 M1: debounced searches replace the URL and add no history entry (as on Participants).
+    await actorInput.press('Backspace');
+    await settled('reviewowne');
+    await actorInput.press('r');
+    await settled('reviewowner');
+    assert.equal(await page.evaluate(() => history.length), historyBefore, 'searching adds no history entries');
+    // Back therefore leaves the searches behind and returns to the entry before this visit.
     await page.goBack();
-    await page.waitForFunction(() => location.search === '' && !document.querySelector('.filter-chip'));
-    assert.equal(await page.locator('#actor-input').inputValue(), '');
+    await settled(''); // wait for that read to finish before going forward again
     await page.goForward();
-    await page.waitForFunction(() => new URL(location.href).searchParams.get('actor') === 'reviewowner' && document.querySelector('.filter-chip'));
+    await settled('reviewowner');
+
+    // Review 156 M2: with slow responses, typing back to a cancelled value and Escape still show
+    // rows for the value in the field and the URL.
+    const slow = url => url.pathname === '/Admin/Audit' && url.searchParams.has('actor');
+    await page.route(slow, async route => { await new Promise(resolve => setTimeout(resolve, 1200)); await route.continue().catch(() => {}); });
+    await actorInput.fill('');
+    await page.waitForFunction(() => !new URL(location.href).searchParams.has('actor') && !document.querySelector('.filter-chip') && !document.querySelector('[data-update-skeleton]'));
+    const revSent = page.waitForRequest(request => new URL(request.url()).searchParams.get('actor') === 'rev');
+    await actorInput.pressSequentially('rev', { delay: 25 });
+    await revSent; // "rev" is in flight
+    await actorInput.press('x'); // cancels it
+    await actorInput.press('Backspace'); // back to "rev"
+    await settled('rev');
+    assert.equal(await actorInput.inputValue(), 'rev');
+    assert.equal(await page.locator('[data-audit-row] .actor', { hasText: '@ReviewOwner' }).count(), await page.locator('[data-audit-row]').count(), 'the rows match "rev"');
+    const revzSent = page.waitForRequest(request => new URL(request.url()).searchParams.get('actor') === 'revz');
+    await actorInput.press('z');
+    await revzSent; // "revz" is in flight
+    const revRead = page.waitForResponse(response => new URL(response.url()).searchParams.get('actor') === 'rev');
+    await actorInput.press('Escape');
+    assert.equal(await actorInput.inputValue(), 'rev', 'Escape restores the applied value');
+    await revRead;
+    await settled('rev');
+    assert.equal(await appliedActor(), 'rev');
+    assert.equal(await page.locator('.filter-chip', { hasText: 'revz' }).count(), 0, 'the cancelled search never applies');
+    await page.unroute(slow);
+    assert.equal(await page.evaluate(() => history.length), historyBefore, 'still no history entries');
 
     // Event menu: ordered as on Events with state hints; hidden events marked (AU16).
-    await page.locator('.filter-chip').click();
+    assert.equal(await page.locator('.filter-chip').count(), 0, 'no chip while searching');
+    await page.locator('[data-audit-actor-clear]').click();
     await page.waitForFunction(() => location.search === '' && !document.querySelector('.filter-chip') && !document.querySelector('[data-update-skeleton]'));
     await page.locator('#event-filter').click();
     const hidden = page.locator('#audit-event-menu .menu-item', { hasText: 'Hidden final review' });
@@ -66,8 +156,13 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     // replaces Clear all between mousedown and mouseup.
     await page.waitForFunction(() => new URL(location.href).searchParams.get('action') === 'event.' && new URL(document.querySelector('[data-audit-directory]').dataset.directoryCanonical, location.href).searchParams.get('action') === 'event.' && !document.querySelector('[data-update-skeleton]'));
     assert.deepEqual(await page.locator('.filter-chip').allInnerTexts(), ['Event: Hidden final review', 'Action: Events actions']);
+    // Brief 159 item 2: a search next to real chips adds no chip, stays in the URL, and Clear all clears it too.
+    await page.locator('#actor-input').fill('review');
+    await page.waitForFunction(() => new URL(location.href).searchParams.get('actor') === 'review' && new URL(document.querySelector('[data-audit-directory]').dataset.directoryCanonical, location.href).searchParams.get('actor') === 'review' && !document.querySelector('[data-update-skeleton]'), null, { timeout: 15000 });
+    assert.deepEqual(await page.locator('.filter-chip').allInnerTexts(), ['Event: Hidden final review', 'Action: Events actions']);
     await page.locator('#clear-all').click();
     await page.waitForFunction(() => location.search === '' && !document.querySelector('.filter-chip') && !document.querySelector('[data-update-skeleton]'));
+    assert.equal(await page.locator('#actor-input').inputValue(), '', 'Clear all also clears the search');
 
     // T1 review M2: unapplied panel edits are protected by the shared discard confirmation.
     await page.locator('#more-filters').click();

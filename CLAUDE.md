@@ -1,41 +1,11 @@
 @AGENTS.md
 
-# Claude Code instructions
+# Claude Code notes
 
-`AGENTS.md` (imported above) is the shared instruction file for every agent in
-this repository. Follow its project rules: sources of truth, working-tree safety,
-architecture and data protections, bounded execution, scope and stop rules,
-verification and handoff.
+`AGENTS.md` (imported above) holds every project rule; this file adds only Claude mechanics. If they conflict, `AGENTS.md` wins; report the conflict.
 
-This file only translates the parts of `AGENTS.md` that are written for Codex.
-It adds no project policy. If the two ever conflict on a project rule,
-`AGENTS.md` and the active authority documents win; report the conflict.
-
-## Codex-specific mechanics that do not apply to Claude
-
-- **Model/reasoning names** (`gpt-*`, Astra, Sol, Luna, Terra, reasoning levels):
-  they choose Codex workers. Claude uses the model the user selected for this session,
-  and names Codex models only in the routing section of a brief.
-- **Codex roles and tooling** (dispatcher, implementer, optional orchestrator, Codex
-  chat and task IDs): outside the user-assigned lanes below, Claude
-  takes none of these roles and does not dispatch Codex; the user sends each brief.
-  Batch independent read-only tool calls in parallel;
-  keep dependent steps sequential. An independent review means a fresh session or
-  an explicitly requested reviewer sub-agent, never a self-check relabelled as
-  independent.
-
-**Planner chats and agents (user decision, 3 October 2026):** the chat the user writes in acts as planner: decisions, briefs, recording decisions, and quick checks. Heavy read-only work (batch reviews, cross-ticket analysis, large sweeps) goes to a sub-agent, which writes its report to `review-notes/`. The planner personally verifies the critical findings before a pass/fail verdict. Start a fresh planner chat per phase, using `review-notes/00-index.md` as the handoff.
-
-## Working alongside Codex
-
-- Claude implements the lanes the user assigns to it (lane T, and the main lane from U4), each in its own worktree and branch, with an implementer sub-agent; review stays independent (separate reviewer agent, planner verification). Codex runs the lanes assigned to it (C8, U9) and is the fallback implementer at batch boundaries. The Claude planner holds the feature branch and merges reviewed lanes into it. (User decisions, 7 October 2026; 08-decisions.md, “Lane T implemented by Claude”, “Lane swap”, “Parallel lanes to finish by Friday 9 October”.)
-- Codex work usually lives in worktrees under `~/.codex/worktrees/`. Do not edit,
-  stage, commit, reset or clean a Codex-owned checkout or branch unless the user
-  assigns it. Reading it is fine.
-- The checkout Claude starts in may be behind the branch where current work and
-  the newest `CURRENT_STATUS.md` live. Before relying on a status or policy
-  document, confirm which checkout/branch the user means and whether it is
-  behind `origin/main` or the active Codex branch.
-- Durable decisions go into the owning repository document (see the authority
-  table in `AGENTS.md`), not only into Claude's private memory, so Codex sees them too.
-- Do not change the Codex role/model policy in `AGENTS.md` without the user's request.
+- The planner chat handles decisions, briefs, recording decisions and quick checks. Heavy read-only work (batch reviews, cross-ticket analysis, large sweeps) goes to a sub-agent that writes its report to `review-notes/`. Start a fresh planner chat per phase with `review-notes/00-index.md` as the handoff.
+- An independent review is a separate reviewer sub-agent or a fresh session, never a self-check relabelled as independent.
+- Batch independent read-only tool calls in parallel; keep dependent steps sequential.
+- The checkout you start in may be behind the working branch. Before relying on a status or policy document, confirm which checkout and branch the user means and whether it is behind `origin/main`.
+- Durable decisions go into the owning repository document, not only into Claude's memory.

@@ -148,7 +148,7 @@ const fakeFetch = async (url, options = {}) => {
 const context = { window: fakeWindow, document: fakeDocument, CustomEvent: class { constructor(type, init) { this.type = type; this.detail = init?.detail; } }, sessionStorage: { getItem: key => session.get(key) || null, setItem: (key, value) => session.set(key, value) }, fetch: fakeFetch, console };
 require("node:vm").runInNewContext(script, context);
 const flush = () => new Promise(resolve => setImmediate(resolve));
-const runTimer = (delay = 10000) => { const timer = timers.find(item => item.active && item.delay === delay); assert.ok(timer, `expected an active ${delay}ms timer`); timer.active = false; timer.callback(); };
+const runTimer = (delay = 6000) => { const timer = timers.find(item => item.active && item.delay === delay); assert.ok(timer, `expected an active ${delay}ms timer`); timer.active = false; timer.callback(); };
 
 (async () => {
     await flush();

@@ -9,9 +9,17 @@ namespace Bingo.Web.UI;
 
 public sealed record AuditFieldChange(string Field, string Before, string After);
 
+/// <summary>
+/// Brief 147 item 2: one affected website account and/or playing account; Current = looked up now (A4).
+/// Brief 159 (A11): Column is the single name the list column shows, the affected participant's
+/// primary account in the event for event entries, else null (the website account is shown).
+/// </summary>
+public sealed record AuditAffectedAccount(string? Website, string? Playing, bool Current, string? Column = null);
+
 public sealed record AuditPresentation(string Action, string Actor, string Target, string? Reason,
     IReadOnlyList<AuditFieldChange> Changes, string ActionKey, string? Details, string? BeforeState, string? AfterState,
-    string? LifecycleSummary = null, string? Context = null, bool Sensitive = false, bool TechnicalOnly = false);
+    string? LifecycleSummary = null, string? Context = null, bool Sensitive = false, bool TechnicalOnly = false, string? Summary = null,
+    IReadOnlyList<AuditAffectedAccount>? Affected = null, int AffectedMore = 0);
 
 /// <summary>Read-only, tolerant projection shared by full Audit and recent activity.</summary>
 public static class AuditPresenter
@@ -21,7 +29,9 @@ public static class AuditPresenter
     private static readonly HashSet<string> PlainReasonActions = new(StringComparer.Ordinal)
     {
         "submission.created", "submission.request_changes", "submission.resubmitted", "submission.approved", "submission.rejected", "submission.reversed", "submission.withdrawn", "submission.corrected", "submission.replaced", "submission.duplicate", "submission.hidden", "submission.shown", "submission.contribution_rebalanced", "event.started", "event.ended",
-        "event.resumed", "event.cancelled", "event.unfinalized", "account.captain_auto_disabled", "team.member_removed"
+        "event.resumed", "event.cancelled", "event.unfinalized", "account.captain_auto_disabled", "team.member_removed",
+        // Brief 147: the correction reason is the whole Details text.
+        "board.published_correction_started"
     };
     // Owning tickets extend these explicit labels as their mutations are migrated.
     private static readonly IReadOnlyDictionary<string, string> Actions = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -195,7 +205,9 @@ public static class AuditPresenter
         ["team.preformed_corrected"] = "Preformed team corrected",
         ["team.preformed_roster_csv_imported"] = "Preformed rosters imported",
         ["team.role_roster_published"] = "Team roles published",
-        ["team.updated"] = "Team updated"
+        ["team.updated"] = "Team updated",
+        // Brief 147 A7: sign-out is recorded without an area prefix.
+        ["logout"] = "Signed out"
     };
 
     private static readonly IReadOnlyDictionary<string, string> Targets = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -214,7 +226,8 @@ public static class AuditPresenter
         ["catalogue_item"] = "Item",
         ["tile"] = "Tile",
         ["signup_question"] = "Signup question",
-        ["competition"] = "WOM competition"
+        ["competition"] = "WOM competition",
+        ["pick"] = "Draft pick"
     };
 
     /// <summary>Every labelled action key (S12) and record type, for filters and the label completeness test.</summary>
@@ -243,8 +256,9 @@ public static class AuditPresenter
         => new(action.Id, action.PerformedAt, action.PerformedByAccountId, actorUsername, ActionKey(action.Action),
             "submission", action.SubmissionId.ToString("D"), action.Note, eventId, action.BeforeSnapshot, action.AfterSnapshot);
 
-    public static AuditPresentation Present(AuditEntry entry, IStringLocalizer<AuditResource> text)
+    public static AuditPresentation Present(AuditEntry entry, IStringLocalizer<AuditResource> text, AuditNames? names = null)
     {
+        names ??= AuditNames.Empty;
         var before = ReadSnapshot(entry.BeforeState, "before");
         var after = ReadSnapshot(entry.AfterState, "after");
         var details = ReadFields(entry.Details);
@@ -253,22 +267,38 @@ public static class AuditPresenter
             before = ReadNestedFields(entry.Details, "before");
             after = ReadNestedFields(entry.Details, "after");
         }
+        // Brief 147: status producers store bare values ("WaitingList", "40"), not JSON objects.
+        if (before.Count == 0 && after.Count == 0 && ScalarStateActions.Contains(entry.Action) && ScalarState(entry.BeforeState) is var scalarBefore && ScalarState(entry.AfterState) is var scalarAfter
+            && (scalarBefore is not null || scalarAfter is not null))
+        {
+            var field = entry.Action == "event.capacity_increased" ? "ParticipantCap" : "Status";
+            if (scalarBefore is not null) before[field] = scalarBefore;
+            if (scalarAfter is not null) after[field] = scalarAfter;
+        }
         var isCreation = before.Count == 0 && after.Count > 0;
         var isDeletion = before.Count > 0 && after.Count == 0;
         var changes = isCreation || isDeletion
             ? []
             : before.Keys.Union(after.Keys, StringComparer.OrdinalIgnoreCase)
             .Where(key => !Sensitive(key) && !IsTechnicalField(key))
-            .Select(key => new AuditFieldChange(text[Humanize(key)], Value(before.GetValueOrDefault(key), text), Value(after.GetValueOrDefault(key), text)))
+            .Select(key => new AuditFieldChange(FieldLabel(key, text), Value(Enumerated(entry, key, before.GetValueOrDefault(key)), text, key), Value(Enumerated(entry, key, after.GetValueOrDefault(key)), text, key)))
             // T1-8: rows that read the same before and after (including empty → empty) are not changes.
             .Where(change => change.Before != change.After)
             .ToArray();
+        var affected = AuditSentences.Affected(entry, names);
         var reason = Reason(entry, details);
         var target = text[Targets.GetValueOrDefault(entry.TargetType, "Recorded target")].Value;
-        var targetName = after.GetValueOrDefault("Name")
-            ?? before.GetValueOrDefault("Name")
-            ?? after.FirstOrDefault(pair => pair.Key.EndsWith(" · Name", StringComparison.OrdinalIgnoreCase)).Value
-            ?? before.FirstOrDefault(pair => pair.Key.EndsWith(" · Name", StringComparison.OrdinalIgnoreCase)).Value;
+        // B3: a stored JSON null ("null") is no name (a finalized-roster removal of someone who was not
+        // on the published roster); fall back to the stored character name, then the current one.
+        static string? Named(string? value) => string.IsNullOrWhiteSpace(value) || value == "null" ? null : value;
+        var targetName = Named(after.GetValueOrDefault("Name"))
+            ?? Named(before.GetValueOrDefault("Name"))
+            ?? Named(after.FirstOrDefault(pair => pair.Key.EndsWith(" · Name", StringComparison.OrdinalIgnoreCase)).Value)
+            ?? Named(before.FirstOrDefault(pair => pair.Key.EndsWith(" · Name", StringComparison.OrdinalIgnoreCase)).Value);
+        if (targetName is null && entry.Action.StartsWith("roster.finalized_", StringComparison.Ordinal)) targetName = AuditSentences.StoredRosterCharacter(entry);
+        if (string.IsNullOrWhiteSpace(targetName)) targetName = ResolvedTargetName(entry, names, before, after);
+        // B3: with no name at all, the record line ends with the stored id.
+        if (string.IsNullOrWhiteSpace(targetName) && entry.TargetType == "membership" && Guid.TryParse(entry.TargetId, out _)) targetName = entry.TargetId;
         if (!string.IsNullOrWhiteSpace(targetName)) target += $" · {targetName}";
         var targetIdentity = Guid.TryParse(entry.TargetId, out _) ? entry.TargetId : null;
         if (targetIdentity is null && !string.IsNullOrWhiteSpace(entry.TargetId)) target += $" · {entry.TargetId}";
@@ -290,7 +320,9 @@ public static class AuditPresenter
             sensitiveAction ? null : Context(entry, reason, isCreation || isDeletion), sensitiveAction,
             // T1 review L1: values did change, but only in internal fields kept in Technical details.
             TechnicalOnly: !sensitiveAction && !isCreation && !isDeletion && changes.Length == 0 && before.Keys.Union(after.Keys, StringComparer.OrdinalIgnoreCase)
-                .Any(key => !Sensitive(key) && IsTechnicalField(key) && before.GetValueOrDefault(key) != after.GetValueOrDefault(key)));
+                .Any(key => !Sensitive(key) && IsTechnicalField(key) && before.GetValueOrDefault(key) != after.GetValueOrDefault(key)),
+            Summary: AuditSentences.Build(entry, names, text),
+            Affected: affected.Take(AffectedShown).ToList(), AffectedMore: Math.Max(AuditSentences.AffectedTotal(entry) ?? 0, affected.Count) - Math.Min(affected.Count, AffectedShown));
     }
 
     // Audit drawer "context" (reference Audit.dc.html present()): the reopening explanations, or
@@ -305,15 +337,125 @@ public static class AuditPresenter
 
     // T1-8 (a): readable values in Changes. Empty values are a dash; decimals are rounded like the
     // site's EHB values ("0.##", current culture); ISO instants use the drawer's "When" format.
-    private static string Value(string? value, IStringLocalizer<AuditResource> text) => value switch
+    private static string Value(string? value, IStringLocalizer<AuditResource> text, string? field = null) => value switch
     {
         null or "null" or "" => "—",
         "true" => text["Yes"],
         "false" => text["No"],
+        _ when field is not null && EnumFields.Contains(field.Split(" · ").Last().Trim()) && ValueLabels.TryGetValue(value, out var label) => text[label],
         _ when IsoInstant.IsMatch(value) && DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var instant) => When(instant, CultureInfo.CurrentCulture),
         _ when DecimalNumber.IsMatch(value) && decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var number) => number.ToString("0.##", CultureInfo.CurrentCulture),
         _ => value
     };
+
+    // Producers that store bare status/cap values (SignupService.AddAudit and the capacity increase).
+    private static readonly HashSet<string> ScalarStateActions = new(StringComparer.Ordinal)
+    {
+        "participant.admin_confirmed", "participant.admin_moved_to_waiting", "participant.promoted", "participant.rejoined",
+        "participant.admin_restored", "participant.withdrawn", "participant.admin_withdrawn", "event.capacity_increased"
+    };
+
+    // Brief 147: stored enum values shown by their page labels, only in fields that hold such values.
+    private static readonly HashSet<string> EnumFields = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "role", "roleOrState", "status", "state", "payment", "source", "ehbSource", "priceSource", "womStatus", "mappingStatus", "type", "accountRole", "changeKind"
+    };
+
+    private static readonly Dictionary<string, string> ValueLabels = new Dictionary<string, string>(StringComparer.Ordinal)
+    {
+        ["SignupOpen"] = "Signups open",
+        ["SignupClosed"] = "Signups closed",
+        ["Live"] = "Live",
+        ["AwaitingFinalReview"] = "Final review",
+        ["Finalized"] = "Finished",
+        ["Archived"] = "Archived",
+        ["Cancelled"] = "Cancelled",
+        ["Discarded"] = "Discarded",
+        ["Pending"] = "Pending",
+        ["Approved"] = "Approved",
+        ["Rejected"] = "Rejected",
+        ["Withdrawn"] = "Withdrawn",
+        ["Reversed"] = "Reversed",
+        ["Confirmed"] = "Confirmed",
+        ["WaitingList"] = "Waiting list",
+        ["Paid"] = "Paid",
+        ["Unpaid"] = "Unpaid",
+        ["Participant"] = "Participant",
+        ["Captain"] = "Captain",
+        ["CoCaptain"] = "Co-captain",
+        ["User"] = "User",
+        ["Admin"] = "Admin",
+        ["SuperAdmin"] = "Super Admin",
+        ["Active"] = "Active",
+        ["Disabled"] = "Disabled",
+        ["Setup"] = "Setup",
+        ["InProgress"] = "In progress",
+        ["Validated"] = "Approved",
+        ["Published"] = "Published",
+        ["Private correction"] = "Private correction",
+        ["Queued"] = "Queued",
+        ["Failed"] = "Failed",
+        ["Succeeded"] = "Succeeded",
+        ["NotManaged"] = "Not managed",
+        ["Internal"] = "Internal replacement",
+        ["Playing"] = "Playing",
+        ["Manual"] = "Manual",
+        ["AdminCorrection"] = "Admin correction"
+    };
+
+    /// <summary>The label key for a stored enum value, or the value itself.</summary>
+    public static string ValueLabel(string value) => ValueLabels.GetValueOrDefault(value, value);
+
+    // Event lifecycle "state" and submission "Status" are stored as enum numbers.
+    private static string? Enumerated(AuditEntry entry, string key, string? value)
+    {
+        if (value is null || !int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number)) return value;
+        var name = key.Split(" · ").Last().Trim();
+        if (entry.TargetType == "event" && name.Equals("state", StringComparison.OrdinalIgnoreCase) && Enum.IsDefined(typeof(Bingo.Domain.Events.EventState), number))
+            return number == (int)Bingo.Domain.Events.EventState.Draft ? "Setup" : ((Bingo.Domain.Events.EventState)number).ToString();
+        if (entry.TargetType == "submission" && name.Equals("status", StringComparison.OrdinalIgnoreCase) && Enum.IsDefined(typeof(SubmissionStatus), number))
+            return ((SubmissionStatus)number).ToString();
+        return value;
+    }
+
+    private static string? ScalarState(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+        try
+        {
+            using var document = JsonDocument.Parse(raw);
+            return document.RootElement.ValueKind switch
+            {
+                JsonValueKind.String => document.RootElement.GetString(),
+                JsonValueKind.Number => document.RootElement.GetRawText(),
+                _ => null
+            };
+        }
+        catch (JsonException) { return IsPlainText(raw) && raw.Length <= 40 && !raw.Contains(' ') ? raw.Trim() : null; }
+    }
+
+    // Brief 147: the record line names the record when the stored snapshot has no name.
+    private static string? ResolvedTargetName(AuditEntry entry, AuditNames names, Dictionary<string, string> before, Dictionary<string, string> after)
+    {
+        var id = Guid.TryParse(entry.TargetId, out var parsed) ? parsed : (Guid?)null;
+        string? Lookup<T>(Dictionary<Guid, T> map, Func<T, string?> select) => id is { } key && map.TryGetValue(key, out var value) ? select(value) : null;
+        string? Player(Guid participant) => names.Participants.TryGetValue(participant, out var value) ? value.Character : null;
+        return entry.TargetType switch
+        {
+            "account" => Lookup(names.Accounts, name => name),
+            "participant" => id is { } participant ? Player(participant) : null,
+            "membership" or "draft_publication" => Lookup(names.Memberships, membership => Player(membership.ParticipantId)) ?? Lookup(names.Teams, name => name),
+            "team" => Lookup(names.Teams, name => name),
+            "board" => Lookup(names.Boards, name => name),
+            "tile" => Lookup(names.Tiles, name => name),
+            "signup_question" => Lookup(names.Questions, label => label) ?? after.GetValueOrDefault("Label") ?? before.GetValueOrDefault("Label"),
+            "boss_activity" => Lookup(names.Bosses, name => name) ?? (IsPlainText(entry.Details) ? entry.Details : null),
+            "catalogue_item" => Lookup(names.Items, name => name) ?? (IsPlainText(entry.Details) ? entry.Details : null),
+            "source_drop" => Lookup(names.Drops, drop => drop.Item is null ? null : drop.Boss is null ? drop.Item : $"{drop.Item} ({drop.Boss})"),
+            "submission" => Lookup(names.Submissions, submission => submission.CharacterName),
+            _ => null
+        };
+    }
 
     private static readonly Regex IsoInstant = new(@"\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}", RegexOptions.CultureInvariant);
     private static readonly Regex DecimalNumber = new(@"\A-?\d+\.\d+\z", RegexOptions.CultureInvariant);
@@ -336,12 +478,17 @@ public static class AuditPresenter
     {
         var name = key.Split(" · ").Last().Trim();
         name = Regex.Replace(name, @"\s*\[\d+\]\z", string.Empty);
+        // Brief 147: the normalized username repeats the username.
+        if (name.Equals("normalizedUsername", StringComparison.OrdinalIgnoreCase)) return true;
         if (name.Equals("id", StringComparison.OrdinalIgnoreCase) || Regex.IsMatch(name, @"(?:[a-z0-9]Id|Ids|[_ ][Ii]d|[_ ][Ii]ds)\z")) return true;
         return TechnicalWords.Any(word => name.Contains(word, StringComparison.OrdinalIgnoreCase))
             || name.EndsWith("Version", StringComparison.OrdinalIgnoreCase) || name.EndsWith("_version", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static readonly string[] TechnicalWords = ["lease", "concurrency", "rowversion", "xmin", "etag", "lockedby", "locked_by"];
+    private static readonly string[] TechnicalWords = ["lease", "concurrency", "rowversion", "xmin", "etag", "lockedby", "locked_by", "omitted"];
+
+    /// <summary>A8: the drawer lists at most this many affected accounts, then "and N more".</summary>
+    public const int AffectedShown = 10;
 
     private static string? Reason(AuditEntry entry, Dictionary<string, string> details)
     {
@@ -361,6 +508,14 @@ public static class AuditPresenter
         var match = Regex.Match(entry.Details, pattern, RegexOptions.Singleline);
         return match.Success ? match.Groups["reason"].Value : null;
     }
+
+    // Brief 147: each part of a nested field path is translated on its own ("Tile · Name snapshot" → "Felt · Navn").
+    private static string FieldLabel(string key, IStringLocalizer<AuditResource> text) => string.Join(" · ", Humanize(key).Split(" · ").Select(part =>
+    {
+        var index = Regex.Match(part, @"\s*\[\d+\]\z");
+        var name = index.Success ? part[..index.Index] : part;
+        return text[name].Value + (index.Success ? index.Value : string.Empty);
+    }));
 
     private static string Humanize(string key) => key switch
     {

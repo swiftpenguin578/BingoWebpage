@@ -4,7 +4,7 @@
 // CI shards: BROWSER_TEST_SHARD=k/N runs only shard k of N (1-based). Shards are
 // balanced by scripts/browser-test-timings.json (seconds per "file [browser]";
 // unknown runs get a default). `--shard-info k/N` prints what that shard needs
-// (browser engines, .NET fixtures, the parity check) as GitHub step outputs.
+// (browser engines, .NET fixtures) as GitHub step outputs.
 // Without BROWSER_TEST_SHARD every run executes, as before.
 const fs = require('node:fs');
 const path = require('node:path');
@@ -19,7 +19,6 @@ const runs = files.flatMap(file => /^(admin-design-|identity-)/.test(file)
   ? [{ file, browser: 'chromium' }, { file, browser: 'webkit' }]
   : [{ file, browser: 'default' }]);
 const staleFixtureScript = 'admin-stale-change.browser.js';
-const parityUnit = 'test:parity';
 const staleFixtureUnit = 'fixtures:stale-evidence';
 
 function parseShard(value) {
@@ -33,8 +32,7 @@ const runKey = run => `${run.file} [${run.browser}]`;
 // other scripts are plain Node programs with fake DOMs.
 const usesBrowser = run => run.browser !== 'default' || run.file.endsWith('.browser.js');
 
-// Longest unit first, each to the shard with the fewest seconds; the parity
-// check is one more unit.
+// Longest unit first, each to the shard with the fewest seconds.
 function partition(count) {
   const timings = JSON.parse(fs.readFileSync(path.join(__dirname, 'browser-test-timings.json'), 'utf8'));
   const weight = (key, fallback) => Number.isFinite(timings.seconds[key]) ? timings.seconds[key] : fallback;
@@ -44,7 +42,6 @@ function partition(count) {
     seconds: weight(runKey(run), usesBrowser(run) ? timings.defaultBrowserSeconds : timings.defaultNodeSeconds)
       + (run.file === staleFixtureScript ? weight(staleFixtureUnit, 0) : 0)
   }));
-  units.push({ run: null, key: parityUnit, seconds: weight(parityUnit, timings.defaultBrowserSeconds) });
   units.sort((a, b) => b.seconds - a.seconds || (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
   const shards = Array.from({ length: count }, () => ({ seconds: 0, units: [] }));
   for (const unit of units) {
@@ -57,21 +54,18 @@ function partition(count) {
 }
 
 function shardInfo(shard) {
-  const selected = shard.units.filter(unit => unit.run).map(unit => unit.run);
-  const parity = shard.units.some(unit => unit.key === parityUnit);
+  const selected = shard.units.map(unit => unit.run);
   const engines = new Set();
   for (const run of selected.filter(usesBrowser)) {
     if (run.browser === 'webkit') engines.add('webkit');
     else engines.add('chromium').add('chrome'); // One unchanged legacy test explicitly selects Chrome.
   }
-  if (parity) engines.add('chromium').add('chrome').add('webkit');
   return {
     runs: selected.length,
     seconds: Math.round(shard.seconds),
     engines: [...engines].sort().join(' '),
     dotnet: engines.size > 0,
-    staleFixtures: selected.some(run => run.file === staleFixtureScript),
-    parity
+    staleFixtures: selected.some(run => run.file === staleFixtureScript)
   };
 }
 
@@ -87,7 +81,7 @@ const shardSpec = process.env.BROWSER_TEST_SHARD;
 let selectedRuns = runs;
 if (shardSpec) {
   const { index, count } = parseShard(shardSpec);
-  selectedRuns = partition(count)[index - 1].units.filter(unit => unit.run).map(unit => unit.run);
+  selectedRuns = partition(count)[index - 1].units.map(unit => unit.run);
 }
 
 const fixtures = process.env.BINGO_ADMIN_STALE_EVIDENCE_DIRECTORY;

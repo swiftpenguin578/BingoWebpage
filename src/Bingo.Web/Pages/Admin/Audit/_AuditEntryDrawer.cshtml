@@ -23,9 +23,11 @@
     </div>
     <div class="dr-body" id="drawer-body">
         <section class="sec" aria-label="@D["Summary"]">
+            @if (p.Summary is { Length: > 0 } summary) { <p class="au-summary">@summary</p> }
             <dl class="kv au-kv">
                 <dt>@D["When"]</dt><dd>@AuditPresenter.When(entry.OccurredAt, CultureInfo.CurrentCulture)</dd>
                 <dt>@D["Actor"]</dt><dd>@(Model.Automated ? D["System (automatic)"].Value : "@" + p.Actor)</dd>
+                <dt>@D["Affected account"]</dt><dd>@if ((p.Affected ?? []).Count == 0) { @* Review 156 L1: counted but no longer resolvable accounts show their number. *@ <text>@(p.AffectedMore == 0 ? "—" : p.AffectedMore == 1 ? D["1 account"].Value : D["{0} accounts", p.AffectedMore].Value)</text> } else { foreach (var account in p.Affected!) { <div>@AuditAccountLine.Of(account)@if (account.Current) { <span class="au-muted"> (@D["current owner"])</span> }</div> }@if (p.AffectedMore > 0) { <div class="au-muted">@D["and {0} more", p.AffectedMore]</div> } }</dd>
                 <dt>@D["Event"]</dt><dd>@(Model.Event is { } ev ? ev.Name : Model.HasEvent ? D["Unknown event"].Value : D["No event recorded"].Value)@if (Model.Event?.IsHidden == true) { <text> </text><span class="pill is-neutral">@D["Hidden"]</span> }</dd>
                 <dt>@D["Record"]</dt><dd>@p.Target</dd>
             </dl>

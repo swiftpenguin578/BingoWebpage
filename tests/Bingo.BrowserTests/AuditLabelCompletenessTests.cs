@@ -50,6 +50,8 @@ public sealed class AuditLabelCompletenessTests
         foreach (var composed in ComposedKeys.Values) keys.UnionWith(composed);
         foreach (var action in Enum.GetValues<ReviewActionType>()) keys.Add(AuditPresenter.ActionKey(action));
         keys.Add(AuditPresenter.ActionKey((ReviewActionType)(-1)));
+        // Brief 147 A7: recorded without an area prefix (Logout.cshtml.cs), so the literal scan cannot see it.
+        keys.Add("logout");
         keys.ExceptWith(NotAuditKeys);
         Assert.True(keys.Count > 150, "The scan found too few keys to be meaningful.");
 
@@ -84,6 +86,7 @@ public sealed class AuditLabelCompletenessTests
         Assert.Equal("participant.", AuditAreas.For("roster.finalized_added.wom_sync")!.Token);
         Assert.Equal("participant.", AuditAreas.For("roster.finalized_removed.wom_sync")!.Token);
         Assert.Equal("account.", AuditAreas.For("account.discord_replaced")!.Token);
+        Assert.Equal("account.", AuditAreas.For("logout")!.Token);
         Assert.True(Bingo.Web.Pages.Admin.Audit.IndexModel.IsActionKey("roster.finalized_added.wom_sync"));
         Assert.False(Bingo.Web.Pages.Admin.Audit.IndexModel.IsActionKey("a.b.c.d"));
         Assert.False(Bingo.Web.Pages.Admin.Audit.IndexModel.IsActionKey("a..b"));

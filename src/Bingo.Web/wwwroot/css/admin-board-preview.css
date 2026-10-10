@@ -1,0 +1,24 @@
+/* The board keeps the team board's 37rem (592px at the public 16px root) minimum so tiles stay as legible as there; narrow windows scroll the preview body sideways. */
+:where([data-page-family="board"]).bd-pv{max-width:100%}
+:where([data-page-family="board"]) .bd-pv-body{min-width:0}
+/* Board preview: the team board's not-started tile look (site.public-ui.css, body.public-ui-pass1 rules), copied under the preview only; the team board is unchanged. */
+@font-face{font-family:"Barlow Condensed ExtraBold";src:url("/fonts/public/BarlowCondensed-ExtraBold.woff2") format("woff2"),url("/fonts/public/BarlowCondensed-ExtraBold.ttf") format("truetype");font-style:normal;font-weight:800;font-display:swap}
+:where([data-page-family="board"]) .bd-pv-board{--board-surface:#FFFCF4;--board-ink:#111528;--board-rule:#B7B7B2;--board-canvas:#FFF9EC;display:grid;grid-template-columns:repeat(var(--bd-pv-cols),minmax(0,1fr));gap:0.6rem;width:min(100%,40rem,calc((100vh - 190px)*var(--bd-pv-cols)/var(--bd-pv-rows)));margin-inline:auto;padding:0.9rem;box-sizing:border-box;min-width:calc(592px + 1.8rem);background:var(--board-canvas);color:var(--board-ink)}
+:where([data-page-family="board"]):is(.theme-dark *) .bd-pv-board{--board-surface:#1F1E21;--board-ink:#F4EEDF;--board-rule:#4B494B;--board-canvas:#1B1A1D}
+:where([data-page-family="board"]) .bd-pv-board .bd-pv-empty{aspect-ratio:1;border:1px dashed var(--board-rule);min-width:0}
+:where([data-page-family="board"]) .bd-pv-board .public-ui-team-board-tile{position:relative;display:block;aspect-ratio:1;min-width:0;overflow:hidden;padding:0;margin:0;container-type:inline-size;isolation:isolate;color:var(--board-ink);background:var(--board-surface);border:1px solid var(--board-rule);border-radius:0;box-shadow:none;cursor:default}
+:where([data-page-family="board"]) .bd-pv-board .public-ui-team-board-tile__art,:where([data-page-family="board"]) .bd-pv-board .public-ui-team-board-tile__shade,:where([data-page-family="board"]) .bd-pv-board .public-ui-team-board-tile__copy{position:absolute}
+:where([data-page-family="board"]) .bd-pv-board .public-ui-team-board-tile__art{z-index:0;inset:auto -8% -10% auto;display:block;width:44%;height:48%;overflow:visible;background:transparent}
+:where([data-page-family="board"]) .bd-pv-board .public-ui-team-board-tile__art-image{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 0.25rem 0.4rem rgba(0,0,0,0.35))}
+:where([data-page-family="board"]) .bd-pv-board .public-ui-team-board-tile__placeholder{display:none}
+:where([data-page-family="board"]) .bd-pv-board .public-ui-team-board-tile__shade{inset:0;z-index:1;display:block;background:none}
+:where([data-page-family="board"]) .bd-pv-board .public-ui-team-board-tile__number{position:absolute;z-index:1;top:0.25rem;right:0.35rem;color:transparent;-webkit-text-stroke:1px color-mix(in srgb,var(--board-ink) 22%,transparent);font:800 clamp(2rem,53cqw,5rem)/0.8 "Barlow Condensed ExtraBold",sans-serif}
+:where([data-page-family="board"]) .bd-pv-board .public-ui-team-board-tile__copy{inset:0;z-index:2;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:0.2rem;padding:0.55rem 0.55rem 0.5rem;text-align:left}
+:where([data-page-family="board"]) .bd-pv-board .public-ui-team-board-tile__position{position:absolute;top:0.45rem;left:0.5rem;display:block;color:var(--board-ink);font:400 0.56rem/1 Geist,system-ui,sans-serif}
+:where([data-page-family="board"]) .bd-pv-board .public-ui-team-board-tile__title{display:-webkit-box;overflow:hidden;color:var(--board-ink);font:800 clamp(0.8rem,16.5cqw,1.6rem)/0.9 "Barlow Condensed ExtraBold",sans-serif;text-transform:uppercase;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+/* Boss art: images stacked in place, boss-art-fade.js (shared with the team board) marks the one on show and only opacity animates. */
+:where([data-page-family="board"]) .bd-pv-board .public-ui-team-board-tile__boss-art-grid{position:relative;display:block;width:100%;height:100%}
+:where([data-page-family="board"]) .bd-pv-board .public-ui-team-board-tile__boss-art-grid img{position:absolute;inset:0;width:100%;height:100%;padding:0;object-fit:contain;filter:drop-shadow(0 0.35rem 0.6rem rgba(0,0,0,0.5));opacity:0;transition:opacity var(--boss-fade-ms,1500ms) ease-in-out}
+:where([data-page-family="board"]) .bd-pv-board .public-ui-team-board-tile__boss-art-grid img:first-child,:where([data-page-family="board"]) .bd-pv-board .public-ui-team-board-tile__boss-art-grid img.is-active{opacity:1}
+:where([data-page-family="board"]) .bd-pv-board .public-ui-team-board-tile__boss-art-grid[data-boss-fade] img:first-child:not(.is-active){opacity:0}
+@media (prefers-reduced-motion:reduce){:where([data-page-family="board"]) .bd-pv-board .public-ui-team-board-tile__boss-art-grid img{transition:none}}

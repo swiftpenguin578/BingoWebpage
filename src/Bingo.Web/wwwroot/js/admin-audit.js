@@ -40,12 +40,15 @@ export function init(region, ui = window.AdminUI) {
     for (const node of content.querySelectorAll(failed ? '.empty' : '.sk-row')) nodes.append(document.importNode(node, true));
     return nodes;
   };
+  // Brief 147 item 4: the actor search applies while typing, like Participants: each input
+  // supersedes the pending update and waits 250 ms; a response for an older query is ignored.
+  let timer, edits = 0;
   function readList(target, { record = true } = {}) {
     closePanel(false);
-    const url = new URL(target, location.href); url.searchParams.delete('entry');
+    const url = new URL(target, location.href), revision = edits; url.searchParams.delete('entry');
     query = new URL(url.href);
     if (record) setUrl(url.href, true);
-    return ui.update(url.href, { root, results, patch, pending: () => fragment(false), failed: () => fragment(true), signal,
+    return ui.update(url.href, { root, results, patch, pending: () => fragment(false), failed: () => fragment(true), signal, current: () => edits === revision,
       fallbackFocus: () => actor, scrollRegions: [root.querySelector('[data-audit-wrap]')],
       draft: () => ({ [actor.getAttribute('aria-label')]: actor.value }) });
   }
@@ -55,20 +58,30 @@ export function init(region, ui = window.AdminUI) {
     actorError.hidden = !message; actorError.querySelector('[data-component-text]').textContent = message;
     actor.classList.toggle('is-invalid', !!message); actor.setAttribute('aria-invalid', String(!!message));
   }
+  // Review 156 M2: compare with the actor the list actually shows (only patch() moves the canonical
+  // URL) or with the search still in flight; typing cancels that search, so it is then forgotten.
+  const appliedActor = () => new URL(root.dataset.directoryCanonical, location.href).searchParams.get('actor') || '';
+  let inflight = null;
   function commitActor() {
-    // C-AUD-3: a leading "@" is ignored; applies on Enter or when leaving the field.
+    // C-AUD-3: a leading "@" is ignored; applies 250 ms after typing stops, on Enter or when leaving the field.
+    clearTimeout(timer);
     const value = actor.value.trim().replace(/^@\s*/, '');
     if (value.length > 100) { paintActor(root.dataset.actorLengthError); return; }
     paintActor();
-    if (value === (query.searchParams.get('actor') || '')) return;
+    if (value === (inflight ?? appliedActor())) return;
     const url = new URL(query.href); url.searchParams.delete('page');
     if (value) url.searchParams.set('actor', value); else url.searchParams.delete('actor');
-    void readList(url.href);
+    // Review 156 M1: like Participants, a search replaces the URL and adds no history entry.
+    const mine = inflight = value;
+    void readList(url.href, { record: false }).finally(() => { if (inflight === mine) inflight = null; });
   }
-  listen(actor, 'input', () => paintActor());
+  listen(actor, 'input', () => { edits++; inflight = null; ui.supersedeUpdate(); clearTimeout(timer); paintActor(); timer = setTimeout(commitActor, 250); });
   listen(actor, 'keydown', event => {
     if (event.key === 'Enter') { event.preventDefault(); commitActor(); }
-    else if (event.key === 'Escape' && actor.value !== (query.searchParams.get('actor') || '')) { event.preventDefault(); actor.value = query.searchParams.get('actor') || ''; paintActor(); }
+    else if (event.key === 'Escape' && (actor.value !== appliedActor() || inflight !== null)) {
+      // Escape restores the value the list shows and re-reads it when another search is pending.
+      event.preventDefault(); clearTimeout(timer); actor.value = appliedActor(); paintActor(); commitActor();
+    }
   });
   listen(actor, 'change', commitActor);
   listen(root.querySelector('[data-audit-actor-clear]'), 'click', () => { actor.value = ''; actor.focus({ preventScroll: true }); commitActor(); });

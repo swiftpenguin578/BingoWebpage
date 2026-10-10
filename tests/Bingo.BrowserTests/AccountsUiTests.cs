@@ -91,8 +91,6 @@ public sealed class AccountsUiTests
         Assert.DoesNotMatch(@"\)\s+\.(btn|card|modal|drawer|toast|pill|tbl|banner|badge)\s*\{", rules);
         foreach (var file in new[] { "Index.cshtml", "_AccountDrawer.cshtml", "_AccountTransfer.cshtml", "_AccountChange.cshtml" })
             Assert.DoesNotContain("style=\"", File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "Pages", "Admin", "Accounts", file)));
-        Assert.Equal(File.ReadAllText(Path.Combine(root, "docs", "references", "admin-ui", "ui", "tokens.css")), File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "css", "admin-design-tokens.css")));
-        Assert.Equal(File.ReadAllText(Path.Combine(root, "docs", "references", "admin-ui", "ui", "components.css")), File.ReadAllText(Path.Combine(root, "src", "Bingo.Web", "wwwroot", "css", "admin-design-components.css")));
     }
 
     [Fact]

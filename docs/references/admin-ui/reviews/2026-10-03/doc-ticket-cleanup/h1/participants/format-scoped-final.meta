@@ -1,2 +1,0 @@
-command=dotnet format Bingo.slnx --no-restore --verify-no-changes --verbosity minimal --include [changed source/test files]
-exit_code=0

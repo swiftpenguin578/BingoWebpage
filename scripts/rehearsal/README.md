@@ -1,9 +1,9 @@
-# Local rehearsal harness (R-3 option b)
+# Local rehearsal harness
 
 `local-rehearsal.sh` restores a production PostgreSQL dump into a disposable,
 egress-free Docker Compose project on this Mac and runs the exact candidate
-image through the release stages. It replaces the VM procedure for this release
-(user decision, 8 October 2026, "R-3 scope"). It never touches production,
+image through the release stages. It is the release rehearsal required by
+`docs/OPERATIONS.md` §9 (the VM-based procedure is not built). It never touches production,
 `/etc/bingo`, production volumes, GHCR, restic or any real provider.
 
 ## Run it
@@ -51,19 +51,21 @@ private logs under `<work>/logs`, never to the console.
 3. Restore the dump (`pg_restore --exit-on-error --no-owner --no-privileges`)
    and record the ordered `__EFMigrationsHistory`. Fails on a mismatch with
    `--history` or on migrations the candidate does not know.
-4. Gate counts on the restored baseline (aggregates only): AU20
+4. Gate counts on the restored baseline (aggregates only): events in
    `AwaitingFinalReview` (must be 0, stops otherwise), drop-tile EHB overrides,
    version-1 Luck checkpoints, completion corrections, published boards without
    an active finalized roster publication, future-effective account switches,
-   G4 Setup drafts with a first pick (ids kept privately), CAT-1 counts, banner
-   cleanup counts (when that migration is pending), active Super Admins, events
+   Setup drafts with a first pick (ids kept privately), conditional and
+   non-default-context source drops, banner cleanup counts (when that migration
+   is pending), active Super Admins, events
    by state, and the historical import (`det-store-danske-sommerbingo-2026`
    events and their `historical_import.applied` audit rows; an event without
    its audit row stops the run). Then a template clone
    `bingo_rehearsal_premigration` is taken for reruns.
 5. `--migrate` with the candidate image. The post-migration history must equal
    the candidate's migration set exactly. Records the derived EHB-override
-   cleared count, the G4 backfill set comparison and the historical-import
+   cleared count, the cancelled-draft restart backfill set comparison
+   (`requires_fresh_order`) and the historical-import
    counts (must be unchanged).
 6. `--convert-luck-checkpoints`; requires exit 0 and `Could not convert=0`;
    records the summary line and the before/after v1 counts.
@@ -81,8 +83,7 @@ or simply run the harness again into a new work directory after `--cleanup`.
 
 ## Not covered
 
-Accepted coverage limits (runbook R-3) still apply, and this local variant
-additionally gives up the VM:
+Accepted coverage limits (`docs/OPERATIONS.md` §9):
 
 - No VM isolation: isolation is Docker Desktop's `internal: true` network only
   (no host firewall layer). `--keep-db` publishes PostgreSQL on loopback only.
@@ -90,7 +91,7 @@ additionally gives up the VM:
   connectivity; local health is not public HTTPS.
 - No host `bingo-deploy`/`bingo-backup`/`bingo-restore` wrapper, Caddy, public
   DNS/TLS, restic, GHCR pull, or production Data Protection keys (fresh keys).
-- No G4 Down/re-Up clone check (needs the EF migration tooling; not built here).
+- No migration Down/re-Up clone check (needs the EF migration tooling; not built here).
 - A dump restored from a running database is only as current as its snapshot.
 
 ## Obtaining the dump from the production host
@@ -172,8 +173,5 @@ storage is empty). Remove everything with `--cleanup --work <dir>`.
 builds a synthetic production-like dump (no real data): an empty database taken
 through main's deploy order (`--migrate`, `--apply-catalogue-snapshot`, owner
 bootstrap), the historical import applied with fictional operator input, one
-version-1 Luck checkpoint and one drop-tile EHB override. Note that `origin/main`
-(22af254c) no longer builds as-is because NuGet audit now flags its
-ImageSharp 3.1.12; the dry run built main's archived source with
-`ENV NuGetAudit=false` added for the synthetic baseline only. The candidate is
+version-1 Luck checkpoint and one drop-tile EHB override. The candidate is
 always built unmodified by the harness.

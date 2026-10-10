@@ -37,12 +37,10 @@
 :where([data-page-family="board"]) .bd-rz-text{margin:0}
 :where([data-page-family="board"]) .bd-rz-list{margin:6px 0 0;padding-left:18px;color:var(--dk-text)}
 :where([data-page-family="board"]) .bd-reason{margin-top:16px}
-:where([data-page-family="board"]).modal.bd-pv{width:min(1040px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;padding:0}
+:where([data-page-family="board"]).modal.bd-pv{width:min(1040px,calc(100vw - 32px));max-height:calc(100vh - 32px);display:flex;flex-direction:column;padding:0}
 :where([data-page-family="board"]) .bd-pv-head{display:flex;align-items:flex-start;gap:12px;padding:18px 20px 12px;border-bottom:1px solid var(--dk-border-subtle)}
 :where([data-page-family="board"]) .bd-pv-head .grow{flex:1;min-width:0}
 :where([data-page-family="board"]) .bd-pv-body{padding:18px 20px 22px;overflow:auto;background:var(--dk-bg)}
-/* U7-Q3: the preview's tile area is the plain background with "Not supported yet". */
-:where([data-page-family="board"]) .bd-pv-none{display:flex;align-items:center;justify-content:center;min-height:240px;color:var(--dk-text-3);font-size:var(--dk-fs-control)}
 /* wide boards (7–8 columns) give the board the full width; planning moves below */
 :where([data-page-family="board"]) .bd-work.is-stacked{grid-template-columns:minmax(0,1fr)}
 :where([data-page-family="board"]) .bd-work.is-stacked .bd-side{position:static;max-width:520px}
