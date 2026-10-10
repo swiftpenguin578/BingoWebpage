@@ -10,6 +10,7 @@ using Bingo.Domain.Evidence;
 using Bingo.Domain.Signups;
 using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Events;
+using Bingo.Infrastructure.Evidence;
 using Bingo.Infrastructure.Persistence;
 using Bingo.Infrastructure.Signups;
 using Bingo.Infrastructure.Teams;
@@ -711,6 +712,146 @@ public sealed class Slice7Pass71IntegrationTests(PostgreSqlTestFixture databaseF
         var afterEnd = await endedService.SetFocusAsync(new(
             fixture.EventId, fixture.TeamId, TeamFocusTargetKind.Row, null, 0, null, false, 1, fixture.OwnerId));
         Assert.False(afterEnd.Succeeded);
+    }
+
+    [Fact]
+    public async Task LiveHeaderNamesTheCreditedAccountForAOneAccountPlayerWithoutAnActiveRow()
+    {
+        var fixture = await SeedFixtureAsync(includeInformational: false, includeTeam: true, administrator: true, publishRoster: true);
+        await StartLiveAsync(fixture);
+        // A retained one-account player: no account-switch rows at all.
+        await using (var clear = new ApplicationDbContext(options))
+            await clear.EventParticipantCharacterSwaps.Where(x => x.EventParticipantId == fixture.ParticipantId).ExecuteDeleteAsync();
+
+        var at = now.AddMinutes(1);
+        await using var db = new ApplicationDbContext(options);
+        Assert.Null(await db.ActiveCharacterAtAsync(fixture.EventId, fixture.ParticipantId, at));
+        var service = new ParticipantLiveService(db, new FixedTimeProvider(at));
+        var header = await service.GetPlayingAccountHeaderAsync(fixture.OwnerId, null);
+        Assert.NotNull(header);
+        Assert.Equal(fixture.PrimaryCharacterId, header!.CreditedCharacterId);
+        Assert.Equal($"Primary {fixture.EventId:N}", header.CreditedCharacterName);
+        Assert.Empty(header.SwitchTargets);
+
+        // The header names exactly the account submissions are credited to.
+        var credited = await new EvidenceAuthority(db).ResolveCreditedCharacterAsync(fixture.EventId, fixture.ParticipantId, at);
+        Assert.Equal(credited.OsrsCharacterId, header.CreditedCharacterId);
+        Assert.Equal(credited.Name, header.CreditedCharacterName);
+        var context = await service.GetContextAsync(fixture.EventId, fixture.ParticipantId, fixture.OwnerId);
+        Assert.Equal(credited.Name, context!.ActiveCharacterName);
+    }
+
+    [Fact]
+    public async Task LiveHeaderOffersTheOtherPlayingAccountsAndFollowsASwitch()
+    {
+        var fixture = await SeedFixtureAsync(includeInformational: true, secondPlaying: true, includeTeam: true, administrator: true, publishRoster: true);
+        await StartLiveAsync(fixture);
+        var at = now.AddMinutes(1);
+
+        await using (var before = new ApplicationDbContext(options))
+        {
+            var service = new ParticipantLiveService(before, new FixedTimeProvider(at));
+            var header = await service.GetPlayingAccountHeaderAsync(fixture.OwnerId, null);
+            Assert.Equal(fixture.PrimaryCharacterId, header!.CreditedCharacterId);
+            Assert.Equal(fixture.SecondPlayingCharacterId, Assert.Single(header.SwitchTargets).CharacterId);
+            var swap = await service.SwapAsync(new(fixture.EventId, fixture.ParticipantId, header.CreditedCharacterId!.Value,
+                header.SwitchTargets[0].CharacterId, fixture.OwnerId, "owner"));
+            Assert.True(swap.Succeeded, swap.Error);
+        }
+
+        await using var after = new ApplicationDbContext(options);
+        var later = new ParticipantLiveService(after, new FixedTimeProvider(at.AddMinutes(1)));
+        var switched = await later.GetPlayingAccountHeaderAsync(fixture.OwnerId, null);
+        Assert.Equal(fixture.SecondPlayingCharacterId, switched!.CreditedCharacterId);
+        Assert.Equal(fixture.PrimaryCharacterId, Assert.Single(switched.SwitchTargets).CharacterId);
+        var credited = await new EvidenceAuthority(after).ResolveCreditedCharacterAsync(fixture.EventId, fixture.ParticipantId, at.AddMinutes(1));
+        Assert.Equal(credited.OsrsCharacterId, switched.CreditedCharacterId);
+    }
+
+    [Fact]
+    public async Task LiveHeaderIsAbsentBeforeLiveForOtherAccountsAndForPeopleNotOnATeam()
+    {
+        var fixture = await SeedFixtureAsync(includeInformational: false, includeTeam: true, administrator: true, publishRoster: true);
+        var outsiderId = Guid.NewGuid();
+        await using (var seed = new ApplicationDbContext(options))
+        {
+            seed.Add(Account.CreateWebsite(outsiderId, $"outsider-{outsiderId:N}", $"OUTSIDER-{outsiderId:N}", now));
+            await seed.SaveChangesAsync();
+        }
+
+        await using (var beforeLive = new ApplicationDbContext(options))
+            Assert.Null(await new ParticipantLiveService(beforeLive, new FixedTimeProvider(now)).GetPlayingAccountHeaderAsync(fixture.OwnerId, null));
+
+        await StartLiveAsync(fixture);
+        await using (var live = new ApplicationDbContext(options))
+        {
+            var service = new ParticipantLiveService(live, new FixedTimeProvider(now.AddMinutes(1)));
+            Assert.NotNull(await service.GetPlayingAccountHeaderAsync(fixture.OwnerId, null));
+            Assert.Null(await service.GetPlayingAccountHeaderAsync(outsiderId, null));
+        }
+
+        await using (var left = new ApplicationDbContext(options))
+        {
+            await left.TeamMemberships.Where(x => x.EventParticipantId == fixture.ParticipantId)
+                .ExecuteUpdateAsync(x => x.SetProperty(m => m.LeftAt, now.AddMinutes(2)));
+            Assert.Null(await new ParticipantLiveService(left, new FixedTimeProvider(now.AddMinutes(3))).GetPlayingAccountHeaderAsync(fixture.OwnerId, null));
+        }
+    }
+
+    [Fact]
+    public async Task LiveHeaderReportsNoNameableAccountForTwoAccountsWithoutActivationRowsAndForAReleasedActiveAccount()
+    {
+        var fixture = await SeedFixtureAsync(includeInformational: false, secondPlaying: true, includeTeam: true, administrator: true, publishRoster: true);
+        await StartLiveAsync(fixture);
+        var at = now.AddMinutes(1);
+        await using (var clear = new ApplicationDbContext(options))
+            await clear.EventParticipantCharacterSwaps.Where(x => x.EventParticipantId == fixture.ParticipantId).ExecuteDeleteAsync();
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var header = await new ParticipantLiveService(db, new FixedTimeProvider(at)).GetPlayingAccountHeaderAsync(fixture.OwnerId, null);
+            Assert.NotNull(header);
+            Assert.Null(header!.CreditedCharacterName);
+            Assert.Empty(header.SwitchTargets);
+        }
+
+        await using (var restore = new ApplicationDbContext(options))
+        {
+            restore.EventParticipantCharacterSwaps.Add(new EventParticipantCharacterSwap(
+                Guid.NewGuid(), fixture.EventId, fixture.ParticipantId, null, fixture.PrimaryCharacterId, now, now, null, "test"));
+            await restore.SaveChangesAsync();
+            await restore.EventParticipantCharacters.Where(x => x.EventParticipantId == fixture.ParticipantId && x.OsrsCharacterId == fixture.PrimaryCharacterId)
+                .ExecuteUpdateAsync(x => x.SetProperty(a => a.ReleasedAt, now.AddSeconds(30)));
+        }
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var header = await new ParticipantLiveService(db, new FixedTimeProvider(at)).GetPlayingAccountHeaderAsync(fixture.OwnerId, null);
+            Assert.NotNull(header);
+            Assert.Null(header!.CreditedCharacterName);
+        }
+    }
+
+    [Fact]
+    public async Task LiveHeaderLookupStaysWithinASmallQueryBudget()
+    {
+        var fixture = await SeedFixtureAsync(includeInformational: false, secondPlaying: true, includeTeam: true, administrator: true, publishRoster: true);
+        await StartLiveAsync(fixture);
+        var commands = new List<string>();
+        var counted = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString())
+            .LogTo(commands.Add, [Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.CommandExecuted]).Options;
+        await using var db = new ApplicationDbContext(counted);
+        var header = await new ParticipantLiveService(db, new FixedTimeProvider(now.AddMinutes(1))).GetPlayingAccountHeaderAsync(fixture.OwnerId, null);
+        Assert.NotNull(header);
+        Console.WriteLine($"HEADER_QUERY_COUNT={commands.Count}");
+        Assert.True(commands.Count <= 5, $"The header lookup ran {commands.Count} queries.");
+    }
+
+    private async Task StartLiveAsync(Fixture fixture)
+    {
+        await using var start = new ApplicationDbContext(options);
+        var lifecycle = new EventLifecycleService(start, new NoopSignupLifecycleService(), new FixedTimeProvider(now));
+        var item = await start.Events.SingleAsync(x => x.Id == fixture.EventId);
+        var result = await lifecycle.StartNowAsync(item.Id, item.Version, true, null, new(fixture.OwnerId, "owner"));
+        Assert.True(result.Succeeded, result.Error);
     }
 
     private async Task<Fixture> SeedFixtureAsync(

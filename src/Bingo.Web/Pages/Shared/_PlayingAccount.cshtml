@@ -1,0 +1,36 @@
+@using Bingo.Web.Navigation
+@model PlayingAccountView
+@{
+    var account = Model.Account;
+    var panelId = $"public-ui-header-playing-panel-{Model.Variant}";
+}
+<div class="landing-shell-playing landing-shell-playing--@Model.Variant" data-playing-account>
+    @if (account.CreditedCharacterName is null)
+    {
+        <span class="landing-shell-playing__label" title="@T["No active playing account – contact an admin"]">@T["No active playing account – contact an admin"]</span>
+    }
+    else if (account.SwitchTargets.Count == 0)
+    {
+        <span class="landing-shell-playing__label" title="@T["Playing as {0}", account.CreditedCharacterName]">@T["Playing as {0}", account.CreditedCharacterName]</span>
+    }
+    else
+    {
+        <div class="landing-shell-playing__menu" data-public-ui-popover>
+            <button type="button" class="landing-shell-playing__button" aria-expanded="false" aria-controls="@panelId" title="@T["Playing as {0}", account.CreditedCharacterName]"><span>@T["Playing as {0}", account.CreditedCharacterName]</span><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg></button>
+            <div id="@panelId" class="landing-shell-playing__panel" data-public-ui-popover-panel hidden>
+                <strong class="public-ui-header-popover__heading public-ui-section-heading">@T["Switch account"]</strong>
+                @foreach (var target in account.SwitchTargets)
+                {
+                    <form method="post" asp-page="/PlayingAccount" class="landing-shell-playing__form">
+                        <input type="hidden" name="returnUrl" value="@Model.ReturnUrl" />
+                        <input type="hidden" name="EventId" value="@account.EventId" />
+                        <input type="hidden" name="ParticipantId" value="@account.ParticipantId" />
+                        <input type="hidden" name="ExpectedCurrentCharacterId" value="@account.CreditedCharacterId" />
+                        <input type="hidden" name="NextCharacterId" value="@target.CharacterId" />
+                        <button type="submit" class="landing-shell-playing__option">@target.Name</button>
+                    </form>
+                }
+            </div>
+        </div>
+    }
+</div>

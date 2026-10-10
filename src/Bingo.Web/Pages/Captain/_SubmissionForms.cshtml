@@ -11,6 +11,7 @@
         (Model.Input.RequirementId != Guid.Empty && availableRequirements.Any(requirement => requirement.Id == Model.Input.RequirementId)
             ? Model.Input.RequirementId
             : targetCount == 1 ? availableDrops.FirstOrDefault()?.RequirementId ?? manualRequirements[0].Id : Guid.Empty);
+    var hasChosenPlayer = Model.Players.Any(player => player.Id == Model.Input.CreditedParticipantId);
     var defaultPlayerName = Model.Players.SingleOrDefault(player => player.Id == Model.DefaultParticipantId)?.Name;
 }
 @if (!ViewData.ModelState.IsValid)
@@ -100,7 +101,7 @@ else if (drawer && availableRequirements.Count > 0)
         <div class="public-ui-submission-row public-ui-submission-row--secondary">
             @if (Model.CanChooseCreditedParticipant)
             {
-                <label><span class="public-ui-role-label">@T["Player"]</span><select name="Input.CreditedParticipantId" class="public-ui-control-visual public-ui-control-visual--select" required>@foreach (var player in Model.Players){<option value="@player.Id" selected="@(player.Id == Model.Input.CreditedParticipantId)">@player.Name</option>}</select><span class="public-ui-select-chevron" aria-hidden="true"></span></label>
+                <label><span class="public-ui-role-label">@T["Player"]</span><select name="Input.CreditedParticipantId" class="public-ui-control-visual public-ui-control-visual--select" required>@if (!hasChosenPlayer){<option value="" disabled selected>@T["Choose a player"]</option>}@foreach (var player in Model.Players){<option value="@player.Id" selected="@(player.Id == Model.Input.CreditedParticipantId)">@player.Name</option>}</select><span class="public-ui-select-chevron" aria-hidden="true"></span></label>
             }
             else
             {
@@ -173,7 +174,7 @@ else if (!drawer)
             }
             @if (Model.CanChooseCreditedParticipant)
             {
-                <label><span class="public-ui-role-label">@T["Player"]</span><select name="Input.CreditedParticipantId" class="public-ui-control-visual public-ui-control-visual--select" required>@foreach (var player in Model.Players) { <option value="@player.Id" selected="@(player.Id == Model.Input.CreditedParticipantId)">@player.Name</option> }</select><span class="public-ui-select-chevron" aria-hidden="true"></span></label>
+                <label><span class="public-ui-role-label">@T["Player"]</span><select name="Input.CreditedParticipantId" class="public-ui-control-visual public-ui-control-visual--select" required>@if (!hasChosenPlayer){<option value="" disabled selected>@T["Choose a player"]</option>}@foreach (var player in Model.Players) { <option value="@player.Id" selected="@(player.Id == Model.Input.CreditedParticipantId)">@player.Name</option> }</select><span class="public-ui-select-chevron" aria-hidden="true"></span></label>
             }
             else
             {

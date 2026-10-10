@@ -878,7 +878,6 @@
   <data name="1 day ago" xml:space="preserve"><value>for 1 dag siden</value></data>
   <data name="1 hour ago" xml:space="preserve"><value>for 1 time siden</value></data>
   <data name="1 minute ago" xml:space="preserve"><value>for 1 minut siden</value></data>
-  <data name="Active account" xml:space="preserve"><value>Aktiv konto</value></data>
   <data name="Activity cache is current." xml:space="preserve"><value>Aktivitetscachen er opdateret.</value></data>
   <data name="Activity is provisional: {0} of {1} current accounts matched." xml:space="preserve"><value>Aktiviteten er foreløbig: {0} af {1} aktuelle konti matchet.</value></data>
   <data name="Activity is provisional: {0} of {1} team accounts matched." xml:space="preserve"><value>Aktiviteten er foreløbig: {0} af {1} holdkonti matchet.</value></data>
@@ -935,7 +934,6 @@
   <data name="No approved evidence yet" xml:space="preserve"><value>Ingen godkendte beviser endnu</value></data>
   <data name="No focus selected" xml:space="preserve"><value>Intet fokus valgt</value></data>
   <data name="No matched current activity is available yet" xml:space="preserve"><value>Ingen matchet aktuel aktivitet er tilgængelig endnu</value></data>
-  <data name="Not active yet" xml:space="preserve"><value>Ikke aktiv endnu</value></data>
   <data name="Official results published" xml:space="preserve"><value>Officielle resultater offentliggjort</value></data>
   <data name="Older drops" xml:space="preserve"><value>Ældre drops</value></data>
   <data name="Participant ownership transferred" xml:space="preserve"><value>Deltagerejerskab overført</value></data>
@@ -983,8 +981,6 @@
   <data name="Stop inspecting" xml:space="preserve"><value>Stop inspektion</value></data>
   <data name="Submission history" xml:space="preserve"><value>Indsendelseshistorik</value></data>
   <data name="Swap next minute" xml:space="preserve"><value>Skift næste minut</value></data>
-  <data name="Switch" xml:space="preserve"><value>Skift</value></data>
-  <data name="Switch active account" xml:space="preserve"><value>Skift aktiv konto</value></data>
   <data name="Team focus and submission status" xml:space="preserve"><value>Holdfokus og indsendelsesstatus</value></data>
   <data name="Team history" xml:space="preserve"><value>Holdhistorik</value></data>
   <data name="Team progress" xml:space="preserve"><value>Holdets fremgang</value></data>
@@ -2928,7 +2924,6 @@
   <data name="You do not have permission to reset this account." xml:space="preserve"><value>Du har ikke tilladelse til at nulstille denne konto.</value></data>
   <data name="Super Admin password recovery requires linked Discord sign-in or operator recovery." xml:space="preserve"><value>Gendannelse af Super Admin-adgangskoden kræver et tilknyttet Discord-login eller gendannelse via en operatør.</value></data>
   <data name="The selected account becomes Super Admin; your account remains an Admin. Both accounts must sign in again." xml:space="preserve"><value>Den valgte konto bliver Super Admin; din konto forbliver en Admin. Begge konti skal logge ind igen.</value></data>
-  <data name="Playing account changed to {0}, active from {1}." xml:space="preserve"><value>Playing-kontoen er ændret til {0}, aktiv fra {1}.</value></data>
   <data name="A previously scheduled account switch is still pending. Wait until it takes effect before switching again." xml:space="preserve"><value>Et tidligere planlagt kontoskift afventer stadig. Vent, til det træder i kraft, før du skifter igen.</value></data>
   <data name="Choose a current member of your team." xml:space="preserve"><value>Vælg et nuværende medlem af dit hold.</value></data>
   <data name="Administrators have no submission authority without a current participant or team-leader role." xml:space="preserve"><value>Administratorer har ingen indsendelsesret uden en aktuel deltager- eller holdlederrolle.</value></data>
@@ -6224,4 +6219,18 @@
   <data name="The current drafted-team rosters cannot produce a balanced distribution." xml:space="preserve">
     <value>De nuværende trupper på de draftede hold kan ikke give en balanceret fordeling.</value>
   </data>
+  <data name="Playing as {0}" xml:space="preserve"><value>Spiller som {0}</value></data>
+  <data name="Switch account" xml:space="preserve"><value>Skift konto</value></data>
+  <data name="You're now playing as {0}." xml:space="preserve"><value>Du spiller nu som {0}.</value></data>
+  <data name="You are not allowed to change this participant's active account." xml:space="preserve"><value>Du må ikke ændre denne deltagers aktive konto.</value></data>
+  <data name="Account swaps are available only while the event is live." xml:space="preserve"><value>Kontoskift er kun tilgængelige, mens eventet er live.</value></data>
+  <data name="Only confirmed participants can swap accounts." xml:space="preserve"><value>Kun bekræftede deltagere kan skifte konto.</value></data>
+  <data name="Choose one of this participant's current Playing accounts." xml:space="preserve"><value>Vælg en af deltagerens nuværende Playing-konti.</value></data>
+  <data name="This participant has no active Playing account yet." xml:space="preserve"><value>Deltageren har endnu ingen aktiv Playing-konto.</value></data>
+  <data name="The active account changed. Reload the participant context and try again." xml:space="preserve"><value>Den aktive konto er ændret. Genindlæs siden, og prøv igen.</value></data>
+  <data name="Choose a different Playing account." xml:space="preserve"><value>Vælg en anden Playing-konto.</value></data>
+  <data name="The participant changed while the swap was being saved. Reload and try again." xml:space="preserve"><value>Deltageren blev ændret, mens skiftet blev gemt. Genindlæs, og prøv igen.</value></data>
+  <data name="Another account change was saved first. Reload and try again." xml:space="preserve"><value>Et andet kontoskift blev gemt først. Genindlæs, og prøv igen.</value></data>
+  <data name="No active playing account – contact an admin" xml:space="preserve"><value>Ingen aktiv spillekonto – kontakt en admin</value></data>
+  <data name="Choose a player" xml:space="preserve"><value>Vælg en spiller</value></data>
 </root>

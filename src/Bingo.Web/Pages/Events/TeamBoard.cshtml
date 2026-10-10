@@ -68,33 +68,6 @@
         else
         {
         <aside class="public-team-sidebar public-ui-surface public-ui-surface--charcoal public-ui-sectioned-surface" aria-label="@T["Team statistics"]">
-            @if (Model.ParticipantContext is { } participantContext)
-            {
-                <section class="team-account-strip" aria-label="@T["Active account"]">
-                    <div class="team-account-heading"><span class="team-account-label">@T["Active account"]</span><strong class="team-account-name">@(participantContext.ActiveCharacterName ?? T["Not active yet"])</strong></div>
-                    @if (participantContext.CanSwap)
-                    {
-                        <details class="team-account-switch">
-                            <summary><span>@T["Switch"]</span><span aria-hidden="true">→</span></summary>
-                            <form method="post" asp-page-handler="Swap" class="participant-account-swap">
-                                <input type="hidden" asp-for="Input.ParticipantId" value="@participantContext.ParticipantId" />
-                                <input type="hidden" asp-for="Input.ExpectedCurrentCharacterId" value="@participantContext.PlayingCharacters.Single(character => character.IsActive).CharacterId" />
-                                <label asp-for="Input.NextCharacterId">
-                                    @T["Switch active account"]
-                                    <select asp-for="Input.NextCharacterId" class="public-ui-control-visual public-ui-control-visual--select">
-                                        @foreach (var character in participantContext.PlayingCharacters.Where(character => !character.IsActive))
-                                        {
-                                            <option value="@character.CharacterId">@character.Name</option>
-                                        }
-                                    </select>
-                                    <span class="public-ui-select-chevron" aria-hidden="true"></span>
-                                </label>
-                                <button type="submit" class="public-ui-action public-ui-action--standard public-ui-action--compact">@T["Switch"]</button>
-                            </form>
-                        </details>
-                    }
-                </section>
-            }
             <section class="team-sidebar-section team-progress-section">
                 <h2 class="team-rail-heading">@T["Team progress"]</h2>
                 <dl class="team-progress-summary">

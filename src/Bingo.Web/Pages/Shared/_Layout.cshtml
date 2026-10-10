@@ -1,6 +1,8 @@
 ﻿@using Bingo.Web.Navigation
 @using Bingo.Web.UI
+@using Bingo.Web.Security
 @inject SharedShellService SharedShell
+@inject Bingo.Application.Signups.IParticipantLiveService ParticipantLive
 @{
     var submissionContext = Model switch
     {
@@ -10,6 +12,9 @@
     };
     var shell = await SharedShell.GetAsync(User, ViewContext.RouteData.Values, Context.RequestAborted,
         contextEventId: submissionContext.EventId, contextTeamId: submissionContext.TeamId);
+    var playingAccount = User.Identity?.IsAuthenticated == true && User.GetAccountId() is { } playingViewerId
+        ? await ParticipantLive.GetPlayingAccountHeaderAsync(playingViewerId, ViewContext.RouteData.Values["slug"]?.ToString(), Context.RequestAborted)
+        : null;
     var captainNavigation = shell.CaptainNavigation;
     var submissionNavigation = shell.SubmissionNavigation;
     var currentPage = ViewContext.RouteData.Values["page"]?.ToString();
@@ -125,6 +130,10 @@
                         }
                     </div>
                     <div class="landing-shell-actions">
+                        @if (playingAccount is not null)
+                        {
+                            <partial name="_PlayingAccount" model="@(new PlayingAccountView(playingAccount, "bar", $"{Context.Request.PathBase}{Context.Request.Path}{Context.Request.QueryString}"))" />
+                        }
                         <div class="landing-shell-menu" data-public-ui-popover>
                             <button type="button" class="landing-shell-icon" aria-label="@T["Open navigation"]" aria-expanded="false" aria-controls="public-ui-header-menu-panel">
                                 <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
@@ -247,6 +256,10 @@
                     </div>
             </div>
     </nav>
+    @if (playingAccount is not null)
+    {
+        <partial name="_PlayingAccount" model="@(new PlayingAccountView(playingAccount, "strip", $"{Context.Request.PathBase}{Context.Request.Path}{Context.Request.QueryString}"))" />
+    }
     </header>
     @if (hasEventContextNavigation)
     {
