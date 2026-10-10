@@ -54,7 +54,12 @@
         }
     }
 
+    function dropDetached() {
+        for (const state of running) if (!state.grid.isConnected) stop(state);
+    }
+
     function pause() {
+        dropDetached();
         for (const state of running) {
             if (!state.timer) continue;
             window.clearTimeout(state.timer);
@@ -64,6 +69,7 @@
     }
 
     function resume() {
+        dropDetached();
         if (reducedMotion && reducedMotion.matches) return;
         for (const state of running) {
             if (state.timer) continue;
@@ -77,7 +83,7 @@
         else if (document.visibilityState !== 'hidden') resume();
     });
 
-    window.BossArtFade = Object.freeze({ start, displayMs: DISPLAY_MS, fadeMs: FADE_MS });
+    window.BossArtFade = Object.freeze({ start, displayMs: DISPLAY_MS, fadeMs: FADE_MS, activeCount: () => { dropDetached(); return running.size; } });
     // Pages that render the tiles server-side (team board) start on load; the Board preview calls start(board) when it opens.
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => start(document));
     else start(document);

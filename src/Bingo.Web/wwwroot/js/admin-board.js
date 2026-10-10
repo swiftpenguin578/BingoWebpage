@@ -5,6 +5,7 @@
 // unknown outcome is settled by the no-store Readback, never assumed.
 // Extensions (tile editor, publication flows) install onto the shared context.
 
+import './boss-art-fade.js'; // classic IIFE that defines window.BossArtFade; imported here because soft navigation only loads page modules
 import { ROWS, posName, parseWhole, leaseRenewer, outcomeOf } from './admin-board-model.js';
 import { install as installEditor } from './admin-board-editor.js';
 import { install as installPublication } from './admin-board-publication.js';

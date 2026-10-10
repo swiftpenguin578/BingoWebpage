@@ -75,7 +75,7 @@ const realWait = ms => new Promise(resolve => setTimeout(resolve, ms));
       await page.clock.runFor(1900); s = await page.evaluate(snapshot);
       assert.deepEqual(grids.map(i => s[i].active), ['1', '1', '1'], `${name} tile 3 switches at 8.1 s`);
       // The cross-fade itself is CSS (real time, 1.5 s): after it, exactly one image is visible and it is the new boss.
-      await realWait(1800); s = await page.evaluate(snapshot);
+      for (let waited = 0; waited < 5000; waited += 100) { s = await page.evaluate(snapshot); if (grids.every(i => s[i].opacity.filter(o => o === 1).length === 1 && s[i].opacity[1] === 1)) break; await realWait(100); } // real-time CSS fade, bounded poll
       for (const i of grids) {
         assert.equal(s[i].opacity.filter(o => o === 1).length, 1, `${name} tile ${i} exactly one visible image after the fade: ${s[i].opacity}`);
         assert.equal(s[i].opacity[1], 1, `${name} tile ${i} second boss visible`);

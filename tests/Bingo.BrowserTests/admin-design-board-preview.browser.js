@@ -32,25 +32,32 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
       const errors = []; page.on('pageerror', error => errors.push(error.message));
       // Rewrite the page's own view data before its script reads it (no network interception: WebKit drops subresources of fulfilled documents).
       await page.addInitScript(({ scenario, names }) => {
-        const patch = () => {
-          const root = document.querySelector('[data-board]');
-          if (!root || root.dataset.pvPatched) return !!root;
-          const view = JSON.parse(root.dataset.view);
+        // The page module reads its view with JSON.parse(root.dataset.view), on a full load and on soft navigation alike: rewrite that view as it is parsed.
+        const nativeParse = JSON.parse;
+        JSON.parse = function (text, reviver) {
+          const view = nativeParse.call(this, text, reviver);
+          if (view && typeof view === 'object' && Array.isArray(view.tiles) && 'rows' in view && 'cols' in view) patch(view);
+          return view;
+        };
+        const patch = view => {
           Object.assign(view, { mode: scenario.mode, rows: scenario.rows, cols: scenario.cols, readOnly: false });
           view.tiles = scenario.positions.map((pos, i) => {
           const bosses = ['/images/public-board/bosses/vorkath.png', '/images/public-board/bosses/araxxor.png', '/images/public-board/bosses/chambers-of-xeric.png', '/images/public-board/bosses/vorkath.png?4'];
           return { id: 'tile-' + pos, pos, name: names[i], desc: '', ehb: i === 0 ? 0.2 : 1 + i * 0.7, noEstimate: false, needsVerification: false, overridden: false, manual: false, parts: 1, locked: false, changed: false,
             art: i % 3 === 0 ? '/images/public-board/bosses/vorkath.png' : null, bossArt: i % 3 === 1 ? bosses.slice(0, 1 + (i % 4)) : [] };
         });
-          root.dataset.view = JSON.stringify(view); root.dataset.pvPatched = '1';
-          return true;
         };
-        const observer = new MutationObserver(() => { if (patch()) observer.disconnect(); });
-        observer.observe(document, { childList: true, subtree: true });
       }, { scenario, names });
       const requests = [];
       page.on('request', request => { if (request.method() !== 'GET') requests.push(request.method() + ' ' + request.url()); });
-      await page.goto(fixture.origin + boardPath);
+      // Reach the Board page by soft navigation (the shell's in-place page load), not a full load: its scripts must be page modules.
+      await page.goto(fixture.origin + '/Admin');
+      await page.evaluate(() => { window.__noFullLoad = true; });
+      await page.evaluate(href => { const a = document.createElement('a'); a.href = href; a.id = 'soft-board-link'; a.dataset.shellLink = ''; a.textContent = 'Board'; document.body.append(a); }, boardPath);
+      await page.locator('#soft-board-link').click();
+      await page.waitForURL(url => url.pathname === boardPath);
+      assert.equal(await page.evaluate(() => window.__noFullLoad === true), true, 'Board page loaded by soft navigation, not a full page load');
+      assert.equal(await page.evaluate(() => document.querySelectorAll('script[src*="boss-art-fade"]').length), 0, 'no classic boss-art-fade script tag on the Board page');
       await page.locator('#preview-btn').waitFor();
       requests.length = 0;
       if (motion) await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000)); // frozen until the fade checks are done
@@ -106,7 +113,7 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
         assert.deepEqual(multi.map(i => fade[i].active), ['1', '0'], 'tile 1 switches first');
         await page.clock.runFor(1700); fade = await fadeState();
         assert.deepEqual(multi.map(i => fade[i].active), ['1', '1'], 'tile 7 switches later (staggered)');
-        await new Promise(resolve => setTimeout(resolve, 1800)); fade = await fadeState();
+        for (let waited = 0; waited < 5000; waited += 100) { fade = await fadeState(); if (multi.every(i => fade[i].visible === 1)) break; await new Promise(resolve => setTimeout(resolve, 100)); } // real-time CSS fade, bounded poll
         assert.deepEqual(multi.map(i => fade[i].visible), [1, 1], 'one boss visible after the cross-fade');
         await board.locator('[data-pv-tile]').nth(7).screenshot({ path: path.join(process.cwd(), 'artifacts/boss-fade', `preview-4-boss-tile-after-${name}.png`) });
         // Hidden tab pauses; closing the preview stops its timers (no errors, nothing left to switch).
@@ -116,6 +123,15 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
         await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'visible' }); document.dispatchEvent(new Event('visibilitychange')); });
         await page.clock.runFor(6000); fade = await fadeState();
         assert.notDeepEqual(multi.map(i => fade[i].active), frozen, 'resumes after the tab is visible again');
+        // Closing the preview stops its timers; reopening runs exactly one set (a switch is exactly one step per interval).
+        await page.keyboard.press('Escape'); await page.clock.runFor(1000); await layer.waitFor({ state: 'detached' });
+        assert.equal(await page.evaluate(() => window.BossArtFade.activeCount()), 0, 'closed preview leaves no running fade timers');
+        await page.locator('#preview-btn').focus(); await page.keyboard.press('Enter'); await layer.waitFor();
+        assert.equal(await page.evaluate(() => window.BossArtFade.activeCount()), 2, 'reopened preview runs exactly its own two multi-boss tiles');
+        await page.clock.runFor(6701); fade = await fadeState();
+        assert.equal(fade[1].active, '1', 'reopened tile 1 advances one step at 6.7 s');
+        await page.clock.runFor(6000); fade = await fadeState();
+        assert.equal(fade[1].active, '0', 'and one more step 6 s later (no duplicate timers)');
         await page.clock.resume();
       }
       // Board only: no progress, state labels, links, buttons or focusable tiles.
