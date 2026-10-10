@@ -47,6 +47,37 @@ public sealed partial class SubmissionWorkflowTests
     }
 
     [Fact]
+    public async Task CaptainOutsideTheCandidateListGetsNoPreselectedPlayerAndCannotSubmitWithoutChoosing()
+    {
+        var setup = await SeedAsync(3, true);
+        // A captain with no playing account of their own is not among the team's candidates.
+        var (actor, _) = await AddWebsiteCaptainAsync(setup, TeamMembershipRole.Captain, false);
+        await using var db = new ApplicationDbContext(options);
+        var page = new Bingo.Web.Pages.Captain.SubmitModel(db, Service(db), new EvidenceAuthority(db), new FixedTimeProvider(now),
+            new PassthroughLocalizer(), NullLogger<Bingo.Web.Pages.Captain.SubmitModel>.Instance)
+        {
+            MetadataProvider = new EmptyModelMetadataProvider(),
+            PageContext = new PageContext
+            {
+                ViewData = new ViewDataDictionary(new EmptyModelMetadataProvider(), new ModelStateDictionary()),
+                HttpContext = new DefaultHttpContext
+                {
+                    User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(ClaimTypes.NameIdentifier, actor.ToString())], "test"))
+                }
+            }
+        };
+        Assert.IsType<PartialViewResult>(await page.OnGetDrawerAsync(setup.TileId, setup.EventId, setup.TeamId, CancellationToken.None));
+        Assert.True(page.CanChooseCreditedParticipant);
+        Assert.NotEmpty(page.Players);
+        Assert.DoesNotContain(page.Players, player => player.Id == page.DefaultParticipantId);
+        Assert.Equal(Guid.Empty, page.Input.CreditedParticipantId);
+        // The server still refuses a missing or invalid credited player.
+        await Assert.ThrowsAsync<InvalidOperationException>(() => new EvidenceAuthority(db).AuthorizeAsync(actor, setup.EventId, setup.TeamId, Guid.Empty, now));
+        var markup = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "src", "Bingo.Web", "Pages", "Captain", "_SubmissionForms.cshtml"));
+        Assert.Contains("<option value=\"\" disabled selected>@T[\"Choose a player\"]</option>", markup);
+    }
+
+    [Fact]
     public async Task OrdinaryParticipantSubmissionDrawerStaysLockedToSelf()
     {
         var setup = await SeedAsync(3, true);
