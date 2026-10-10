@@ -40,6 +40,10 @@ assert.match(tileSidebar, /View all \{0\}[\s\S]*Show less/, "single-boss overflo
 assert.doesNotMatch(tileSidebar, /groupByItem|showBossHeadings|collapseBossGroups|public-ui-eligible-drop-table/, "tile drops do not retain the old grouping/card heuristic");
 assert.match(tileSidebar, /data-evidence-image=[\s\S]*data-evidence-alt=[\s\S]*data-evidence-drop=[\s\S]*data-evidence-player=[\s\S]*data-evidence-team=[\s\S]*data-evidence-source=/, "asset evidence rows retain every viewer data attribute");
 assert.match(tileSidebar, /SubmittedAt[\s\S]*minutesAgo[\s\S]*minutesAgo == 1[\s\S]*T\["1 minute ago"\][\s\S]*hoursAgo == 1[\s\S]*T\["1 hour ago"\][\s\S]*daysAgo == 1[\s\S]*T\["1 day ago"\][\s\S]*<time datetime=/, "approved submission rows expose semantic singular/plural relative times");
+assert.match(teamBoard, /public-ui-team-board-tile__position">@T\["Points: \{0\}", TeamBoardModel\.GetTilePoints\(tile\.EstimatedEhb\)\]<\/span>/, "tiles show localized Points instead of row and column");
+assert.doesNotMatch(teamBoard, /R@\(tile\.Row/, "tiles no longer show the row/column position label");
+assert.match(read("src/Bingo.Web/Resources/SharedResource.da.resx"), /<data name="Points: \{0\}"[^>]*><value>Point: \{0\}<\/value>/, "Danish Points label exists");
+assert.doesNotMatch(layout, /drop-navigation-new">WIP/, "event Stats link no longer carries a WIP badge");
 assert.match(teamBoard, /team-board-drawer\.js/, "ordinary TeamBoard loads the drawer transport");
 assert.match(teamBoard, /<dialog class="public-lightbox public-evidence-viewer" data-public-lightbox data-evidence-dialog[\s\S]*data-evidence-dialog-image[\s\S]*<\/dialog>\s*@section Scripts/, "every TeamBoard render includes the shared evidence viewer host");
 assert.match(teamBoard, /<script src="~\/js\/team-board-drawer\.js" asp-append-version="true"><\/script>\s*<script src="~\/js\/public-evidence\.js" asp-append-version="true"><\/script>/, "every TeamBoard render loads the shared evidence viewer behavior");

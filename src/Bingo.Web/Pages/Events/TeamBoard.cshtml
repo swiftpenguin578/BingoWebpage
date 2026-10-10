@@ -247,7 +247,7 @@
                     </span>
                     <span class="public-ui-team-board-tile__shade" aria-hidden="true"></span>
                     <span class="public-ui-team-board-tile__copy">
-                        <span class="public-ui-team-board-tile__position">@T["Points: {0}", Math.Max(1, (int)Math.Round(tile.EstimatedEhb, 0, MidpointRounding.AwayFromZero))]</span>
+                        <span class="public-ui-team-board-tile__position">@T["Points: {0}", TeamBoardModel.GetTilePoints(tile.EstimatedEhb)]</span>
                         <strong class="public-ui-team-board-tile__title">@tile.Name</strong>
                         <span class="public-ui-team-board-tile__progress-row">
                             @if (tile.Complete)
