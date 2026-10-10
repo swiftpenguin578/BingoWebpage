@@ -30,6 +30,8 @@ Priority: **High** = needed before DKL BINGO OKTOBER 2026 goes Live (draft in ab
 | WOM: recognise renamed accounts | Maybe | Optionally recognise a renamed OSRS account by its Wise Old Man provider ID instead of treating it as a new name. Never built; moved from the old page matrix (documentation restructure, 10 October 2026). |
 | WOM creation status shimmer | Maybe | An uncommitted WOM reference variant: once "Creating on Wise Old Man" appears it stays visible for a minimum time with a subtle shimmer, so a creation confirmed at once doesn't flash; presentation only. The variant (`noteOp`/`opShown`) is saved outside Git in the planner's `review-notes/145-wom-creation-shimmer-variant.dc.html`. (User, 10 October 2026.) |
 | Discord announcements | Maybe | Post approved drops and tile/line/board completions to a clan Discord channel via a webhook (user may pick it up later, 10 October 2026). |
+| Review queue waiting-time indicator | Normal | Admin Review page shows how long submissions have been waiting, with a warning when the oldest waits longer than a threshold (e.g. 30 min), so busy evenings get noticed (user, 10 October 2026). |
+| Captain notification for teammate submissions | Normal | Captains get a notification when a teammate's submission is rejected or needs changes, so they can help sort it out (user, 10 October 2026). |
 
 ## Bug fixes
 
