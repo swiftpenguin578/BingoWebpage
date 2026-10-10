@@ -504,7 +504,7 @@ export async function init(region, ui = window.AdminUI) {
     }
   };
 
-  /* ---------------- preview (U7-Q3: placeholder; never approves or publishes) ---------------- */
+  /* ---------------- preview (shows the board as players see it; never approves, publishes or saves) ---------------- */
   ctx.openPreview = () => {
     const v = ctx.view;
     const eyebrow = /*labels*/{ draft: 'Preview · current draft values · nothing is approved or published', approved: 'Preview · the approved version · not published', published: 'Preview · what players see now', correction: 'Preview · your private correction · players still see the published version' }/*end*/[v.mode] || 'Preview';
@@ -513,8 +513,30 @@ export async function init(region, ui = window.AdminUI) {
     grow.append(el('div', 'eyebrow', t(eyebrow)), title);
     const close = button('icon-btn', null, () => void layer.close(false), 'pv-close'); close.setAttribute('aria-label', t('Close preview')); close.append(icon('close'));
     top.append(grow, close);
-    const pvBody = el('div', 'bd-pv-body'), placeholder = el('div', 'bd-pv-none', t('Not supported yet'));
-    pvBody.append(placeholder); content.append(top, pvBody);
+    const pvBody = el('div', 'bd-pv-body'), board = el('div', 'bd-pv-board'), size = v.rows * v.cols;
+    board.style.setProperty('--bd-pv-cols', v.cols); board.style.setProperty('--bd-pv-rows', v.rows);
+    board.setAttribute('role', 'img'); board.setAttribute('aria-label', t('Board {0} rows by {1} columns', v.rows, v.cols));
+    board.dataset.pvBoard = '';
+    for (let pos = 0; pos < size; pos++) {
+      const tile = ctx.tileAt(pos);
+      if (!tile) { board.append(el('div', 'bd-pv-empty')); continue; }
+      const cell = el('div', 'public-tile public-ui-nested-container public-ui-team-board-tile public-ui-team-board-tile--not-started'); cell.dataset.pvTile = pos;
+      cell.append(el('span', 'public-ui-team-board-tile__number', String(pos + 1).padStart(2, '0')));
+      // Same order as the team board: the tile's own image, else the boss-art grid, else the placeholder.
+      const art = el('span', 'public-ui-team-board-tile__art'), bossArt = tile.bossArt || [];
+      if (tile.art) { const image = document.createElement('img'); image.className = 'public-ui-team-board-tile__art-image'; image.alt = ''; image.src = tile.art; art.append(image); }
+      else if (bossArt.length) {
+        const grid = el('span', 'public-ui-team-board-tile__boss-art-grid public-ui-team-board-tile__boss-art-grid--count-' + bossArt.length);
+        for (const url of bossArt) { const image = document.createElement('img'); image.alt = ''; image.src = url; grid.append(image); }
+        art.append(grid);
+      } else art.append(el('span', 'public-ui-team-board-tile__placeholder', '▦'));
+      const points = Math.max(1, Math.round(tile.ehb || 0));
+      const copy = el('span', 'public-ui-team-board-tile__copy');
+      copy.append(el('span', 'public-ui-team-board-tile__position', t('Points: {0}', points)), el('strong', 'public-ui-team-board-tile__title', tile.name));
+      cell.append(art, el('span', 'public-ui-team-board-tile__shade'), copy);
+      board.append(cell);
+    }
+    pvBody.append(board); content.append(top, pvBody);
     content.dataset.pageFamily = 'board';
     const layer = ui.openLayer({ title: t('Preview'), content }); layer.element.dataset.pageFamily = 'board';
     layer.element.classList.add('bd-pv'); layer.element.dataset.pageFamily = 'board';

@@ -175,6 +175,88 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         return page.TempData["BoardTileOutcome"]?.ToString();
     }
 
+    // Brief 148: the Board page ships the team board's boss artwork for a tile without its own image,
+    // both for a draft (live boss data) and an approved board (frozen requirement bosses).
+    [Fact]
+    public async Task BoardViewCarriesBossArtworkForTilesWithoutAnUploadedImage()
+    {
+        var fixture = await SeedApprovalBatchAsync();
+        await using (var prepare = new ApplicationDbContext(options))
+        {
+            var boss = await prepare.BossActivities.SingleAsync(x => x.Id == fixture.Boss.Id);
+            boss.Update(boss.Name, boss.Category, boss.EfficientCompletionsPerHour, null, boss.DataSource, boss.Notes, DateTimeOffset.UtcNow, "https://oldschool.runescape.wiki/images/Batch_boss.png");
+            await prepare.SaveChangesAsync();
+        }
+        async Task<System.Text.Json.JsonElement> TileAsync(string expectedMode)
+        {
+            await using var db = new ApplicationDbContext(options);
+            var page = Page(db, fixture.Admin.Id);
+            await page.OnGetAsync(fixture.Event.Id, CancellationToken.None);
+            var view = System.Text.Json.JsonDocument.Parse(page.ViewJsonText()).RootElement;
+            Assert.Equal(expectedMode, view.GetProperty("mode").GetString());
+            return view.GetProperty("tiles")[0].Clone();
+        }
+        void AssertArt(System.Text.Json.JsonElement tile)
+        {
+            Assert.Equal(System.Text.Json.JsonValueKind.Null, tile.GetProperty("art").ValueKind);
+            var art = Assert.Single(tile.GetProperty("bossArt").EnumerateArray()).GetString()!;
+            Assert.StartsWith("/media/osrs-wiki?source=", art);
+            Assert.Contains("Batch_boss.png", Uri.UnescapeDataString(art));
+        }
+        AssertArt(await TileAsync("draft"));
+        await using (var approve = new ApplicationDbContext(options))
+        {
+            var page = Page(approve, fixture.Admin.Id);
+            await page.OnGetAsync(fixture.Event.Id, CancellationToken.None);
+            await page.OnPostApproveAsync(fixture.Event.Id, false, CancellationToken.None);
+        }
+        AssertArt(await TileAsync("approved"));
+    }
+
+    // Brief 148 L2: a published board's own tile image in the preview is the frozen one players load from the public route.
+    [Fact]
+    public async Task PublishedBoardViewUsesTheFrozenPublicTileImageRoute()
+    {
+        var fixture = await SeedApprovalBatchAsync();
+        var now = DateTimeOffset.UtcNow;
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            setup.Entry(await setup.Events.SingleAsync()).Property(x => x.State).CurrentValue = EventState.SignupClosed;
+            var board = await setup.Boards.SingleAsync();
+            board.SetTotalEhb(1m);
+            await BoardApprovalFixture.PublishAsync(setup, board, now, [await setup.BoardTiles.SingleAsync()], [await setup.BoardRequirementSnapshots.SingleAsync()], await setup.BoardRequirementDropSnapshots.ToListAsync());
+            setup.BoardTileImageAssets.Add(new BoardTileImageAsset(Guid.NewGuid(), fixture.Event.Id, fixture.Tile.Id, "frozen-key", "tile.png", "image/png", 10, 1, 1, "checksum", fixture.Admin.Id, now));
+            setup.Entry(await setup.BoardApprovalTileSnapshots.SingleAsync()).Property(x => x.ArtworkReference).CurrentValue = "frozen-key";
+            await setup.SaveChangesAsync();
+        }
+        async Task<System.Text.Json.JsonElement> ViewAsync(string expectedMode)
+        {
+            await using var db = new ApplicationDbContext(options);
+            var page = Page(db, fixture.Admin.Id);
+            await page.OnGetAsync(fixture.Event.Id, CancellationToken.None);
+            var view = System.Text.Json.JsonDocument.Parse(page.ViewJsonText()).RootElement;
+            Assert.Equal(expectedMode, view.GetProperty("mode").GetString());
+            return view.GetProperty("tiles")[0].Clone();
+        }
+        // Published, frozen image matches an asset: the public route players load.
+        Assert.Equal($"/Events/batch-approval/Board/Tiles/{fixture.Tile.Id}/Image", (await ViewAsync("published")).GetProperty("art").GetString());
+        // Published tile without a frozen image: no own image.
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.Entry(await db.BoardApprovalTileSnapshots.SingleAsync()).Property(x => x.ArtworkReference).CurrentValue = null;
+            await db.SaveChangesAsync();
+        }
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, (await ViewAsync("published")).GetProperty("art").ValueKind);
+        // Frozen image restored but the event is Cancelled: the public route would 404, so no image.
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.Entry(await db.BoardApprovalTileSnapshots.SingleAsync()).Property(x => x.ArtworkReference).CurrentValue = "frozen-key";
+            db.Entry(await db.Events.SingleAsync()).Property(x => x.State).CurrentValue = EventState.Cancelled;
+            await db.SaveChangesAsync();
+        }
+        Assert.Equal(System.Text.Json.JsonValueKind.Null, (await ViewAsync("published")).GetProperty("art").ValueKind);
+    }
+
     // U7-Q1: a missing-rate approval issue names the affected drops.
     [Fact]
     public async Task U7MissingRateIssueCarriesAffectedDropNames()

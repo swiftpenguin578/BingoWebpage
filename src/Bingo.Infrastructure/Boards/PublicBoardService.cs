@@ -87,25 +87,17 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
                                  join boss in db.BossActivities.AsNoTracking() on snapshot.BossActivityId equals boss.Id
                                  where frozenRequirements.Values.Select(x => x.Id).ToList().Contains(requirement.Id) && boss.ImageUrl != null
                                  select new { RequirementId = requirement.BoardRequirementSnapshotId, BossName = boss.Name, boss.ImageUrl }).ToListAsync(cancellationToken);
-        var artworkByRequirement = bossArtwork
-            .Select(value => new { value.RequirementId, value.BossName, ImageUrl = OsrsWikiImageUrl.Normalize(value.ImageUrl) })
-            .Where(value => !string.IsNullOrWhiteSpace(value.ImageUrl))
+        var artworkCandidatesByRequirement = bossArtwork
             .GroupBy(value => value.RequirementId)
-            .ToDictionary(group => group.Key, group => group
-                .GroupBy(value => BossArtworkFamily.Key(value.BossName), StringComparer.OrdinalIgnoreCase)
-                .Select(family => family.OrderBy(value => BossArtworkFamily.Priority(value.BossName)).ThenBy(value => value.BossName).First().ImageUrl!)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList());
+            .ToDictionary(group => group.Key, group => group.Select(value => new BossArtworkSelection.Candidate(value.BossName, value.ImageUrl)).ToList());
         var tileByRequirement = frozenRequirements.ToDictionary(
             value => value.Key,
             value => frozenTilesByApprovalId[value.Value.ApprovalTileSnapshotId].BoardTileId);
         var artworkByTile = frozenRequirements
             .GroupBy(value => frozenTilesByApprovalId[value.Value.ApprovalTileSnapshotId].BoardTileId)
-            .ToDictionary(group => group.Key, group => group
-                .SelectMany(value => artworkByRequirement.GetValueOrDefault(value.Key) ?? [])
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Take(4)
-                .ToList());
+            .ToDictionary(group => group.Key, group => BossArtworkSelection.ForTile(group
+                .OrderBy(value => value.Value.Position).ThenBy(value => value.Key)
+                .Select(value => (IEnumerable<BossArtworkSelection.Candidate>)(artworkCandidatesByRequirement.GetValueOrDefault(value.Key) ?? []))).ToList());
         // Public board wording/rates must be read from the immutable approval tree.
         var teamIds = teams.Select(value => value.Id).ToList();
         var completionFactsByTeam = (await db.TileCompletionFacts.AsNoTracking()
