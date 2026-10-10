@@ -297,7 +297,7 @@ The app's CSS is the authority for every value: `src/Bingo.Web/wwwroot/css/admin
 - Available players: name (primary account) and EHB; sort by EHB or name; `/` focuses search, Enter drafts a single match, Escape clears; the grid is one tab stop with roving focus (arrows, Home, End); chips act on click with no selection state; the pool is inert while a request runs or picking is not allowed; empty line.
 - Immediate actions: controls that could repeat the action are inert while it runs and the pending item shows an in-place spinner; a confirmed result updates the view from the server; a failure leaves the view untouched with an error toast; an uncertain outcome keeps the old view and blocks repeats until "Check again" reports what happened.
 - Drawing the order: while the request runs, columns wait-shuffle in place, positions read "–" and the strip says "Shuffling the teams…", for at least the shuffle minimum duration; on confirmation each column travels once to its confirmed position (staggered, small lift), then positions and turn highlight appear. The animation never decides the order. Draw/Redraw/picks/Undo stay disabled until settled; a failed draw stops with the old order and an error toast; an uncertain draw keeps the old order behind Check again; a readback or another admin's live draw plays the same move; reduced motion switches at once.
-- The pre-formed-roster CSV import is an advanced state inside the Draft workspace, not a separate page. The small positioned roster-removal confirmation is kept.
+- The small positioned roster-removal confirmation is kept.
 
 ### Admin Review
 
@@ -424,10 +424,10 @@ Every page has an explicit state in this table; a page or state without an appro
 | Admin Signup setup | approved | 2026-10-07 |
 | Admin Signup questions (`/Admin/Events/Questions`) | retired; replaced by Signup setup | — |
 | Admin Participants | approved | 2026-10-08 |
-| Admin Participants: finalized-pre-Live departure, optional note, vacancy/replacement, follow-up states | awaiting manual acceptance | — |
+| Admin Participants: finalized-pre-Live departure, optional note, vacancy/replacement, follow-up states | superseded by the Admin Participants approval | 2026-10-08 |
 | Admin Teams/Draft | approved | 2026-10-08 |
 | Admin Teams/Draft live-draft scaling and pick highlight | approved in preview | 2026-10-10 |
-| Admin Teams/Draft: finalized-pre-Live participant action and Captain-recovery publication states | awaiting manual acceptance | — |
+| Admin Teams/Draft: finalized-pre-Live participant action and Captain-recovery publication states | superseded by the Admin Teams/Draft approval | 2026-10-08 |
 | Admin Board | approved | 2026-10-08 |
 | Admin Board Preview (board as players see it, boss artwork, default team-board artwork) | approved | 2026-10-10 |
 | Admin evidence review (queue + Details) | approved | 2026-10-08 |
@@ -448,8 +448,8 @@ Every page has an explicit state in this table; a page or state without an appro
 | Stats / Signup / Signups / public event-overview scoped visual corrections | approved | 2026-09-16 |
 | Public Signups directory | approved | 2026-08-24 |
 | Public Teams/roster | approved; lifecycle-aware navigation addition authorized | 2026-09-06 |
-| Public Teams: current roster, retained pick display, empty-team vacancy states | awaiting manual acceptance | — |
-| Public Board family (Board, TeamBoard, Tile, Admin Preview) | approved; Teams navigation and evidence zoom/pan additions authorized | 2026-09-06 |
+| Public Teams: current roster, retained pick display, empty-team vacancy states | superseded by the 8 October page approvals | 2026-10-08 |
+| Public Board family (Board, TeamBoard, Tile) | approved; Teams navigation and evidence zoom/pan additions authorized | 2026-09-06 |
 | Public Board Live-readiness changes (points label, team board layout, Playing as, Submissions label) | approved in preview | 2026-10-10 |
 | Tile KC & Luck section | visually accepted | 2026-10-04 |
 | Board Leaderboards boss KC metric (incl. em dash, whole-number gains) | manually approved | 2026-09-23 |

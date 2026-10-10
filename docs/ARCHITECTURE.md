@@ -363,7 +363,7 @@ Owns data invariants, calculations, architecture and the authentication/authoriz
 
 ## 12. Security baseline
 
-- Caddy HTTPS; secure, HTTP-only, same-site cookies; CSRF protection; CSP; server-side authorization policies; login/signup rate limits; upload validation; parameterized EF access; secrets outside source control; no public PostgreSQL; minimal container privileges; regular OS/image updates; audit of competitive and privileged actions. Admin two-factor authentication is not implemented and remains an optional future evaluation.
+- Caddy HTTPS; secure, HTTP-only, same-site cookies; CSRF protection; CSP; server-side authorization policies; login/signup rate limits; upload validation; parameterized EF access; secrets outside source control; no public PostgreSQL; minimal container privileges; regular OS/image updates; audit of competitive and privileged actions. Admin 2FA is not implemented.
 - Logs never contain passwords, signup edit tokens, storage credentials or full private evidence URLs. Audit snapshots never store password hashes, edit tokens or other authentication secrets.
 
 ## 13. Portability

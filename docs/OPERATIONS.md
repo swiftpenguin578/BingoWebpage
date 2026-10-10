@@ -167,7 +167,7 @@ The remote command fails closed on bad IDs or digests, missing or broad permissi
 - Evidence objects are not in the VPS backup; they stay in private object storage, separate from the VPS lifecycle, and are checked separately. The database backup plus the bucket must suffice to reconnect evidence metadata to objects.
 - The repository assumes no R2 object versioning or deletion protection; the operator decides R2 deletion protection or another recovery path (still open). Integrity checks are not deletion recovery.
 - `sudo /usr/local/sbin/bingo-verify-evidence` (with host R2 credentials) reads only database-stored object keys and SHA-256 values from the evidence, team and board asset tables, downloads and hashes each object, and fails on any mismatch. It never deletes objects or prints credentials or personal data.
-- A finalized-event inventory of expected evidence keys and checksums is a target; today only `bingo-verify-evidence`'s live database inventory exists.
+- The only evidence inventory is `bingo-verify-evidence`'s live database check.
 
 ### Restore
 
