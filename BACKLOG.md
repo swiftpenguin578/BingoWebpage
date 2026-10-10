@@ -32,6 +32,7 @@ Priority: **High** = needed before DKL BINGO OKTOBER 2026 goes Live (draft in ab
 | Discord announcements | Maybe | Post approved drops and tile/line/board completions to a clan Discord channel via a webhook (user may pick it up later, 10 October 2026). |
 | Review queue waiting-time indicator | Normal | Admin Review page shows how long submissions have been waiting, with a warning when the oldest waits longer than a threshold (e.g. 30 min), so busy evenings get noticed (user, 10 October 2026). |
 | Captain notification for teammate submissions | Normal | Captains get a notification when a teammate's submission is rejected or needs changes, so they can help sort it out (user, 10 October 2026). |
+| Location data in public evidence | Normal — after the event | Approved screenshots are served byte-for-byte, so EXIF/GPS data in a photo is public (report 164 F05). After DKL BINGO OKTOBER 2026: reject uploads carrying GPS/EXIF and ask the player to re-save (small), or serve a stripped copy (medium). (User, 10 October 2026.) |
 
 ## Bug fixes
 
