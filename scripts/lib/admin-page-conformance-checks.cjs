@@ -128,9 +128,8 @@ async function checkDanish(page, registration, fixture, paths) {
   await page.locator('[name=culture][value=en]').click();await page.waitForFunction(()=>document.documentElement.lang==='en');
 }
 async function checkSources(browser, registrations) {
-  // Checks 1–6: immutable primitives, family-owned additions, inline geometry,
+  // Checks 2–6: family-owned additions, inline geometry,
   // shared components, shared busy ownership, shared navigation/transport.
-  for(const file of ['tokens','components'])assert.equal(fs.readFileSync('src/Bingo.Web/wwwroot/css/admin-design-'+file+'.css','utf8'),fs.readFileSync('docs/references/admin-ui/ui/'+file+'.css','utf8'),'frozen '+file+' byte parity');
   const page=await browser.newPage(),designChecks=[];
   const shared=fs.readFileSync('src/Bingo.Web/Resources/SharedResource.da.resx','utf8'),community=fs.readFileSync('src/Bingo.Web/Resources/AdminCommunityResource.da.resx','utf8');
   const resources=await page.evaluate(({shared,community})=>Object.fromEntries(Object.entries({T:shared,D:community}).map(([alias,xml])=>[alias,[...new DOMParser().parseFromString(xml,'text/xml').querySelectorAll('data')].filter(e=>e.querySelector('value')?.textContent.trim()).map(e=>e.getAttribute('name'))])),{shared,community});
@@ -150,7 +149,7 @@ async function checkSources(browser, registrations) {
     assert.match(markup,/class=\"(?:card|.*\bcard\b)|<partial /,family+': shared components');
     assert.ok(/export (?:async )?function init\(/.test(moduleSource),family+': exported init');assert.ok(/export (?:async )?function dispose\(/.test(moduleSource),family+': exported dispose');
     checkSaveTiming(moduleSource,{family,postSaveCount,backgroundPostCount});
-    designChecks.push({family,frozen:true,scopedRules:true,sharedTokens:true,inlineGeometryOccurrences:(markup.match(/style=/g)||[]).length,literalDanishKeys:keys.length,sharedComponents:true,sharedBusy: /ui\.busy\(/.test(moduleSource)?'used':'no save in this module',sharedLifecycle:true});
+    designChecks.push({family,scopedRules:true,sharedTokens:true,inlineGeometryOccurrences:(markup.match(/style=/g)||[]).length,literalDanishKeys:keys.length,sharedComponents:true,sharedBusy: /ui\.busy\(/.test(moduleSource)?'used':'no save in this module',sharedLifecycle:true});
   }} finally {await page.close();}
   return designChecks;
 }

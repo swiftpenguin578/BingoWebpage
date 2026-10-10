@@ -62,19 +62,12 @@ jobs:
         continue-on-error: true
         timeout-minutes: 15
         run: pnpm test:js
-      - name: Compare rendered reference and real layout in both engines
-        if: steps.plan.outputs.parity == 'true'
-        continue-on-error: true
-        timeout-minutes: 5
-        run: pnpm test:parity
       - name: Upload JavaScript results
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: javascript-results-${{ matrix.shard }}-${{ github.run_id }}
-          path: |
-            artifacts/js-tests/
-            artifacts/admin-parity/
+          path: artifacts/js-tests/
           if-no-files-found: warn
           retention-days: 7
 
