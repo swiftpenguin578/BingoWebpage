@@ -9,8 +9,12 @@ namespace Bingo.Web.UI;
 
 public sealed record AuditFieldChange(string Field, string Before, string After);
 
-/// <summary>Brief 147 item 2: one affected website account and/or playing account; Current = looked up now (A4).</summary>
-public sealed record AuditAffectedAccount(string? Website, string? Playing, bool Current);
+/// <summary>
+/// Brief 147 item 2: one affected website account and/or playing account; Current = looked up now (A4).
+/// Brief 159 (A11): Column is the single name the list column shows, the affected participant's
+/// primary account in the event for event entries, else null (the website account is shown).
+/// </summary>
+public sealed record AuditAffectedAccount(string? Website, string? Playing, bool Current, string? Column = null);
 
 public sealed record AuditPresentation(string Action, string Actor, string Target, string? Reason,
     IReadOnlyList<AuditFieldChange> Changes, string ActionKey, string? Details, string? BeforeState, string? AfterState,
