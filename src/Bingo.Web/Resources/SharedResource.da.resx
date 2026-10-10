@@ -6231,4 +6231,6 @@
   <data name="Choose a different Playing account." xml:space="preserve"><value>Vælg en anden Playing-konto.</value></data>
   <data name="The participant changed while the swap was being saved. Reload and try again." xml:space="preserve"><value>Deltageren blev ændret, mens skiftet blev gemt. Genindlæs, og prøv igen.</value></data>
   <data name="Another account change was saved first. Reload and try again." xml:space="preserve"><value>Et andet kontoskift blev gemt først. Genindlæs, og prøv igen.</value></data>
+  <data name="No active playing account – contact an admin" xml:space="preserve"><value>Ingen aktiv spillekonto – kontakt en admin</value></data>
+  <data name="Choose a player" xml:space="preserve"><value>Vælg en spiller</value></data>
 </root>

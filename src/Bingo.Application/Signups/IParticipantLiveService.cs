@@ -21,7 +21,7 @@ public interface IParticipantLiveService
     /// <summary>
     /// The playing account shown in the public header: the signed-in website account's participant on a team
     /// of a Live event (the preferred event when it qualifies, else the most recently started Live event),
-    /// named by the account submissions are credited to now. Null when there is none.
+    /// named by the account submissions are credited to now (name null when none can be named). Null when the viewer is not a Live team participant.
     /// </summary>
     Task<PlayingAccountHeader?> GetPlayingAccountHeaderAsync(
         Guid viewerAccountId,
@@ -69,6 +69,6 @@ public sealed record ParticipantCharacterSwapResult(
 public sealed record PlayingAccountHeader(
     Guid EventId,
     Guid ParticipantId,
-    string CreditedCharacterName,
-    Guid CreditedCharacterId,
+    string? CreditedCharacterName,
+    Guid? CreditedCharacterId,
     IReadOnlyList<ParticipantPlayingCharacter> SwitchTargets);
