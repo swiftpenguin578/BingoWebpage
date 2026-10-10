@@ -71,10 +71,6 @@ Owns data invariants, calculations, architecture and the authentication/authoriz
 - Persisted WOM refresh skip reasons keep names and numbers and are never reused: `EventUnavailable=0`, `EventNotInFinalReview=1`, `IncompleteEventWindow=2`, `NoCompetition=3`, `RefreshInProgress=4`, `RetryDelay=5`, `NotDue=6`, `ServiceUnavailable=7`, `EndWindowUnmatched=8`, `EndCouldNotBeUpdated=9`. `CalculationInputsJson` reads both old string and numeric forms. A fallback publication records `Skipped`/`EndCouldNotBeUpdated` and keeps the pre-end cache with its timestamps (no fresh values or zeroes).
 - Managed WOM: the competition link is the source identity. A management record is created only after explicit Create or explicit protected-code adoption. It stores the link, encrypted versioned code, managed-field scope, status, last local/remote fingerprints, acknowledged roster, version and the permanent `actual_started_at` cutover. The code is never cleartext and never in DTOs, TempData, logs, exceptions or payloads. ID-only links have no write capability; adoption does not change External provenance or authorize deletion. Replacement/disconnect retires the connection, removes the credential and current receipt and keeps operation history; re-adoption rebinds with a new code only; replacement resets end-update state.
 
-### Global public content
-
-- One non-event Rules document: a well-known singleton id, body, `version` (optimistic concurrency), `updated_at`/`updated_by`. Edits are audited automatically with no reason and no notifications; it is not a readiness input. (No `GlobalRulesDocument` entity exists in code yet; the retired per-event `BingoEvent.PublicRules` field is not this document.)
-
 ### Signup
 
 - `SignupForm`: one active form per event; historical question definitions remain. `first_response_at` is set by the first accepted or imported response and never cleared.

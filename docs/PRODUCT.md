@@ -21,7 +21,7 @@ What the product does: behaviour, journeys, wording and errors, grouped by featu
 
 ### Public visitors
 
-- Without an account, visitors can read the current event, rules, dates and status; the signup table with its public fields before draft finalization (afterwards non-Admins are redirected to the published rosters); published boards and approved progress; tile details and public approved screenshots; teams, rosters and draft results; leaderboards; and history.
+- Without an account, visitors can read the current event, the How To guide, dates and status; the signup table with its public fields before draft finalization (afterwards non-Admins are redirected to the published rosters); published boards and approved progress; tile details and public approved screenshots; teams, rosters and draft results; leaderboards; and history.
 - They cannot submit, see pending or rejected evidence, or change anything.
 
 ### Participants
@@ -219,10 +219,9 @@ What the product does: behaviour, journeys, wording and errors, grouped by featu
 
 - The board may be built and revised throughout signup and before the draft; it need not be complete when signup opens. Board validation and publication fix the competitive board (§8).
 
-### Rules, how-to and images
+### How To and images
 
-- General public rules live on one permanent global public Rules page, not per event: a singleton versioned document that any enabled Admin edits at any time via "Edit rules", through an Admin-authorized command with validation, optimistic concurrency (stale edits rejected) and automatic audit; no reason, no participant notification, no lifecycle effect. Ranking follows the event rule with no Admin override. Event settings hold evidence requirements and the verification code (§11).
-- `/HowTo` is source-controlled content with stable anonymous routes and no in-app editor: five anchor-linked steps (event discovery, signup, board progress, evidence submission, review tracking). Event dashboards and submission surfaces link to Rules and How-to; upload instructions are not copied into tiles. Neither is a lifecycle prerequisite.
+- `/HowTo` is source-controlled content with stable anonymous routes and no in-app editor: five anchor-linked steps (event discovery, signup, board progress, evidence submission, review tracking). There is no Rules page: How To is the public guide, linked from the Landing page ("How it works") and the shared public header navigation; upload instructions are not copied into tiles. It is not a lifecycle prerequisite.
 - Application images use managed upload through one server upload route (local file, server validation, managed asset); the owning record stores a managed asset reference, never bytes or an arbitrary URL. Decorative images have their own authorization and retention. Old banner and team-image references authorize no controls. External source-image URLs exist only in the global catalogue, which fetches and caches them (§9).
 
 ## 6. Signup and roster
@@ -366,7 +365,7 @@ What the product does: behaviour, journeys, wording and errors, grouped by featu
 - A tile belongs to one board and holds a name, a public description, an optional custom image (upload, replace, remove), a board position, one or more objectives, its EHB and its published state. The tile's effective EHB is its tie-break value; there is no separate tie-break field.
 - Server and client limits: tile name ≤ 80 characters (checked for new or changed names only), contribution weight 1–10,000, correction reason ≤ 2,000 characters. The default tile name is the selected boss names joined, or "New tile".
 - The only rearrangement is drag/move and swap. There is no tile duplication, copy from an earlier event, import or reusable template.
-- Tiles store only objective wording and custom completion criteria; general screenshot and submission instructions live on the global Rules and How-to pages, and approval has no per-tile evidence-instruction requirement.
+- Tiles store only objective wording and custom completion criteria; general screenshot and submission instructions live on the How To page, and approval has no per-tile evidence-instruction requirement.
 
 ### Objectives and counting
 
@@ -943,12 +942,11 @@ Route `/notifications`, reachable from the authenticated shell and the Admin she
 ## 17. Public and participant pages
 
 ### Public pages
-- Public pages: current event overview, signup form and confirmation/edit, board with team selector, tile details and evidence, team overview/roster, published draft results, team and player leaderboards, rules and evidence requirements, previous events and results.
+- Public pages: current event overview, signup form and confirmation/edit, board with team selector, tile details and evidence, team overview/roster, published draft results, team and player leaderboards, the How To guide, previous events and results.
 - Public boards is an overview of the current public event and previous archived events; selecting the current event does not auto-redirect into its board. Once finalized rosters are public, its card is the event entry: before board publication it says the roster is available and opens the roster; after, it opens the read-only pre-live board. Neither publication changes lifecycle or enables progress, evidence or submissions.
 - A public tile shows the approved drop, player, team, submission time, contribution and evidence.
 - Archived events keep the same public routes.
 - The header "Current event" shortcut shows for everyone (including anonymous) only when a public, non-hidden Live or Awaiting final review event has a published board, linking to it (Live first, then latest start). It never exposes private context or redirects to another team or event.
-- Rules page: §5.
 - How To pages (including "How to submit drops") are source-controlled content without an in-app editor: five stable hash-linked steps with a left step rail, active article, right progress/help rail, localized evidence schematic and example image; compact horizontal step nav on narrow screens; anchor fallback; no Rules editor, Admin docs or sixth step. Event and submission surfaces may link them. There are no per-tile evidence instructions; manual tiles keep only objective-specific criteria.
 
 ### Participant navigation
