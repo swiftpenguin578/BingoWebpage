@@ -112,20 +112,12 @@ public sealed class EvidenceAuthority(ApplicationDbContext db) : IEvidenceAuthor
     public async Task<CreditedCharacterSnapshot> ResolveCreditedCharacterAsync(Guid eventId, Guid participantId, DateTimeOffset submittedAt, CancellationToken cancellationToken = default)
     {
         var at = submittedAt.ToUniversalTime();
-        var transition = await db.ActiveCharacterAtAsync(eventId, participantId, at, cancellationToken);
-        var characterId = transition?.OsrsCharacterId;
+        var characterId = await db.CreditedPlayingCharacterIdAsync(eventId, participantId, at, cancellationToken);
         if (characterId is null)
         {
             if (await db.EventParticipantCharacterSwaps.AsNoTracking().AnyAsync(x => x.EventId == eventId && x.EventParticipantId == participantId, cancellationToken))
                 throw new InvalidOperationException("The credited participant has no active Playing account at the evidence time.");
-            var fallback = await (from assignment in db.EventParticipantCharacters.AsNoTracking()
-                                  join participant in db.EventParticipants.AsNoTracking() on assignment.EventParticipantId equals participant.Id
-                                  where assignment.EventId == eventId && assignment.EventParticipantId == participantId && participant.EventId == eventId &&
-                                        assignment.EventRole == Bingo.Domain.Signups.EventCharacterRole.Playing && assignment.ReleasedAt == null
-                                  select assignment.OsrsCharacterId).ToListAsync(cancellationToken);
-            if (fallback.Count != 1)
-                throw new InvalidOperationException($"The credited character for retained participant {participantId} is missing or ambiguous.");
-            characterId = fallback[0];
+            throw new InvalidOperationException($"The credited character for retained participant {participantId} is missing or ambiguous.");
         }
 
         var character = await db.OsrsCharacters.AsNoTracking().SingleOrDefaultAsync(x => x.Id == characterId.Value, cancellationToken)
