@@ -3945,7 +3945,6 @@
   <data name="Applying…" xml:space="preserve"><value>Anvender…</value></data>
   <data name="Board resized to {0} × {1}." xml:space="preserve"><value>Boardet har nu størrelsen {0} × {1}.</value></data>
   <data name="resize the board to {0} × {1}" xml:space="preserve"><value>ændre Boardets størrelse til {0} × {1}</value></data>
-  <data name="Not supported yet" xml:space="preserve"><value>Ikke understøttet endnu</value></data>
   <data name="Draft · private" xml:space="preserve"><value>Kladde · privat</value></data>
   <data name="Approved · private" xml:space="preserve"><value>Godkendt · privat</value></data>
   <data name="Correction · private" xml:space="preserve"><value>Rettelse · privat</value></data>
