@@ -22,15 +22,20 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     await page.locator('#au-notice', { hasText: 'Some filters in the link weren’t recognised.' }).waitFor();
     assert.equal(new URL(page.url()).search, '?actor=ReviewOwner');
     assert.equal(await page.locator('#actor-input').inputValue(), 'ReviewOwner');
-    assert.equal(await page.locator('.filter-chip').count(), 1);
+    // Brief 159 item 2: the actor search is the search box, never a chip; no chip means no Clear all (as on Participants).
+    assert.equal(await page.locator('.filter-chip').count(), 0);
+    assert.equal(await page.locator('#clear-all').count(), 0);
     assert.equal(await page.evaluate(() => document.scrollingElement.scrollHeight <= innerHeight), true, 'the document never scrolls');
     // U3-Q10: the summary is only the time zone line.
     assert.match(await page.locator('.page-head .summary').innerText(), /^Times in Copenhagen time \(UTC[+-]\d\d:\d\d\)$/);
     assert.equal(await page.locator('.page-head .summary > span').count(), 1);
 
-    // Clear all, then the actor search (C-AUD-3: "@" ignored, case ignored), pushed to history.
-    await page.locator('#clear-all').click();
+    // Clear the search with its own button, then the actor search (C-AUD-3: "@" ignored, case ignored), pushed to history.
+    await page.locator('[data-audit-actor-clear]').click();
     await page.waitForFunction(() => location.search === '' && !document.querySelector('.filter-chip') && !document.querySelector('[data-update-skeleton]') && document.querySelectorAll('[data-audit-row]').length > 5);
+    // The search box replaces the URL; a separate visit keeps an entry to go Back to.
+    await page.goto(fixture.origin + '/Admin/Audit?page=1');
+    await page.locator('[data-audit-directory]').waitFor();
     assert.ok(await page.locator('[data-audit-row] .pill', { hasText: 'Automated' }).count() > 0, 'automated entries are marked');
     assert.ok(await page.locator('.actor.is-system', { hasText: 'System' }).count() > 0);
     // Brief 147: the record line is a sentence and Affected account is a column ("—" when none).
@@ -45,8 +50,8 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     page.on('request', request => { const url = new URL(request.url()); if (url.pathname === '/Admin/Audit' && url.searchParams.has('actor')) actorRequests.push(url.searchParams.get('actor')); });
     const historyBefore = await page.evaluate(() => history.length);
     const appliedActor = () => page.evaluate(() => new URL(document.querySelector('[data-audit-directory]').dataset.directoryCanonical, location.href).searchParams.get('actor') || '');
-    const settled = actorValue => page.waitForFunction(value => new URL(document.querySelector('[data-audit-directory]').dataset.directoryCanonical, location.href).searchParams.get('actor') === value
-      && new URL(location.href).searchParams.get('actor') === value && document.querySelector('.filter-chip') && !document.querySelector('[data-update-skeleton]'), actorValue, { timeout: 15000 });
+    const settled = actorValue => page.waitForFunction(value => document.querySelector('[data-audit-directory]') && new URL(document.querySelector('[data-audit-directory]').dataset.directoryCanonical, location.href).searchParams.get('actor') === (value || null)
+      && new URL(location.href).searchParams.get('actor') === (value || null) && !document.querySelector('.filter-chip') && !document.querySelector('[data-update-skeleton]'), actorValue, { timeout: 15000 });
     const actorInput = page.locator('#actor-input');
     await actorInput.pressSequentially('@reviewowner', { delay: 25 });
     await settled('reviewowner');
@@ -62,9 +67,9 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     await actorInput.press('r');
     await settled('reviewowner');
     assert.equal(await page.evaluate(() => history.length), historyBefore, 'searching adds no history entries');
-    // Back therefore leaves the searches behind and returns to the entry before Clear all.
+    // Back therefore leaves the searches behind and returns to the entry before this visit.
     await page.goBack();
-    await settled('ReviewOwner'); // wait for that read to finish before going forward again
+    await settled(''); // wait for that read to finish before going forward again
     await page.goForward();
     await settled('reviewowner');
 
@@ -96,7 +101,8 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     assert.equal(await page.evaluate(() => history.length), historyBefore, 'still no history entries');
 
     // Event menu: ordered as on Events with state hints; hidden events marked (AU16).
-    await page.locator('.filter-chip').click();
+    assert.equal(await page.locator('.filter-chip').count(), 0, 'no chip while searching');
+    await page.locator('[data-audit-actor-clear]').click();
     await page.waitForFunction(() => location.search === '' && !document.querySelector('.filter-chip') && !document.querySelector('[data-update-skeleton]'));
     await page.locator('#event-filter').click();
     const hidden = page.locator('#audit-event-menu .menu-item', { hasText: 'Hidden final review' });
@@ -116,8 +122,13 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     // replaces Clear all between mousedown and mouseup.
     await page.waitForFunction(() => new URL(location.href).searchParams.get('action') === 'event.' && new URL(document.querySelector('[data-audit-directory]').dataset.directoryCanonical, location.href).searchParams.get('action') === 'event.' && !document.querySelector('[data-update-skeleton]'));
     assert.deepEqual(await page.locator('.filter-chip').allInnerTexts(), ['Event: Hidden final review', 'Action: Events actions']);
+    // Brief 159 item 2: a search next to real chips adds no chip, stays in the URL, and Clear all clears it too.
+    await page.locator('#actor-input').fill('review');
+    await page.waitForFunction(() => new URL(location.href).searchParams.get('actor') === 'review' && new URL(document.querySelector('[data-audit-directory]').dataset.directoryCanonical, location.href).searchParams.get('actor') === 'review' && !document.querySelector('[data-update-skeleton]'), null, { timeout: 15000 });
+    assert.deepEqual(await page.locator('.filter-chip').allInnerTexts(), ['Event: Hidden final review', 'Action: Events actions']);
     await page.locator('#clear-all').click();
     await page.waitForFunction(() => location.search === '' && !document.querySelector('.filter-chip') && !document.querySelector('[data-update-skeleton]'));
+    assert.equal(await page.locator('#actor-input').inputValue(), '', 'Clear all also clears the search');
 
     // T1 review M2: unapplied panel edits are protected by the shared discard confirmation.
     await page.locator('#more-filters').click();

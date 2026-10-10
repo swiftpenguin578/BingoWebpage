@@ -41,10 +41,10 @@
 <div class="field-err au-actor-err" id="actor-err" hidden data-audit-actor-err><partial name="_AdminDesignIcon" model='new AdminDesignIcon("error")' /><span data-component-text></span></div>
 <p class="sr" id="actor-hint">@D["Matches actors whose name contains what you type. The list updates as you type."]</p>
 <div data-audit-fragments class="directory-fragments">
-@if (Model.Filtered)
+@* Brief 159 item 2: the actor search is shown by the search box (and its clear button), not as a chip; the row and "Clear all" appear only for a real filter chip, as on Participants. *@
+@if (Model.EventId is not null || Model.Action.Length > 0 || Model.Type.Length > 0 || Model.From is not null || Model.To is not null)
 {
     <div class="filter-row" aria-label="@D["Active filters"]">
-        @if (Model.Actor.Length > 0) { <button class="filter-chip" type="button" data-audit-url="@Model.AuditUrl(actor: string.Empty, page: 1)" aria-label="@D["Remove filter: {0}", D["Actor: {0}", Model.Actor]]">@D["Actor: {0}", Model.Actor]<partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button> }
         @if (eventName is not null) { <button class="filter-chip" type="button" data-audit-url="@Model.AuditUrl(clearEvent: true, page: 1)" aria-label="@D["Remove filter: {0}", D["Event: {0}", eventName]]">@D["Event: {0}", eventName]<partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button> }
         @if (Model.Action.Length > 0) { <button class="filter-chip" type="button" data-audit-url="@Model.AuditUrl(action: string.Empty, page: 1)" aria-label="@D["Remove filter: {0}", D["Action: {0}", ActionLabel(Model.Action)]]">@D["Action: {0}", ActionLabel(Model.Action)]<partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button> }
         @if (Model.Type.Length > 0) { var typeLabel = A[AuditPresenter.TargetLabels[Model.Type]].Value; <button class="filter-chip" type="button" data-audit-url="@Model.AuditUrl(type: string.Empty, page: 1)" aria-label="@D["Remove filter: {0}", D["Record: {0}", typeLabel]]">@D["Record: {0}", typeLabel]<partial name="_AdminDesignIcon" model='new AdminDesignIcon("close")' /></button> }
