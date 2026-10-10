@@ -483,6 +483,7 @@
   <data name="Team contributions" xml:space="preserve"><value>Holdbidrag</value></data>
   <data name="{0} bingo board" xml:space="preserve"><value>{0}-Board</value></data>
   <data name="Not started" xml:space="preserve"><value>Ikke påbegyndt</value></data>
+  <data name="Points: {0}" xml:space="preserve"><value>Point: {0}</value></data>
   <data name="{0}. {1}, {2} of {3}." xml:space="preserve"><value>{0}. {1}, {2} af {3}.</value></data>
   <data name="Switch team" xml:space="preserve"><value>Skift hold</value></data>
   <data name="Previous team" xml:space="preserve"><value>Forrige hold</value></data>
