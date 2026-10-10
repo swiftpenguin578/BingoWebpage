@@ -24,6 +24,7 @@ const measure=()=>{
  const size=(s,p)=>parseFloat(getComputedStyle(document.querySelector(s))[p]);
  return{column:cols[1],overlap,scrolledBottom:scrolledBoard.bottom,innerH:innerHeight,sidebar:box('.public-team-sidebar'),board:box('.public-full-board'),legend:box('.public-team-board-legend'),tile:box('.public-ui-team-board-tile'),
   scrollW:document.documentElement.scrollWidth,innerW:innerWidth,
+  numTop:size('.public-ui-team-board-tile__number','top'),numRight:size('.public-ui-team-board-tile__number','right'),numFont:size('.public-ui-team-board-tile__number','fontSize'),pointsWeight:size('.public-ui-team-board-tile__position','fontWeight'),
   points:size('.public-ui-team-board-tile__position','fontSize'),title:size('.public-ui-team-board-tile__title','fontSize'),
   heading:size('.team-rail-heading','fontSize'),supporting:size('.team-rail-supporting','fontSize'),metric:size('.team-metric-value','fontSize'),
   contributor:size('.team-contributor-name','fontSize'),rank:size('.team-contributor-rank','fontSize')};
@@ -75,23 +76,28 @@ const measureTile=()=>{
     const heightLimit=Math.max(640,h-48),columnLimit=m.column;
     assert.ok(Math.abs(m.board.w-Math.min(heightLimit,columnLimit))<1.5,`${name} ${w}x${h} board ${m.board.w} equals min(height limit ${heightLimit}, column ${columnLimit})`);
     assert.ok(m.scrollW<=m.innerW,`${name} ${w}x${h} no horizontal scroll`);
-    assert.ok(m.overlap<=0,`${name} ${w}x${h} Points label overlaps the tile number by ${m.overlap}px`);
+    assert.ok(Math.abs(m.numTop-4)<0.5&&Math.abs(m.numRight-5.6)<0.5,`${name} ${w}x${h} tile number sits in the top-right corner (top ${m.numTop}, right ${m.numRight})`);
+    assert.ok(Math.abs(m.points-8.96)<0.05&&m.pointsWeight===400,`${name} ${w}x${h} Points label keeps the old 0.56rem regular size (${m.points}/${m.pointsWeight})`);
+    assert.ok(m.tile.w<120||m.overlap<=0,`${name} ${w}x${h} Points label overlaps the tile number by ${m.overlap}px`);
     log.push(`${w}x${h}: board ${Math.round(m.board.w)} tile ${Math.round(m.tile.w)} sidebar ${Math.round(m.sidebar.w)}`);
    };
    const wide=await at(1920,1080);fit(wide,1920,1080);
    assert.ok(wide.sidebar.w>=340&&wide.sidebar.w<=360,`${name} 1920 sidebar ${wide.sidebar.w}`);
    assert.ok(Math.abs(wide.legend.w-wide.board.w)<1&&Math.abs(wide.legend.x-wide.board.x)<1,`${name} legend follows the board`);
-   assert.ok(wide.points>=12.5&&wide.title>=22&&wide.tile.w>=140,`${name} tile text scales with the tile (${wide.points}/${wide.title}/${wide.tile.w})`);
+   assert.ok(wide.numFont>=60&&wide.title>=22&&wide.tile.w>=140,`${name} tile text scales with the tile (${wide.numFont}/${wide.title}/${wide.tile.w})`);
    assert.ok(wide.heading>=22.5&&wide.supporting>=15.5&&wide.metric>=14.4&&wide.contributor>=13.5&&wide.rank>=13.5,`${name} sidebar text sizes ${JSON.stringify([wide.heading,wide.supporting,wide.metric,wide.contributor,wide.rank])}`);
    fit(await at(1920,950),1920,950);
+   fit(await at(1470,700),1470,700);
    const laptop=await at(1470,956);fit(laptop,1470,956);
    assert.ok(laptop.sidebar.w>=340&&laptop.sidebar.w<=360,`${name} 1470 sidebar ${laptop.sidebar.w}`);
    fit(await at(1366,768),1366,768);
    const mid=await at(1000,800);
-   assert.ok(mid.scrollW<=mid.innerW&&mid.board.w>=590&&mid.overlap<=0,`${name} 1000 wide: no page scroll, minimum board, no label overlap (${mid.board.w}, ${mid.overlap})`);
+   assert.ok(mid.scrollW<=mid.innerW&&mid.board.w>=590&&mid.overlap<=6,`${name} 1000 wide: no page scroll, minimum board; the ~4px touch of 3-digit Points on 111px tiles was accepted by the user on 10 October 2026 and must stay within 6px (${mid.board.w}, ${mid.overlap})`);
    const phone=await at(390,844);
    assert.ok(phone.scrollW<=phone.innerW,`${name} 390 no horizontal page scroll`);
-   assert.ok(phone.overlap<=0,`${name} 390 Points label overlaps the tile number by ${phone.overlap}px`);
+   assert.ok(Math.abs(phone.numTop-4)<0.5&&Math.abs(phone.numRight-5.6)<0.5&&Math.abs(phone.points-8.96)<0.05,`${name} 390 number in the corner, Points at the old size`);
+   // 111px tiles (390 phone, <=1000 wide): 'Points: 100' reaches ~4px into the tile number; accepted by the user on 10 October 2026, bounded to 6px.
+   assert.ok(phone.overlap<=6,`${name} 390 Points label overlaps the tile number by ${phone.overlap}px, more than the accepted 6px`);
    assert.ok(phone.sidebar.y<phone.board.y&&Math.abs(phone.sidebar.x-phone.board.x)<1,`${name} 390 keeps the stacked order`);
    await page.evaluate(h=>{document.body.innerHTML=h},tileHtml);
    for(const [w,h] of [[1920,1080],[1470,700],[390,844]]){
