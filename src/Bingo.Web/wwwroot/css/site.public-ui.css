@@ -1893,7 +1893,7 @@ body.public-ui-page-canvas .landing-shell-link { position: relative; display: in
 body.public-ui-page-canvas .landing-shell-links > .landing-shell-link:not(.is-current):is(:hover, :focus-visible) { color: rgba(255, 255, 255, 0.78) !important; text-decoration: none; }
 body.public-ui-page-canvas .landing-shell-links > .landing-shell-link.is-current { color: #fff !important; text-decoration: none; }
 body.public-ui-page-canvas .landing-shell-links > .landing-shell-link.is-current::after { position: absolute; right: 0.1rem; bottom: 0; left: 0.1rem; height: 3px; background: #fff; content: ""; }
-.landing-shell-actions { display: flex; min-width: 0; gap: 1.15rem; align-items: center; margin-left: auto; }
+.landing-shell-actions { display: flex; flex: 0 0 auto; gap: 1.15rem; align-items: center; margin-left: auto; }
 .landing-shell-icon { position: relative; display: grid; width: 2rem; height: 2rem; place-items: center; padding: 0; color: #fff; background: transparent; border: 0; cursor: pointer; list-style: none; }
 .landing-shell-icon svg { display: block; width: 1.65rem; height: 1.65rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
 .landing-shell-notification { position: absolute; top: -0.2rem; right: -0.4rem; display: grid; min-width: 1.1rem; height: 1.1rem; box-sizing: border-box; place-items: center; padding: 0 0.2rem; color: var(--landing-shell-background); background: #fff; border-radius: 50%; font: 600 0.75rem/1 "Barlow Condensed SemiBold", sans-serif; }
@@ -1901,12 +1901,14 @@ body.public-ui-page-canvas .landing-shell-account { display: inline-flex; min-he
 .landing-shell-account svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
 .landing-shell-sign-in { min-height: 2.5rem; border-bottom: 0; }
 .landing-shell-playing { min-width: 0; font: 600 1.05rem/1.1 "Barlow Condensed SemiBold", sans-serif; letter-spacing: 0.03em; }
-.landing-shell-playing--bar { display: flex; flex: 0 1 auto; justify-content: flex-end; max-width: clamp(8rem, 24vw, 21rem); margin-right: clamp(0.5rem, 1.6vw, 1.5rem); }
+.landing-shell-playing--bar { display: flex; flex: 0 1000 auto; justify-content: flex-end; min-width: 4.5rem; max-width: clamp(8rem, 24vw, 21rem); margin-left: auto; margin-right: clamp(0.5rem, 1vw, 1.5rem); }
+.landing-shell-playing--bar + .landing-shell-actions { margin-left: 0; }
 .landing-shell-playing--strip { display: none; justify-content: flex-end; padding: 0.3rem 1.5rem 0.45rem; border-top: 1px solid rgba(255, 255, 255, 0.16); }
-@media (max-width: 1279px) { .landing-shell-playing--bar { display: none; } .landing-shell-playing--strip { display: flex; } }
+@media (max-width: 760px) { .landing-shell-playing--bar { display: none; } .landing-shell-playing--strip { display: flex; } }
 .landing-shell-playing__label, .landing-shell-playing__button { min-width: 0; overflow: hidden; color: #fff; text-overflow: ellipsis; white-space: nowrap; }
 .landing-shell-playing__menu { position: relative; min-width: 0; max-width: 100%; }
 body.public-ui-page-canvas .landing-shell-playing__button { display: inline-flex; max-width: 100%; gap: 0.5rem; align-items: center; padding: 0; background: transparent; border: 0; cursor: pointer; font: inherit; letter-spacing: inherit; }
+.landing-shell-playing__button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .landing-shell-playing__button svg { flex: 0 0 auto; width: 0.9rem; height: 0.9rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
 .landing-shell-playing__panel { position: absolute; z-index: 30; top: calc(100% + 0.35rem); right: 0; display: none; width: min(16rem, calc(100vw - 2rem)); box-sizing: border-box; padding: 0.5rem 0.75rem 0.65rem; color: var(--landing-text-primary); background: var(--landing-canvas); border: 1px solid var(--landing-rule); box-shadow: 0 1rem 2rem rgba(17, 21, 40, 0.2); }
 .landing-shell-playing__menu > .landing-shell-playing__panel:not([hidden]) { display: grid; }
@@ -1915,7 +1917,9 @@ body.public-ui-page-canvas .landing-shell-playing__button { display: inline-flex
 .landing-shell-playing__option:is(:hover, :focus-visible) { background: color-mix(in srgb, var(--landing-content-accent) 7%, var(--landing-canvas)); }
 html[data-public-theme="dark"] body.public-ui-page-canvas :is(.landing-shell-playing__label, .landing-shell-playing__button) { color: #F4EEDF; }
 @media (max-width: 760px) { .landing-shell-playing--strip { padding-inline: 1rem; } }
-@media (min-width: 1280px) { .landing-shell-playing--strip { display: none; } }
+/* Between the hamburger breakpoint and wide desktops the bar is tight: shrink link gaps so the playing account keeps room. */
+@media (max-width: 1100px) { .landing-shell-links { gap: 1.25rem; margin-left: 1.25rem; } .landing-shell-primary { gap: 0.75rem; } }
+@media (max-width: 900px) { .landing-shell-links { gap: 1rem; margin-left: 1rem; } body.public-ui-page-canvas .landing-shell-links > .landing-shell-link { letter-spacing: 0.03em; } }
 .landing-shell-menu { display: none; position: relative; }
 .landing-shell-popover { position: relative; display: block; min-width: 0; }
 body.public-ui-page-canvas .landing-shell-popover .public-ui-header-popover__panel { color: var(--landing-text-primary); background: var(--landing-canvas); border-color: var(--landing-rule); border-radius: 0; box-shadow: 0 1rem 2rem rgba(17, 21, 40, 0.2); }

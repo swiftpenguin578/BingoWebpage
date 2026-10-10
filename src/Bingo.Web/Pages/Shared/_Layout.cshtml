@@ -129,11 +129,11 @@
                             <a class="landing-shell-link" asp-page="/Admin/Index">@T["Admin"]</a>
                         }
                     </div>
+                    @if (playingAccount is not null)
+                    {
+                        <partial name="_PlayingAccount" model="@(new PlayingAccountView(playingAccount, "bar", $"{Context.Request.PathBase}{Context.Request.Path}{Context.Request.QueryString}"))" />
+                    }
                     <div class="landing-shell-actions">
-                        @if (playingAccount is not null)
-                        {
-                            <partial name="_PlayingAccount" model="@(new PlayingAccountView(playingAccount, "bar", $"{Context.Request.PathBase}{Context.Request.Path}{Context.Request.QueryString}"))" />
-                        }
                         <div class="landing-shell-menu" data-public-ui-popover>
                             <button type="button" class="landing-shell-icon" aria-label="@T["Open navigation"]" aria-expanded="false" aria-controls="public-ui-header-menu-panel">
                                 <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
