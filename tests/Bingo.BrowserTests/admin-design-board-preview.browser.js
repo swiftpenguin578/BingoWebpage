@@ -34,7 +34,11 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
           if (!root || root.dataset.pvPatched) return !!root;
           const view = JSON.parse(root.dataset.view);
           Object.assign(view, { mode: scenario.mode, rows: scenario.rows, cols: scenario.cols, readOnly: false });
-          view.tiles = scenario.positions.map((pos, i) => ({ id: 'tile-' + pos, pos, name: names[i], desc: '', ehb: i === 0 ? 0.2 : 1 + i * 0.7, noEstimate: false, needsVerification: false, overridden: false, manual: false, parts: 1, locked: false, art: i % 2 === 0 ? '/images/public-board/bosses/vorkath.png' : null, changed: false }));
+          view.tiles = scenario.positions.map((pos, i) => {
+          const bosses = ['/images/public-board/bosses/vorkath.png', '/images/public-board/bosses/araxxor.png', '/images/public-board/bosses/chambers-of-xeric.png', '/images/public-board/bosses/vorkath.png?4'];
+          return { id: 'tile-' + pos, pos, name: names[i], desc: '', ehb: i === 0 ? 0.2 : 1 + i * 0.7, noEstimate: false, needsVerification: false, overridden: false, manual: false, parts: 1, locked: false, changed: false,
+            art: i % 3 === 0 ? '/images/public-board/bosses/vorkath.png' : null, bossArt: i % 3 === 1 ? bosses.slice(0, 1 + (i % 4)) : [] };
+        });
           root.dataset.view = JSON.stringify(view); root.dataset.pvPatched = '1';
           return true;
         };
@@ -64,7 +68,17 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
       assert.equal(tiles[0].points, 'Points: 1');
       assert.equal(tiles[1].points, 'Points: 2');
       assert.equal(tiles[0].number, '01');
-      assert.ok(await board.locator('img.public-ui-team-board-tile__art-image').count() >= 1, 'art renders');
+      // Art follows the team board: own image, else the boss-art grid (count class = image count), else the placeholder.
+      for (let i = 0; i < count; i++) {
+        const tile = board.locator('[data-pv-tile]').nth(i);
+        if (i % 3 === 0) { assert.equal(await tile.locator('img.public-ui-team-board-tile__art-image').count(), 1, 'own image'); assert.equal(await tile.locator('.public-ui-team-board-tile__boss-art-grid').count(), 0); }
+        else if (i % 3 === 1) {
+          const n = 1 + (i % 4);
+          assert.equal(await tile.locator(`.public-ui-team-board-tile__boss-art-grid--count-${n} img`).count(), n, 'boss-art grid with ' + n + ' images');
+          assert.equal(await tile.locator('img.public-ui-team-board-tile__art-image').count(), 0);
+        } else assert.equal(await tile.locator('img').count(), 0, 'placeholder tile has no image');
+      }
+      await page.waitForFunction(() => [...document.querySelectorAll('.bd-pv-board img')].every(img => img.complete && img.naturalWidth > 0), null, { timeout: 10000 });
       // Board only: no progress, state labels, links, buttons or focusable tiles.
       assert.equal(await board.locator('.public-ui-team-board-tile__progress-row, .public-ui-team-board-tile__progress, a, button, [tabindex], [role=button]').count(), 0, 'tiles are plain, with no progress or interaction');
       assert.equal(await layer.locator('.public-team-sidebar, .public-team-switcher, .public-team-board-legend, .bd-ed').count(), 0, 'no sidebar, switcher, legend or tile view');

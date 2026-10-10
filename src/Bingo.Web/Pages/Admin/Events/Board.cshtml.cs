@@ -35,6 +35,29 @@ namespace Bingo.Web.Pages.Admin.Events;
 public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider time, IAuditWriter audit, IAdminCollaborationNotifier collaboration, IEvidenceStorage storage, IStringLocalizer<SharedResource>? text = null, EventItemPriceService? itemPrices = null) : PageModel
 {
     public IReadOnlyList<BoardValidationIssue> ValidationIssues { get; private set; } = [];
+    /// <summary>Boss artwork per tile, as the team board shows it for a tile without its own image (up to four, one per boss family).</summary>
+    public IReadOnlyDictionary<Guid, IReadOnlyList<string>> BossArtByTile { get; private set; } = new Dictionary<Guid, IReadOnlyList<string>>();
+    public sealed record BossArtworkSource(Guid BossId, string Name, string ImageUrl);
+
+    // Same rule as PublicBoardService: per requirement one image per boss family (the family's priority boss, then name),
+    // then per tile the distinct images in requirement order, at most four, as public URLs.
+    public static IReadOnlyDictionary<Guid, IReadOnlyList<string>> BuildBossArtByTile(
+        IReadOnlyDictionary<Guid, IReadOnlyList<BoardRequirementSnapshot>> requirementsByTile,
+        IReadOnlyDictionary<Guid, List<Guid>> bossIdsByRequirement,
+        IReadOnlyCollection<BossArtworkSource> bosses)
+    {
+        var bossById = bosses.ToDictionary(value => value.BossId);
+        List<string> ForRequirement(Guid requirementId) => (bossIdsByRequirement.GetValueOrDefault(requirementId) ?? [])
+            .Distinct().Where(bossById.ContainsKey).Select(id => bossById[id])
+            .Select(value => new { value.Name, ImageUrl = Bingo.Application.Catalogue.OsrsWikiImageUrl.Normalize(value.ImageUrl) })
+            .Where(value => !string.IsNullOrWhiteSpace(value.ImageUrl))
+            .GroupBy(value => Bingo.Application.Catalogue.BossArtworkFamily.Key(value.Name), StringComparer.OrdinalIgnoreCase)
+            .Select(family => family.OrderBy(value => Bingo.Application.Catalogue.BossArtworkFamily.Priority(value.Name)).ThenBy(value => value.Name).First().ImageUrl!)
+            .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        return requirementsByTile.ToDictionary(pair => pair.Key, pair => (IReadOnlyList<string>)pair.Value
+            .SelectMany(requirement => ForRequirement(requirement.Id)).Distinct(StringComparer.OrdinalIgnoreCase).Take(4)
+            .Select(url => Bingo.Web.Catalogue.OsrsWikiImageCache.PublicUrl(url)!).ToList());
+    }
     public string EventName { get; private set; } = string.Empty;
     public BoardDetails? BoardView { get; private set; }
     public BoardStatistics? Statistics { get; private set; }
@@ -1632,6 +1655,9 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
         IReadOnlyDictionary<Guid, BoardApprovalTileSnapshot> frozenTiles = new Dictionary<Guid, BoardApprovalTileSnapshot>();
         var frozenDropsByBoardRequirementAndDrop = new Dictionary<(Guid RequirementId, Guid DropId), BoardApprovalRequirementDropSnapshot>();
         BoardApprovalSnapshot? activeApproval = null;
+        var bossIdsByRequirement = new Dictionary<Guid, List<Guid>>();
+        if (useLiveDerivation)
+            foreach (var group in editorBosses.GroupBy(value => value.RequirementId)) bossIdsByRequirement[group.Key] = group.Select(value => value.BossActivityId).ToList();
         if (!useLiveDerivation)
         {
             if (board.ActiveApprovalSnapshotId is not { } approvalId) return false;
@@ -1644,6 +1670,10 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
             var boardRequirementIdByApprovalRequirementId = approvalRequirements.ToDictionary(value => value.Id, value => value.BoardRequirementSnapshotId);
             var approvalRequirementIds = approvalRequirements.Select(value => value.Id).ToList();
             var approvalDrops = await db.BoardApprovalRequirementDropSnapshots.AsNoTracking().Where(value => approvalRequirementIds.Contains(value.ApprovalRequirementSnapshotId)).ToListAsync(ct);
+            var approvalBosses = await db.BoardApprovalRequirementBossSnapshots.AsNoTracking().Where(value => approvalRequirementIds.Contains(value.ApprovalRequirementSnapshotId)).ToListAsync(ct);
+            foreach (var approvalBoss in approvalBosses)
+                if (boardRequirementIdByApprovalRequirementId.TryGetValue(approvalBoss.ApprovalRequirementSnapshotId, out var bossRequirementId))
+                    (bossIdsByRequirement.TryGetValue(bossRequirementId, out var bossIds) ? bossIds : bossIdsByRequirement[bossRequirementId] = []).Add(approvalBoss.BossActivityId);
             foreach (var approvalDrop in approvalDrops)
             {
                 if (boardRequirementIdByApprovalRequirementId.TryGetValue(approvalDrop.ApprovalRequirementSnapshotId, out var boardRequirementId))
@@ -1651,6 +1681,9 @@ public sealed partial class BoardModel(ApplicationDbContext db, TimeProvider tim
             }
         }
 
+        var artworkBossIds = bossIdsByRequirement.Values.SelectMany(value => value).Distinct().ToList();
+        var artworkBosses = artworkBossIds.Count == 0 ? [] : await db.BossActivities.AsNoTracking().Where(value => artworkBossIds.Contains(value.Id) && value.ImageUrl != null).Select(value => new BossArtworkSource(value.Id, value.Name, value.ImageUrl!)).ToListAsync(ct);
+        BossArtByTile = BuildBossArtByTile(requirementsByTile, bossIdsByRequirement, artworkBosses);
         Tiles = useLiveDerivation
             ? BuildStoredTiles(boardTilesForEditors, requirementsByTile, liveDropsByRequirement, board.Columns)
             : BuildFrozenTiles(boardTilesForEditors, frozenTiles, board.Columns);

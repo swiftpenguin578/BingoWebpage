@@ -522,8 +522,14 @@ export async function init(region, ui = window.AdminUI) {
       if (!tile) { board.append(el('div', 'bd-pv-empty')); continue; }
       const cell = el('div', 'public-tile public-ui-nested-container public-ui-team-board-tile public-ui-team-board-tile--not-started'); cell.dataset.pvTile = pos;
       cell.append(el('span', 'public-ui-team-board-tile__number', String(pos + 1).padStart(2, '0')));
-      const art = el('span', 'public-ui-team-board-tile__art'), image = tile.art ? document.createElement('img') : null;
-      if (image) { image.className = 'public-ui-team-board-tile__art-image'; image.alt = ''; image.src = tile.art; art.append(image); } else art.append(el('span', 'public-ui-team-board-tile__placeholder', '▦'));
+      // Same order as the team board: the tile's own image, else the boss-art grid, else the placeholder.
+      const art = el('span', 'public-ui-team-board-tile__art'), bossArt = tile.bossArt || [];
+      if (tile.art) { const image = document.createElement('img'); image.className = 'public-ui-team-board-tile__art-image'; image.alt = ''; image.src = tile.art; art.append(image); }
+      else if (bossArt.length) {
+        const grid = el('span', 'public-ui-team-board-tile__boss-art-grid public-ui-team-board-tile__boss-art-grid--count-' + bossArt.length);
+        for (const url of bossArt) { const image = document.createElement('img'); image.alt = ''; image.src = url; grid.append(image); }
+        art.append(grid);
+      } else art.append(el('span', 'public-ui-team-board-tile__placeholder', '▦'));
       const points = Math.max(1, Math.round(tile.ehb || 0));
       const copy = el('span', 'public-ui-team-board-tile__copy');
       copy.append(el('span', 'public-ui-team-board-tile__position', t('Points: {0}', points)), el('strong', 'public-ui-team-board-tile__title', tile.name));

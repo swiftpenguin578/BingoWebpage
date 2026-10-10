@@ -175,6 +175,44 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         return page.TempData["BoardTileOutcome"]?.ToString();
     }
 
+    // Brief 148: the Board page ships the team board's boss artwork for a tile without its own image,
+    // both for a draft (live boss data) and an approved board (frozen requirement bosses).
+    [Fact]
+    public async Task BoardViewCarriesBossArtworkForTilesWithoutAnUploadedImage()
+    {
+        var fixture = await SeedApprovalBatchAsync();
+        await using (var prepare = new ApplicationDbContext(options))
+        {
+            var boss = await prepare.BossActivities.SingleAsync(x => x.Id == fixture.Boss.Id);
+            boss.Update(boss.Name, boss.Category, boss.EfficientCompletionsPerHour, null, boss.DataSource, boss.Notes, DateTimeOffset.UtcNow, "https://oldschool.runescape.wiki/images/Batch_boss.png");
+            await prepare.SaveChangesAsync();
+        }
+        async Task<System.Text.Json.JsonElement> TileAsync(string expectedMode)
+        {
+            await using var db = new ApplicationDbContext(options);
+            var page = Page(db, fixture.Admin.Id);
+            await page.OnGetAsync(fixture.Event.Id, CancellationToken.None);
+            var view = System.Text.Json.JsonDocument.Parse(page.ViewJsonText()).RootElement;
+            Assert.Equal(expectedMode, view.GetProperty("mode").GetString());
+            return view.GetProperty("tiles")[0].Clone();
+        }
+        void AssertArt(System.Text.Json.JsonElement tile)
+        {
+            Assert.Equal(System.Text.Json.JsonValueKind.Null, tile.GetProperty("art").ValueKind);
+            var art = Assert.Single(tile.GetProperty("bossArt").EnumerateArray()).GetString()!;
+            Assert.StartsWith("/media/osrs-wiki?source=", art);
+            Assert.Contains("Batch_boss.png", Uri.UnescapeDataString(art));
+        }
+        AssertArt(await TileAsync("draft"));
+        await using (var approve = new ApplicationDbContext(options))
+        {
+            var page = Page(approve, fixture.Admin.Id);
+            await page.OnGetAsync(fixture.Event.Id, CancellationToken.None);
+            await page.OnPostApproveAsync(fixture.Event.Id, false, CancellationToken.None);
+        }
+        AssertArt(await TileAsync("approved"));
+    }
+
     // U7-Q1: a missing-rate approval issue names the affected drops.
     [Fact]
     public async Task U7MissingRateIssueCarriesAffectedDropNames()
