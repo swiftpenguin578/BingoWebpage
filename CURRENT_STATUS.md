@@ -1,13 +1,14 @@
 # Current project status
 
-**Production:** the October release is deployed (8 October 2026, `b7cb1ad8`). `docs/UI.md` §11 owns page approval. Next work comes from `BACKLOG.md`; each push, merge or deploy needs the user's approval.
+**Production:** `main` deployed on 10 October 2026 (the October Live release; history rewritten the same day, now `b54c421e`). `docs/UI.md` §11 owns page approval. Next work comes from `BACKLOG.md`; each push to main, merge or deploy needs the user's approval.
 
-## Working branch `docs-restructure` (worktree `/Users/christopher/Documents/BingoWebpage-docs2`)
+## Working branch `audit-docs-round` (worktree `/Users/christopher/Documents/BingoWebpage-round`)
 
-Local commits only; nothing pushed. Contains `audit-docs-round` up to `1d31ea55`, merged in:
+Pushed; draft PR swiftpenguin578/BingoWebpage#15 to `main`. The user approved merging once CI is fully green; deploy needs a separate OK. All items reviewed and approved by the user:
 
-- **Board preview** (brief 148, review 152): preview shows the board as players see it; team-board tiles use the default artwork; one shared boss-art order. Approved by the user.
-- **Audit overhaul** (brief 147, review 156): readable entries, Affected account, capped team-removal entries, actor search while typing, 940 px table. Awaiting the user's visual acceptance of the Audit page. Inventory: `artifacts/audit-overhaul/inventory.md`.
-- **Documentation restructure** (brief 151): five documents (`docs/PRODUCT.md`, `docs/ARCHITECTURE.md`, `docs/UI.md`, `docs/OPERATIONS.md`, `docs/DEVELOPMENT.md`) plus a rewritten `AGENTS.md` and a short `CLAUDE.md`. The old documents, `docs/references/`, `prototypes/stats/` and the reference-only checks are removed. Rule ledger: `artifacts/docs-restructure/rule-ledger.md`. Awaiting independent review and the planner's verification.
+- **Board preview** (brief 148): preview shows the board as players see it; team-board tiles use the default artwork; one shared boss-art order.
+- **Boss fade + drop banner** (brief 153): multi-boss tiles fade between bosses (6 s, 1.5 s fade); drop banner open 6 s.
+- **Audit overhaul** (briefs 147, 159 and the actor fix): readable entries, one-name Affected account, capped team-removal entries, actor search while typing without a filter chip, 940 px table.
+- **Documentation** (briefs 146, 151): five documents under `docs/`, rewritten `AGENTS.md`/`CLAUDE.md`, README as project introduction, `.gitattributes`; design references, public reference images and the Stats prototype removed. Rule ledger: `artifacts/docs-restructure/rule-ledger.md`.
 
 The full JS runner and the whole .NET suite run in GitHub CI when the planner pushes the branch.
