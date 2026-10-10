@@ -2,8 +2,8 @@
 
 ## Data Model and Calculation Specification
 
-**Status:** Planning Pass 2 target model v0.2; implementation and migration details are maintained in the current checkout
-**Last updated:** 2026-10-02 (whole-branch requirement reconciliation)
+**Status:** Current data model; entity and migration details are in the code and the migrations
+**Last updated:** 10 October 2026
 **Companion document:** `PRODUCT_REQUIREMENTS.md`
 
 ## Events directory projection — AU04, 2026-10-02
@@ -71,14 +71,13 @@ The source mapping is:
   ordered by stable ID.
 
 Application results expose typed dates, stable IDs and value/coverage metadata so
-later UI binding can preserve unavailable versus zero, provisional versus
+the UI can preserve unavailable versus zero, provisional versus
 official, and real event destinations without adding persistence.
 
 ## Participants data-contract refinement — 2026-09-30
 
 Apply the [approved Participants operations](PRODUCT_REQUIREMENTS.md#participants-backend-changes--approved-2026-09-30)
-without rewriting existing snapshots/history. These are implementation targets,
-not a claim of migration or rollout completion.
+without rewriting existing snapshots/history.
 
 - Selected confirmation, selected override restore and selected override Add
   serialize on authoritative capacity/participant state. A full-event override
@@ -147,7 +146,7 @@ For unfinished/Live events, do not automatically resume Paused drafts, match
 accountless participants to names, cancel pending remote operations, enable disabled
 scheduled opening, rewrite finalized rosters or recalculate historical results.
 Each affected transition requires a deterministic rule with evidence or a controlled
-operator decision. The [release-readiness gate](DELIVERY_PLAN.md#release-readiness-gate-3-october-2026)
+operator decision. The [release-readiness gate](DELIVERY_PLAN.md#release-readiness-gate)
 owns the release-time PRE-01 checks and bounded blockers. Future waiting-list enablement must not invoke legacy promote-all
 or silently expand capacity.
 
@@ -350,9 +349,6 @@ worker attempts the update immediately, then uses spaced retries until publicati
 or permanent rejection. While the end is unmatched, post-actual-end fetches are
 suppressed. Publication persists CouldNotUpdate and an AU18 skipped outcome, using
 the last pre-end cache as official WOM data with its original Luck freshness.
-This state is exposed through service/read models only; new UI placement remains
-for UI integration. AU20 implementation/check evidence is under
-`docs/references/admin-ui/reviews/2026-10-04/au-b3/`; independent review is pending.
 
 An incomplete `DRAFT` requires only a valid name, unique slug, timezone, creator, and creation time. Schedule, signup, capacity, and planning fields become required only at the readiness gate for the transition that uses them. A field being available during initial creation does not make it required for the first save.
 
@@ -403,7 +399,7 @@ Each authoritative transition into `AWAITING_FINAL_REVIEW` identifies one immuta
 
 Evidence eligibility is derived from the append-only lifecycle transitions. If an event resumes from `AWAITING_FINAL_REVIEW` to `LIVE`, the interval between those authoritative effective times remains ineligible; review projections identify evidence timestamps in that gap without rewriting the submission or asset timestamp. Normal finalization also requires an explicit server-validated confirmation value; browser confirmation is only an enhancement.
 
-Production permits multiple `SIGNUP_OPEN` and `SIGNUP_CLOSED` events only when their configured half-open event windows `[event_starts_at, event_ends_at)` do not overlap; an end exactly equal to another start is allowed. Only `LIVE`, `AWAITING_FINAL_REVIEW`, and `FINALIZED` are singleton current states. Never allow two visible current events (authority: [quoted Step 0 user assignment](docs/references/admin-ui/reviews/2026-10-04/au-step0/approval-record.md)): every entry path (Start, restore/unhide, reopen, future imports or repairs) must enforce the same authoritative singleton boundary. Hidden events are excluded; historical imports enter Archived. Two current events would mutually block finalization and subsequent starts. This is the approved invariant from the quoted Step 0 assignment, not new implemented behavior. Drafts do not reserve a window, and cancelled, discarded, or archived events do not block a new one. `is_development_fixture` is an internal persisted marker set only by the Development scenario seeder; ordinary Admin input cannot set it and Production lifecycle commands never honor it.
+Production permits multiple `SIGNUP_OPEN` and `SIGNUP_CLOSED` events only when their configured half-open event windows `event_starts_at, event_ends_at)` do not overlap; an end exactly equal to another start is allowed. Only `LIVE`, `AWAITING_FINAL_REVIEW`, and `FINALIZED` are singleton current states. Never allow two visible current events (authority: [quoted Step 0 user assignment): every entry path (Start, restore/unhide, reopen, future imports or repairs) must enforce the same authoritative singleton boundary. Hidden events are excluded; historical imports enter Archived. Two current events would mutually block finalization and subsequent starts. This is the approved invariant from the quoted Step 0 assignment, not new implemented behavior. Drafts do not reserve a window, and cancelled, discarded, or archived events do not block a new one. `is_development_fixture` is an internal persisted marker set only by the Development scenario seeder; ordinary Admin input cannot set it and Production lifecycle commands never honor it.
 
 ### Event creation operation (AU03)
 
@@ -1283,7 +1279,7 @@ New vacancy/replacement notifications are retired. Retain historical notificatio
 
 Announcement acknowledgement and Drops NEW acknowledgement are independent of
 `PersonalNotification.ReadAt`. The active journey is `PUB-UPDATES-01` in
-FUNCTIONAL_CONTRACTS; DELIVERY_PLAN owns the approved implementation slice.
+FUNCTIONAL_CONTRACTS; DELIVERY_PLAN owns the delivery contract.
 
 - One unique account/event state stores the durable automatic-expansion cooldown
   and last automatically announced approval ordinal. A claim requires an outstanding
@@ -1367,7 +1363,7 @@ Fields:
 - `data_updated_at`
 - `active`
 
-**4 October final-chance decision, implemented by B4 AU23/CAT-1 backend:** `numeric_probability`
+**4 October final-chance decision (AU23/CAT-1):** `numeric_probability`
 is paired with the activity's efficient completion rate for the same agreed team
 size/strategy and stores the final in-name chance per roll; `N x` explicitly
 records repeated rolls. Valid fraction numerators are allowed. Enter a raid's
@@ -1558,7 +1554,7 @@ value `1`; every alias for that item in the requirement must expose the same
 effective maximum or board approval fails. An explicit consistent maximum can
 override `1`. The same item in a sibling requirement is an independent objective.
 
-For C20 (planner-resolved implementation boundary, 2026-09-14), retain existing
+For C20 (planner-resolved boundary, 14 September 2026), retain existing
 `BoardRequirementDropSnapshot` rows whose requirement is referenced by an immutable
 approval, even if private working requirements/tiles are removed. These retained rows
 provide immutable drop identity; authoritative rules/weights come from the appropriate
@@ -2348,7 +2344,7 @@ The data model is ready for architecture planning when it can represent and expl
 23. Orthogonal post-Live event quarantine metadata, retained relations, event-linked notification filtering, and fail-closed hide/restore access semantics.
 
 
-## Stats Pass 1 catalogue API metadata — authorized 2026-09-15
+## Stats catalogue API metadata
 
 CatalogueItem retains its existing external identifier for the exact Wiki item ID, nullable
 integer CatalogueValueGp, PriceSource (Missing/Api/Manual/Untradeable), PriceObservedAt,
@@ -2363,7 +2359,7 @@ version 1 input preserves existing API metadata where identity is unchanged. Exp
 validation and price writes participate in existing catalogue audit transactions.
 
 
-## Stats Pass 2 event item prices and candidate guard — authorized 2026-09-15
+## Stats event item prices and candidate guard
 
 `EventItemPrice` has the composite primary key `(EventId, ItemId)` and non-null integer
 `ValueGp`. `SelectedHour` is the original event's last completed UTC hour; `CapturedAt`
@@ -2395,7 +2391,7 @@ rejection metadata; unchanged-mapping missing/outage responses retain it. Reject
 start candidates use the stored catalogue fallback, with flags/audit in the same start
 transaction. Catalogue snapshot v2 also round-trips these optional fields; v1 stays valid.
 
-## Stats Pass 3 retained Luck bases and raw activity — implemented 2026-09-15
+## Stats retained Luck bases and raw activity
 
 `event_luck_outcome_bases` has the unique key `(event_id, source_drop_id,
 item_id_snapshot)`. It retains the first approval/drop snapshot IDs, first approval time,
@@ -2434,13 +2430,13 @@ All regular Playing assignments contribute full competition deltas; informationa
 assignments are excluded. The EHB table and its existing projection remain the EHB owners.
 
 
-## Stats Pass 4 evidence revisions and full Luck checkpoint — superseded historical text (2026-09-15)
+## Stats evidence revisions and the v1 Luck checkpoint
 
-This v1 checkpoint description is retained as migration and review history. The
-active [Luck checkpoint v2 and retained-input conversion](#luck-checkpoint-v2-and-retained-input-conversion--active-2026-10-01)
+The [Luck checkpoint v2 and retained-input conversion](#luck-checkpoint-v2-and-retained-input-conversion)
 section below owns current writes, reads, retention, and conversion. In particular,
 v2 does not use this section's v1 schema, read-time presentation invalidation, or
-read-time recalculation language as current behavior.
+read-time recalculation language. The evidence-revision columns and the v1 rules
+below remain for migration and retained v1 rows.
 
 `events.stats_evidence_revision` advances in the existing event transaction for successful
 approval/reversal (including rebalanced contributions), board approval/publication changes,
@@ -2490,7 +2486,7 @@ boundary, public event state, and supported actual-evidence history; the reconst
 Sommerbingo import remains excluded. No Stats page, route, preference or artwork editor is
 introduced by Pass 4.
 
-### Stats presentation persistence (Pass 5)
+## Stats presentation persistence
 
 Existing `Account.StatsGuidanceHidden` defaults to false and uses the account version for
 owner-only saves. Existing `CatalogueItem` owns nullable artwork X/Y (0–100), width
@@ -2499,7 +2495,7 @@ editor's percentages/degrees. All six are null for the original responsive fit, 
 are present and bounded. Super Admin saves/reset use the existing item version and
 audit transaction; Cancel does not write. No additional preferences/artwork table.
 
-## Luck checkpoint v2 and retained-input conversion — active 2026-10-01
+## Luck checkpoint v2 and retained-input conversion
 
 The active Luck result is an `event_stats_luck_checkpoints` row containing one
 bounded v2 JSON payload per event. The payload identifies the fixed 0–100

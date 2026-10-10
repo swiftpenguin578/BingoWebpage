@@ -7,36 +7,16 @@ whole regression. Current status is explicit for every row.
 
 ## New Admin design references — visually accepted, 2026-10-02
 
-The user reports inspecting every page and accepts the visual design of the following
-new Admin references: Participants, Dashboard, Events, Identity, Overview, Signup
-setup, Schedule, Teams / Draft, Board, Audit, Review, Final review, WOM and Accounts,
-as well as Catalogue. Reference
-files are the corresponding `.dc.html` pages in the frozen in-repository
-[Admin references](docs/references/admin-ui/README.md), synced unchanged from Claude's
-`/Users/christopher/Documents/BingoWebpage/docs/references/admin-ui/` directory.
-The full [design manifest](docs/references/admin-ui/reviews/2026-10-02/design-source.sha256)
-records the consolidated file identities; [evidence provenance](docs/references/admin-ui/reviews/2026-10-02/README.md)
-retains original review scope, hashes and historical wording.
-
-Shared search-input correction complete per the user's forwarded designer handoff:
-the clear X is centred, including Participants after entering search text. Claude
-reports publication/sync to canvas version 42 and equal stylesheet hashes across
-canvas, local and repository copies. Codex independently recorded the Documents
-copy of `ui/components.css` SHA-256 as
-`0334b7dd5c8683b9178c68f56a4d6164d65aa8e7b36b225d5dbf06cf6c3daba6`;
-canvas equality and interaction checks are designer-reported, not rerun by Codex.
-Canvas version **42**, published artifact version **1790965722-e7ad**, is the
-reported final design target; its complete in-repository file manifest is frozen
-in the linked checkpoint evidence. Comparison against the seven-page review manifest confirms
-all 13 other captured files are unchanged; only `ui/components.css` differs, by
-the added rule `.search .clear .ic{position:static;color:inherit}`. The review
-snapshot therefore predates this final search correction; do not describe it as
-a review of that exact final stylesheet. The active implementation worktree now
-contains the unchanged final design files; its newer functionality register was preserved.
-Claude's artifact design work is complete per the user. This acceptance covers
-the inspected references, not future unseen changes, unresolved functional choices,
-source-review defects, or the production application after integration. Technical
-corrections and integration/runtime verification remain separately tracked; existing
+The user inspected every page and accepts the visual design of the following
+Admin references: Participants, Dashboard, Events, Identity, Overview, Signup
+setup, Schedule, Teams / Draft, Board, Audit, Review, Final review, WOM and
+Accounts, as well as Catalogue. The reference files are the corresponding
+`.dc.html` pages in the frozen in-repository
+[Admin references](references/admin-ui/README.md), whose shared stylesheet
+includes the final search-input correction (the clear X is centred, including
+Participants after entering search text). This acceptance covers the inspected
+references, not future unseen changes, unresolved functional choices,
+source-review defects, or the production application after integration. Existing
 production approvals below are not replaced by prototype acceptance.
 
 ### Scoped visual corrections approved — 2026-09-16
@@ -47,7 +27,6 @@ empty/missing/broken images; Signup and Signups give the first stacked schedule
 block the same left divider/inset; event-overview cards retain a trailing vertical
 divider unless in the rightmost column; shared Stats navigation has the existing
 Drops NEW badge styling with literal WIP text. Both Stats review findings are closed.
-Technical source review: `/private/tmp/bingo-minor-ui-20260916/review.md`.
 This acceptance covers these four deltas and preserves unrelated page approval states.
 
 On detail/form pages, an information rail may appear on wide desktop. It is
@@ -56,7 +35,7 @@ inherit the rail rule.
 
 | Surface / route | User / primary task | Layout family | Canonical reference / components | Protected composition | Approved exceptions | Current approval state | Next gate or owner |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Participant announcement / non-Admin shell, Drops NEW state | Event participant notices approved progress and opens its evidence | Shared non-modal expanded/compact banner | User-accepted `drop-announcement-prototype.html` at the absolute path in DELIVERY_PLAN, explicitly reactivated 2026-09-13 | Accepted prototype geometry/motion; existing page composition, board/submission state and evidence popup; UI_SYSTEM countdown rule | Thin coral countdown independently of green completion; minimal NEW controls; retain current blue/no-background X hover as explicit 2026-09-13 exception | Prototype restoration implemented; awaiting user visual approval — 2026-09-13 | Scoped prototype/source-cascade comparison and named fixes clear; focused client checks and Web build pass. Opaque surface/coral edge outside Board restored; functional additions and stacking retained. Ordinary agent preflight waived; wider Drops redesign outside scope |
+| Participant announcement / non-Admin shell, Drops NEW state | Event participant notices approved progress and opens its evidence | Shared non-modal expanded/compact banner | User-accepted `drop-announcement-prototype.html` (kept outside the repository), explicitly reactivated 2026-09-13 | Accepted prototype geometry/motion; existing page composition, board/submission state and evidence popup; UI_SYSTEM countdown rule | Thin coral countdown independently of green completion; minimal NEW controls; retain current blue/no-background X hover as explicit 2026-09-13 exception | Prototype restoration implemented; awaiting user visual approval — 2026-09-13 | Scoped prototype/source-cascade comparison and named fixes clear; focused client checks and Web build pass. Opaque surface/coral edge outside Board restored; functional additions and stacking retained. Ordinary agent preflight waived; wider Drops redesign outside scope |
 | Admin shell / `/Admin/*` | Admin navigates event and global work | Admin shell | `_AdminDesignLayout.cshtml` (the only Admin layout since U10 part 2; `_AdminLayout.cshtml` removed), `_AdminDesignSidebar.cshtml` (logo link to `/`, collapsed logo opens the account popout), `_AdminDesignTopbar.cshtml` (notification panel); `admin-design-layout.css`; `admin-design-shell.js` menus | Header/context, event selector, sidebar, drawer, scrim, focus order | Compact operational charcoal shell | Approved — user visual acceptance 8 October 2026 (U10: sidebar top row, logo, notification panel and “Mark all as read” alignment fix `2dccc075`; whole suite and all-page conformance on the feature head, see 08-decisions) | Preserve baseline; whole-app regression later |
 | Opt-in Admin reference shell / U1 Identity | Admin navigates global and event work | Shared reference shell | `_AdminDesignLayout`, new sidebar/topbar, frozen tokens/components | Theme, language switch, eligible event switcher, menus, focus/layers, dirty guard and in-page navigation | Existing routes; full-load fallback for unbound pages; manual theme preference; no sidebar counts, blocker chip or page description; U-B bell count | Accepted at `18a9669`: user visual acceptance 2026-10-06 (light/dark, EN/DA, phone, in-app browser and desktop Safari); supplied Claude whole .NET 2,041/0/0, exit 0, source dated 2026-10-07 — decisions08 “U1 visual acceptance” / “U1 accepted”, brief62 | Preserve accepted U1 shell; legacy shell remains for unbound pages; UR is the next authorized batch |
 | Public UI foundation catalogue / `/Admin/PublicUi` | Admin inspects the retained historical public specimen | Internal design-system catalogue | `Admin/PublicUi.cshtml`; legacy specimen markup | Direct-link only; no Admin navigation entry | Not an approval prerequisite for the replacement Public UI; Admin route is outside this experiment | Historical specimen retained; replacement identity supersedes it for product pages | Preserve unchanged; no Admin work |
@@ -78,8 +57,8 @@ inherit the rail rule.
 | Finalize/closeout / `/Admin/Events/Finalize/{id}` | Admin resolves final-review blockers, publishes official results (which atomically archives the event), and reopens corrections | Detail/form + full-width placements ledger | `Finalize.cshtml` (+ `Finalize.Presentation.cs`), `admin-design-final-review.css`, `admin-final-review.js` on the new Admin layout | Blockers, review-cycle/version concurrency, immutable official placement snapshots and retained history; no placement-correction control | Accounts/Roles approval does not approve closeout | Approved — user visual acceptance 8 October 2026 (U9 + U11 reference parity; whole suite and all-page conformance on the feature head, see 08-decisions) | Preserve the accepted Final review composition and finalization/reopen boundaries; there is no separate Archive action or placement-correction flow, and application integration remains deferred |
 | WOM / `/Admin/Events/WiseOldMan/{id}` | Admin links, refreshes and ends the event's Wise Old Man competition | Detail/form | `WiseOldMan.cshtml` (+ `WiseOldMan.Presentation.cs`), `admin-design-wom.css`; reference `Wom.dc.html` | Provider guards, managed-source scope, end-update state | Link/Replace as dialogs (brief 90) | Approved — user visual acceptance 8 October 2026 (U9 + U11 reference parity; whole suite and all-page conformance on the feature head, see 08-decisions) | — |
 | Audit / `/Admin/Audit` | Admin filters administrative history and reads an entry | Directory with filters, entry drawer and technical details | `Audit/Index.cshtml`, `_AuditEntryDrawer.cshtml`; `admin-audit.js`; Audit.dc.html | Nine action areas, event/actor/type/date filters, hidden-event marking, readable changes, protected sensitive values and authorized entry links | T1/S11/S12 and fixed loading-summary differences recorded in DELIVERY_PLAN | Approved — user visual acceptance 7 October 2026 (T1, lane T) | Preserve accepted T1 composition and visibility/privacy protections |
-| Public landing / `/` | Visitor discovers current and previous events and follows the correct destination | Editorial landing | Approved target: `docs/references/public-ui/pub-ref-01-landing.png`; accepted implementation evidence under `tmp/public-ui-pass1a/` | Blue masthead; open diagonal hero and DK artwork; Barlow Condensed ExtraBold 800 display/numerals, Barlow Condensed SemiBold 600 utilities, Geist body; target-matched 32×32 icons; strong section rules, inset dividers, compact current ledger and distinct archive rows; semantic coral/sage/bronze tones; token-only dark composition | Preserve PageModel, real dynamic event counts/facts/data/destinations, localization, routes, CTA semantics, accepted composition/typography/palette/copy; no other family or behavior change. The standalone `/Account/Login` route is the only runtime login surface: anonymous signup links navigate there with their validated local `ReturnUrl`, and no login popup/dialog is retained. The 2026-08-23 masthead correction reuses the approved Login logo SVG variants and percentage-painted diagonal field, adds the target bottom divider, and hides artwork when the hero stacks. | Approved — user manual acceptance retained after masthead correction, 2026-08-23 | Preserve approved Landing; remaining Pass 1B pages resume only at the next user-authorized gate |
-| Public signup / `/Events/{slug}/Signup`, `/Events/{slug}/Confirmation` | Visitor signs up, edits through the Signup route state, and reads the outcome | Public/participant surface | PUB-REF-05 and PUB-REF-06; existing route/forms. The TEST 16 PDF recorded in DELIVERY_PLAN is rejected current evidence, never a target | Reference-owned wide horizontal event masthead with real capacity/waiting status, three compact ruled form rows, one persistent right summary rail, deliberate bottom action row, and distinct confirmation outcomes; waiting list, edit/read-only boundary, light/dark geometry parity | The current repository has no separate EditSignup Razor page; Signup owns create/edit states. Preserve bindings/behavior, not either rejected DOM, width, container, or flow. Use the global accepted Landing header from `_Layout` | Approved — Signup and Confirmation user manual acceptance, 2026-08-22 | Preserve approved Signup and Confirmation; remaining Pass 1B pages resume only after the current stop gate |
+| Public landing / `/` | Visitor discovers current and previous events and follows the correct destination | Editorial landing | Approved target: `docs/references/public-ui/pub-ref-01-landing.png` | Blue masthead; open diagonal hero and DK artwork; Barlow Condensed ExtraBold 800 display/numerals, Barlow Condensed SemiBold 600 utilities, Geist body; target-matched 32×32 icons; strong section rules, inset dividers, compact current ledger and distinct archive rows; semantic coral/sage/bronze tones; token-only dark composition | Preserve PageModel, real dynamic event counts/facts/data/destinations, localization, routes, CTA semantics, accepted composition/typography/palette/copy; no other family or behavior change. The standalone `/Account/Login` route is the only runtime login surface: anonymous signup links navigate there with their validated local `ReturnUrl`, and no login popup/dialog is retained. The 2026-08-23 masthead correction reuses the approved Login logo SVG variants and percentage-painted diagonal field, adds the target bottom divider, and hides artwork when the hero stacks. | Approved — user manual acceptance retained after masthead correction, 2026-08-23 | Preserve approved Landing; remaining Pass 1B pages resume only at the next user-authorized gate |
+| Public signup / `/Events/{slug}/Signup`, `/Events/{slug}/Confirmation` | Visitor signs up, edits through the Signup route state, and reads the outcome | Public/participant surface | PUB-REF-05 and PUB-REF-06; existing route/forms. The TEST 16 PDF (not in the repository) is rejected current evidence, never a target | Reference-owned wide horizontal event masthead with real capacity/waiting status, three compact ruled form rows, one persistent right summary rail, deliberate bottom action row, and distinct confirmation outcomes; waiting list, edit/read-only boundary, light/dark geometry parity | The current repository has no separate EditSignup Razor page; Signup owns create/edit states. Preserve bindings/behavior, not either rejected DOM, width, container, or flow. Use the global accepted Landing header from `_Layout` | Approved — Signup and Confirmation user manual acceptance, 2026-08-22 | Preserve approved Signup and Confirmation; remaining Pass 1B pages resume only after the current stop gate |
 | Public Signups directory / `/Events/{slug}/Signups` | Visitor reads confirmed and waiting participants | Public/participant directory | PUB-REF-13; current Signups route | Counts, capacity/status summary, privacy-safe participant facts, phase-safe groups, empty states and narrow rows | Exact-link/Discord-link directory; no sibling navigation added from the reference | Approved — user manual acceptance, 2026-08-24 | Preserve approved directory, responsive rows, and copied signup-masthead behavior |
 | Public Teams/roster / `/Events/{slug}/Teams` | Visitor reads final teams, member roles, event timing, and draft order | Public/participant roster | PUB-REF-16; existing Teams route and authoritative roster/draft projections | Left title/back plus compact Event starts/Event ends/Players metadata row, where Players is the frozen published-roster count; full-bleed Landing-family diagonal DK artwork on the right with one masthead-bottom rule beneath text and artwork; because this masthead is content-height rather than Landing-fixed, its diagonal, stripe, mark size, and crop shrink together from the actual masthead height but are capped at Landing's live viewport geometry; keep the separate Final teams heading-owned rule; three-column final-team roster without team images or inter-team divider grid; each team sublabel shows formation type only, not affiliation; each published roster orders Captain first, Co-captain second, then participants by effective draft-pick number; Captain and Co-captain use semantic text color without icons; two-picks-per-row draft results on large widths and one-per-row when constrained | Before Board publication this remains the standalone roster destination selected by public event routing and exposes no links into the unavailable Board family. After Board publication the same route joins the shared context row as localized Teams/Hold beside Boards/Drops/Leaderboards, marks Teams current, and uses the shared reduced navigation-to-masthead gap. Do not copy the Board overview masthead or change any other approved Teams composition, facts, ordering, privacy, route, theme, or responsive behavior. Development reset gives finalized positive fixtures active frozen publication snapshots; `test-98-missing-playing-assignment` remains the intentional unpublished negative. | Approved page composition; bounded lifecycle-aware navigation addition authorized 2026-09-06; C11 changes awaiting manual acceptance | Preserve the approved Teams body and independently constrained masthead geometry; add only the conditional shared navigation and spacing C11 current roster, retained pick display and empty-team vacancy state await user manual acceptance; existing composition approval remains. |
 | Public board/evidence / `/Events/{slug}/Board`, `/Events/{slug}/Board/{teamSlug}`, `/Events/{slug}/Board/{teamSlug}/Tiles/{tileId}`, `/Admin/Events/{id}/Preview/{teamSlug?}/{tileId?}` | Visitor compares teams, progress, and approved evidence; Admin previews the same public ecosystem | Public/participant workspace | Reactivated PUB-REF-02, PUB-REF-03, PUB-REF-04, PUB-REF-14, and PUB-REF-15; existing authoritative Board/TeamBoard/Tile routes and projections | Structural rewrite: reference-owned event tabs and masthead using the shared Wide page width and normal responsive gutter; preserve the current near-target team-overview grid beneath the masthead and add the missing PUB-REF-02 Recent Activity footer; compact content-driven fact/action rail with tight countdown, leader, selected metric, and action cluster; ordinary full-page TeamBoard with summary header, statistics rail, dominant tile grid, View all teams, and adjacent-team navigation; tile routes replace the left rail; submission remains its attached drawer; evidence remains a focused modal viewer. Preserve authoritative data, route/history, focus, authorization, responsive, and realtime behavior. Protected `/Evidence/{id}` remains only the file-download dependency for evidence images/lightboxes. | The current screenshots are rejection evidence, not targets except that the user explicitly protected the overview grid beneath the masthead as already close to target. The prior popup decision is superseded: ordinary team-card clicks navigate to the TeamBoard page at every viewport. Dark is token-only and keeps outlined tile numbers. Admin Preview inherits this family's redesign status and is not an independent visual pass. A reskin of the rejected masthead or team workspace is explicitly non-conforming. Board overview uses shared Wide with the normal shared gutter; this does not authorize Landing hero height or artwork. Once published, Board, TeamBoard, and nested tile routes receive shared Boards/Drops/Leaderboards/Teams navigation; Teams/Hold targets the unchanged public roster route. The tile sidebar retains its route-backed/enhanced Team overview action and the normal View all teams route remains in the masthead. | Approved Board family; bounded Teams/Hold navigation and accessible evidence zoom/pan additions authorized 2026-09-06 | Preserve the approved Board/evidence composition and behavior outside those additions October Live readiness changes approved by the user in the preview 10 October 2026: tile "Points: N"/"Point: N" at the old label size (H3), team board fills the window when scrolled + wider sidebar and larger sidebar/tile-view text + three-column stats at 721–900 px + previous/next row width (H5, C-Q3, brief 141), "Playing as" in the header (H4/D-Q4), "Submissions" nav label, "WIP" removed from Stats (H7). |
@@ -136,14 +115,12 @@ Luck section on 2 October and it looked correct. This is visual acceptance only;
 functional correctness rests on automated tests.** This confirmation is separate
 from the Stats-demo approval text; production binding remains separately tracked. Use the current
 TeamBoard EHB/Drop EHB summary and expandable Contributors markup as the reference;
-the user-supplied screenshot is
-`/var/folders/w5/74mg_d917xg33ry8_4qc9g5w0000gn/T/codex-clipboard-8f0e7315-71ec-4cfa-a114-fb4efe6abf9b.png`.
+the user-supplied screenshot is not stored in the repository.
 Team summary shows Team total/Luck/KC; expanded rows show Luck/player name/KC.
 Multiple relevant bosses/modes have separately labelled KC values. Preserve the
 existing type, separators, colors, row rhythm and responsive sidebar. Changes are
 scoped to the new section; initial and enhanced nested tile views share it. The
 standalone Tile scaffold stays inactive; no new route is introduced.
-DELIVERY_PLAN.md section 18 defines the bounded functional checks and stop boundary.
 
 ## Stats prototype UI approved — 2026-09-15
 
@@ -185,7 +162,6 @@ the connected Stats page and all new catalogue API controls, price warnings and 
 outcomes from earlier passes. Earlier visual acceptance remains deferred, not implicitly
 approved, and does not block implementation of later passes. Existing prototype design
 approval remains authoritative; final review verifies its faithful production port.
-Use the existing Stats section in MANUAL_TEST_CHECKLIST.md as the checklist owner.
 
 The approved Stats implementation must be carried into production, not recreated from
 visual reference. Port the actual Stats section markup, `stats-density.css`, relevant
@@ -235,18 +211,6 @@ The screenshot correction below reserves full numeric labels at both edges: reta
 the entire view. Scrolling alone must not rescale the bars. Missing/unavailable results retain honest status text rather than a
 fabricated zero. This bounded adaptation does not authorize other UI redesign.
 
-### Production implementation handoff — 2026-09-15
-
-The six approved sections are ported to `Pages/Events/Stats.cshtml`, with original scoped
-styles in `stats-base.css` / `stats-density.css`, original renderer code in `stats-page.js`,
-and real-input adaptation in `stats-adapter.js`. Source mapping, exact baseline hashes,
-executable evidence and limitations are in CURRENT_STATUS.md. Saved guidance and Super
-Admin artwork controls are implemented. Independent production source review and the
-subsequent UI1–UI3 fidelity-correction recheck passed. The user accepted the production
-UI on 2026-09-16 as recorded below. The consolidated checklist is in
-MANUAL_TEST_CHECKLIST.md.
-The original prototype approval is unchanged; passing stand-ins do not approve visual fidelity.
-
 ### Production Stats UI acceptance — 2026-09-16
 
 User: “UI looks fine so i guess 1-6 is passed unless i discover something i missed”.
@@ -258,13 +222,12 @@ be reported later. Stats timestamps now use 24-hour time while retaining the eve
 Known exception: the user reported the sticky Luck comparison's top gap still present
 and chose to leave it; do not describe the attempted correction as visually successful.
 The user subsequently passed functional walkthrough steps 1–9, including sign-in, saved
-guidance, artwork persistence/permissions and conflicting saves; MANUAL_TEST_CHECKLIST.md
-records the full manual scope. The earlier Safari/localhost cookie cause was not independently
+guidance, artwork persistence/permissions and conflicting saves. The earlier Safari/localhost cookie cause was not independently
 diagnosed. The user subsequently accepted the prepared step-10 pricing/Luck cases. A new display
 limitation remains: small GP totals (for example 4,000) are rounded in millions and cannot
 be read accurately. No formatting correction is claimed. Live-provider checks and the
-finalization/correction/archive walkthrough subsequently completed on 2026-09-16;
-MANUAL_TEST_CHECKLIST.md records their distinct functional scope. Existing UI exceptions
+finalization/correction/archive walkthrough subsequently completed on 2026-09-16.
+Existing UI exceptions
 remain unchanged. Use 127.0.0.1:5189 for the local test app; localhost login still failed
 for the user during step 12, and no authentication-code correction is claimed.
 
@@ -411,25 +374,9 @@ long labels on one line and the final stop compact. Entry spacing is now user-ap
   original images and untouched default fitting are preserved. Actual Superadmin
   authorization and shared production persistence remain unimplemented.
 
-### Next discussion and implementation boundary
+### Reference
 
-Before implementing the page or functionality, the user wants to agree exactly what
-**Drop value** and **Event timeline** display. These are the only sections open for
-content discussion. **Luck, Keeps on dropping, Most versatile and Board progress are
-locked**, including their displayed content and accepted UI. Do not reopen them or
-infer new formulas from illustrative fixtures. The earlier clarification that diagonals
-do not count still applies; mock denominators and milestone wording are not contracts.
-Production implementation/acceptance remains deferred pending that discussion.
-
-### Evidence
-
-Scoped HTML/CSS structure, cascade and whitespace checks passed. JS syntax and focused
-executable fixture/editor-handler checks with DOM/storage stubs passed, covering event
-sizes, rerendering, totals/axis bounds, filter/scroll reset, drop assets, per-item editor
-save/reload, cancel/reset and storage failures. The user supplied final visual acceptance.
-No automated browser layout/interaction acceptance, .NET build or production verification
-is claimed for this standalone prototype pass. The original
-[Stats reference](docs/references/public-ui/stats-reference.png) remains background
+The original [Stats reference](references/public-ui/stats-reference.png) remains background
 inspiration; the final accepted HTML owns the prototype composition.
 
 ## Ticket candidate manual checkpoint — 2026-09-14
@@ -482,7 +429,7 @@ supplies visual acceptance. This overrides earlier review/recheck workflow for t
 Cancellation r1 implemented: mark/divider removed, original copy centered and full
 viewport canvas styled for light/dark; existing EN/DA localizer keys retained. Web build
 passed; user explicitly supplies visual/language checks. New styling still awaiting user
-approval. r1 evidence at `/private/tmp/cancelled-event-ui-evidence/r1/`.
+approval.
 
 Cancellation visual feedback supersedes first styling: user rejected the giant X/divider
 and constrained cream panel on black. Remove mark/divider, retain right-hand copy/button
@@ -493,8 +440,8 @@ User-authorized follow-up implemented: cancelled Board/Teams/team/tile views reu
 404 `status-editorial` structure, typography and return CTA with a decorative cancellation
 mark. One shared partial changed; no CSS/404 or route/privacy changes. Web Release build
 and independent scoped review passed; served at HTTPS7147. C37 functionality remains
-accepted; this new styling delta awaits user visual approval. Evidence:
-`/private/tmp/cancelled-event-ui-evidence/review.md`. No other page family is reopened.
+accepted; this new styling delta awaits user visual approval.
+No other page family is reopened.
 
 Latest user decision: chat steps 13–15 / MR-12/13/14 accepted by explicit waiver
 of further manual testing. Existing automated/review evidence accepted; their unobserved
@@ -510,8 +457,6 @@ MR-09 skipped, MR-12/13 declined/incomplete, MR-14 unexecuted after guide clarif
 No unobserved state or whole-site redesign is approved by this checkpoint. Earlier
 MR-04/MR-05 UI observations remain notes without a requested correction.
 
-Candidate: `/private/tmp/BingoWebpage-ticket-integration-20260914`, frozen manifest
-`ced7502b5deae58679b2a78cc530e948a9ed0894cf5c30f8deaee29f19afbaa8`.
 User passed MR-01/02 (My Accounts/signup recovery), MR-04 (Admin stale account action),
 MR-05/06 (event creation), MR-07 (signup warning/code), MR-08 (Live competition
 replacement), MR-10 (draft pool/waiting list) and MR-18 (submission filters).
@@ -550,13 +495,13 @@ Exploratory/rejected generations and boss artwork are not page references.
 | PUB-REF-15 | Tile detail and evidence viewer: `docs/references/public-ui/tile-detail-evidence-reference.png` | `/Events/.../Tiles/{tileId}` and protected `/Evidence/{assetId}` file downloads consumed by the lightbox | Preserve the protected route-backed tile/sidebar, overlay, focus/history and submission behavior. `/Evidence/{assetId}` is a file-download dependency, not a rendered page. Artwork/evidence is content; the reference owns placement and hierarchy, not specific sample drops. |
 | PUB-REF-16 | Public Teams/roster: `docs/references/public-ui/public-teams-roster-reference.png` | `/Events/{slug}/Teams`; event masthead, final-team groups, member-role hierarchy, draft results and large-width density | The accepted image is compositional direction: its sibling navigation is non-authoritative for this exact-link/Discord-link directory. Integrate the existing Landing-family diagonal DK artwork rather than reproducing its slightly detached generated placement, and tune spacing against the real content. No team images or role icons. Use whitespace instead of an inter-team divider grid; distinguish Captain/Co-captain by semantic text color; show two draft picks per row at large widths and one when constrained. Preserve authoritative event timing, roster/draft ordering, privacy, permissions, routes and empty states. |
 | PUB-REF-17 | Canonical Captain submission-workspace detail language: `docs/references/public-ui/captain-team-operations-reference.png` | `/Submissions`, `/Submissions/{id:guid}`; Captain-only team focus/status sections, complete team ledger, filters, detail/feedback access and responsive states | Reference owns the approved Captain detail language and the Captain-only overview hierarchy; it deliberately excludes a duplicate board, submission form and review controls. `Replaced` is a derived presentation from the existing resubmission relationship, not a new stored status. The open upper-right balance is directional: implementation may place one compact existing authoritative team fact, but must not invent a decorative dashboard feature. Legacy `/Captain` routes are compatibility aliases only. |
-| PUB-THEME-01 | Dark live event `/Users/christopher/.codex/generated_images/01a028f7-6a50-7c81-bee7-f0a26392f948/exec-b286e33e-d71d-4b1b-a16e-e4512333c204.png`; dark signup `/Users/christopher/.codex/generated_images/01a028f7-6a50-7c81-bee7-f0a26392f948/exec-b58a260f-4b02-4f4c-8e71-93c34d94ffde.png`; dark settings `/Users/christopher/.codex/generated_images/01a028f7-6a50-7c81-bee7-f0a26392f948/exec-72b0b0fd-21e0-4f3e-9493-f093d878a9fe.png`; dark team-board palette `/Users/christopher/.codex/generated_images/01a028f7-6a50-7c81-bee7-f0a26392f948/exec-251a70d5-3558-45cb-9249-1758aea16118.png` | Shared dark token treatment across matching light compositions | Dark changes tokens only; light references own geometry, placement and outlined numbers |
+| PUB-THEME-01 | Dark references for the live event, signup, settings and team-board palettes (generated images, not stored in the repository) | Shared dark token treatment across matching light compositions | Dark changes tokens only; light references own geometry, placement and outlined numbers |
 
 ### Canonical reference groups still needed
 
 None. All currently planned Public UI reference groups are recorded. A reference
 does not approve its implementation or remove the functional gaps documented in
-`CURRENT_STATUS.md` and `DELIVERY_PLAN.md`.
+`CURRENT_STATUS.md`.
 
 The Participants persistent-setting checkbox is an approved page-local
 durable-setting pattern. It is not a lifecycle acknowledgement or a generic
@@ -742,7 +687,7 @@ remains explicit.
 
 ## Boss KC leaderboard addition — authorized 2026-09-17
 
-PRODUCT_REQUIREMENTS.md section 16.1 and DELIVERY_PLAN.md section 19 own this bounded
+PRODUCT_REQUIREMENTS.md section 16.1 owns this bounded
 addition to Board's Leaderboards view. Existing Board-family approval remains intact.
 Reuse the existing tables and masthead dropdown. The new metric trigger matches tab
 styling and aligns immediately before expanded standings or at the right end of the
@@ -760,14 +705,9 @@ contributor-only averaging and EHB/Drop EHB formatting remain unchanged. This
 approval covers the current running corrections together with the actual shared
 Stats masthead above. Independent UI review of this final display delta was skipped
 at the user's explicit request; focused checks passed. The broader walkthrough
-acceptance/waiver/deferral disposition is owned by MANUAL_TEST_CHECKLIST.md's
-“Current walkthrough disposition — user acceptance, 2026-09-23”.
+was accepted, waived or deferred by the user on 2026-09-23.
 
 
-Boss KC leaderboard technical acceptance checkpoint — 2026-09-17: implementation and
-named remediation passed independent Sol High review; no remaining technical findings.
-Report `/private/tmp/bingo-boss-leaderboards-20260917/review.md`; frozen reviewed patch
-SHA-256 `8bc192ad83ea79b31c009be18738801933c56016f99a3322a2422810388a902b`.
 Existing EHB/Drop EHB structure/styles/interactions were source-compared; only agreed
 MVP/Rank changes are accepted technically. Source and automated checks do not establish
 visual/keyboard acceptance. **User manual acceptance remains pending.** Minor objective
@@ -799,8 +739,7 @@ Actual menu visibility, not just open/ARIA state, remains a required acceptance 
 
 
 Visual correction implementation checkpoint — 2026-09-18: worker reports all named
-corrections complete with focused automated checks passing; evidence at
-`/private/tmp/bingo-boss-leaderboards-20260917/visual-corrections-evidence.md`.
+corrections complete with focused automated checks passing.
 No independent review of this correction delta or user visual acceptance is claimed.
 User explicitly deferred review until tomorrow; reviewer has not been dispatched.
 
@@ -814,5 +753,4 @@ creation preview/validation, automatic link and management feedback, errors and
 recovery, before-Live deletion confirmation, and affected event/team name inputs.
 Existing page approvals remain intact; this does not grant acceptance of the new
 states. Optional provider-ID rename recognition is omitted. No further worker
-pass or publication is active. Final technical evidence is the “Final named-only
-recheck” in `/Users/christopher/.codex/visualizations/2026/09/17/01a0b085-75ee-79b0-b40b-bba65b669d74/wom-independent-recheck-20260922.md`.
+pass or publication is active.

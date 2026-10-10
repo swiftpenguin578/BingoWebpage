@@ -2,16 +2,13 @@
 
 ## Product Requirements Document
 
-**Status:** Current approved product requirements; pending implementation is labelled by ticket
-**Last updated:** 2026-10-02 (whole-branch decision reconciliation; clarified summary approved)
+**Status:** Current approved product requirements
+**Last updated:** 10 October 2026
 **Audience:** Community bingo organizers, reviewers, captains, and developers
 
 ## Participants backend changes — approved 2026-09-30
 
-This bounded follow-up supersedes conflicting Participants rules below. The user
-has authorized backend implementation now, while the new reference UI, tokens and
-components are developed separately. UI integration and manual acceptance are
-explicitly deferred; automated behavior checks and independent review are required.
+These Participants rules supersede conflicting rules below.
 
 - An enabled Admin can manage the pre-team-draft signup pool in event Draft,
   SignupOpen or SignupClosed while the team draft is unlocked. Event Draft is not
@@ -52,14 +49,11 @@ explicitly deferred; automated behavior checks and independent review are requir
 - Toast Undo and general manual queue reordering are excluded. Display precision
   differences in the reference do not authorize stored-EHB rounding changes.
 
-The implementation scope, checks and deferred UI boundary are in
-[the Participants backend pass](DELIVERY_PLAN.md#participants-backend-pass--approved-2026-09-30).
 
 ## UI review decisions — approved 2026-10-02
 
-These later user decisions supersede conflicting current-only eligibility and
-pending-decision notes below. Implementation status follows each owning ticket;
-AU14/AU17a/AU17/AU19 are backend implemented, remediation done, Claude recheck pending, binding pending.
+These user decisions supersede conflicting current-only eligibility and
+pending-decision notes below.
 
 - **Ranking (AU12):** EHB-before-score-time applies to new events only. Existing
   events retain their prior ranking rule, including those without official results.
@@ -73,7 +67,7 @@ AU14/AU17a/AU17/AU19 are backend implemented, remediation done, Claude recheck p
   management connection so no stale write targets it. Never delete the external
   competition, and never carry its credentials to a replacement. Credential-enabled
   provider updates already exist. Conflict overwrite/re-send and scheduled-slot
-  relaxation are not approved. Implemented under AU20; independent review remains pending.
+  relaxation are not approved.
 - **Exact WOM window — approved 2 October:** replace the five-minute matching
   tolerance with equality of configured start and end UTC instants at every stage,
   including Final Review (WA-2). Actual instants remain eligibility/cutoff/review
@@ -83,7 +77,7 @@ AU14/AU17a/AU17/AU19 are backend implemented, remediation done, Claude recheck p
   replacement and existing window-validation boundaries. Reconcile provider and
   persistence timestamp precision explicitly, without rounding away genuine time
   differences. Existing links must not be silently disconnected or their historical
-  snapshots rewritten. Application behavior is implemented under AU20; reference updates remain pending in RC09.
+  snapshots rewritten.
 - **Evidence correction (AU17a):** D11 option b narrows the pool to current or
   released Playing assignments in the event belonging to current or former members
   of the submission’s own team. Under D12, former membership must cover the
@@ -91,19 +85,15 @@ AU14/AU17a/AU17/AU19 are backend implemented, remediation done, Claude recheck p
   count and the latest assignment must be Playing. Informational accounts are never selectable.
   Derive one unambiguous participant from the selected character; never move the
   submission to another team. Retained identities must survive readiness/results.
-  B5 backend implemented, remediation done, Claude recheck pending, binding pending (RC07).
-  Decision source: [08-decisions.md, B5 brief decisions](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md#b5-brief-decisions).
   Preserve reason, audit, pending-correction/version rules and original evidence.
   This corrects evidence attribution; it does not rewrite saved accounts, rosters
   or grant participant access. Correct then approve remains two separate actions.
 
 ## Approved Admin simplification target — 2026-09-26
 
-These are the current simplification requirements, with later approved refinements
-identified by ticket and implementation status. They are implementation targets; retained historical
-records and currently deployed behavior are not silently converted. The detailed
-ticket/acceptance contract is linked from
-[the delivery plan](DELIVERY_PLAN.md#admin-simplification--approved-2026-09-26).
+These are the current simplification requirements, with later approved
+refinements identified by ticket. Retained historical records are not silently
+converted.
 
 - **Ownership and creation (EVT-01/LIF-01):** Create asks for name/timezone
   (Europe/Copenhagen default) and atomically creates a private Draft, permanent
@@ -123,7 +113,7 @@ ticket/acceptance contract is linked from
   `PublicRules`, `PrizeDescription`, `ExpectedTeamCount`, `ExpectedBoardRows` and
   `ExpectedBoardColumns` use; keep `BuyInDescription` and Board `ExpectedTeamSize`
   as a manually adjustable planning estimate even after roster finalization
-  (AU13 approved, pending). Actual rosters never silently replace this estimate.
+ . Actual rosters never silently replace this estimate.
 - **Lifecycle (LIF-01/RES-01):** Draft → Signup Open → Signup Closed → Live →
   Final Review → Archived. Future opening time schedules opening; manual actions
   supersede their corresponding scheduled action without cancelling unrelated
@@ -207,7 +197,7 @@ ticket/acceptance contract is linked from
   application bulk/Wiki import surfaces while preserving domain/operator mechanics.
 - **WOM (WOM-01/WOM-02):** Website dates own the schedule; no provider-date import
   or Admin sync toggle. Compare both linked-window boundaries as equal UTC instants, without a
-  five-minute tolerance (the later user decision above, implemented in AU20). Website-created/protected-credential connections allow sync and
+  five-minute tolerance (see the exact WOM window decision above). Website-created/protected-credential connections allow sync and
   eligible pre-Live deletion; external ID-only links allow reads only, including
   no update-all writes; external links with protected supplied code allow sync but
   never deletion. Credential adoption never changes provenance. Validate without
@@ -217,7 +207,7 @@ ticket/acceptance contract is linked from
   owns operations; Overview summarizes/links. Provider failure does not block valid
   lifecycle transitions. No manual update-all feature. Manual fetch uses a normal
   Fetch now action without a typed FETCH challenge or confirmation dialog (user
-  decision, 2 October 2026; AU15 pending). Preserve all server-side eligibility,
+  decision, 2 October 2026). Preserve all server-side eligibility,
   successful-fetch cooldown, scheduled-slot/retry timing and in-flight protection.
 - **Actions/feedback (ADM-01/ADM-02/ACT-01):** Shared confirmations and explicit
   outcomes follow `UI_SYSTEM.md` and `FUNCTIONAL_CONTRACTS.md`. Pending evidence and
@@ -249,8 +239,7 @@ Needs attention prioritizes unresolved scheduled failure (start, then opening),
 then pending review. Its +N counts additional issue categories, with the whole
 review queue counting once. Existing shared inbox counts remain per submission
 plus each failure. Ordinary unfinished setup is not attention. No new failure
-subsystem is authorized. Query contracts are in scope; visual layout, filter URL/
-navigation integration and manual acceptance remain deferred.
+subsystem is authorized.
 
 ## Community Dashboard — approved backend scope, 2026-10-01
 
@@ -274,9 +263,6 @@ period gain with truthful availability/account coverage, not signup EHB; loading
 Dashboard never requests provider synchronization. Unknown is distinct from zero.
 Community new-account figures use the latest actual event end, or the last 30 days
 without an ended event; login figures use stored LastLoginAt and one request clock.
-
-This authorizes backend preparation under DELIVERY_PLAN.md, not production UI
-replacement. Earlier Dashboard exclusions apply to their earlier assignments.
 
 ## 1. Product summary
 
@@ -629,9 +615,6 @@ worker attempts the update immediately, then uses spaced retries until publicati
 or permanent rejection. While the end is unmatched, post-actual-end fetches are
 suppressed. Publication persists CouldNotUpdate and an AU18 skipped outcome, using
 the last pre-end cache as official WOM data with its original Luck freshness.
-This state is exposed through service/read models only; new UI placement remains
-for UI integration. AU20 implementation/check evidence is under
-`docs/references/admin-ui/reviews/2026-10-04/au-b3/`; independent review is pending.
 
 Before official finalization, an enabled administrator may resume an event that entered `AWAITING_FINAL_REVIEW` prematurely, whether the end was manual or automatic. Resume requires strong confirmation and a written reason. Resume requires the Admin to choose a validated replacement future end as specified above, even when the former configured end remains in the future. The action returns the event to `LIVE` only after the ordinary singleton-current and lifecycle checks pass. The prior end transition and its effective time remain immutable history rather than being erased. The ordinary submission cutoff is re-derived from the applicable configured end, and any separate submission-reopening window must be revalidated rather than silently reused. Submissions, reviews, and contributions created during the intervening final-review period remain historical and continue through their normal workflows. Resume is unavailable directly from `FINALIZED` or `ARCHIVED`; resuming an event that has already produced official finalization history is outside this approved recovery action and fails closed unless separately approved.
 
@@ -788,8 +771,7 @@ EHB is used for board estimation, line balancing, player contribution statistics
 
 Any enabled Admin may create, edit, deactivate, or reactivate catalogue records. Routine changes are audited without requiring a written reason. Only the Super Admin may permanently delete a catalogue record, and only after strong confirmation and a complete dependency check proves that no source drop, board, asset/cache, import review, or historical record references it. Referenced records must be deactivated instead.
 
-**Catalogue decision, 4 October 2026 — AU23/CAT-1 backend delivered by B4; WA-5
-binding pending:** ordinary Admins
+**Catalogue decision, 4 October 2026 (AU23/CAT-1/WA-5):** ordinary Admins
 enter and edit the full rate text, including `N x` roll count, on add/edit/reactivation.
 `3/1024` is one roll at 3/1024; `3 x 1/1024` is three rolls at 1/1024. Remove the
 operator-only roll-change refusal. Always enter the final chance of the item in
@@ -1021,8 +1003,7 @@ manual tiles still require an entered estimate. The effective tile value feeds
 existing board/line estimates, proportional credited player statistics and ranking.
 It is event-local, does not modify catalogue probabilities/KC/Luck, and cannot
 bypass missing or ambiguous calculation inputs. Submitted evidence locks affected
-scoring; approval/publication/history invariants remain. AU11 is approved, not yet
-implemented.
+scoring; approval/publication/history invariants remain.
 
 Unapproved boards derive catalogue names, images, source-drop rates, and EHB from the current global catalogue. Relevant catalogue changes automatically invalidate and recalculate their tile, row, column, total, and per-player estimates.
 
@@ -1131,7 +1112,7 @@ An admin can:
 Editable metadata includes:
 
 - Tile or requirement
-- Credited account from current/released Playing event assignments of current/former members of the submission’s own team, with unambiguous derived participant attribution (AU17a/D11 option b; backend implemented, remediation done, Claude recheck pending, binding pending; Informational excluded)
+- Credited account from current/released Playing event assignments of current/former members of the submission’s own team, with unambiguous derived participant attribution (AU17a/D11 option b; Informational excluded)
 - Qualifying drop and its derived boss/activity
 
 These material corrections require a written reason, revalidate the complete submission, and store the original and new values. Credited participant is not independently editable. Immutable server submission time, calculated contribution, and the submitted evidence image are not administrator-editable. Snapshot contribution weight is not manually editable; changing requirement/drop replaces it with the authoritative frozen weight of the selected destination.
@@ -1300,8 +1281,8 @@ privacy, history, evidence and submission controls across enhanced and direct ro
 
 #### Current Luck calculation
 
-The September bounded signed-score formula is superseded by the implemented
-[Luck percentile/KC contract](#luck-percentile-and-kc-comparison--approved-implementation-2026-10-01).
+The September bounded signed-score formula is superseded by the
+[Luck percentile/KC contract](#luck-percentile-and-kc-comparison).
 Use the 0–100 midrank percentile and in-container KC difference from a compatible
 saved snapshot, retaining freshness through new approvals/reversals until refresh.
 Do not revive the former -100…+100 display or hide every routinely stale snapshot.
@@ -1439,9 +1420,8 @@ The active page renews its draft lease; five minutes without successful renewal
 expires it, not five minutes without a pick. Concurrent mutations remain guarded
 by authoritative control, version, identity and membership rules.
 
-Existing commands already support most of this. AU14 and RC04 own uncertain recovery;
-new reference presentation/search/route binding is still pending. No new draft
-algorithm, direct Captain access or retired workflow is authorized.
+Existing commands support this. No new draft algorithm, direct Captain access or
+retired workflow is authorized.
 
 ### 17.2 Concurrent administration
 
@@ -1736,7 +1716,7 @@ The audit log records at minimum:
 - Submission reopening and event unfinalization
 - Board changes after publication
 - Retained emergency actor history; no new emergency credential operations
-- Permitted catalogue edits and event-local EHB overrides (AU11 pending)
+- Permitted catalogue edits and event-local EHB overrides
 
 Audit entries identify the acting account, time, affected record, previous value, and new value where applicable.
 
@@ -1893,17 +1873,7 @@ The following do not block requirements approval:
 - Exact EHB formula and rounding behavior
 - Exact tie procedure if screenshot evidence cannot establish obtained order
 
-## 25. Next planning deliverables
-
-No application code should begin until the following planning work is reviewed:
-
-1. Review and correct this product requirements document.
-2. Produce low-fidelity wireframes for the public board, tile detail, captain submission, admin review queue, board builder, and draft pages.
-3. Define the detailed data model and calculation rules using representative tiles from the upcoming bingo.
-4. Define the technical architecture, hosting, authentication, storage, backup, and deployment approach.
-5. Divide version one into implementation milestones with tests and acceptance checks.
-
-## Luck percentile and KC comparison — approved implementation, 2026-10-01
+## Luck percentile and KC comparison
 
 This section supersedes the earlier signed, expectation-neutral Luck wording in
 section 15.1 and the bounded-score detail in that section's tile contract. The

@@ -14,9 +14,9 @@ The authority boundary is:
 | Architecture, security, storage, realtime, deployment, and operations | `TECHNICAL_ARCHITECTURE.md` | Technical boundaries and operational controls. |
 | Global UI rules, page families, composition, and approval | `UI_SYSTEM.md`, `UI_PAGE_MATRIX.md` | Shared interaction, responsive, accessibility, protected composition, page-family references, exceptions, approval state, and UI gates. |
 | Current checkout, work, limitations, and unresolved decisions | `CURRENT_STATUS.md` | Current state only; it does not redefine product behavior. |
-| Remaining order, gates, and stop rules | `DELIVERY_PLAN.md` | Delivery sequence and release gates only. |
+| Delivery procedures, release gates, and stop rules | `DELIVERY_PLAN.md` | Delivery procedures and release gates only. |
 
-When documents disagree, the authority above decides the concern in its own column. A conflict that crosses boundaries is recorded and resolved in the owning source before implementation. No archived document, root tombstone, route shape, notification, or realtime message can silently override an active authority.
+When documents disagree, the authority above decides the concern in its own column. A conflict that crosses boundaries is recorded and resolved in the owning source before implementation. No route shape, notification, or realtime message can silently override an active authority.
 
 This contract deliberately omits detailed schema, formulas, infrastructure design, implementation history, planning method, status legends, and test inventories. Refer to the owning source for those details.
 
@@ -31,8 +31,7 @@ and import provenance for later honest empty/filtered and participant rendering.
 The existing Dashboard service provides a narrow authorized participation read
 using its same retained population mapping; Dashboard statistics eligibility and
 shared inbox units do not change. Failures propagate rather than becoming zero
-participation. Existing directory forms/routes continue; new UI bindings remain
-in the integration pass. Ordinary incomplete setup adds no attention category.
+participation. Existing directory forms/routes continue. Ordinary incomplete setup adds no attention category.
 
 ## Dashboard read journey — approved, 2026-10-01
 
@@ -51,13 +50,12 @@ the latest ended event. Live and final-review statistics display Provisional;
 the event card retains the actual phase. No provisional winner substitutes for
 an active official snapshot, including after reopening final review.
 
-Later UI integration binds actual event Overview destinations, shared URL sort/
+The page binds actual event Overview destinations, shared URL sort/
 Back/reload state, loading/error/retry, accessibility and localization. Retry is a
 safe read; outdated responses must not overwrite a newer result. Lost authority
-fails closed. Integration and manual acceptance remain deferred; prototype routing
-and fixture data are not application proof.
+fails closed.
 
-### Dashboard application binding handoff — 2026-10-01
+### Dashboard read boundary
 
 The implemented read boundary is `IAdminDashboardService.GetAsync(Guid,
 CancellationToken)` with the compatibility alias `ICommunityDashboardService`.
@@ -77,30 +75,10 @@ winner data remains snapshot-owned after reopening. Read failures, cancellation,
 authorization failures and provider exceptions propagate instead of becoming
 successful zero results.
 
-The recorded backend proof is preserved in the durable H1 handoff metadata under
-`docs/references/admin-ui/reviews/2026-10-03/doc-ticket-cleanup/h1/dashboard/`:
-the ordering proof is 2/2 and the Dashboard integration proof is 7/7. The
-source TRX files were intentionally omitted from the durable copy. Imported-only
-approved-submission
-coverage and incompatible/missing historical EHB remain unavailable by contract;
-compatible stored bulk coverage, partial coverage and measured zero are typed.
-The earlier `dashboard-remediation-r1-r5-fixturefixed.trx` (9/9) was reported
-historically but is not retained in the durable copy. Named retained metadata
-records `dashboard-remediation-ordering.trx` (2/2), plus the latest bounded proof
-`dashboard-remediation-r2-r3-r1-r5.trx` (8/9 with one PostgreSQL
-initialization-only authentication failure), its isolated
-`dashboard-remediation-r5-queryshape-retry.trx` (1/1), and the affected
-`dashboard-remediation-r3-original-login-boundary.trx` (1/1). The latest cases
-verify interior Live departure, missing/inverted ended-boundary unavailability
-with no false 30-day fallback, the independent login window, weighted published
-drop plus importless AdminCreated-roster submission counting, reopened winner
-suppression, frozen denominators, fixed bulk query shape, no writes, failure
-propagation and a repeatable-read concurrent-change boundary. No HTTP route, UI
-binding, table, migration, job, cache, provider fetch or lifecycle write was
-added. UI behavior and manual acceptance remain deferred; the independent
-Dashboard source review is PASS after the same reviewer resolved R1–R5 and
-their direct consequences against the stable candidate and recorded evidence.
-It did not rerun tests; UI integration and manual acceptance remain deferred.
+Imported-only approved-submission coverage and incompatible/missing historical
+EHB remain unavailable by contract; compatible stored bulk coverage, partial
+coverage and measured zero are typed. The read has no HTTP route, table,
+migration, job, cache, provider fetch or lifecycle write.
 
 ## 2. Cross-cutting journey contract
 
@@ -109,7 +87,7 @@ It did not rerun tests; UI integration and manual acceptance remain deferred.
 The [approved Participants changes](PRODUCT_REQUIREMENTS.md#participants-backend-changes--approved-2026-09-30)
 refine ADM-PARTICIPANT-01 and pre-draft restore; they supersede conflicting clauses
 about ordinary corrections, questionnaire requirements, capacity and saved-account
-side effects only for these named operations. The new UI/HTTP binding is deferred.
+side effects only for these named operations.
 Existing forms/routes must remain compatible; do not weaken public self-signup
 validation or expose a new unprotected mutation merely to demonstrate a service.
 
@@ -120,7 +98,7 @@ versions. Explicit capacity expansion is a distinct intent, never inferred from 
 normal request. A repeat or stale request cannot expand capacity twice. Placement,
 account reservations, payment, audit and required notifications commit atomically.
 Return the resulting participant ID, status, placement/capacity outcome and useful
-validation/conflict information for later UI binding without relying on success
+validation/conflict information for UI binding without relying on success
 text parsing. Follow existing localization/outcome conventions.
 
 Confirm-selected, move-to-Waiting and override restore preserve everyone else's
@@ -144,10 +122,9 @@ must expose the selected primary and its EHB consistently to Participants, draft
 and other directly affected projections. Do not mutate historical/live account
 attribution or global shared character names to represent an event correction.
 
-The future UI confirms capacity expansion and membership loss before submitting,
+The UI confirms capacity expansion and membership loss before submitting,
 shows authoritative errors without discarding a draft, and displays the persisted
-result. Those presentation, route/history, animation and manual journeys belong to
-the later UI integration pass; backend completion does not approve them.
+result.
 
 ### Later UI review decisions — 2026-10-02
 
@@ -155,13 +132,12 @@ The [approved UI review decisions](PRODUCT_REQUIREMENTS.md#ui-review-decisions--
 qualify the contracts below: AU12 applies only to new events; AU17a/D11 option b
 permits current/released Playing event assignments of current members of the
 submission’s own team or former members whose membership covered the upload time
-(D12). The latest assignment must be Playing; Informational accounts are excluded. B5 backend contracts
-for AU17a/AU17/AU19/AU14 are backend implemented, remediation done, Claude recheck pending, binding pending. WOM
+(D12). The latest assignment must be Playing; Informational accounts are excluded. WOM
 option 1 is now explicitly approved: preserve local external disconnect before first
 Live and matching replacement before/during Live with or without stored credentials,
 subject to active/unresolved-operation guards. Never delete the external competition
 or reuse its code for the replacement. The earlier mistaken approval was withdrawn
-before the user approved this investigated option; AU20 is implemented and remediated; external recheck is pending.
+before the user approved this investigated option.
 
 ### Approved Admin simplification precedence — 2026-09-26
 
@@ -172,8 +148,7 @@ Preformed restrictions, paused/reopened draft, delayed switches, special Resubmi
 Live replacements, manual result overrides and separate Archive. Compatibility
 reads do not keep retired commands authorized. The new-event, direct-roster,
 signup-correction, fixed-roster, evidence, final-review, WOM recovery, multi-Admin,
-quarantine and historical journeys in plan section 7 are the integrated acceptance
-set. This is target authority, not executed verification or manual acceptance.
+quarantine and historical journeys are the integrated acceptance set.
 
 Emergency Captain authority is retired (SEC-01). Retained emergency accounts, access rows, tokens and actor references remain historical data: login, existing cookies, token consumption, creation, reset, enable/disable, evidence and Team Focus authority are unavailable. No conversion, deletion, fabricated human disable Audit or expiry processing accompanies retirement. Normal Captain/Co-captain authority remains membership-based. Live start has no Captain/credential prerequisite; actual website-draft start/finalization still requires current Captains. Event-specific rollout remains subject to the retained-data evidence gate. This records implemented behavior, not review or manual acceptance.
 
@@ -350,7 +325,7 @@ actor/key/input commit one aggregate, creation audit and durable outcome togethe
 a different name or timezone with a completed key is rejected without mutation.
 Different keys may create events with identical names. Invalid requests do not
 consume a key. An absent/malformed key is rejected; the existing GET form supplies
-one, retained across validation errors and retries. New modal binding is deferred.
+one, retained across validation errors and retries.
 Check again uses `/Admin/Events/Create?handler=CheckAgain&requestId=…` and returns
 only the requesting actor's committed event ID; absence means no accessible committed
 outcome at that lookup, not proof a request can never finish. Retry with the same
@@ -416,9 +391,7 @@ fields lock and Save becomes Check again; departure offers Check again by defaul
 or Leave anyway, warning that the change may already have happened. A lost session
 retains and displays the unsaved input before sign-in; route refusal is never
 success. The uncertain server response renders the posted draft from pre-write
-context without a database read and tolerates rollback failure. Manual acceptance
-of this U1 binding remains pending in UI_PAGE_MATRIX.md.
-
+context without a database read and tolerates rollback failure. 
 
 **Acceptance outcome:** Concurrent edits retain untouched current values, same-field
 conflicts require an explicit current resolution, and stale schedule consequences
@@ -494,7 +467,7 @@ when the original write advanced the form or the event later stopped accepting
 new fields. On Cancelled, Finalized or Archived events, the current Questions
 route permits only that exact committed-add replay; every other change request
 redirects to `/Admin/Events/Manage/{id}` with **This event is read-only in its
-current lifecycle state.** (08-decisions.md, B5 review D16). A reused ID with
+current lifecycle state.** (B5 review D16). A reused ID with
 changed intent/baseline, another actor or another event fails closed and does not
 disclose the previous result. A new request still
 requires the current form baseline and pre-draft write authority. Every attempt
@@ -503,8 +476,7 @@ results are unavailable. A deleted/inactive created field is reported as removed
 never recreated or replaced by a same-label field. Preserve the submitted request
 and baseline while its result is uncertain. Existing post-first-response optional
 normalization and explicit AU07 outcome remain authoritative. These operations
-create event form fields only. Ordinary forms gain request identity transport;
-frontend draft/uncertainty recovery and manual UI acceptance remain deferred.
+create event form fields only. Ordinary forms gain request identity transport.
 
 ### 4.6 `ADM-RULES-01` and `PUB-HOWTO-01` — Permanent guidance
 
@@ -634,7 +606,7 @@ preassignment is only the explicit before-first-pick exception.
 
 ### 6.1 `ADM-DRAFT-01` — Team setup, snake draft and finalization
 
-Approved G3–G6 correction scope (3 October 2026; implementation pending):
+Approved G3–G6 correction scope (3 October 2026):
 capacity counts Confirmed event participants regardless of team inclusion; manual
 team membership never frees a signup place. Manual teams still consume no draft
 turns. Manual-team Add requires Confirmed status and manual membership changes
@@ -643,10 +615,7 @@ must recheck the event/draft inside a transaction serialized with Start and both
 Finalize paths; structural changes are refused outside Setup and retain section
 4.4's postponed-start recovery window (until actual start or configured end). Live/Final Review role changes, while otherwise permitted, must update
 public Teams role labels without changing membership or WOM data; previous
-publications remain history and lifecycle routing is decided in the transaction.
-Eligible Cancel must leave a usable Setup while retaining cancelled pick history;
-G4's brief requires a proposal before changing protected history or conflicting
-restart assertions. Finalized Add retains section 5.6's three-role contract.
+publications remain history and lifecycle routing is decided in the transaction. Eligible Cancel must leave a usable Setup while retaining cancelled pick history. Finalized Add retains section 5.6's three-role contract.
 
 
 An enabled Admin uses the version-one flow in PRODUCT_REQUIREMENTS 17.1. Existing
@@ -662,8 +631,7 @@ team IDs, expected version/control and immutable intended fields through pending
 stale and uncertain outcomes. Matching pick numbers or orders cannot prove a timed-
 out action's result. A read failure keeps uncertainty and does not authorize replay.
 Local roster publication success is separate from actual queued/failed/unknown WOM
-synchronization. AU14 provides the backend readback contract (B5; backend implemented, remediation done, Claude recheck pending, binding pending);
-RC04/DRF binding remains pending. Its nullable persisted draft identity, immutable
+synchronization. AU14 provides the backend readback contract. Its nullable persisted draft identity, immutable
 picks, retained memberships and full team/account fields never identify a request.
 
 Public roster/pick publication never starts the event or publishes the Board.
@@ -678,7 +646,7 @@ not an invented mandatory draft blocker. Integration stays on Teams after finali
 
 **Entry and reachability:** Admin Manage → Board is the editor. Preview uses the public board treatment and inherits the public Board ecosystem's visual status; direct public board/team/tile routes remain the normal destinations after publication.
 
-**Authoritative happy path:** Fill every grid position with valid tile/objective data. Catalogue/drop tiles require valid automatic EHB and may use the approved optional total tile override (AU11 pending); custom/manual tiles require explicit EHB. Keep the calculated baseline/reset, event-local scope, evidence scoring locks and immutable snapshots. Planning size remains manually adjustable after roster finalization without changing competitive values (AU13 pending). Approve in a transaction that rechecks completeness and creates an immutable approval snapshot. After draft finalization, use a separately confirmed Publish board action/transaction. Event start requires publication.
+**Authoritative happy path:** Fill every grid position with valid tile/objective data. Catalogue/drop tiles require valid automatic EHB and may use the approved optional total tile override; custom/manual tiles require explicit EHB. Keep the calculated baseline/reset, event-local scope, evidence scoring locks and immutable snapshots. Planning size remains manually adjustable after roster finalization without changing competitive values. Approve in a transaction that rechecks completeness and creates an immutable approval snapshot. After draft finalization, use a separately confirmed Publish board action/transaction. Event start requires publication.
 
 Tile description input is optional. Blank/whitespace-only input previews a
 description derived from the current structured requirements without filling the
@@ -692,8 +660,7 @@ correction restores the prior mode and approved copy. Existing nonblank
 descriptions stay manual, even if they match the former generator.
 On a correction publish, automatic descriptions for objectives carried over
 unchanged keep the item names frozen in the published snapshot. A catalogue
-rename never changes tiles nobody edited (D19(a), `08-decisions.md`, “B5
-remediation recheck decisions”, 5 October 2026).
+rename never changes tiles nobody edited (D19(a), 5 October 2026).
 
 **Permissions and history:** Any enabled Admin may approve. Editing competitive content invalidates an unpublished approval and retains its history. Initial publication and publication of a corrected replacement both require server-enforced confirmation. Publication uses the active snapshot without recalculating from mutable catalogue data. Post-publication correction requires confirmation, a reason, a replacement snapshot, and preserved prior history; it is available only in SignupClosed, Live, or AwaitingFinalReview and is unavailable in terminal, Cancelled, Hidden, or Discarded states.
 
@@ -749,7 +716,7 @@ remain subject to user manual acceptance; general composition approval is preser
 
 ### `PUB-UPDATES-01` — Participant announcements and Drops NEW state
 
-**Approved 2026-09-12; planned, not yet implemented.** An authenticated participant
+**Approved 12 September 2026.** An authenticated participant
 receives one queue of approved progression for their current event throughout
 non-Admin pages. Offline approvals are collected; account/event acknowledgement and
 the two-minute expansion cooldown survive visits/devices. Navigation preserves state;
@@ -781,7 +748,7 @@ clients or the existing Unfinalize flow must not resurrect acknowledged old upda
 Live feed insertion preserves filters, reading position and open interactions. Actor
 eligibility and recipient state are server-authoritative. This is distinct from
 personal notifications. Full approved timing/queue/presentation behaviour, boundary
-cases, scope exclusions and delivery gates are in DELIVERY_PLAN's
+cases and scope exclusions are in DELIVERY_PLAN's
 `Drop announcements and NEW tracking` contract; UI_SYSTEM owns the countdown rule.
 
 ### 7.1 `SYS-EVENT-START-01` — Scheduled start readiness
@@ -866,10 +833,9 @@ not a request receipt. Failed reads stay unknown; equal-time legacy actions with
 reliable ordering do not invent latest-action attribution. No replay or per-account
 prior-approved count is added. S9 supplies the credited participant’s team-leave
 time for later warning binding. Review-action before/after versions are nullable
-for old rows. Backend implemented, remediation done, Claude recheck pending,
-binding pending (RC07).
+for old rows.
 
-Approved G1–G2 correction scope (3 October 2026; implemented and rechecked):
+Approved G1–G2 correction scope (3 October 2026):
 approval of a later upload is blocked only when it reduces the credit available
 to an earlier Pending upload for the same team/objective, using existing claimed
 weights, remaining room, per-drop limits and duplicate rules. Evaluate earlier
@@ -1168,7 +1134,7 @@ The version-one functional foundation described here defines the following outco
 - Development reset provides explicit, bounded manual-acceptance journeys; production does not inherit the fixture exemption.
 - F-06 is resolved by the implemented source-controlled How To guide. F-04 follows the revised Identity field permissions above; F-05 is resolved by documentation reconciliation. Wise Old Man remains optional/supplementary, manual signup EHB remains authoritative, and no lifecycle action depends on it.
 
-## Luck calculation, saved snapshots and final review — active 2026-10-01
+## Luck calculation, saved snapshots and final review
 
 The public Stats and selected-tile journeys use one saved Luck snapshot. A
 successful normal WOM synchronization is the calculation boundary: after the
@@ -1234,7 +1200,7 @@ fetch provider data, using bulk requests and the existing WOM limiter for WOM me
 ## Shared Luck score — current contract
 
 The former signed bounded score is superseded by the implemented
-[Luck snapshot contract](#luck-calculation-saved-snapshots-and-final-review--active-2026-10-01).
+[Luck snapshot contract](#luck-calculation-saved-snapshots-and-final-review).
 Use the 0–100 percentile/KC switch and retained freshness; do not treat older
 formula/display instructions as a second implementation target.
 

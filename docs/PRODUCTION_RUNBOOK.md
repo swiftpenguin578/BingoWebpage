@@ -244,7 +244,7 @@ Approval/publication, board-tile EHB and official-result snapshots are untouched
 Down cannot restore forgotten override values; recovery requires the authorized
 pre-deploy backup procedure, not guessing values. See B2 remediation decisions D1.
 **H4-2 procedure and coverage limits were approved by the user on 4 October 2026 after Claude’s review, as recorded in the planner decisions; attribution corrected by the quoted Step 0 user assignment.**
-See [the quoted assignment and provenance](references/admin-ui/reviews/2026-10-04/au-step0/approval-record.md).
+See the quoted assignment and provenance.
 The [accepted isolated procedure](#r-3-isolated-rehearsal-procedure--approved-4-october-2026)
 below replaces the unsafe host-wrapper instruction. Never invoke host `bingo-deploy`
 as rehearsal. Tooling is not built/tested and R3 is unexecuted; this documentation
@@ -367,8 +367,8 @@ approval does not authorize harness implementation, backup transfer or execution
    retained context. The `20261004133947_AddBossActivityTeamSize` migration also
    fails closed on the second condition. The user's 4 October report of zero
    conditional rows and zero non-default context rows is supplied evidence, not
-   an agent-run production check; see [08-decisions.md, B4 brief decisions](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md#b4-catalogue-brief-decisions)
-   and the [authorized B4 brief](/Users/christopher/Documents/BingoWebpage/review-notes/27-codex-brief-b4-catalogue.md). Re-run these read-only queries at deployment
+   an agent-run production check; see 08-decisions.md, B4 brief decisions
+   and the authorized B4 brief. Re-run these read-only queries at deployment
    time and record the exact migration history and timestamp.
 8. **R-3 final-candidate rehearsal — procedure approved, execution pending.** Follow
    the accepted procedure below only after separate harness/backup-transfer/execution
@@ -394,7 +394,7 @@ approval does not authorize harness implementation, backup transfer or execution
 ## R-3 isolated rehearsal procedure — approved 4 October 2026
 
 The approach and its stated coverage limits were approved by the user on 4 October 2026 after Claude’s review, as recorded in the planner decisions; attribution corrected by the quoted Step 0 user assignment.
-The [approval record and original design](references/admin-ui/reviews/2026-10-04/cleanup-remediation/r3-isolation-proposal.md)
+The approval record and original design
 retain the decision's provenance. This section owns the accepted procedure.
 
 Use a disposable Linux VM and dedicated `bingo-r3` Compose project with an isolated
@@ -415,7 +415,7 @@ or application/worker switch requires its own approval.
 
 **Execution state:** the user approved the procedure and coverage limits on
 4 October 2026 after Claude’s review, as recorded in the supplied planner decisions.
-Claude’s [cleanup recheck](references/admin-ui/reviews/2026-10-04/au-step0/cleanup-recheck.md)
+Claude’s cleanup recheck
 is complete. This did not approve commit `5cf9081` after the fact.
 Harness/configuration/fixtures are not built or tested and R3 is unexecuted.
 Approval permits documenting this procedure only. Harness implementation, obtaining

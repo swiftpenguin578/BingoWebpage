@@ -21,17 +21,13 @@ Authority is resolved in this order:
    composition, exceptions, current approval/status, and next gate.
 3. `UI_SYSTEM.md` owns global primitives and rules shared by those pages.
 4. `DELIVERY_PLAN.md` owns documentation/UI pass order and release gates.
-5. `docs/archive/` is historical evidence only and is never authority.
-
-Archived documents, root tombstones, old pass notes, selector presence, and
-page-local CSS cannot override these active sources. A canonical reference is
+Selector presence and page-local CSS cannot override these active sources. A canonical reference is
 not the same thing as approval in the current regression.
 
 ## Approved Admin reference direction — 2 October 2026
 
 For the new Admin overhaul, `UI_PAGE_MATRIX.md` names the accepted pages and
-`docs/references/admin-ui/` holds their committed design. Canvas 42 / published
-artifact `1790965722-e7ad` is frozen in the 2 October manifest. The user explicitly
+`docs/references/admin-ui/` holds their committed design. The user explicitly
 selected this design over older Admin visual rules, including filled primary
 buttons. Its light/dark typography, spacing, surfaces, focus, motion, responsive
 tables and component hierarchy are the target; Public UI rules are unchanged.
@@ -53,7 +49,7 @@ appropriately dimmed, scroll locked and focus returned. Keep existing accessibil
 dirty/pending/conflict/uncertainty and security contracts. New-reference visual
 acceptance is not application binding or acceptance of newly exposed feedback.
 
-Approved production shell decisions (plan42 group A, 5 October 2026):
+Approved production shell decisions (group A, 5 October 2026):
 
 - A3/A4: account menu contains Account settings, Change password, View public site
   and Sign out. Notifications bell is in the top bar; its Admin actions overview
@@ -74,7 +70,7 @@ Approved production shell decisions (plan42 group A, 5 October 2026):
   a layer that closes on an outside click, bind it as not closing and report that
   reference exception. Preserve layered focus trapping and restoration.
 - A13: no sidebar item counts.
-- Product brand (brief43 item3.5, not A13): DK Legacy.
+- Product brand: DK Legacy.
 - A16: new-shell links use a shared dirty guard, target-page skeleton, normal HTML
   fetch and content/title/breadcrumb/nav/script swap, with Back/Forward and a
   failed-load Try again state. Unexpected responses and old-layout targets fall
@@ -82,7 +78,7 @@ Approved production shell decisions (plan42 group A, 5 October 2026):
   Page scripts provide `init(root)` and `dispose()` removing listeners, timers and
   connections; repeated event switches must leave no stale work running.
 
-U1 review decisions (user approval, 5 October 2026; brief50 / decisions08):
+U1 review decisions (user approval, 5 October 2026):
 
 - U-A: Check again encountering session loss says signed out / could not check
   whether the change went through / sign in and Check again. Keep the draft;
@@ -94,7 +90,7 @@ U1 review decisions (user approval, 5 October 2026; brief50 / decisions08):
   while signups are open, starts plus event start before play, ends plus event end
   in Live/final review, or not announced when unset. Unsupported stored timezone
   uses UTC for that date text. Finalized/Archived use ended plus the end date.
-  User decision, 6 October (brief60 item3): Cancelled uses on plus CancelledAt
+  User decision, 6 October: Cancelled uses on plus CancelledAt
   in the event timezone, even when its planned end remains in the future.
 - U-E: event breadcrumb is plain text; failed loads show the reference icon/title;
   menus use reference placement and exit animation; collapse labels toggle. Pages
@@ -103,7 +99,7 @@ U1 review decisions (user approval, 5 October 2026; brief50 / decisions08):
   the signed-in public username, localized role and chevron; the account menu adds
   the name / @handle · role header (visual-check Q1/Q2). Hide event-specific nav
   links when no event is selected or remembered. The reference nav label is Teams / Draft (R17).
-  User decision, 5 October (brief60 item2): a browser-session cookie stores only the
+  User decision, 5 October: a browser-session cookie stores only the
   last Admin event ID, revalidated against current visibility/access on every render.
   Community pages retain its sidebar navigation without an event breadcrumb; public
   navigation keeps it, selecting another replaces it, and sign-out clears it. Past
@@ -123,7 +119,7 @@ U1 review decisions (user approval, 5 October 2026; brief50 / decisions08):
 - U-G: Danish new-shell/Identity terminology is event/events (Events, Alle events),
   not Bingoer. Scoped resource keys preserve legacy-page translations.
 
-U1 visual-check clarifications (5 October; brief55): language changes save through
+U1 visual-check clarifications (5 October): language changes save through
 existing `/language` POST then swap translated page/shell without a skeleton,
 retaining sidebar, scroll and focus. Highlight after the dirty guard; use the theme
 segment transition and a `--dk-dur-theme` text cross-fade (none with reduced motion).
@@ -184,7 +180,7 @@ response. Block repeat submission while pending. No toast Undo is approved.
 
 Page-specific is the default. A page rule becomes global only through an
 explicit user decision or by correcting an already physically shared
-primitive. Replace active wording in place; Git and the archive preserve the
+primitive. Replace active wording in place; Git preserves the
 history.
 
 Active stylesheet ownership is explicit and preserves the prior cascade in
@@ -923,7 +919,7 @@ read transition and reach the authorized stored destination; personal evidence
 
 ### Planned participant announcement countdown — approved 2026-09-12
 
-For the drop-announcement contract in DELIVERY_PLAN, the container's thin coral top
+For the drop-announcement contract in [DELIVERY_PLAN.md](DELIVERY_PLAN.md#drop-announcements-and-new-tracking), the container's thin coral top
 border is a visual ten-second compaction countdown, full initially and draining to
 empty. Focus/interaction resets it to full and holds it there; leaving focus starts
 a fresh ten seconds rather than resuming the previous remainder. Preserve pointer

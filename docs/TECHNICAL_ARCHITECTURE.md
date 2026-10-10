@@ -2,8 +2,8 @@
 
 ## Technical Architecture
 
-**Status:** Approved architecture v1.1 with Planning Pass 2 target changes documented
-**Last updated:** 2026-08-31
+**Status:** Current approved architecture
+**Last updated:** 10 October 2026
 **Companion documents:** `PRODUCT_REQUIREMENTS.md`, `DATA_MODEL.md`
 
 ## 1. Architecture decision
@@ -169,8 +169,8 @@ approval boundary, and independent banner/NEW state. Claiming requires an outsta
 approval beyond that persisted boundary; only the claimed snapshot advances it.
 No idle polling, recipient fan-out, additional realtime service or scheduled job is
 part of this feature. The user accepted the existing 100-viewer capacity evidence
-for this slice; DELIVERY_PLAN records the explicit waiver of an additional load-test
-gate and the decision to reassess from observed event performance.
+for this feature; no additional load-test gate applies, and performance is
+reassessed from observed event behaviour.
 
 The site must remain usable if the realtime connection is temporarily unavailable. A normal refresh retrieves the authoritative state.
 
@@ -448,7 +448,7 @@ Each regular assignment stores its own signup-time EHB snapshot. Secondary Accou
 
 WoM-assisted EHB entry is an explicit per-account command that runs only after a non-empty character name is present. It may report that the trusted name could not be found, but it does not become a prerequisite for account creation or linking. It populates the form but does not replace the stored event snapshot. Before implementation, inspect the current official API documentation and usage limits, then apply server-side cache reuse, request throttling, `Retry-After`/backoff behavior, and user-facing not-found/unavailable/rate-limited results. A failure leaves the existing manual field value intact.
 
-Slice 10 uses one typed Wise Old Man v2 client for both explicit account lookup and cached event-competition synchronization. The client supplies a contactable User-Agent, optional secret-configured API key, bounded timeout, structured operational logging, and one process-wide limiter; version one deliberately runs one application replica. Limiter admission is serialized. After restart, exactly one bootstrap request establishes the remote window before other callers proceed. Bootstrap admission releases on every outcome; missing/untrustworthy headers or transport failure cause a fail-closed pause of at least 60 seconds before one new bootstrap attempt. The limiter observes remote limit/remaining/reset headers, reserves the final three requests for both traffic types, and rejects manual requests locally before exhaustion. Automatic cycles have one initial attempt plus three scheduled retries; separate retry and normal-cycle due times prevent sleeping workers and immediate exhaustion loops.
+The application uses one typed Wise Old Man v2 client for both explicit account lookup and cached event-competition synchronization. The client supplies a contactable User-Agent, optional secret-configured API key, bounded timeout, structured operational logging, and one process-wide limiter; version one deliberately runs one application replica. Limiter admission is serialized. After restart, exactly one bootstrap request establishes the remote window before other callers proceed. Bootstrap admission releases on every outcome; missing/untrustworthy headers or transport failure cause a fail-closed pause of at least 60 seconds before one new bootstrap attempt. The limiter observes remote limit/remaining/reset headers, reserves the final three requests for both traffic types, and rejects manual requests locally before exhaustion. Automatic cycles have one initial attempt plus three scheduled retries; separate retry and normal-cycle due times prevent sleeping workers and immediate exhaustion loops.
 
 Competition synchronization is a separate small hosted worker rather than network work inside the critical lifecycle worker. It acquires an opaque fenced lease in a short transaction, performs HTTP after committing, and publishes only in a second transaction that rechecks `Live`, competition ID, lease owner, assignment fingerprint, and cooldown. One competition-details response is mapped to every current unreleased `PLAYING` event assignment and atomically publishes a local per-character generation plus completeness/error state. A successful partial generation publishes only matched rows, with explicit privacy-safe coverage and no zero/carry-forward values; a zero-match partial generation has no rankings. A newer complete or partial generation replaces older displayed values. Public and team projections depend only on PostgreSQL cache data and label local time as **Fetched from Wise Old Man**; they never depend on external request latency or imply that the GET actively updated upstream players. No Redis, message broker, distributed limiter, generic job framework, or second application replica is introduced.
 
@@ -468,11 +468,10 @@ first attempt is due immediately; failures retry after 1, 2, 4, 8, 16 minutes,
 then every 30 minutes, with a later provider retry time honored. Repeated worker
 passes do not reset the due time. Pending end updates and uncertain-outcome
 reconciliation stop permanently at first official publication, including after
-reopen (user D6 option a in [supplied decisions](docs/references/admin-ui/reviews/2026-10-04/au-b3/remediation/supplied-decisions.md),
-quoting [08-decisions.md](/Users/christopher/Documents/BingoWebpage/review-notes/08-decisions.md)).
+reopen (user decision D6, option a).
 The republished version retains the same WOM basis.
 
-The corrected planner technical classification in remediation brief25 is: 5xx,
+The planner's technical classification is: 5xx,
 timeouts, network errors, 408 and 429 are temporary; named 400, missing/invalid code,
 401/403/404 and other validation rejections are permanent, stored as sanitized safe
 codes. An unknown end-only write is read back: the target window completes it;
@@ -480,9 +479,8 @@ an unchanged old window proves not applied and permits resend on the persisted
 schedule. An unavailable read keeps spaced reconciliation. Other unknown operations
 retain their protections. A new target resets attempt count/backoff; an old target's
 late failure remains historical and cannot reject the new pending target.
-Source and worker-reported execution: `docs/references/admin-ui/reviews/2026-10-04/au-b3/remediation/`.
-This supersedes the earlier item3 planner resolution; no independent user product
-approval is claimed for technical error classification.
+No independent user product approval is claimed for this technical error
+classification.
 
 Explicit Create sends one complete team payload and, on success, persists the
 existing event link plus the protected management receipt. Unknown Create
@@ -526,13 +524,10 @@ commands. Current-state matches never identify the request/actor that caused the
 and unavailable reads remain unknown. Review uses its existing action snapshots for
 versioned attribution. Board compares full tile content and retains distinct active
 snapshot identities for publish versus discard. Teams exposes the last recorded
-roster synchronization outcomes separately from local roster publication. Backend
-contracts are backend implemented, remediation done, Claude recheck pending, binding pending (RC07/RC05/RC04).
-Review exposes nullable before/after versions for old actions and the credited
+roster synchronization outcomes separately from local roster publication. Review exposes nullable before/after versions for old actions and the credited
 participant’s team-leave time. Board compares the actual publish projection,
 including retained frozen names/rates. Teams separates roster PublishedAt from
-WOM operation CreatedAt/UpdatedAt. Evidence:
-`docs/references/admin-ui/reviews/2026-10-04/au-b5-remediation/`.
+WOM operation CreatedAt/UpdatedAt.
 
 Duplicate-disabled contribution uses immutable shared catalogue-item identity frozen
 into event and approval drop snapshots, scoped to one requirement. It never relies
@@ -666,9 +661,6 @@ worker attempts the update immediately, then uses spaced retries until publicati
 or permanent rejection. While the end is unmatched, post-actual-end fetches are
 suppressed. Publication persists CouldNotUpdate and an AU18 skipped outcome, using
 the last pre-end cache as official WOM data with its original Luck freshness.
-This state is exposed through service/read models only; new UI placement remains
-for UI integration. AU20 implementation/check evidence is under
-`docs/references/admin-ui/reviews/2026-10-04/au-b3/`; independent review is pending.
 
 Manual and scheduled opening call the same application/domain readiness policy with an explicit opening mode. Manual opening ignores any stored scheduled-opening value and supplies the current authoritative instant. Scheduling persists the stable active warning codes that the Admin acknowledged. Scheduled opening transactionally revalidates the complete event/form configuration at execution time; a blocker or newly active unacknowledged warning leaves the event private, records one failed attempt, disables delayed retry, and creates one durable Admin action/notification rather than partially publishing signup. External-provider reachability is not part of this transaction.
 
@@ -781,9 +773,9 @@ to `main` does not update any live server. The operator runbook must record the
 exact approval action, deployed image identifier, health check, smoke tests,
 rollback action, and whether the release contains a database migration.
 
-The repository-side Pass 4 contract is implemented by the existing
+The repository-side deployment contract is implemented by the existing
 `.github/workflows/production-promotion.yml` and the root-owned host commands
-documented in `docs/PRODUCTION_RUNBOOK.md`. Candidate metadata is validated
+documented in [`PRODUCTION_RUNBOOK.md`](PRODUCTION_RUNBOOK.md). Candidate metadata is validated
 before deployment; the explicit manual `workflow_dispatch` selecting deploy is
 the user's production approval, with no GitHub Environment reviewer gate or
 environment secret. The workflow uses non-cancelling

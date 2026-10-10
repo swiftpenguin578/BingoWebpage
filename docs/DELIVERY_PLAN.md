@@ -1,7 +1,7 @@
 # Delivery plan
 
 This document owns the delivery procedures, release and deploy gates, the standing
-catalogue and WOM-window decisions, and the register of bindings the design
+catalogue, WOM-window and drop-announcement decisions, and the register of bindings the design
 references do not show. It describes only what is in force. History lives in Git,
 PRs and the planner's review notes. Page approval is owned solely by
 [`UI_PAGE_MATRIX.md`](UI_PAGE_MATRIX.md); the current checkout, blockers and next
@@ -128,6 +128,180 @@ must not be treated as persisted authorization), while BR-11's 3 October reporte
 zero must be re-run with the corrected query; it is not release-pass evidence. These observations do not start
 implementation or widen any ticket.
 
+### Drop announcements and NEW tracking
+
+Approved 12 September 2026. The journey is `PUB-UPDATES-01` in `FUNCTIONAL_CONTRACTS.md`; `UI_SYSTEM.md` owns the countdown semantics. Dated bullets record the user's later corrections.
+
+#### Outcome and presentation
+
+Replace the generic public Board/TeamBoard progress-refresh notice with one live
+announcement queue. Approving a submission creates an eligible update; pending,
+rejected and reversed evidence never appears as current approved progress. Each
+approval produces one announcement, not a second completion announcement.
+
+- Only authenticated website accounts actually participating in the current event
+  receive announcements or personalized NEW state. Admin privilege alone does not
+  qualify. Eligibility is enforced server-side, not by hiding markup. Reuse existing
+  account/membership authority; the mapping is recorded in the readiness outcome below.
+  Delivery is event-wide: every eligible participant receives eligible approvals from
+  every team/player in that event, not only evidence credited to their own account.
+- Eligibility continues through Live and AwaitingFinalReview. Finalizing the event
+  clears the banner queue, all per-entry Drops NEW marks and the DROPS navigation
+  badge for every account, including offline accounts, and stops further announcements.
+  This clears update/NEW state, not the actual approved feed entries or evidence.
+  Connected pages reconcile immediately after committed finalization; returning or
+  reconnecting clients observe the same cleared state. Stale reads/actions must not
+  resurrect cleared updates, including if the existing Unfinalize workflow is used.
+- Display throughout non-Admin pages, including the landing/account pages. Admin
+  hides the banner without acknowledging it. Navigation preserves queue, selected
+  approval, expanded/compact state and remaining cooldown, without replaying entry.
+- There is at most one active scheduled event. Do not introduce multi-event queues
+  or event-selection UI. Preserve the existing non-overlap scheduling rules.
+- User-approved standalone visual/motion reference: the drop-announcement
+  prototype (kept outside the repository).
+  Reuse its accepted expanded/compact shapes, entrance/exit and directional switching;
+  integrate existing site fonts, tokens, themes, localization and accessibility.
+  Prototype demo controls, fake data and stand-in board are not production scope.
+- Main title/artwork: achieved item for a drop; frozen tile name and tile artwork
+  for a non-drop objective. Never use an evidence/submission screenshot in the banner.
+  Missing-artwork handling (14 September 2026): try item then distinct tile artwork; if absent
+  or failed, render text-only without an empty thumbnail frame/reserved column. Preserve
+  banner dimensions, copy styling and all interactions; no invented placeholder icon.
+- Kicker is `New tile progression: {progressAfter} / {target}` (localized English/Danish),
+  using the existing announcement progress/target values; `Tile completed` stays
+  counter-free when this approval completes
+  that team's tile. Completion has green status styling; progression is coral.
+  Completion must describe this approval's effect, not merely today's tile state.
+- The container's thin top border remains a separate coral countdown indicator.
+  It starts full and drains over ten seconds to compaction. Focus/interacting inside
+  resets it to full and holds it there; clicking/tabbing away starts a fresh ten
+  seconds. Moving between controls inside must not restart a running countdown.
+  Preserve hover protection from the prototype, using the same reset/hold rule;
+  countdown starts only when neither hover nor focus remains. No auto-focus on arrival.
+  Respect reduced motion and keep all actions keyboard/touch reachable. The local
+  countdown has no per-tick server writes and is distinct from the two-minute cooldown.
+- Compact label is `N NEW UPDATES` (localized singular/plural), with Expand and dismiss.
+  Previous/next is manual, updates artwork/title/player/team/action together, has
+  disabled endpoints and is omitted with the counter for a single entry.
+
+#### Prototype restoration (13 September 2026)
+
+The user approved correcting every presentation/motion difference reported by the
+direct prototype comparison, with one exception: retain the integrated X hover
+(blue icon without the prototype's soft background). Use the exact prototype
+as implementation source, reusing its markup, scoped CSS/keyframes and animation
+sequencing wherever possible; do not recreate an approximation.
+
+- Restore staged 320ms entrance, delayed animated dismissal for both shapes, measured
+  640ms expanded/compact height transitions with coordinated 320ms content phases,
+  sequential directional slide exit/entrance and original easing/cancellation handling.
+- Restore square switching controls, styled/centred non-wrapping counter and original
+  counter placement; remove the duplicate counter beside the kicker. Restore prototype
+  narrow breakpoint/spacing/control sizes, border contrast, shadow and artwork framing.
+  Preserve only the current X hover exception; other focus/geometry follows the reference.
+- Keep the approved coral ten-second focus/hover-held countdown, green completion
+  status, live queue/acknowledgements/NEW state, persisted cooldown, navigation and
+  submission protection. The expanded countdown must replace the static coral edge
+  rather than drain over an unchanged coral border. The user subsequently approved a
+  thin neutral top outline behind that countdown, matching the other outer edges, so
+  the normal outline remains visible as the coral retracts. Retain header stacking level 1101,
+  real Drops anchor destinations, localization, theme support and reduced-motion behavior.
+- User-reported shared-shell correction: outside Board/views, the banner background
+  and specifically its top edge are transparent. Resolve the colour-token scope so
+  the opaque surface and coral countdown/top edge render on all non-Admin pages in
+  both themes; do not depend on Board-only variables or create a new theme framework.
+  Follow-up manual correction: preserve the now-accepted surface/outline and extend
+  Board colour parity to all remaining banner text, controls and status colours.
+  Replace misaligned font-based navigation chevrons with centred inline SVGs while
+  preserving control sizes, accessibility and motion.
+
+#### Queue, cooldown and delivery
+
+- First eligible arrival opens expanded when the conditions below allow it. New arrivals append without stealing the
+  current selection, resetting the ten-second countdown, or extending the cooldown.
+- Automatic expansion atomically starts a two-minute cooldown per account/event.
+  Dismissal starts that same cooldown again. Save it server-side so reopening,
+  refreshing, multiple tabs and other devices cannot bypass it. A simultaneous
+  expansion claim must not yield multiple automatic expansions for that account.
+- During cooldown, arrivals update the existing banner; if dismissed, new arrivals
+  show compact. Expiry alone causes no display change. The next approval after
+  expiry may expand showing the new approval; protect active interaction/submission
+  and submission-result states from interruption. Manual Expand remains available.
+- Automatic expansion requires both an expired cooldown and an outstanding eligible
+  approval newer than the account/event's last automatic-expansion approval boundary.
+  Atomically persist that boundary with the cooldown, covering only the claimed
+  snapshot so concurrent later approvals remain eligible. Navigation, refresh and
+  returning after a long absence use this same rule; elapsed time alone is insufficient.
+  Expiry itself has no timer-driven expansion. Offline approvals remain collected.
+- A successful automatic expansion selects the newest approval in its claimed queue.
+  Manual expansion restores the last available selection; arrivals while already
+  expanded never steal selection. Deterministic ordering uses approval chronology
+  and a stable tie-break. Acknowledged or reversed items cannot qualify for expansion.
+- Acknowledged announcements never return; this requires durable per-account/event
+  state. It must survive connection loss, out-of-order or duplicate invalidations,
+  stale tabs and action retries without losing later approvals.
+- Remove a reversed approval from banner and NEW eligibility. The existing immutable
+  submission rule remains: a reversed attempt cannot be directly reapproved. An
+  approved linked corrected attempt is a new eligible update with its own identity.
+- Do not change competitive progress, evidence history or approval/reversal semantics.
+  The current event is in signup; deployment must not mark future approvals as seen.
+  Do not add a historical backfill workflow. Readiness must establish a deterministic
+  initial tracking boundary for existing Development approvals and later participants.
+
+Readiness initialization proposal: establish a stable per-event tracking start at
+feature deployment for existing events and creation for later events, before any
+participant's first visit; combine with the current membership join boundary. Do not
+initialize at first login, which would lose offline approvals. Existing-event history
+before rollout stays outside tracking; the actual current event is in signup, so all
+its future eligible approvals are captured. Use a persisted boundary, not a mutable
+client timestamp. This additive initialization never changes competitive history.
+
+#### Two acknowledgement states and Drops integration
+
+2026-09-13 manual live-feed regression: an approval invalidation must preserve
+existing timestamps and use actual approval age for newly inserted entries, matching
+normal Drops rendering. Historical unloaded entries must not be promoted into the
+newest group merely because an invalidation fetched them. Preserve filter/paging,
+chronology/groups, scroll, open popup and acknowledgement semantics. Scope is the
+existing live feed rendering and necessary timestamp transport plus a focused
+regression check; no redesign, new timer/service/dependency or approval-rule change.
+
+2026-09-13 direct manual correction: Danish progression wording is `Nyt tile fremskridt:
+{0} / {1}`; retain the English term `Leaderboards` in Danish UI and its help reference.
+After successful CLEAR ALL NEW, show a localized confirmation through the existing
+shared toast owner. A failed request must not show success; use existing error toast
+feedback. Preserve acknowledgement semantics, NEW presentation and all banner motion.
+
+| Action | Banner acknowledgement | Drops NEW acknowledgement |
+| --- | --- | --- |
+| Dismiss | All approvals in the displayed queue snapshot | None |
+| GO TO DROP, popup successfully opens | That approval | That approval |
+| Open that popup directly in Drops | That approval | That approval |
+| CLEAR ALL NEW | All approvals covered by that action | All current NEW approvals in this event |
+| Event finalization | Entire event queue for every account | All event NEW marks and navigation badge for every account |
+
+Merely navigating to Drops, compacting, waiting or switching banner entries does not
+acknowledge either state. Failed navigation/popup load must not acknowledge viewing.
+Opening the popup is the view boundary, not closing it or viewing every image pixel.
+GO TO DROP goes to the current approval's event Drops view and opens its existing
+evidence popup, even if the entry is outside the initial 25/filter result. On success,
+select the next queued item and compact, or hide the banner if the queue is empty.
+Never silently clear other entries when viewing one. CLEAR ALL NEW applies across
+filters/pagination; approvals after its server-defined snapshot remain new. Mutations
+must be authenticated, ownership-scoped, anti-forgery protected and idempotent.
+
+Add NEW to individual entries, CLEAR ALL NEW to the existing Drops view, and a small
+coral NEW beside DROPS in the event navigation whenever any eligible update is new.
+The navigation badge follows Drops NEW state, not banner dismissal. These states
+synchronize across visits/devices; no personal-notification read state is reused.
+
+Approvals update the visible banner and navigation badge live without navigation.
+When Drops is displayed, insert eligible entries into the current feed live, preserving
+scroll/reading position, filters and any open popup. Filter-excluded arrivals still
+update the banner and unfiltered NEW state. Reversal removes stale approved entries
+without destroying unrelated popup/submission state. No automatic full-page reload,
+board redraw/reset or interruption of tile/sidebar/captain interactions.
+
 ### Bindings not shown in the design references
 
 Established by the user's 4 October instruction: “From now on, every ticket that adds
@@ -182,30 +356,30 @@ here; do not silently omit a row because the reference has no corresponding cont
 | Theme and EN/DA controls move into the hamburger navigation only at the existing max-width 860px mobile breakpoint; bell stays in topbar, wider layouts unchanged | Shared Admin shell — approved mobile placement difference, preserving readable event breadcrumb | User, 5 October 2026: “Move the light switch and language switch into the hamburger”; “This is obviously only on mobile widths.” | U1 round3 item7 | None; preserve theme/language transitions, dirty guards and keyboard access |
 | Narrow-screen toasts sit above the sticky save bar and never cover Save; desktop placement and finite lifetime follow the reference | Shared toast / Identity — intentional phone placement difference | 5 October U1 visual check Q5; brief55 item0/5 | U1 shared components | None |
 | Sidebar and account-menu header use the signed-in account's public username and role; menu header includes name and @handle · role; the logo slot holds the site's masthead SVG in white (U10 part 2 item 5, superseding the DK Legacy mark) | Shared shell — Identity.dc.html / Participants.dc.html use sample organization/account data | 5 October U1 visual check Q1/Q2; brief55 item0/3 | U1 shell | None; Administrator / Super admin localized from real account data |
-| AU19 approval bindings group per-position `board-incomplete` issues into the reference’s single “(N empty)” item, jumping to and highlighting the first empty position; `Working` is the publication projection during a correction | Board — [Board.dc.html](docs/references/admin-ui/Board.dc.html) | AU19, `08-decisions.md` “AU phase plan”; review36c F6/F8 and brief38 item6 | RC05 / BR-10 | Bound in U7 (brief 88); reviewed (report 95), fixes rechecked at `d7a9e272`; merged `5ec88e93`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`). The two open points are resolved: U7-Q1 (rate issues carry the drop names) and U7-Q2 (Publish returns every refusal together) |
-| Blocked approval/contribution state replaces any numerical approval claim; direct link to the earlier pending upload preserves queue/filter context | Review — [Review.dc.html](docs/references/admin-ui/Review.dc.html) does not show it | BR-1/G1 and B5 AU17; shared allocation returns structured blocking submission ID/upload time; `08-decisions.md` “Step 3 decisions” | RC07 / BR-10 | None; preserve the approved navigation and return context |
-| Cap-limited Contribution wording: an exhausted or partial drop/item cap can limit Add while the objective still has remaining work | Review — [Review.dc.html](docs/references/admin-ui/Review.dc.html), Contribution line | B5 review B2; brief35 item 3; shared approval allocation | RC07 | Backend numbers verified; wording remains a binding decision, no current-page display added |
-| Correction picker includes released Playing accounts/former team members, marked Released/Left team/Current; Informational never selectable | Review — [Review.dc.html](docs/references/admin-ui/Review.dc.html) shows a current-team account list without these markers | AU17a; D11 option b in 08-decisions.md; B5 `au17a.md` | RC07 / BR-10 | Scope decided; bind the markers and derived participant without independent participant editing |
-| Uncertain Teams recovery retains immutable pick/team/member IDs and all intended fields, including inclusion/image/role/account; same order or reusable pick number never proves a request. Failed/unavailable reads remain unknown | Teams — [TeamsDraft.dc.html](docs/references/admin-ui/TeamsDraft.dc.html) predicates use reusable numbers, partial fields and changed order | AU14; Teams source findings 1–2; B5 `au14.md` | RC04 / DRF | Bind current-state wording; unavailable new-team creation identity remains uncertain; no automatic replay or safe-retry claim **Bound in U6 (1a/1b): every Teams command keeps its intended ids/fields and verifies by the no-store readback (pick by participant, Undo by the shown latest pick id — the server refuses a stale id, draw by positions, control by controller, team/member/role by id); “A team named X now exists. It isn’t known whether this request created it.”; a failed read stays unknown with Check again; reviewed (report 99); merged `2d83651e`; user accepted 8 October 2026** |
-| Local roster publication (PublishedAt) is separate from existing last recorded WOM management/operation/local-queue outcomes; only operation CreatedAt >= roster PublishedAt establishes that the operation was created at or after the current roster publication; UpdatedAt cannot establish current-roster relevance (an older in-flight update can finish after republish); a merged pending update keeps its older CreatedAt and conservatively reads as older; queued/failed/unknown never means today’s roster is synchronized | Teams — [TeamsDraft.dc.html](docs/references/admin-ui/TeamsDraft.dc.html) claims WOM is updated after local republishing | AU14; Teams source finding 3; B5 `au14.md` | RC04 / DRF | Bind the existing outcome statuses honestly; no new provider operation or permission **Bound in U6 (1b): corrections and finalize show “Rosters republished.” only for a newer publication cycle than the page showed, then a separate Wise Old Man line (went through / waiting to be sent / failed / isn’t known / couldn’t be queued; nothing when the event has no managed group); no provider text; reviewed (report 99); merged `2d83651e`; user accepted 8 October 2026** |
-| Omit the “another event is current” readiness row despite the reference; retain server lifecycle/finalization guards | Final Review — [FinalReview.dc.html](docs/references/admin-ui/FinalReview.dc.html) shows the row | Narrowed AU18 / Step 0 decision; no additional current-event readiness UI authorized | RC08 / BR-10 | None; omission is decided |
-| Manual-team members in participant lists and waiting positions | Participants — compare with [Participants.dc.html](docs/references/admin-ui/Participants.dc.html) during binding | TD-2 option B; G3b-3 | P-1 | Verify the existing reference against the decided membership behavior during P-1 |
-| Authorized single-entry Audit read, including “This entry isn't available” | Audit — check [Audit.dc.html](docs/references/admin-ui/Audit.dc.html) | AU16; B1/B2 decision D4 | RC06 / WA-5 | Bound in T1 item 4: `?entry=` opens the drawer over the first page, read by id with the list’s visibility and filters; “This entry isn’t available” otherwise; user visual acceptance 7 October 2026 (T1, `UI_PAGE_MATRIX.md`) |
-| Audit event dropdown filter with hidden events marked | Audit — check [Audit.dc.html](docs/references/admin-ui/Audit.dc.html) | AU16; B1/B2 decision D4 | RC06 / WA-5 | Bound in T1 items 2/4: event menu ordered as on Events with state hints, hidden events marked “Hidden · state”, Discarded omitted (Q7); hidden-event entries listed with a Hidden pill (AU16 supersedes Audit.dc.html:390, :560); the menu scrolls when long; user visual acceptance 7 October 2026 (T1, `UI_PAGE_MATRIX.md`) |
+| AU19 approval bindings group per-position `board-incomplete` issues into the reference’s single “(N empty)” item, jumping to and highlighting the first empty position; `Working` is the publication projection during a correction | Board — [Board.dc.html](references/admin-ui/Board.dc.html) | AU19, `08-decisions.md` “AU phase plan”; review36c F6/F8 and brief38 item6 | RC05 / BR-10 | Bound in U7 (brief 88); reviewed (report 95), fixes rechecked at `d7a9e272`; merged `5ec88e93`; user accepted 8 October 2026 (provisional rulings and proposed wordings accepted; page approval in `UI_PAGE_MATRIX.md`). The two open points are resolved: U7-Q1 (rate issues carry the drop names) and U7-Q2 (Publish returns every refusal together) |
+| Blocked approval/contribution state replaces any numerical approval claim; direct link to the earlier pending upload preserves queue/filter context | Review — [Review.dc.html](references/admin-ui/Review.dc.html) does not show it | BR-1/G1 and B5 AU17; shared allocation returns structured blocking submission ID/upload time; `08-decisions.md` “Step 3 decisions” | RC07 / BR-10 | None; preserve the approved navigation and return context |
+| Cap-limited Contribution wording: an exhausted or partial drop/item cap can limit Add while the objective still has remaining work | Review — [Review.dc.html](references/admin-ui/Review.dc.html), Contribution line | B5 review B2; brief35 item 3; shared approval allocation | RC07 | Backend numbers verified; wording remains a binding decision, no current-page display added |
+| Correction picker includes released Playing accounts/former team members, marked Released/Left team/Current; Informational never selectable | Review — [Review.dc.html](references/admin-ui/Review.dc.html) shows a current-team account list without these markers | AU17a; D11 option b in 08-decisions.md | RC07 / BR-10 | Scope decided; bind the markers and derived participant without independent participant editing |
+| Uncertain Teams recovery retains immutable pick/team/member IDs and all intended fields, including inclusion/image/role/account; same order or reusable pick number never proves a request. Failed/unavailable reads remain unknown | Teams — [TeamsDraft.dc.html](references/admin-ui/TeamsDraft.dc.html) predicates use reusable numbers, partial fields and changed order | AU14; Teams source findings 1–2 | RC04 / DRF | Bind current-state wording; unavailable new-team creation identity remains uncertain; no automatic replay or safe-retry claim **Bound in U6 (1a/1b): every Teams command keeps its intended ids/fields and verifies by the no-store readback (pick by participant, Undo by the shown latest pick id — the server refuses a stale id, draw by positions, control by controller, team/member/role by id); “A team named X now exists. It isn’t known whether this request created it.”; a failed read stays unknown with Check again; reviewed (report 99); merged `2d83651e`; user accepted 8 October 2026** |
+| Local roster publication (PublishedAt) is separate from existing last recorded WOM management/operation/local-queue outcomes; only operation CreatedAt >= roster PublishedAt establishes that the operation was created at or after the current roster publication; UpdatedAt cannot establish current-roster relevance (an older in-flight update can finish after republish); a merged pending update keeps its older CreatedAt and conservatively reads as older; queued/failed/unknown never means today’s roster is synchronized | Teams — [TeamsDraft.dc.html](references/admin-ui/TeamsDraft.dc.html) claims WOM is updated after local republishing | AU14; Teams source finding 3 | RC04 / DRF | Bind the existing outcome statuses honestly; no new provider operation or permission **Bound in U6 (1b): corrections and finalize show “Rosters republished.” only for a newer publication cycle than the page showed, then a separate Wise Old Man line (went through / waiting to be sent / failed / isn’t known / couldn’t be queued; nothing when the event has no managed group); no provider text; reviewed (report 99); merged `2d83651e`; user accepted 8 October 2026** |
+| Omit the “another event is current” readiness row despite the reference; retain server lifecycle/finalization guards | Final Review — [FinalReview.dc.html](references/admin-ui/FinalReview.dc.html) shows the row | Narrowed AU18 / Step 0 decision; no additional current-event readiness UI authorized | RC08 / BR-10 | None; omission is decided |
+| Manual-team members in participant lists and waiting positions | Participants — compare with [Participants.dc.html](references/admin-ui/Participants.dc.html) during binding | TD-2 option B; G3b-3 | P-1 | Verify the existing reference against the decided membership behavior during P-1 |
+| Authorized single-entry Audit read, including “This entry isn't available” | Audit — check [Audit.dc.html](references/admin-ui/Audit.dc.html) | AU16; B1/B2 decision D4 | RC06 / WA-5 | Bound in T1 item 4: `?entry=` opens the drawer over the first page, read by id with the list’s visibility and filters; “This entry isn’t available” otherwise; user visual acceptance 7 October 2026 (T1, `UI_PAGE_MATRIX.md`) |
+| Audit event dropdown filter with hidden events marked | Audit — check [Audit.dc.html](references/admin-ui/Audit.dc.html) | AU16; B1/B2 decision D4 | RC06 / WA-5 | Bound in T1 items 2/4: event menu ordered as on Events with state hints, hidden events marked “Hidden · state”, Discarded omitted (Q7); hidden-event entries listed with a Hidden pill (AU16 supersedes Audit.dc.html:390, :560); the menu scrolls when long; user visual acceptance 7 October 2026 (T1, `UI_PAGE_MATRIX.md`) |
 | Audit areas (S11, Q5 (a)): nine areas instead of the reference's seven. Accounts, Events, Signups, Participants, Teams, Draft, Board, Evidence, Catalogue; areas are prefix sets plus explicit key lists (event.signup_*/capacity_increased/signup_code_changed/signup_administration_updated → Signups; team.member_*/membership_role_changed and roster.finalized_* → Participants); evidence_code.* and historical_import.* sit in Events (planner to confirm). Query names follow the reference (event id, action, actor, type, from, to, page, entry); C-AUD-3 actor ignores case and a leading “@”; C-AUD-4 invalid or unknown link parts are dropped with a notice; Discarded events are omitted from the event menu (Q7) | Audit — Audit.dc.html:425 (seven AREAS), README :2023–2026 | S11/Q5, C-AUD-3/4, Q7 in 08-decisions.md “T1 brief decisions” | T1 item 2 (lane T) | Area for evidence_code.*/historical_import.* not in Q5; user visual acceptance 7 October 2026 (T1, `UI_PAGE_MATRIX.md`) |
 | Audit page bindings beyond the reference: Automated pill and “System” actor derived from a null actor account; drawer context shows reopening explanations and plain recorded details; sensitive actions (code, password, credential) show no field changes, before or after values; record name from the entry’s before/after snapshot, otherwise the record type (C-AUD-5 display only, Q6); every recorded action key labelled in English and Danish with a completeness test (S12); change labels sentence-cased; record types Tile, Signup question, WOM competition added | Audit — Audit.dc.html:190–194, :746, :759; README :2190–2200 | S12, C-AUD-5/Q6 in 08-decisions.md | T1 items 3/4 (lane T) | Writer-side record names are a main-lane item (Q6); user visual acceptance 7 October 2026 (T1, `UI_PAGE_MATRIX.md`) |
 | Audit Changes table is human-readable (T1-8 (a), user): ids, versions, editing leases and concurrency markers (one named policy, `AuditPresenter.IsTechnicalField`) appear only in Technical details; rows that read the same before and after (including empty → empty) are omitted; decimals are rounded like the site's EHB values (“0.##”, current culture); ISO instants use the drawer's “When” format (Copenhagen, with UTC offset, English and Danish); the field count counts only the shown rows; when every change was technical-only the drawer says “Only technical fields changed. See Technical details.” instead of “No field changes were recorded…” (T1 review L1). Display only; the shared presenter also shapes Review Details history (`_AuditEntry`), which gains the same filtering and formatting | Audit — Audit.dc.html Changes section (sample entries have only readable fields); Review Details (U8) via the shared presenter | T1-8 (a) in 08-decisions.md | T1 (lane T) | None; user visual acceptance 7 October 2026 (T1, `UI_PAGE_MATRIX.md`) |
 | Search fields avoid browser/password-manager username autofill (T1-9 (a), user): Accounts search reads “Search accounts”; the Audit actor field reads “Actor” / “Filter by actor” with the hint “Matches actors whose name contains what you type…”; Danish wording avoids “brugernavn”; both inputs keep autocomplete="off" and add data-1p-ignore, data-lpignore="true", data-bwignore and data-form-type="other"; no id or name contains “user” | Accounts — Accounts.dc.html “Search usernames”; Audit — Audit.dc.html “Actor username” / “Filter by actor username” | T1-9 (a) in 08-decisions.md | T1 (lane T) | None; user visual acceptance 7 October 2026 (T1, `UI_PAGE_MATRIX.md`) |
 | Audit More filters panel protects unapplied edits (T1 review M2, decision B / A12): with edited fields, Escape, an outside click (which then does not act on what it hit) or the More filters button opens the shared discard confirmation; Keep editing keeps the panel and its values, Discard resets it to the applied filters; leaving the page uses the shared dirty guard. With no edits it closes at once. The panel also moves up when the space below the button is short (A4) | Audit — Audit.dc.html:668, :674, :793 close the panel and drop edits silently | Decision B / A12; “T1 review” in 08-decisions.md | T1 (lane T) | None; awaiting recheck |
 | Audit header summary is only “Times in Copenhagen time (UTC±hh:mm)”: the page-describing sentence “Administrative history, newest first.” is dropped (loaded and loading; U3-Q10 planner ruling, the 390 px loading summary exceeded the two-line reservation). The loading header keeps this fixed text while loading; it is data-independent, so it is shown, not reserved (T1 review L2, applying “Count summaries load like the tab counts”). To be declared when Audit registers in the U3 page-conformance check | Audit — Audit.dc.html:129 (summary sentence; loading state not shown) | “T1 review” L2 and U3-Q10 in 08-decisions.md | T1 (lane T) | None |
-| WOM refresh outcome follows the reference's unsuccessful-only note; stored next eligible time remains data only | Final Review — [FinalReview.dc.html](docs/references/admin-ui/FinalReview.dc.html) does not display next eligible time | AU18; known UI differences recorded after B1/B2 review | RC08 / BR-10 | No additional next-eligible-time display approved |
-| Tile EHB override set/change/reset with calculated baseline; submit explicit change-override intent | Board — bind the control in [Board.dc.html](docs/references/admin-ui/Board.dc.html) to the reviewed backend contract | AU11 and its explicit-intent remediation | RC05 / BR-10 | None; verify the intent mapping during binding |
-| Catalogue rate entry and “How the rate is counted” panel follow the decided fields and permissions | Catalogue — intentional differences from [Catalogue.dc.html](docs/references/admin-ui/Catalogue.dc.html) | AU23 backend delivered in B4; [Catalogue decisions — AU23, CAT-1 and WA-5](#catalogue-decisions--au23-cat-1-and-wa-5-4-october-b4-backend-delivered-wa-5-binding-pending); `08-decisions.md` “Drop-rate mechanics” / “Catalogue layout” | RC10 / WA-5 | Bound in T2 (lane T, items 1–2); user visual acceptance 7 October 2026 (`UI_PAGE_MATRIX.md`; whole suite green on `69f9cf01`, 8 October 2026) |
-| Informational activity Team size in Settings and Add activity beside Kills per hour | Catalogue — intentional difference from [Catalogue.dc.html](docs/references/admin-ui/Catalogue.dc.html) | CAT-1 backend delivered in B4; [Catalogue decisions — AU23, CAT-1 and WA-5](#catalogue-decisions--au23-cat-1-and-wa-5-4-october-b4-backend-delivered-wa-5-binding-pending); `08-decisions.md` “Catalogue layout” | RC10 / WA-5 | Bound in T2 (lane T, items 1–2); user visual acceptance 7 October 2026 (`UI_PAGE_MATRIX.md`; whole suite green on `69f9cf01`, 8 October 2026) |
+| WOM refresh outcome follows the reference's unsuccessful-only note; stored next eligible time remains data only | Final Review — [FinalReview.dc.html](references/admin-ui/FinalReview.dc.html) does not display next eligible time | AU18; known UI differences recorded after B1/B2 review | RC08 / BR-10 | No additional next-eligible-time display approved |
+| Tile EHB override set/change/reset with calculated baseline; submit explicit change-override intent | Board — bind the control in [Board.dc.html](references/admin-ui/Board.dc.html) to the reviewed backend contract | AU11 and its explicit-intent remediation | RC05 / BR-10 | None; verify the intent mapping during binding |
+| Catalogue rate entry and “How the rate is counted” panel follow the decided fields and permissions | Catalogue — intentional differences from [Catalogue.dc.html](references/admin-ui/Catalogue.dc.html) | AU23 backend delivered in B4; [Catalogue decisions — AU23, CAT-1 and WA-5](#catalogue-decisions-au23-cat-1-wa-5); `08-decisions.md` “Drop-rate mechanics” / “Catalogue layout” | RC10 / WA-5 | Bound in T2 (lane T, items 1–2); user visual acceptance 7 October 2026 (`UI_PAGE_MATRIX.md`; whole suite green on `69f9cf01`, 8 October 2026) |
+| Informational activity Team size in Settings and Add activity beside Kills per hour | Catalogue — intentional difference from [Catalogue.dc.html](references/admin-ui/Catalogue.dc.html) | CAT-1 backend delivered in B4; [Catalogue decisions — AU23, CAT-1 and WA-5](#catalogue-decisions-au23-cat-1-wa-5); `08-decisions.md` “Catalogue layout” | RC10 / WA-5 | Bound in T2 (lane T, items 1–2); user visual acceptance 7 October 2026 (`UI_PAGE_MATRIX.md`; whole suite green on `69f9cf01`, 8 October 2026) |
 | Structured confirmation naming every affected activity before a shared item rename or image change, including Add-drop adoption with a different normalized image; no per-activity split | Catalogue — the reference only shows a generic “also used by” indication and does not show the named-activity confirmation | AU21/D7 option (a) and D9 option (a); 08-decisions.md, B4 review decisions; B4 remediation item 1 | RC10 / WA-5 | Bound in T2 (lane T, items 1–2); user visual acceptance 7 October 2026 (`UI_PAGE_MATRIX.md`; whole suite green on `69f9cf01`, 8 October 2026); the list travels in the JSON response (brief 82), TempData key removed |
 | WOM end-update status NotRequired/Pending/Succeeded/Rejected/CouldNotUpdate, target end and sanitized failure. A15: WOM shows Pending/Rejected/could-not-update with target end and corrects paused-fetch wording; Overview shows Needs attention in Final review for Pending/Rejected linking WOM; Final Review publish confirmation warns that the last fetch becomes official and retains the per-version note after publication. Publication is never blocked | WOM — Wom.dc.html; Overview — Overview.dc.html; Final Review — FinalReview.dc.html (existing component patterns) | WA-2 / AU20; Plan 42 A15 | WOM U9 / WA-5; Overview U4 / OS-1; Final Review U9 / BR-10 | None for A15 placement; other WOM fetch outcomes remain the U9 group-B question; Overview part Bound in U4 (brief 85); user early look passed 7 October 2026; reviewed (report 91), fixes rechecked at `a91b29ad`; merged `969d0351`; user accepted 8 October 2026 |
-| Structured fetch eligibility, AU18 skip reason and next permitted time; typed credential/current-operation identity, phase and next attempt | WOM — [Wom.dc.html](docs/references/admin-ui/Wom.dc.html); these backend outputs exceed the generic Fetch wording. Final Review retains its separate AU18 data-only next-time decision above | WA-6 / AU20; Step 4 D4 and B1/B2 D2 in B3 source attribution; brief 23 items 1 and 6 | WA-5 / RC09, as settled in the UI integration plan | Decide which structured WOM outcomes are displayed and their binding before integration; keep current-page generic Fetch wording and no new Final Review next-time display |
-| Resume always requires a validated future replacement end, even when the retained configured end is future; early end stores the ceiling-minute configured end and precise actual end | Overview — [Overview.dc.html](docs/references/admin-ui/Overview.dc.html) currently conditionally asks for the replacement only after the retained end has passed | WA-2 corrected Resume rule; AU20 item2; remediation brief item6 / review24f R1 | RC01 / OS-1 | Bound in U4 (brief 85); user early look passed 7 October 2026; reviewed (report 91), fixes rechecked at `a91b29ad`; merged `969d0351`; user accepted 8 October 2026. Dialog text (Resume always asks for the new end; early end states the ceiling-minute end) accepted 8 October 2026 |
+| Structured fetch eligibility, AU18 skip reason and next permitted time; typed credential/current-operation identity, phase and next attempt | WOM — [Wom.dc.html](references/admin-ui/Wom.dc.html); these backend outputs exceed the generic Fetch wording. Final Review retains its separate AU18 data-only next-time decision above | WA-6 / AU20; Step 4 D4 and B1/B2 D2 in B3 source attribution; brief 23 items 1 and 6 | WA-5 / RC09, as settled in the UI integration plan | Decide which structured WOM outcomes are displayed and their binding before integration; keep current-page generic Fetch wording and no new Final Review next-time display |
+| Resume always requires a validated future replacement end, even when the retained configured end is future; early end stores the ceiling-minute configured end and precise actual end | Overview — [Overview.dc.html](references/admin-ui/Overview.dc.html) currently conditionally asks for the replacement only after the retained end has passed | WA-2 corrected Resume rule; AU20 item2; remediation brief item6 / review24f R1 | RC01 / OS-1 | Bound in U4 (brief 85); user early look passed 7 October 2026; reviewed (report 91), fixes rechecked at `a91b29ad`; merged `969d0351`; user accepted 8 October 2026. Dialog text (Resume always asks for the new end; early end states the ceiling-minute end) accepted 8 October 2026 |
 | Cancelled/Finalized/Archived admin pages open read-only; each page binding removes its view redirect from EventMutationCapabilityPageFilter (baseline view redirect `:90-101`); all changes remain refused under D16 | All event admin pages — Identity, Schedule, Signup setup, WOM, Final Review, Participants references | D17 / D16 in 08-decisions.md | Each page integration inventory | Identity GET/Current bound in U1; remaining page removals stay with their assigned bindings |
 | Signup answers shows every custom question as question: answer, editable until draft start then read-only; drop Participant’s note and its row flag | Participants — Participants.dc.html | S1 in 08-decisions.md | P-1 | Decided future binding; no new field |
 | Start checklist and postponed automatic start, when another event is still current (Live or in Final review): “Publish the results of ‹other event› first”, linking to that event | Overview — Overview.dc.html | S2 in 08-decisions.md | OS-1 | Bound in U4 (brief 85); user early look passed 7 October 2026; reviewed (report 91), fixes rechecked at `a91b29ad`; merged `969d0351`; user accepted 8 October 2026; also in the Resume dialog (U4-Q4 (b)); legacy Finished reads “‹X› is still the current event. Contact the Super Admin to archive it.” (U4-Q5 (a)) |
@@ -295,7 +469,7 @@ here; do not silently omit a row because the reference has no corresponding cont
 | Catalogue thumbnails show the item’s or activity’s cached Wiki image (or an empty tile); the reference’s coloured initial tiles are prototype placeholders | Catalogue — Catalogue.dc.html `:506` | WA-5 binding (real data) | T2 / WA-5 | — |
 | Catalogue thumbnails show the whole sprite: `background-size:contain`, centred, 3px inset in the same 32px / 44px boxes, track background and inset border kept (family-scoped page CSS); the reference `.thumb` uses `center/cover` (`components.css:1328`), which crops or zooms OSRS sprites of different proportions. The loading header’s Add activity is a usable link from the first frame, as Events’ Create event | Catalogue — Catalogue.dc.html; ui/components.css | 08 “T2 Catalogue early look” (planner rulings on the user’s findings) | T2 / WA-5 | — |
 | Catalogue wording forced by case-insensitive resource keys: drop line value “untradeable, 0 gp” (reference “untradeable”), calculated EHB “Unavailable” (reference “Not available”); Team size hint “The group size the rates assume. It isn’t used in calculations.” (no reference text) | Catalogue — Catalogue.dc.html `:1079`, `:1095` | A5 Danish text; CAT-1 | T2 / WA-5 | Wording accepted with T2 (user, 7 October 2026) |
-| U8-Q1: Review times lead with UTC (the OSRS event plugin stamps UTC); the secondary time is the event's own timezone named by its city (`BingoEvent.Timezone`), in the queue's Uploaded column, the workspace facts and the header “Times in UTC, with {city} time below” | Review — [Review.dc.html](docs/references/admin-ui/Review.dc.html) `:476`, `:1141`, `:1188` lead with fixed Copenhagen time | User decision U8-Q1 (b), 7 October 2026; planner ruling 3 (queue included) | U8 | None; no Copenhagen string remains in Review |
+| U8-Q1: Review times lead with UTC (the OSRS event plugin stamps UTC); the secondary time is the event's own timezone named by its city (`BingoEvent.Timezone`), in the queue's Uploaded column, the workspace facts and the header “Times in UTC, with {city} time below” | Review — [Review.dc.html](references/admin-ui/Review.dc.html) `:476`, `:1141`, `:1188` lead with fixed Copenhagen time | User decision U8-Q1 (b), 7 October 2026; planner ruling 3 (queue included) | U8 | None; no Copenhagen string remains in Review |
 | Queue per-row check warnings (After end, Paused period, Same image, No screenshot, Left team) and drop/boss (“Manual objective” when none) from a bounded projection of existing data, one after-end boundary `ActualEndedAt ?? EventEndsAt` for queue and workspace | Review — Review.dc.html queue rows (R-R15, R-R12) | RC07 R-R15; README Review notes 3–4 | U8 | None; no new rule |
 | Wording replaced for truth or brevity (R-R19): “Active asset”, “Resolve submission”, “Correct metadata before approval”, “Ineligible final-review interval” become short labels; paused-period title “Check the in-game time: the event was paused.” (RC07 corrects `:1171`; the screenshot's game time is judged, not upload time); “Mark … as a duplicate” becomes “reject it with a reason”; the always-visible “No Captain note” is dropped (the note shows only when present) | Review — Review.dc.html `:1169-1172` | RC07 R-R12, R-R19 | U8 | None |
 | Closed-state texts per lifecycle (the reference has one sentence, `:1229`): Draft/Signups “Review starts when the event is Live.”; Finalized “{event} is finished, so review is read-only.”; Archived “{event} is archived, so review is read-only.”; Cancelled “{event} was cancelled, so review is read-only.”; queue summary “Finished/Archived/Cancelled · review is read-only”; terminal empty queue “No evidence was submitted in {event}.”; Approve/Reject/Correct/Reverse and the Contribution line hidden when review is closed (R-R5) | Review — Review.dc.html `:1229` | D16/D17; planner wording at the U8 early look | U8 | Wording proposed by the implementer; accepted 8 October 2026 (U8 proposed wordings in 94h) |
