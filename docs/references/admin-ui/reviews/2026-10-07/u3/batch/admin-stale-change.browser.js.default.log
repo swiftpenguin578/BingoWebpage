@@ -1,2 +1,0 @@
-TypeError: Cannot read properties of null (reading '1')
-    at /Users/christopher/.codex/worktrees/participants-functionality/BingoWebpage/tests/Bingo.BrowserTests/admin-stale-change.browser.js:21:86

@@ -1,2 +1,0 @@
-command=dotnet format Bingo.slnx --no-restore --verify-no-changes --verbosity minimal --include tests/Bingo.IntegrationTests/Slice4ParticipantLifecycleIntegrationTests.cs
-exit_code=0

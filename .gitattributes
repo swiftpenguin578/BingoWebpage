@@ -1,0 +1,4 @@
+# Generated and vendored files: collapsed in GitHub diffs and excluded from language statistics.
+src/Bingo.Infrastructure/Persistence/Migrations/*.Designer.cs linguist-generated=true
+src/Bingo.Infrastructure/Persistence/Migrations/*ModelSnapshot.cs linguist-generated=true
+src/Bingo.Web/wwwroot/lib/** linguist-generated=true

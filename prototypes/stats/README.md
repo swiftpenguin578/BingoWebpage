@@ -55,7 +55,7 @@ The base prototype UI and final **Drop value exploration and polish** are user-a
 
 Drop value, Luck and Event milestones are approved. Keeps on dropping and Most versatile
 remain locked. Board progress motion/guidance and final responsive polish are approved. Values remain illustrative; this is not a production
-Stats implementation. UI_PAGE_MATRIX.md owns acceptance and CURRENT_STATUS.md the handoff.
+Stats implementation. docs/UI_PAGE_MATRIX.md owns acceptance and CURRENT_STATUS.md the handoff.
 
 ### Approved animations
 
@@ -108,5 +108,5 @@ motion shows final states. The new info overlay starts open, with ×/Escape dism
 ⓘ reopening. All existing section info icons now share Luck's styling and state colors.
 
 The user approved the completed Stats prototype UI on 2026-09-15, including final narrow
-header and milestone spacing refinements. UI_PAGE_MATRIX.md owns page acceptance.
+header and milestone spacing refinements. docs/UI_PAGE_MATRIX.md owns page acceptance.
 Production implementation, real data/calculations and account preferences remain deferred.

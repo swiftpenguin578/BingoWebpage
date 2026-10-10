@@ -9,12 +9,9 @@ OSRS Community Bingo platform: ASP.NET Core/Razor, PostgreSQL and EF Core.
 - Read the active handoff in `CURRENT_STATUS.md` and the assigned plan section.
   Read further authority sections only to resolve a question relevant to the task.
 - Before dispatching or resuming coordination, planners and dispatchers read
-  [the lean execution workflow](DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
+  [the lean execution workflow](docs/DELIVERY_PLAN.md#421-lean-execution-and-planner-handoff).
 - A continuing worker should reuse established evidence and source knowledge.
   Reread only changed or missing context; do not restart discovery after a handoff.
-- Do not use `docs/archive/` for ordinary work. It is historical evidence, not
-  current authority, unless an explicit provenance investigation requires it.
-  Root tombstones and the former Application Atlas are not active authorities.
 
 ## Scope and roles
 
@@ -111,7 +108,7 @@ remain evidence of completed work, not competing defaults.
   are merged locally into the working branch, then their branch and worktree are
   removed. Pushing to main, merging into main
   and deploying always need the user's explicit approval.
-  For branch cleanup/publication, follow `DELIVERY_PLAN.md` section 4.7.
+  For branch cleanup/publication, follow `docs/DELIVERY_PLAN.md` section 4.7.
 - Do not expose secrets or include real participant data in committed artifacts.
 - Do not reset, seed or mutate user-owned databases outside the authorized task.
   Use controlled fixtures for checks; leave the user's running app alone unless
@@ -172,7 +169,7 @@ remain evidence of completed work, not competing defaults.
   ordering, include non-microsecond-aligned input and a real PostgreSQL round trip
   where relevant so normalization cannot hide a production correctness defect.
   Tests must behave consistently on local runs and Linux GitHub Actions runners.
-- Follow the applicable delivery procedures in `DELIVERY_PLAN.md` sections 4.1–4.6:
+- Follow the applicable delivery procedures in `docs/DELIVERY_PLAN.md` sections 4.1–4.6:
   planning/readiness for major functional slices, change control for material changes,
   evidence at affected boundaries, required review, slice preflight and completion.
   Read only the relevant subsection; these do not add stages to every small fix.
@@ -180,12 +177,12 @@ remain evidence of completed work, not competing defaults.
   checks source, and the user supplies final visual acceptance. General composition
   approval does not also approve newly revealed confirmations, errors or toasts.
   Check outcome wording, severity, recovery, duplication and modal visibility against
-  `UI_SYSTEM.md`; this does not authorize a separate whole-site feedback audit.
-- Other UI passes follow `UI_SYSTEM.md`'s task/review contract and `UI_PAGE_MATRIX.md`.
+  `docs/UI_SYSTEM.md`; this does not authorize a separate whole-site feedback audit.
+- Other UI passes follow `docs/UI_SYSTEM.md`'s task/review contract and `docs/UI_PAGE_MATRIX.md`.
   Historical reference images apply only when explicitly reactivated for the current
   task. Preserve approved composition and interaction models. Manual approval is
   page-specific; deferred acceptance stays awaiting approval.
-- Use existing setup/build/test commands from `README.md`. The implementer runs
+- Use existing setup/build/test commands from `docs/DEVELOPMENT.md`. The implementer runs
   the assignment's scoped checks and reports; affected .NET tests apply when needed,
   and small fixes require a Release build only if C# or Razor changed. The full JS
   runner and Release build are batch gates as stated above, not per-fix gates.
@@ -230,12 +227,17 @@ remain evidence of completed work, not competing defaults.
 | Question | Authority |
 | --- | --- |
 | Current checkout, work, evidence or blocker | `CURRENT_STATUS.md` |
-| Approved scope, pass order and delivery gates | `DELIVERY_PLAN.md` |
-| Product behavior and user journeys | `PRODUCT_REQUIREMENTS.md`, `FUNCTIONAL_CONTRACTS.md` |
-| Data invariants and architecture | `DATA_MODEL.md`, `TECHNICAL_ARCHITECTURE.md` |
-| UI rules, page exceptions and approvals | `UI_SYSTEM.md`, `UI_PAGE_MATRIX.md` |
-| Commands and local setup | `README.md`, `DEVELOPMENT_SETUP.md` |
+| Delivery procedures, release gates and standing decisions | `docs/DELIVERY_PLAN.md` |
+| Product behavior and user journeys | `docs/PRODUCT_REQUIREMENTS.md`, `docs/FUNCTIONAL_CONTRACTS.md` |
+| Data invariants and architecture | `docs/DATA_MODEL.md`, `docs/TECHNICAL_ARCHITECTURE.md` |
+| UI rules, page exceptions and approvals | `docs/UI_SYSTEM.md`, `docs/UI_PAGE_MATRIX.md` |
+| Production operation and topology | `docs/PRODUCTION_RUNBOOK.md`, `docs/PRODUCTION_TOPOLOGY.md` |
+| Commands and local setup | `docs/DEVELOPMENT.md` (project introduction: `README.md`) |
+| Ideas and fixes not yet approved | `BACKLOG.md` |
 
+- Documents describe only the current state; history lives in Git, PRs and review
+  notes. Replace text instead of appending exceptions; delete finished plans and
+  tickets once done.
 - Report conflicts between authorities rather than silently selecting a convenient
   rule. Current user decisions take precedence; preserve required safety boundaries.
   Promote accepted behavior/scope changes to the existing authority before implementing
@@ -250,6 +252,6 @@ remain evidence of completed work, not competing defaults.
   decisions. Never claim an unrun check passed; a handoff or successful build is not
   an independent review pass, and technical approval is not manual acceptance.
   If compaction or interruption forces a handoff, record the last verified state and
-  exact next step. `UI_PAGE_MATRIX.md` alone owns page approval; status summaries do not.
+  exact next step. `docs/UI_PAGE_MATRIX.md` alone owns page approval; status summaries do not.
 - Stop when the assigned result and applicable gates are satisfied. Do not begin
   another page family or packaging without its authorization.
