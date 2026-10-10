@@ -1,23 +1,6 @@
-// U9: RC09 W1-W6, WA-9, AU20, A15, C-CMP-2. Owned PostgreSQL/Kestrel only.
-const assert=require('node:assert/strict'),path=require('node:path'),fs=require('node:fs');
-const {chromium,webkit}=require('playwright');
-const {startFixture,login}=require('../../scripts/lib/admin-parity-fixture.cjs');
-(async()=>{
- const engine=process.env.PLAYWRIGHT_BROWSER||'chromium',output=path.join(process.cwd(),'artifacts/wom-'+engine),cases=[];
- const browser=await(engine==='webkit'?webkit:chromium).launch({headless:true});
- async function scenario(variant,body){
-  if(process.env.U9_WOM_VARIANTS&&!process.env.U9_WOM_VARIANTS.split(',').includes(variant))return;
-  const fixture=await startFixture(process.cwd(),path.join(output,variant),{BINGO_PARITY_UR_PROFILE:variant==='rate-limited'||variant==='fetch-ready'?'live':'final-review',BINGO_PARITY_U9_WOM:variant});
-  // Release the fixture whatever happens to the browser (a closed browser rejects
-  // newContext/context.close); its dotnet/python children otherwise keep Node alive.
-  let context;
-  try{context=await browser.newContext({viewport:{width:1280,height:1000}});const page=await login(context,fixture),errors=[];page.on('pageerror',error=>errors.push(error.message));page.on('dialog',dialog=>dialog.accept());
-   const route=slug=>'/Admin/Events/WiseOldMan/'+fixture.events[slug],go=async slug=>{await page.goto(fixture.origin+route(slug));await page.waitForFunction(()=>window.AdminUI&&document.querySelector('[data-wom]'));};
-   const state=()=>page.locator('[data-wom]').getAttribute('data-current').then(JSON.parse),accept=()=>page.locator('.modal [data-confirm-accept]'),notice=()=>page.locator('[data-wom-notice]');
-   await body({page,fixture,route,go,state,accept,notice});assert.deepEqual(errors,[]);console.log('PASS WOM '+variant+' ['+engine+']');
-  }finally{try{await context?.close();}finally{await fixture.close();}}
- }
- try{
+// U9: RC09 W1-W6, WA-9, AU20, A15, C-CMP-2 (base and rejected variants). Owned PostgreSQL/Kestrel only; shared harness in fixtures/admin-design-wom-harness.cjs.
+const assert=require('node:assert/strict'),path=require('node:path');
+require('./fixtures/admin-design-wom-harness.cjs')('wom-connection',async({scenario,cases,output})=>{
  await scenario('base',async({page,fixture,route,go,state,accept,notice})=>{
   await go('ur-current');assert.match(await page.locator('#sync-state').textContent(),/pending/i);assert.equal(await page.locator('#fetch-btn').isDisabled(),true);assert.match(await page.locator('[data-wom]').textContent(),/paused/i);assert.equal((await state()).activity.expectedAccountCount,6);assert.doesNotMatch(await page.locator('.wm-empty .empty-title').textContent(),/No teams yet/);await page.screenshot({path:path.join(output,'pending-wide.png'),fullPage:true,animations:'disabled'});await page.setViewportSize({width:390,height:900});await page.screenshot({path:path.join(output,'pending-phone.png'),fullPage:true,animations:'disabled'});await page.setViewportSize({width:1280,height:1000});
   await go('ur-wom-unavailable');assert.match(await page.locator('#sync-state').textContent(),/could not/i);assert.equal(await page.locator('[data-wom-action] button:enabled').count(),0);
@@ -36,12 +19,4 @@ const {startFixture,login}=require('../../scripts/lib/admin-parity-fixture.cjs')
   await go('ur-signups-closed');assert.equal((await state()).management.canCreate,true,JSON.stringify((await state()).management.preview.errors));await page.locator('#create-btn').click();assert.ok(await page.locator('.modal [data-create-checks] li').count()>=3);await accept().click();await page.waitForFunction(()=>!document.querySelector('.modal')&&document.querySelector('[data-wom-notice]')?.textContent.trim());assert.match(await notice().textContent(),/queued/i);assert.equal((await state()).management.operationType,1);assert.equal(await page.locator('#link-btn').isDisabled(),true);cases.push('C-WOM-2 / WA-9: Create confirmation retains all three checks and real queued Create locks further links');
  });
  await scenario('rejected',async({page,go})=>{await go('ur-current');assert.match(await page.locator('#sync-state').textContent(),/rejected/i);assert.equal(await page.locator('#fetch-btn').isDisabled(),true);assert.match(await page.locator('[data-wom]').textContent(),/Target end/);cases.push('A15: mutable Rejected end update retains target and pauses fetch');});
- await scenario('rate-limited',async({page,fixture,go})=>{await go('ur-current');assert.equal(await page.locator('#fetch-btn').isDisabled(),true);assert.match(await page.locator('[data-wom]').textContent(),/rate limit|retry/i);await page.goto(fixture.origin+'/Admin/Events/Finalize/'+fixture.events['ur-archived']);await page.locator('#reopen-btn').waitFor();assert.equal(await page.locator('#reopen-btn').isDisabled(),true);assert.match(await page.locator('#reopen-why').textContent(),/is still live.*publish its results/is);cases.push('U9-Q1: Live current event blocks Final Review Reopen with the ruled guidance');cases.push('U9-Q2 / WA-6: rate-limited next retry shown without a generic cooldown');});
- await scenario('fetch-ready',async({page,route,go,state,notice})=>{
-  await go('ur-current');assert.equal(await page.locator('#fetch-btn').isEnabled(),true);const before=(await state()).integration.lastSuccessfulAt;
-  await page.route('**'+route('ur-current')+'?handler=FetchCompetition',r=>r.fulfill({status:502,body:'response lost'}));await page.locator('#fetch-btn').click();await page.locator('[data-wom-readback]').waitFor();await page.locator('[data-wom-readback]').click();await page.waitForFunction(()=>document.querySelector('[data-wom-notice]')?.textContent.includes('Current stored connection:'));assert.equal((await state()).integration.lastSuccessfulAt,before);assert.match(await notice().textContent(),/couldn’t confirm whether new data was fetched.*Last successful fetch on record/is);await page.unroute('**'+route('ur-current')+'?handler=FetchCompetition');
-  await page.route('**'+route('ur-current')+'?handler=FetchCompetition',r=>r.fulfill({status:200,contentType:'application/json',body:JSON.stringify({succeeded:false,outcome:'skipped',skipReason:'WithinHour',message:'The last successful fetch was less than an hour ago.',retryAt:'2027-06-02T13:00:00Z'})}));await page.locator('#fetch-btn').click();await page.waitForFunction(()=>document.querySelector('[data-wom-notice]')?.textContent.includes('less than an hour'));assert.match(await notice().textContent(),/Next eligible time/);cases.push('RC09 W3 / U9-Q2: old timestamp never proves timed-out fetch finished; exact skipped reason and eligible time render in place');
- });
- fs.writeFileSync(path.join(output,process.env.U9_WOM_VARIANTS?'focused-results.json':'results.json'),JSON.stringify({engine,cases},null,2));console.log('PASS '+cases.length+' WOM browser scenarios ['+engine+']');
- }finally{await browser.close();}
-})().catch(error=>{console.error(error);process.exitCode=1;});
+});
