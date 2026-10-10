@@ -64,6 +64,23 @@ const contrast=(a,b)=>{const [x,y]=[luminance(a),luminance(b)].sort((m,n)=>n-m);
    if(shots&&w===1280)await p.screenshot({path:path.join(shots,`switch-heading-${theme}-${bodyClass.replace(/public-ui-page-canvas ?/,'')||'canvas'}.png`),clip:{x:0,y:0,width:w,height:260}});
   }
   checks.push('Switch account heading contrast >= 4.5 on canvas/pass1/landing bodies, light and dark, bar and strip');
+  // The popover must look the same on an event page (event shell) and on every other public page: heading and panel computed styles are identical.
+  for(const theme of ['light','dark'])for(const w of [1280,390]){
+   const bar=w>=761?'bar':'strip';const seen={};
+   for(const bodyClass of ['public-ui-page-canvas','public-ui-page-canvas public-ui-editorial-landing','public-ui-page-canvas public-event-shell public-ui-pass1']){
+    await load({lang:'en',name:'Ur admin 2',two:true,theme,bodyClass},w);
+    await p.evaluate(v=>{document.querySelector(`.landing-shell-playing--${v} [data-public-ui-popover-panel]`).hidden=false;},bar);
+    seen[bodyClass]=await p.evaluate(v=>{const panel=document.querySelector(`.landing-shell-playing--${v} .landing-shell-playing__panel`),h=panel.querySelector('.public-ui-section-heading'),o=panel.querySelector('.landing-shell-playing__option');
+     const pick=(e,ks)=>Object.fromEntries(ks.map(k=>[k,getComputedStyle(e)[k]]));
+     return{heading:pick(h,['color','fontFamily','fontSize','fontWeight','lineHeight','letterSpacing','textTransform','paddingTop','paddingRight','paddingBottom','paddingLeft','borderBottomWidth','borderBottomStyle','borderBottomColor']),
+      panel:pick(panel,['width','paddingTop','paddingLeft','color','backgroundColor','borderTopColor','borderTopWidth','boxShadow']),option:pick(o,['color','fontFamily','fontSize','paddingTop','borderBottomColor'])};},bar);
+   }
+   const ref=seen['public-ui-page-canvas public-event-shell public-ui-pass1'];
+   assert.notEqual(ref.heading.borderBottomWidth,'0px',`${theme}/${w}px: heading is underlined`);
+   assert.ok(ref.heading.fontFamily.includes('Barlow Condensed ExtraBold'),`${theme}/${w}px: heading font`);
+   for(const [bc,v] of Object.entries(seen))assert.deepEqual(v,ref,`${theme}/${w}px: popover on "${bc}" differs from the event shell`);
+  }
+  checks.push('Switch account popover (heading colour, underline, font, spacing, panel) identical on canvas, landing and event-shell bodies, light and dark, bar and strip');
  }finally{await browser.close();}
  console.log(checks.join('\n'));
 })().catch(e=>{console.error(e);process.exit(1);});
