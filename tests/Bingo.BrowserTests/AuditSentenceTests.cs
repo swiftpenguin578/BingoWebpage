@@ -164,23 +164,47 @@ public sealed class AuditSentenceTests
         Assert.Empty(Affected(Entry("board.published", "board", Guid.NewGuid(), "Published", eventId: EventId)));
         Assert.Empty(Affected(Entry("event.started", "event", EventId, eventId: EventId)));
         // Both a website account (looked up now: current owner) and a playing account.
-        Assert.Equal(new AuditAffectedAccount("Lena", "Zezima", true), Assert.Single(Affected(Entry("participant.payment_updated", "participant", Participant, null, "{\"payment\":\"Unpaid\"}", "{\"payment\":\"Paid\"}", EventId))));
-        Assert.Equal(new AuditAffectedAccount("Lena", "Zezima", true), Assert.Single(Affected(Entry("team.member_removed", "membership", Membership, "Wrong team"))));
+        Assert.Equal(new AuditAffectedAccount("Lena", "Zezima", true, "Zezima"), Assert.Single(Affected(Entry("participant.payment_updated", "participant", Participant, null, "{\"payment\":\"Unpaid\"}", "{\"payment\":\"Paid\"}", EventId))));
+        Assert.Equal(new AuditAffectedAccount("Lena", "Zezima", true, "Zezima"), Assert.Single(Affected(Entry("team.member_removed", "membership", Membership, "Wrong team"))));
         // Website account only.
         Assert.Equal(new AuditAffectedAccount("Lena", null, false), Assert.Single(Affected(Entry("account.disabled", "account", Owner, "Spam"))));
         // Playing account only (no owner), and the stored credited name on evidence.
-        Assert.Equal(new AuditAffectedAccount(null, "Lynx Titan", false), Assert.Single(Affected(Entry("participant.promoted", "participant", Other, null, "WaitingList", "Confirmed", EventId))));
-        Assert.Equal(new AuditAffectedAccount("Lena", "Zezima", true), Assert.Single(Affected(Entry("submission.rejected", "submission", Guid.NewGuid(), "Blurry", J(new { CreditedParticipantId = Participant, CreditedCharacterName = "Zezima" }), J(new { CreditedParticipantId = Participant, CreditedCharacterName = "Zezima" }), EventId))));
+        Assert.Equal(new AuditAffectedAccount(null, "Lynx Titan", false, "Lynx Titan"), Assert.Single(Affected(Entry("participant.promoted", "participant", Other, null, "WaitingList", "Confirmed", EventId))));
+        Assert.Equal(new AuditAffectedAccount("Lena", "Zezima", true, "Zezima"), Assert.Single(Affected(Entry("submission.rejected", "submission", Guid.NewGuid(), "Blurry", J(new { CreditedParticipantId = Participant, CreditedCharacterName = "Zezima" }), J(new { CreditedParticipantId = Participant, CreditedCharacterName = "Zezima" }), EventId))));
         // Finalized roster entries store the owner and the published name: not "current".
-        Assert.Equal(new AuditAffectedAccount("Lena", "Zezima", false), Assert.Single(Affected(Entry("roster.finalized_added", "membership", Membership,
+        Assert.Equal(new AuditAffectedAccount("Lena", "Zezima", false, "Zezima"), Assert.Single(Affected(Entry("roster.finalized_added", "membership", Membership,
             J(new { ownerAccountId = Owner }), J(new { participant = new { id = Participant, name = (string?)null } }), J(new { participant = new { id = Participant, name = "Zezima" }, teamId = Team, teamName = "Red Dragons" }), EventId))));
         // Several accounts (A3: the column says "Multiple accounts", the drawer lists them).
         var replaced = Affected(Entry("participant.live_replaced", "membership", Membership, null, J(new { departedParticipantId = Participant }), J(new { replacementParticipantId = Other, replacementName = "Lynx Titan" }), EventId));
-        Assert.Equal([new AuditAffectedAccount("Lena", "Zezima", true), new AuditAffectedAccount(null, "Lynx Titan", false)], replaced);
+        Assert.Equal([new AuditAffectedAccount("Lena", "Zezima", true, "Zezima"), new AuditAffectedAccount(null, "Lynx Titan", false, "Lynx Titan")], replaced);
         // Review 156 L5: an oversized stored number never fails the page.
         Assert.Equal("The participant cap of Summer Bingo was raised from 40 to 50.", Sentence(Entry("event.capacity_increased", "event", EventId, "40 → 50; promoted 99999999999999999999", "40", "50", EventId, system: true)));
         // Unknown records: the stored id instead of a name, never a failure.
         Assert.Equal(new AuditAffectedAccount(Owner.ToString(), null, false), Assert.Single(Affected(Entry("account.disabled", "account", Owner, "Spam"), AuditNames.Empty)));
+    }
+
+    // Brief 159 (A11): the column names one account: the event primary for event entries, "@website" outside an event.
+    [Fact]
+    public void AffectedColumnNamesTheEventPrimaryOrTheWebsiteAccount()
+    {
+        var names = Names();
+        names.EventPrimaries[Participant] = "Zezima Main";
+        static string Column(AuditEntry entry, AuditNames names) => Bingo.Web.Pages.Admin.Audit.AuditAccountLine.Column(Assert.Single(AuditPresenter.Present(entry, Text, names).Affected!));
+        // Event entry: the primary account in that event, not the website account or another character.
+        Assert.Equal("Zezima Main", Column(Entry("participant.payment_updated", "participant", Participant, null, "{\"payment\":\"Unpaid\"}", "{\"payment\":\"Paid\"}", EventId), names));
+        Assert.Equal("Zezima Main", Column(Entry("team.member_removed", "membership", Membership, "Wrong team"), names));
+        // The drawer line keeps the full details.
+        Assert.Equal("@Lena · Zezima", Bingo.Web.Pages.Admin.Audit.AuditAccountLine.Of(Assert.Single(AuditPresenter.Present(Entry("participant.payment_updated", "participant", Participant, null, null, null, EventId), Text, names).Affected!)));
+        // A participant without a website account: their event primary name.
+        names.EventPrimaries[Other] = "Lynx Main";
+        Assert.Equal("Lynx Main", Column(Entry("participant.promoted", "participant", Other, null, "WaitingList", "Confirmed", EventId), names));
+        // Primary cannot be resolved: the stored or derived character, then the website account.
+        Assert.Equal("Zezima", Column(Entry("participant.payment_updated", "participant", Participant, null, null, null, EventId), Names()));
+        var released = Names();
+        released.Participants[Participant] = new(Owner, null, EventId);
+        Assert.Equal("@Lena", Column(Entry("participant.payment_updated", "participant", Participant, null, null, null, EventId), released));
+        // Outside an event: the website account name.
+        Assert.Equal("@Lena", Column(Entry("account.disabled", "account", Owner, "Spam"), names));
     }
 
     // Brief 147 item 3, B2: capped entries read the stored count; older entries list every id.

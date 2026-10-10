@@ -3,6 +3,7 @@ using System.Text.RegularExpressions;
 using Bingo.Domain.Auditing;
 using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Infrastructure.Signups;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bingo.Web.UI;
@@ -25,6 +26,8 @@ public sealed class AuditNames
     public Dictionary<Guid, string> Accounts { get; } = [];
     public Dictionary<Guid, string> Characters { get; } = [];
     public Dictionary<Guid, AuditParticipantName> Participants { get; } = [];
+    /// <summary>A11: each participant's primary account in their event, the one the Participants page shows.</summary>
+    public Dictionary<Guid, string> EventPrimaries { get; } = [];
     public Dictionary<Guid, AuditMembershipName> Memberships { get; } = [];
     public Dictionary<Guid, string> Teams { get; } = [];
     public Dictionary<Guid, Guid> TeamEvents { get; } = [];
@@ -130,6 +133,8 @@ public static class AuditNameResolver
             var byParticipant = characters.GroupBy(x => x.EventParticipantId).ToDictionary(group => group.Key, group =>
                 group.Where(x => x.ReleasedAt is null).OrderBy(x => x.RegistrationOrder).Select(x => x.DisplayName).FirstOrDefault()
                 ?? group.OrderByDescending(x => x.ReleasedAt).ThenBy(x => x.RegistrationOrder).Select(x => x.DisplayName).FirstOrDefault());
+            foreach (var row in await db.AdminPrimaryCharacters().AsNoTracking().Where(x => found.Contains(x.ParticipantId)).Select(x => new { x.ParticipantId, x.Name }).ToListAsync(ct))
+                names.EventPrimaries.TryAdd(row.ParticipantId, row.Name);
             foreach (var row in participants)
                 names.Participants[row.Id] = new(row.AccountId, byParticipant.GetValueOrDefault(row.Id), row.EventId);
             var owners = participants.Where(x => x.AccountId is not null).Select(x => x.AccountId!.Value).Where(id => !names.Accounts.ContainsKey(id)).Distinct().ToArray();

@@ -15,4 +15,8 @@ public static class AuditAccountLine
 {
     public static string Of(AuditAffectedAccount account) =>
         string.Join(" · ", new[] { account.Website is { } website ? "@" + website : null, account.Playing }.Where(part => part is not null));
+
+    /// <summary>Brief 159 (A11): the one name the list column shows: the event primary account for event entries, else "@website".</summary>
+    public static string Column(AuditAffectedAccount account) =>
+        account.Column ?? (account.Website is { } website ? "@" + website : account.Playing ?? "");
 }

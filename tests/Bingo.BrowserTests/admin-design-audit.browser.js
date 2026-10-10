@@ -37,6 +37,8 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     assert.deepEqual(await page.locator('.au-tbl .th-row [role="columnheader"]').allInnerTexts(), ['When', 'Action', 'Event', 'Actor', 'Affected account', 'Recorded']);
     assert.equal(await page.locator('[data-audit-row]').first().locator('[role="cell"]').count(), 6);
     assert.ok(await page.locator('[data-audit-row] [role="cell"]:nth-child(5)', { hasText: '—' }).count() > 0, 'entries without an affected account show a dash');
+    // Brief 159 (A11): the column names one account, never "@website · character".
+    assert.equal(await page.locator('[data-audit-row] [role="cell"]:nth-child(5)', { hasText: '·' }).count(), 0, 'the affected column shows one name');
     // Brief 147 item 4: the search applies while typing (250 ms debounce, no Enter); focus stays in
     // the field and fast typing sends only the last query.
     const actorRequests = [];

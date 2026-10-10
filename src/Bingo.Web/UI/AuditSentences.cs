@@ -86,7 +86,9 @@ internal sealed class AuditSentences
             var website = known?.AccountId is { } owner ? names.Accounts.GetValueOrDefault(owner) ?? owner.ToString() : null;
             // Neither a name nor an owner: the stored participant id (never an empty line).
             var playing = storedCharacter ?? known?.Character ?? (website is null && key != Guid.Empty ? key.ToString() : null);
-            result.Add(new(website, playing, website is not null));
+            // A11: an affected participant belongs to an event, so the column names their event primary
+            // account; if that cannot be resolved, the stored or derived character, then the website account.
+            result.Add(new(website, playing, website is not null, names.EventPrimaries.GetValueOrDefault(key) ?? storedCharacter ?? known?.Character));
         }
         void AddMembership(Guid? membershipId)
         {
@@ -122,7 +124,9 @@ internal sealed class AuditSentences
                 var ownerId = Id(details, "ownerAccountId");
                 var character = Str(after, "participant", "name") ?? Str(before, "participant", "name") ?? FirstPlaying(details)
                     ?? (Id(after, "participant", "id") is { } rosterParticipant ? names.Participants.GetValueOrDefault(rosterParticipant)?.Character : null);
-                result.Add(new(ownerId is { } owner ? names.Accounts.GetValueOrDefault(owner) ?? owner.ToString() : null, character, false));
+                var rosterWebsite = ownerId is { } owner ? names.Accounts.GetValueOrDefault(owner) ?? owner.ToString() : null;
+                var rosterPrimary = (Id(after, "participant", "id") ?? Id(before, "participant", "id")) is { } rosterId ? names.EventPrimaries.GetValueOrDefault(rosterId) : null;
+                result.Add(new(rosterWebsite, character, false, rosterPrimary ?? character));
                 break;
             case "team.member_added" when entry.TargetType == "team":
                 AddParticipant(Plain(entry.Details) is { Length: > 36 } addedText && Guid.TryParse(addedText[..36], out var addedParticipant) ? addedParticipant : null);
@@ -152,7 +156,7 @@ internal sealed class AuditSentences
                 break;
         }
         return result.Where(account => account.Website is not null || account.Playing is not null)
-            .DistinctBy(account => (account.Website, account.Playing)).ToList();
+            .DistinctBy(account => (account.Website, account.Playing, account.Column)).ToList();
     }
 
     private static string? FirstPlaying(JsonElement? element)
