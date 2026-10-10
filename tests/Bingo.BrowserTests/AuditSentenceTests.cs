@@ -177,6 +177,8 @@ public sealed class AuditSentenceTests
         // Several accounts (A3: the column says "Multiple accounts", the drawer lists them).
         var replaced = Affected(Entry("participant.live_replaced", "membership", Membership, null, J(new { departedParticipantId = Participant }), J(new { replacementParticipantId = Other, replacementName = "Lynx Titan" }), EventId));
         Assert.Equal([new AuditAffectedAccount("Lena", "Zezima", true), new AuditAffectedAccount(null, "Lynx Titan", false)], replaced);
+        // Review 156 L5: an oversized stored number never fails the page.
+        Assert.Equal("The participant cap of Summer Bingo was raised from 40 to 50.", Sentence(Entry("event.capacity_increased", "event", EventId, "40 → 50; promoted 99999999999999999999", "40", "50", EventId, system: true)));
         // Unknown records: the stored id instead of a name, never a failure.
         Assert.Equal(new AuditAffectedAccount(Owner.ToString(), null, false), Assert.Single(Affected(Entry("account.disabled", "account", Owner, "Spam"), AuditNames.Empty)));
     }
@@ -201,6 +203,10 @@ public sealed class AuditSentenceTests
         var oldShown = AuditPresenter.Present(old, Text, names);
         Assert.Equal("chris removed the team Red Dragons; 12 members left the team.", oldShown.Summary);
         Assert.Equal((10, 2), (oldShown.Affected!.Count, oldShown.AffectedMore));
+
+        // Review 156 L1: memberships that no longer resolve are still counted (the drawer shows "3 accounts").
+        var gone = AuditPresenter.Present(Entry("draft.team_removed", "team", Team, J(new { before = new { Name = "Red Dragons" }, after = new { Name = "Red Dragons", EndedMembershipCount = 3, EndedMembershipIds = new[] { Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid() } } }), eventId: EventId), Text, names);
+        Assert.Equal((0, 3), (gone.Affected!.Count, gone.AffectedMore));
     }
 
     // Brief 147 item 3, B3: a finalized-roster removal of someone not on the published roster.

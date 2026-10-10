@@ -504,7 +504,8 @@ internal sealed class AuditSentences
 
     private int? EndedMemberCount() => Int(after, "EndedMembershipCount") ?? Count(after, "EndedMembershipIds");
 
-    private int? CapacityPromoted() => Match(entry.Details, @"promoted (\d+)") is { } value ? int.Parse(value, CultureInfo.InvariantCulture) : null;
+    // Review 156 L5: an oversized stored number is no number, not a page failure.
+    private int? CapacityPromoted() => int.TryParse(Match(entry.Details, @"promoted (\d+)"), NumberStyles.None, CultureInfo.InvariantCulture, out var value) ? value : null;
 
     private string? Competition()
     {

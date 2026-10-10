@@ -899,5 +899,6 @@
   <data name="Affected account" xml:space="preserve"><value>Berørt konto</value></data>
   <data name="Multiple accounts" xml:space="preserve"><value>Flere konti</value></data>
   <data name="current owner" xml:space="preserve"><value>nuværende ejer</value></data>
-  <data name="and {0} more" xml:space="preserve"><value>og {0} mere</value></data>
+  <data name="and {0} more" xml:space="preserve"><value>og {0} flere</value></data>
+  <data name="1 account" xml:space="preserve"><value>1 konto</value></data>
 </root>
