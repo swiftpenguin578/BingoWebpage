@@ -62,7 +62,12 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider? tim
         return "UTC" + (offset < TimeSpan.Zero ? "-" : "+") + offset.Duration().ToString(@"hh\:mm", CultureInfo.InvariantCulture);
     }
 
-    public EventOption? EventOf(AuditEntry entry) => entry.EventId is { } id ? EventsById.GetValueOrDefault(id) : null;
+    /// <summary>Brief 147: names for this page's entries, resolved in one batch.</summary>
+    public AuditNames Names { get; private set; } = AuditNames.Empty;
+
+    // A6: an entry stored without an event shows the event derived from its team, membership or
+    // draft (display only; the event filter still uses the stored event id).
+    public EventOption? EventOf(AuditEntry entry) => Names.EventFor(entry) is { } id ? EventsById.GetValueOrDefault(id) : null;
 
     public async Task OnGetAsync(CancellationToken cancellationToken)
     {
@@ -91,6 +96,7 @@ public sealed class IndexModel(ApplicationDbContext dbContext, TimeProvider? tim
             .Skip((PageNumber - 1) * PageSize).Take(PageSize + 1).ToListAsync(cancellationToken);
         HasNextPage = rows.Count > PageSize;
         Entries = rows.Take(PageSize).ToList();
+        Names = await AuditNameResolver.ResolveAsync(dbContext, SelectedEntry is null ? Entries : Entries.Append(SelectedEntry), cancellationToken);
     }
 
     private void ReadLink()

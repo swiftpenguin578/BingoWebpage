@@ -448,6 +448,84 @@ public sealed class AuditHistoryIntegrationTests(PostgreSqlTestFixture databaseF
         Assert.Contains(notice, handler, StringComparison.Ordinal);
     }
 
+    // Brief 147 item 1: names are resolved for a whole page in a fixed number of queries (never one
+    // per entry), entries without a stored event show the derived event (A6), and a deleted target
+    // falls back to the stored name.
+    [Fact]
+    public async Task AuditNamesResolveInOneBatchDeriveTheEventAndFallBackForDeletedTargets()
+    {
+        var at = new DateTimeOffset(2027, 5, 1, 12, 0, 0, TimeSpan.Zero);
+        var adminId = Guid.NewGuid();
+        var ownerId = Guid.NewGuid();
+        var eventId = Guid.NewGuid();
+        var participantId = Guid.NewGuid();
+        var characterId = Guid.NewGuid();
+        var teamId = Guid.NewGuid();
+        var membershipId = Guid.NewGuid();
+        var deletedTeamId = Guid.NewGuid();
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            var admin = Account.CreateWebsite(adminId, "names-admin", "NAMES-ADMIN", at);
+            admin.SetGlobalRole(GlobalRole.Admin);
+            var owner = Account.CreateWebsite(ownerId, "lena", "LENA", at);
+            var bingoEvent = BingoEvent.CreateArchivedHistorical(eventId, "Names bingo", "names-bingo", null, "Europe/Copenhagen", null, null,
+                at.AddDays(-3), at.AddDays(-2), adminId, at.AddDays(-4), null, 1, 1, 1, 1);
+            var participant = new Bingo.Domain.Signups.EventParticipant(participantId, eventId, Bingo.Domain.Signups.SignupStatus.Confirmed, 1, at, Bingo.Domain.Signups.SignupSource.AdminCreated);
+            participant.AssignOwner(owner);
+            setup.AddRange(admin, owner, bingoEvent, participant,
+                new OsrsCharacter(characterId, "Zezima", "zezima", at),
+                new Bingo.Domain.Teams.Team(teamId, eventId, "Red Dragons", "red-dragons", null, true, at));
+            await setup.SaveChangesAsync();
+            setup.AddRange(
+                new Bingo.Domain.Signups.EventParticipantCharacter(Guid.NewGuid(), eventId, participantId, characterId, 0, at, adminId, null, Bingo.Domain.Signups.EventCharacterRole.Playing, 10m, Bingo.Domain.Signups.EhbSource.Manual, null),
+                new Bingo.Domain.Teams.TeamMembership(membershipId, teamId, participantId, Bingo.Domain.Teams.TeamMembershipRole.Participant, at, null, "fixture"));
+            await setup.SaveChangesAsync();
+            setup.AddRange(
+                new AuditEntry(Guid.NewGuid(), at.AddMinutes(1), adminId, "names-admin", "participant.payment_updated", "participant", participantId.ToString(), "Payment changed.", eventId, "{\"payment\":\"Unpaid\"}", "{\"payment\":\"Paid\"}"),
+                // Draft-page producers store no event id.
+                new AuditEntry(Guid.NewGuid(), at.AddMinutes(2), adminId, "names-admin", "team.member_removed", "membership", membershipId.ToString(), "Wrong team"),
+                new AuditEntry(Guid.NewGuid(), at.AddMinutes(3), adminId, "names-admin", "team.updated", "team", deletedTeamId.ToString(), "{\"before\":{\"Name\":\"Old name\"},\"after\":{\"Name\":\"Gone team\"}}", eventId));
+            for (var index = 0; index < 30; index++)
+                setup.Add(new AuditEntry(Guid.NewGuid(), at.AddMinutes(10 + index), adminId, "names-admin", "participant.admin_note_updated", "participant", participantId.ToString(), "Private Admin note changed.", eventId, "{\"present\":false}", "{\"present\":true}"));
+            await setup.SaveChangesAsync();
+        }
+
+        await using var db = new ApplicationDbContext(options);
+        var model = new Bingo.Web.Pages.Admin.Audit.IndexModel(db) { ActorQuery = "names-admin", PageQuery = "2" };
+        await model.OnGetAsync(CancellationToken.None);
+        var text = new AuditPassthroughLocalizer();
+        string? Summary(string action) => AuditPresenter.Present(model.Entries.Single(entry => entry.Action == action), text, model.Names).Summary;
+        Assert.Equal("names-admin marked Zezima as paid.", Summary("participant.payment_updated"));
+        Assert.Equal("names-admin removed Zezima from Red Dragons.", Summary("team.member_removed"));
+        Assert.Equal("names-admin updated the team Gone team.", Summary("team.updated"));
+        var removed = model.Entries.Single(entry => entry.Action == "team.member_removed");
+        Assert.Null(removed.EventId);
+        Assert.Equal("Names bingo", model.EventOf(removed)?.Name);
+        Assert.Equal("Participant · Zezima", AuditPresenter.Present(model.Entries.Single(entry => entry.Action == "participant.payment_updated"), text, model.Names).Target);
+
+        // The number of queries does not grow with the number of entries.
+        var all = await db.AuditEntries.AsNoTracking().Where(entry => entry.ActorUsername == "names-admin").ToListAsync();
+        var counter = new CommandCounter();
+        await using var counted = new ApplicationDbContext(new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).AddInterceptors(counter).Options);
+        await AuditNameResolver.ResolveAsync(counted, all.Take(3), CancellationToken.None);
+        var few = counter.Count;
+        counter.Count = 0;
+        await AuditNameResolver.ResolveAsync(counted, all, CancellationToken.None);
+        Assert.Equal(few, counter.Count);
+        Assert.True(all.Count > 30);
+    }
+
+    private sealed class CommandCounter : Microsoft.EntityFrameworkCore.Diagnostics.DbCommandInterceptor
+    {
+        public int Count;
+        public override ValueTask<Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader>> ReaderExecutingAsync(System.Data.Common.DbCommand command,
+            Microsoft.EntityFrameworkCore.Diagnostics.CommandEventData eventData, Microsoft.EntityFrameworkCore.Diagnostics.InterceptionResult<System.Data.Common.DbDataReader> result, CancellationToken cancellationToken = default)
+        {
+            Count++;
+            return base.ReaderExecutingAsync(command, eventData, result, cancellationToken);
+        }
+    }
+
     private sealed class AuditPassthroughLocalizer : IStringLocalizer<AuditResource>
     {
         public LocalizedString this[string name] => new(name, name);

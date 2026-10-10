@@ -23,6 +23,7 @@
     </div>
     <div class="dr-body" id="drawer-body">
         <section class="sec" aria-label="@D["Summary"]">
+            @if (p.Summary is { Length: > 0 } summary) { <p class="au-summary">@summary</p> }
             <dl class="kv au-kv">
                 <dt>@D["When"]</dt><dd>@AuditPresenter.When(entry.OccurredAt, CultureInfo.CurrentCulture)</dd>
                 <dt>@D["Actor"]</dt><dd>@(Model.Automated ? D["System (automatic)"].Value : "@" + p.Actor)</dd>

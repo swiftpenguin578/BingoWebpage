@@ -20,6 +20,7 @@
 :where([data-page-family="audit"]) .au-reason{white-space:pre-wrap;overflow-wrap:anywhere}
 :where([data-page-family="audit"]) .au-lifecycle{margin:8px 0 0;font-size:var(--dk-fs-control-sm);color:var(--dk-text-2);line-height:1.5}
 :where([data-page-family="audit"]) .au-reason+.au-lifecycle{margin-top:10px}
+:where([data-page-family="audit"]) .au-summary{margin:0 0 12px;line-height:1.5;overflow-wrap:anywhere}
 :where([data-page-family="audit"]) .au-kv{margin-top:0;grid-template-columns:96px minmax(0,1fr)}
 :where([data-page-family="audit"]) .au-kv dd{margin:0;overflow-wrap:anywhere}
 :where([data-page-family="audit"]) .au-tech{margin-top:12px;grid-template-columns:96px minmax(0,1fr)}

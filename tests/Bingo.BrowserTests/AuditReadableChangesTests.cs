@@ -17,7 +17,7 @@ public sealed class AuditReadableChangesTests(BrowserTestApplicationFactory fact
 
     [Theory]
     [InlineData("en-GB", "Tile · Name", "8.35", "9.5", "Sunday 31 October 2027, 01:30:00 (UTC+02:00)")]
-    [InlineData("da-DK", "Tile · Name", "8,35", "9,5", "søndag 31 oktober 2027, 01.30.00 (UTC+02:00)")]
+    [InlineData("da-DK", "Felt · Navn", "8,35", "9,5", "søndag 31 oktober 2027, 01.30.00 (UTC+02:00)")]
     public void ChangesShowOnlyReadableRealChanges(string culture, string nameField, string beforeEhb, string afterEhb, string updatedAt)
     {
         var (previous, previousUi) = (CultureInfo.CurrentCulture, CultureInfo.CurrentUICulture);

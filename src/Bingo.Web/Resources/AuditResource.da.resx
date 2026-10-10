@@ -14,24 +14,24 @@
   <data name="Administrator access revoked" xml:space="preserve"><value>Administratoradgang fjernet</value></data>
   <data name="Discord identity linked" xml:space="preserve"><value>Discordidentitet tilknyttet</value></data>
   <data name="Discord identity unlinked" xml:space="preserve"><value>Discordidentitet fjernet</value></data>
-  <data name="Event created" xml:space="preserve"><value>Begivenhed oprettet</value></data>
-  <data name="Event updated" xml:space="preserve"><value>Begivenhed opdateret</value></data>
-  <data name="Event hidden" xml:space="preserve"><value>Begivenhed skjult</value></data>
-  <data name="Event restored" xml:space="preserve"><value>Begivenhed gendannet</value></data>
-  <data name="Event started" xml:space="preserve"><value>Begivenhed startet</value></data>
-  <data name="Event ended" xml:space="preserve"><value>Begivenhed afsluttet</value></data>
-  <data name="Event resumed" xml:space="preserve"><value>Begivenhed genoptaget</value></data>
-  <data name="Event cancelled" xml:space="preserve"><value>Begivenhed annulleret</value></data>
-  <data name="Event reopened for final review" xml:space="preserve"><value>Begivenhed genåbnet til endelig gennemgang</value></data>
+  <data name="Event created" xml:space="preserve"><value>Event oprettet</value></data>
+  <data name="Event updated" xml:space="preserve"><value>Event opdateret</value></data>
+  <data name="Event hidden" xml:space="preserve"><value>Event skjult</value></data>
+  <data name="Event restored" xml:space="preserve"><value>Event gendannet</value></data>
+  <data name="Event started" xml:space="preserve"><value>Event startet</value></data>
+  <data name="Event ended" xml:space="preserve"><value>Event afsluttet</value></data>
+  <data name="Event resumed" xml:space="preserve"><value>Event genoptaget</value></data>
+  <data name="Event cancelled" xml:space="preserve"><value>Event aflyst</value></data>
+  <data name="Event reopened for final review" xml:space="preserve"><value>Event genåbnet til endelig gennemgang</value></data>
   <data name="Final review blocker overridden" xml:space="preserve"><value>Blokering i endelig gennemgang tilsidesat</value></data>
   <data name="Completion time corrected" xml:space="preserve"><value>Afslutningstid korrigeret</value></data>
-  <data name="Event started automatically" xml:space="preserve"><value>Begivenhed startet automatisk</value></data>
-  <data name="Event finalized" xml:space="preserve"><value>Begivenhed afsluttet</value></data>
-  <data name="Event identity and time zone changed" xml:space="preserve"><value>Begivenhedsidentitet og tidszone ændret</value></data>
+  <data name="Event started automatically" xml:space="preserve"><value>Event startet automatisk</value></data>
+  <data name="Event finalized" xml:space="preserve"><value>Event færdiggjort</value></data>
+  <data name="Event identity and time zone changed" xml:space="preserve"><value>Eventets identitet og tidszone ændret</value></data>
   <data name="Submissions reopened" xml:space="preserve"><value>Indsendelser genåbnet</value></data>
   <data name="Signup code settings changed" xml:space="preserve"><value>Indstillinger for tilmeldingskode ændret</value></data>
-  <data name="Evidence code settings changed" xml:space="preserve"><value>Indstillinger for dokumentationskode ændret</value></data>
-  <data name="Evidence code created" xml:space="preserve"><value>Dokumentationskode oprettet</value></data>
+  <data name="Evidence code settings changed" xml:space="preserve"><value>Indstillinger for beviskode ændret</value></data>
+  <data name="Evidence code created" xml:space="preserve"><value>Beviskode oprettet</value></data>
   <data name="Boss or activity added" xml:space="preserve"><value>Boss eller aktivitet tilføjet</value></data>
   <data name="Boss or activity updated" xml:space="preserve"><value>Boss eller aktivitet opdateret</value></data>
   <data name="Boss or activity deleted" xml:space="preserve"><value>Boss eller aktivitet slettet</value></data>
@@ -44,8 +44,8 @@
   <data name="Drop availability changed" xml:space="preserve"><value>Tilgængelighed for drop ændret</value></data>
   <data name="Item pricing updated" xml:space="preserve"><value>Genstandspris opdateret</value></data>
   <data name="Item pricing refreshed" xml:space="preserve"><value>Genstandspris opdateret fra API</value></data>
-  <data name="Board published" xml:space="preserve"><value>Plade offentliggjort</value></data>
-  <data name="Board updated" xml:space="preserve"><value>Plade opdateret</value></data>
+  <data name="Board published" xml:space="preserve"><value>Board offentliggjort</value></data>
+  <data name="Board updated" xml:space="preserve"><value>Board opdateret</value></data>
   <data name="Team created" xml:space="preserve"><value>Hold oprettet</value></data>
   <data name="Team member added" xml:space="preserve"><value>Holdmedlem tilføjet</value></data>
   <data name="Team member removed" xml:space="preserve"><value>Holdmedlem fjernet</value></data>
@@ -53,26 +53,26 @@
   <data name="Draft finalized" xml:space="preserve"><value>Draft afsluttet</value></data>
   <data name="Draft reopened" xml:space="preserve"><value>Draft genåbnet</value></data>
   <data name="Draft cancelled" xml:space="preserve"><value>Draft annulleret</value></data>
-  <data name="Evidence submitted" xml:space="preserve"><value>Dokumentation indsendt</value></data>
-  <data name="Evidence changes requested" xml:space="preserve"><value>Ændringer til dokumentation anmodet</value></data>
-  <data name="Evidence withdrawn" xml:space="preserve"><value>Dokumentation trukket tilbage</value></data>
-  <data name="Evidence metadata corrected" xml:space="preserve"><value>Dokumentationsmetadata korrigeret</value></data>
-  <data name="Evidence screenshot replaced" xml:space="preserve"><value>Dokumentationsskærmbillede erstattet</value></data>
-  <data name="Evidence marked duplicate" xml:space="preserve"><value>Dokumentation markeret som duplikat</value></data>
-  <data name="Evidence hidden" xml:space="preserve"><value>Dokumentation skjult</value></data>
-  <data name="Evidence made visible" xml:space="preserve"><value>Dokumentation gjort synlig</value></data>
-  <data name="Evidence contribution recalculated" xml:space="preserve"><value>Dokumentationsbidrag genberegnet</value></data>
-  <data name="Historical linked evidence submitted" xml:space="preserve"><value>Historisk linket dokumentation indsendt</value></data>
-  <data name="Evidence approved" xml:space="preserve"><value>Dokumentation godkendt</value></data>
-  <data name="Evidence rejected" xml:space="preserve"><value>Dokumentation afvist</value></data>
-  <data name="Evidence approval reversed" xml:space="preserve"><value>Godkendelse af dokumentation tilbageført</value></data>
+  <data name="Evidence submitted" xml:space="preserve"><value>Bevis indsendt</value></data>
+  <data name="Evidence changes requested" xml:space="preserve"><value>Ændringer til bevis anmodet</value></data>
+  <data name="Evidence withdrawn" xml:space="preserve"><value>Bevis trukket tilbage</value></data>
+  <data name="Evidence metadata corrected" xml:space="preserve"><value>Bevisets metadata rettet</value></data>
+  <data name="Evidence screenshot replaced" xml:space="preserve"><value>Bevisets skærmbillede udskiftet</value></data>
+  <data name="Evidence marked duplicate" xml:space="preserve"><value>Bevis markeret som dublet</value></data>
+  <data name="Evidence hidden" xml:space="preserve"><value>Bevis skjult</value></data>
+  <data name="Evidence made visible" xml:space="preserve"><value>Bevis gjort synligt</value></data>
+  <data name="Evidence contribution recalculated" xml:space="preserve"><value>Bevisets bidrag genberegnet</value></data>
+  <data name="Historical linked evidence submitted" xml:space="preserve"><value>Historisk linket bevis indsendt</value></data>
+  <data name="Evidence approved" xml:space="preserve"><value>Bevis godkendt</value></data>
+  <data name="Evidence rejected" xml:space="preserve"><value>Bevis afvist</value></data>
+  <data name="Evidence approval reversed" xml:space="preserve"><value>Godkendelse af bevis tilbageført</value></data>
   <data name="Account" xml:space="preserve"><value>Konto</value></data>
-  <data name="Event" xml:space="preserve"><value>Begivenhed</value></data>
-  <data name="Board" xml:space="preserve"><value>Plade</value></data>
+  <data name="Event" xml:space="preserve"><value>Event</value></data>
+  <data name="Board" xml:space="preserve"><value>Board</value></data>
   <data name="Team" xml:space="preserve"><value>Hold</value></data>
   <data name="Membership" xml:space="preserve"><value>Medlemskab</value></data>
   <data name="Participant" xml:space="preserve"><value>Deltager</value></data>
-  <data name="Evidence" xml:space="preserve"><value>Dokumentation</value></data>
+  <data name="Evidence" xml:space="preserve"><value>Bevis</value></data>
   <data name="Draft" xml:space="preserve"><value>Draft</value></data>
   <data name="Draft publication" xml:space="preserve"><value>Draftoffentliggørelse</value></data>
   <data name="Boss or activity" xml:space="preserve"><value>Boss eller aktivitet</value></data>
@@ -117,23 +117,23 @@
   <data name="Password reset" xml:space="preserve"><value>Adgangskode nulstillet</value></data>
   <data name="Password-reset link created" xml:space="preserve"><value>Link til nulstilling af adgangskode oprettet</value></data>
   <data name="Retained owner promoted" xml:space="preserve"><value>Bevaret ejer forfremmet</value></data>
-  <data name="Board approved" xml:space="preserve"><value>Plade godkendt</value></data>
-  <data name="Board approval withdrawn automatically" xml:space="preserve"><value>Pladegodkendelse trukket tilbage automatisk</value></data>
-  <data name="Board created" xml:space="preserve"><value>Plade oprettet</value></data>
-  <data name="Board editing started" xml:space="preserve"><value>Redigering af plade startet</value></data>
-  <data name="Board editing released" xml:space="preserve"><value>Redigering af plade frigivet</value></data>
-  <data name="Board editing taken over" xml:space="preserve"><value>Redigering af plade overtaget</value></data>
+  <data name="Board approved" xml:space="preserve"><value>Board godkendt</value></data>
+  <data name="Board approval withdrawn automatically" xml:space="preserve"><value>Boardgodkendelse trukket tilbage automatisk</value></data>
+  <data name="Board created" xml:space="preserve"><value>Board oprettet</value></data>
+  <data name="Board editing started" xml:space="preserve"><value>Redigering af board startet</value></data>
+  <data name="Board editing released" xml:space="preserve"><value>Redigering af board frigivet</value></data>
+  <data name="Board editing taken over" xml:space="preserve"><value>Redigering af board overtaget</value></data>
   <data name="Planning team size changed" xml:space="preserve"><value>Planlagt holdstørrelse ændret</value></data>
-  <data name="Corrected board published" xml:space="preserve"><value>Rettet plade offentliggjort</value></data>
-  <data name="Board correction discarded" xml:space="preserve"><value>Pladerettelse kasseret</value></data>
-  <data name="Board correction started" xml:space="preserve"><value>Pladerettelse startet</value></data>
-  <data name="Board resized" xml:space="preserve"><value>Pladens størrelse ændret</value></data>
+  <data name="Corrected board published" xml:space="preserve"><value>Rettet board offentliggjort</value></data>
+  <data name="Board correction discarded" xml:space="preserve"><value>Boardrettelse kasseret</value></data>
+  <data name="Board correction started" xml:space="preserve"><value>Boardrettelse startet</value></data>
+  <data name="Board resized" xml:space="preserve"><value>Boardets størrelse ændret</value></data>
   <data name="Tile added" xml:space="preserve"><value>Felt tilføjet</value></data>
   <data name="Tile edited" xml:space="preserve"><value>Felt redigeret</value></data>
   <data name="Tile moved" xml:space="preserve"><value>Felt flyttet</value></data>
   <data name="Tile removed" xml:space="preserve"><value>Felt fjernet</value></data>
   <data name="Tiles swapped" xml:space="preserve"><value>Felter byttet</value></data>
-  <data name="Board approval withdrawn" xml:space="preserve"><value>Pladegodkendelse trukket tilbage</value></data>
+  <data name="Board approval withdrawn" xml:space="preserve"><value>Boardgodkendelse trukket tilbage</value></data>
   <data name="Artwork reset" xml:space="preserve"><value>Billede nulstillet</value></data>
   <data name="Artwork updated" xml:space="preserve"><value>Billede opdateret</value></data>
   <data name="Item prices checked at event start" xml:space="preserve"><value>Genstandspriser tjekket ved eventstart</value></data>
@@ -202,7 +202,7 @@
   <data name="Signup question deleted" xml:space="preserve"><value>Tilmeldingsspørgsmål slettet</value></data>
   <data name="Signup question edited" xml:space="preserve"><value>Tilmeldingsspørgsmål redigeret</value></data>
   <data name="Signup questions reordered" xml:space="preserve"><value>Tilmeldingsspørgsmål omarrangeret</value></data>
-  <data name="Historical evidence action" xml:space="preserve"><value>Historisk handling på dokumentation</value></data>
+  <data name="Historical evidence action" xml:space="preserve"><value>Historisk handling på bevis</value></data>
   <data name="Team inclusion changed" xml:space="preserve"><value>Holdets medtagelse ændret</value></data>
   <data name="Team role changed" xml:space="preserve"><value>Holdrolle ændret</value></data>
   <data name="Preformed team corrected" xml:space="preserve"><value>Forudsammensat hold rettet</value></data>
@@ -215,4 +215,328 @@
   <data name="Discord identity replaced" xml:space="preserve"><value>Discordidentitet udskiftet</value></data>
   <data name="WOM sync after adding to a finalized roster" xml:space="preserve"><value>WOM-synkronisering efter tilføjelse til en færdig holdliste</value></data>
   <data name="WOM sync after removing from a finalized roster" xml:space="preserve"><value>WOM-synkronisering efter fjernelse fra en færdig holdliste</value></data>
+  <data name="An owner password-reset link was created for {0} by the operator." xml:space="preserve"><value>Driften oprettede et link til nulstilling af ejerens adgangskode for {0}.</value></data>
+  <data name="At the start of {0} the price {1} gp for {2} was rejected." xml:space="preserve"><value>Ved starten af {0} blev prisen {1} gp for {2} afvist.</value></data>
+  <data name="Signups for {0} closed automatically." xml:space="preserve"><value>Tilmeldingen til {0} lukkede automatisk.</value></data>
+  <data name="Signups for {0} could not open automatically; {1} blocker(s) were open." xml:space="preserve"><value>Tilmeldingen til {0} kunne ikke åbne automatisk; {1} blokering(er) var åbne.</value></data>
+  <data name="Signups for {0} opened automatically." xml:space="preserve"><value>Tilmeldingen til {0} åbnede automatisk.</value></data>
+  <data name="Site ownership was recovered to {0} by the operator." xml:space="preserve"><value>Driften gendannede ejerskabet af siden til {0}.</value></data>
+  <data name="The automatic start of {0} was postponed; {1} start blocker(s) were open." xml:space="preserve"><value>Den automatiske start af {0} blev udsat; {1} startblokering(er) var åbne.</value></data>
+  <data name="The board approval was withdrawn because {0} changed competitive content." xml:space="preserve"><value>Godkendelsen af boardet blev trukket tilbage, fordi {0} ændrede konkurrenceindhold.</value></data>
+  <data name="The contribution of the evidence for “{0}” by {1} was recalculated after another approval was reversed." xml:space="preserve"><value>Bidraget fra beviset for “{0}” fra {1} blev genberegnet, efter en anden godkendelse blev tilbageført.</value></data>
+  <data name="The owner password for {0} was reset through operator recovery." xml:space="preserve"><value>Ejerens adgangskode for {0} blev nulstillet via driftsgendannelse.</value></data>
+  <data name="The participant cap of {0} was raised from {1} to {2}." xml:space="preserve"><value>Deltagerloftet for {0} blev hævet fra {1} til {2}.</value></data>
+  <data name="The participant cap of {0} was raised from {1} to {2}; {3} moved up from the waiting list." xml:space="preserve"><value>Deltagerloftet for {0} blev hævet fra {1} til {2}; {3} rykkede op fra ventelisten.</value></data>
+  <data name="WOM sync after adding {0} to {1}: {2}." xml:space="preserve"><value>WOM-synkronisering efter tilføjelse af {0} til {1}: {2}.</value></data>
+  <data name="WOM sync after removing {0} from {1}: {2}." xml:space="preserve"><value>WOM-synkronisering efter fjernelse af {0} fra {1}: {2}.</value></data>
+  <data name="{0} added an evidence code for {1}." xml:space="preserve"><value>{0} tilføjede en beviskode for {1}.</value></data>
+  <data name="{0} added the WOM management access for {1}." xml:space="preserve"><value>{0} tilføjede WOM-administrationsadgangen for {1}.</value></data>
+  <data name="{0} added the account question “{1}”." xml:space="preserve"><value>{0} tilføjede kontospørgsmålet “{1}”.</value></data>
+  <data name="{0} added the account {1} to {2}." xml:space="preserve"><value>{0} tilføjede kontoen {1} til {2}.</value></data>
+  <data name="{0} added the signup question “{1}”." xml:space="preserve"><value>{0} tilføjede tilmeldingsspørgsmålet “{1}”.</value></data>
+  <data name="{0} added the tile “{1}” at row {2}, column {3}." xml:space="preserve"><value>{0} tilføjede feltet “{1}” i række {2}, kolonne {3}.</value></data>
+  <data name="{0} added {1} as a drop from {2}." xml:space="preserve"><value>{0} tilføjede {1} som drop fra {2}.</value></data>
+  <data name="{0} added {1} to the catalogue." xml:space="preserve"><value>{0} tilføjede {1} til kataloget.</value></data>
+  <data name="{0} added {1} to {2} from saved accounts." xml:space="preserve"><value>{0} tilføjede {1} til {2} fra gemte konti.</value></data>
+  <data name="{0} added {1} to {2} on the published roster." xml:space="preserve"><value>{0} tilføjede {1} til {2} på den offentliggjorte holdliste.</value></data>
+  <data name="{0} added {1} to {2}." xml:space="preserve"><value>{0} tilføjede {1} til {2}.</value></data>
+  <data name="{0} adjusted the artwork of {1}." xml:space="preserve"><value>{0} justerede billedet af {1}.</value></data>
+  <data name="{0} approved the board." xml:space="preserve"><value>{0} godkendte boardet.</value></data>
+  <data name="{0} approved the evidence for “{1}” by {2}." xml:space="preserve"><value>{0} godkendte beviset for “{1}” fra {2}.</value></data>
+  <data name="{0} asked for changes to the evidence for “{1}”." xml:space="preserve"><value>{0} bad om ændringer til beviset for “{1}”.</value></data>
+  <data name="{0} cancelled the draft and returned to setup." xml:space="preserve"><value>{0} annullerede draften og gik tilbage til opsætningen.</value></data>
+  <data name="{0} cancelled {1}." xml:space="preserve"><value>{0} aflyste {1}.</value></data>
+  <data name="{0} changed the details of {1}." xml:space="preserve"><value>{0} ændrede oplysningerne for {1}.</value></data>
+  <data name="{0} changed the evidence code setting of {1}." xml:space="preserve"><value>{0} ændrede indstillingen for beviskoder for {1}.</value></data>
+  <data name="{0} changed the participant cap of {1} from {2} to {3}." xml:space="preserve"><value>{0} ændrede deltagerloftet for {1} fra {2} til {3}.</value></data>
+  <data name="{0} changed the participant cap of {1} from {2} to {3}; {4} moved up from the waiting list." xml:space="preserve"><value>{0} ændrede deltagerloftet for {1} fra {2} til {3}; {4} rykkede op fra ventelisten.</value></data>
+  <data name="{0} changed the planning team size from {1} to {2}." xml:space="preserve"><value>{0} ændrede den planlagte holdstørrelse fra {1} til {2}.</value></data>
+  <data name="{0} changed the private admin note on {1}." xml:space="preserve"><value>{0} ændrede den private admin-note på {1}.</value></data>
+  <data name="{0} changed the role of {1} in {2} from {3} to {4}." xml:space="preserve"><value>{0} ændrede rollen for {1} på {2} fra {3} til {4}.</value></data>
+  <data name="{0} changed the role of {1}." xml:space="preserve"><value>{0} ændrede rollen for {1}.</value></data>
+  <data name="{0} changed the schedule of {1}." xml:space="preserve"><value>{0} ændrede tidsplanen for {1}.</value></data>
+  <data name="{0} changed the signup code settings of {1}." xml:space="preserve"><value>{0} ændrede indstillingerne for tilmeldingskoden for {1}.</value></data>
+  <data name="{0} changed their password." xml:space="preserve"><value>{0} ændrede sin adgangskode.</value></data>
+  <data name="{0} changed their username from {1} to {2}." xml:space="preserve"><value>{0} ændrede sit brugernavn fra {1} til {2}.</value></data>
+  <data name="{0} closed signups for {1}." xml:space="preserve"><value>{0} lukkede tilmeldingen til {1}.</value></data>
+  <data name="{0} completed the follow-up for a waiting-list promotion." xml:space="preserve"><value>{0} afsluttede opfølgningen på en oprykning fra ventelisten.</value></data>
+  <data name="{0} confirmed {1} from the waiting list." xml:space="preserve"><value>{0} bekræftede {1} fra ventelisten.</value></data>
+  <data name="{0} corrected the account {1} of {2}." xml:space="preserve"><value>{0} rettede kontoen {1} for {2}.</value></data>
+  <data name="{0} corrected the completion time of {1}." xml:space="preserve"><value>{0} rettede afslutningstiden for {1}.</value></data>
+  <data name="{0} corrected the evidence for “{1}”." xml:space="preserve"><value>{0} rettede beviset for “{1}”.</value></data>
+  <data name="{0} corrected the pre-formed team {1} and republished the roster." xml:space="preserve"><value>{0} rettede det forudsammensatte hold {1} og offentliggjorde holdlisten igen.</value></data>
+  <data name="{0} corrected the signup of {1}." xml:space="preserve"><value>{0} rettede tilmeldingen for {1}.</value></data>
+  <data name="{0} created WOM competition {1} for {2}." xml:space="preserve"><value>{0} oprettede WOM-konkurrencen {1} for {2}.</value></data>
+  <data name="{0} created a password-reset link for {1}." xml:space="preserve"><value>{0} oprettede et link til nulstilling af adgangskode for {1}.</value></data>
+  <data name="{0} created the board “{1}”." xml:space="preserve"><value>{0} oprettede boardet “{1}”.</value></data>
+  <data name="{0} created the captain account {1}." xml:space="preserve"><value>{0} oprettede kaptajnkontoen {1}.</value></data>
+  <data name="{0} created the event {1}." xml:space="preserve"><value>{0} oprettede eventet {1}.</value></data>
+  <data name="{0} created the team {1}." xml:space="preserve"><value>{0} oprettede holdet {1}.</value></data>
+  <data name="{0} deactivated the {1} drop from {2}." xml:space="preserve"><value>{0} deaktiverede droppet {1} fra {2}.</value></data>
+  <data name="{0} deactivated {1}." xml:space="preserve"><value>{0} deaktiverede {1}.</value></data>
+  <data name="{0} deleted WOM competition {1} of {2}." xml:space="preserve"><value>{0} slettede WOM-konkurrencen {1} for {2}.</value></data>
+  <data name="{0} deleted the signup question “{1}”." xml:space="preserve"><value>{0} slettede tilmeldingsspørgsmålet “{1}”.</value></data>
+  <data name="{0} deleted the {1} drop from {2}." xml:space="preserve"><value>{0} slettede droppet {1} fra {2}.</value></data>
+  <data name="{0} deleted {1} from the catalogue." xml:space="preserve"><value>{0} slettede {1} fra kataloget.</value></data>
+  <data name="{0} disabled the account {1}." xml:space="preserve"><value>{0} deaktiverede kontoen {1}.</value></data>
+  <data name="{0} disabled the captain account {1}." xml:space="preserve"><value>{0} deaktiverede kaptajnkontoen {1}.</value></data>
+  <data name="{0} discarded the empty event setup {1}." xml:space="preserve"><value>{0} kasserede den tomme eventopsætning {1}.</value></data>
+  <data name="{0} discarded the unpublished board correction." xml:space="preserve"><value>{0} kasserede den ikke-offentliggjorte rettelse af boardet.</value></data>
+  <data name="{0} edited the account question “{1}”." xml:space="preserve"><value>{0} redigerede kontospørgsmålet “{1}”.</value></data>
+  <data name="{0} edited the signup question “{1}”." xml:space="preserve"><value>{0} redigerede tilmeldingsspørgsmålet “{1}”.</value></data>
+  <data name="{0} edited the tile “{1}”." xml:space="preserve"><value>{0} redigerede feltet “{1}”.</value></data>
+  <data name="{0} ended automatically at its scheduled time." xml:space="preserve"><value>{0} sluttede automatisk på det planlagte tidspunkt.</value></data>
+  <data name="{0} ended {1}." xml:space="preserve"><value>{0} afsluttede {1}.</value></data>
+  <data name="{0} finalized the draft and published the rosters." xml:space="preserve"><value>{0} afsluttede draften og offentliggjorde holdlisterne.</value></data>
+  <data name="{0} finalized the draft and published {1} roster entries." xml:space="preserve"><value>{0} afsluttede draften og offentliggjorde {1} pladser på holdlisten.</value></data>
+  <data name="{0} finalized {1}." xml:space="preserve"><value>{0} færdiggjorde {1}.</value></data>
+  <data name="{0} finished setting up their account." xml:space="preserve"><value>{0} gjorde sin konto færdig.</value></data>
+  <data name="{0} gave {1} Admin access." xml:space="preserve"><value>{0} gav {1} admin-adgang.</value></data>
+  <data name="{0} handed over site ownership; {1} is now an Admin." xml:space="preserve"><value>{0} overdrog ejerskabet af siden; {1} er nu admin.</value></data>
+  <data name="{0} hid the evidence for “{1}” from the public page." xml:space="preserve"><value>{0} skjulte beviset for “{1}” fra den offentlige side.</value></data>
+  <data name="{0} hid {1}." xml:space="preserve"><value>{0} skjulte {1}.</value></data>
+  <data name="{0} imported the historical event {1}." xml:space="preserve"><value>{0} importerede det historiske event {1}.</value></data>
+  <data name="{0} imported {1} members into {2} from a CSV file." xml:space="preserve"><value>{0} importerede {1} medlemmer til {2} fra en CSV-fil.</value></data>
+  <data name="{0} included {1} in the draft." xml:space="preserve"><value>{0} tog {1} med i draften.</value></data>
+  <data name="{0} left {1} out of the draft." xml:space="preserve"><value>{0} udelod {1} fra draften.</value></data>
+  <data name="{0} linked WOM competition {1} to {2}." xml:space="preserve"><value>{0} tilknyttede WOM-konkurrencen {1} til {2}.</value></data>
+  <data name="{0} linked a Discord account." xml:space="preserve"><value>{0} tilknyttede en Discord-konto.</value></data>
+  <data name="{0} linked a WOM competition to {1}." xml:space="preserve"><value>{0} tilknyttede en WOM-konkurrence til {1}.</value></data>
+  <data name="{0} made the evidence for “{1}” public again." xml:space="preserve"><value>{0} gjorde beviset for “{1}” offentligt igen.</value></data>
+  <data name="{0} made {1} the main account instead of {2}." xml:space="preserve"><value>{0} gjorde {1} til hovedkonto i stedet for {2}.</value></data>
+  <data name="{0} made {1} the site owner." xml:space="preserve"><value>{0} gjorde {1} til ejer af siden.</value></data>
+  <data name="{0} made {1} visible again." xml:space="preserve"><value>{0} gjorde {1} synligt igen.</value></data>
+  <data name="{0} marked the evidence for “{1}” as a duplicate." xml:space="preserve"><value>{0} markerede beviset for “{1}” som dublet.</value></data>
+  <data name="{0} marked {1} as paid." xml:space="preserve"><value>{0} markerede {1} som betalt.</value></data>
+  <data name="{0} marked {1} as unpaid." xml:space="preserve"><value>{0} markerede {1} som ikke betalt.</value></data>
+  <data name="{0} moved the signup question “{1}” from position {2} to {3}." xml:space="preserve"><value>{0} flyttede tilmeldingsspørgsmålet “{1}” fra plads {2} til {3}.</value></data>
+  <data name="{0} moved the tile “{1}” from row {2}, column {3} to row {4}, column {5}." xml:space="preserve"><value>{0} flyttede feltet “{1}” fra række {2}, kolonne {3} til række {4}, kolonne {5}.</value></data>
+  <data name="{0} moved up from the waiting list." xml:space="preserve"><value>{0} rykkede op fra ventelisten.</value></data>
+  <data name="{0} moved {1} from {2} to {3}." xml:space="preserve"><value>{0} flyttede {1} fra {2} til {3}.</value></data>
+  <data name="{0} moved {1} to the account {2}." xml:space="preserve"><value>{0} flyttede {1} til kontoen {2}.</value></data>
+  <data name="{0} moved {1} to the waiting list." xml:space="preserve"><value>{0} flyttede {1} til ventelisten.</value></data>
+  <data name="{0} moved {1} to the waiting list; {2} moved up." xml:space="preserve"><value>{0} flyttede {1} til ventelisten; {2} rykkede op.</value></data>
+  <data name="{0} moved {1} to {2}." xml:space="preserve"><value>{0} flyttede {1} til {2}.</value></data>
+  <data name="{0} opened signups for {1}." xml:space="preserve"><value>{0} åbnede tilmeldingen til {1}.</value></data>
+  <data name="{0} overrode a final-review blocker for {1}." xml:space="preserve"><value>{0} tilsidesatte en blokering i den endelige gennemgang af {1}.</value></data>
+  <data name="{0} performed an older review action on the evidence for “{1}”." xml:space="preserve"><value>{0} udførte en ældre gennemgangshandling på beviset for “{1}”.</value></data>
+  <data name="{0} published the board." xml:space="preserve"><value>{0} offentliggjorde boardet.</value></data>
+  <data name="{0} published the corrected board." xml:space="preserve"><value>{0} offentliggjorde det rettede board.</value></data>
+  <data name="{0} published the official results of {1}." xml:space="preserve"><value>{0} offentliggjorde de officielle resultater for {1}.</value></data>
+  <data name="{0} reactivated the {1} drop from {2}." xml:space="preserve"><value>{0} genaktiverede droppet {1} fra {2}.</value></data>
+  <data name="{0} reactivated {1}." xml:space="preserve"><value>{0} genaktiverede {1}.</value></data>
+  <data name="{0} recorded pick {1}: {2} picked {3}." xml:space="preserve"><value>{0} registrerede valg {1}: {2} valgte {3}.</value></data>
+  <data name="{0} refreshed the price data of {1}." xml:space="preserve"><value>{0} opdaterede prisdata for {1} fra API'et.</value></data>
+  <data name="{0} refreshed the price of {1} from {2} to {3} gp." xml:space="preserve"><value>{0} opdaterede prisen på {1} fra API'et fra {2} til {3} gp.</value></data>
+  <data name="{0} refreshed {1} from the wiki API." xml:space="preserve"><value>{0} opdaterede {1} fra wiki-API'et.</value></data>
+  <data name="{0} rejected the evidence for “{1}” by {2}." xml:space="preserve"><value>{0} afviste beviset for “{1}” fra {2}.</value></data>
+  <data name="{0} released control of the draft." xml:space="preserve"><value>{0} frigav kontrollen over draften.</value></data>
+  <data name="{0} removed Admin access from {1}." xml:space="preserve"><value>{0} fjernede admin-adgangen fra {1}.</value></data>
+  <data name="{0} removed the WOM competition from {1}." xml:space="preserve"><value>{0} fjernede WOM-konkurrencen fra {1}.</value></data>
+  <data name="{0} removed the account {1} from {2}." xml:space="preserve"><value>{0} fjernede kontoen {1} fra {2}.</value></data>
+  <data name="{0} removed the team {1}." xml:space="preserve"><value>{0} fjernede holdet {1}.</value></data>
+  <data name="{0} removed the team {1}; {2} members left the team." xml:space="preserve"><value>{0} fjernede holdet {1}; {2} medlemmer forlod holdet.</value></data>
+  <data name="{0} removed the tile “{1}” from row {2}, column {3}." xml:space="preserve"><value>{0} fjernede feltet “{1}” fra række {2}, kolonne {3}.</value></data>
+  <data name="{0} removed {1} from {2} on the published roster." xml:space="preserve"><value>{0} fjernede {1} fra {2} på den offentliggjorte holdliste.</value></data>
+  <data name="{0} removed {1} from {2}." xml:space="preserve"><value>{0} fjernede {1} fra {2}.</value></data>
+  <data name="{0} reopened evidence uploads for {1} until {2}." xml:space="preserve"><value>{0} genåbnede upload af bevis for {1} indtil {2}.</value></data>
+  <data name="{0} reopened evidence uploads for {1}." xml:space="preserve"><value>{0} genåbnede upload af bevis for {1}.</value></data>
+  <data name="{0} reopened signups for {1}." xml:space="preserve"><value>{0} genåbnede tilmeldingen til {1}.</value></data>
+  <data name="{0} reopened the draft." xml:space="preserve"><value>{0} genåbnede draften.</value></data>
+  <data name="{0} reopened {1} for final review." xml:space="preserve"><value>{0} genåbnede {1} til endelig gennemgang.</value></data>
+  <data name="{0} replaced the WOM management access for {1}." xml:space="preserve"><value>{0} udskiftede WOM-administrationsadgangen for {1}.</value></data>
+  <data name="{0} replaced the account {1} with {2} for {3}." xml:space="preserve"><value>{0} erstattede kontoen {1} med {2} for {3}.</value></data>
+  <data name="{0} replaced the screenshot for “{1}”." xml:space="preserve"><value>{0} udskiftede skærmbilledet for “{1}”.</value></data>
+  <data name="{0} replaced their linked Discord account." xml:space="preserve"><value>{0} udskiftede sin tilknyttede Discord-konto.</value></data>
+  <data name="{0} replaced {1} with {2} on {3} before the event." xml:space="preserve"><value>{0} erstattede {1} med {2} på {3} før eventet.</value></data>
+  <data name="{0} replaced {1} with {2} on {3} during the event." xml:space="preserve"><value>{0} erstattede {1} med {2} på {3} under eventet.</value></data>
+  <data name="{0} republished the team roles after changing the role of {1}." xml:space="preserve"><value>{0} offentliggjorde holdrollerne igen efter at have ændret rollen for {1}.</value></data>
+  <data name="{0} reset the artwork of {1}." xml:space="preserve"><value>{0} nulstillede billedet af {1}.</value></data>
+  <data name="{0} reset their password with a reset link." xml:space="preserve"><value>{0} nulstillede sin adgangskode med et nulstillingslink.</value></data>
+  <data name="{0} resized the board from {1}×{2} to {3}×{4}." xml:space="preserve"><value>{0} ændrede boardets størrelse fra {1}×{2} til {3}×{4}.</value></data>
+  <data name="{0} restored the account {1}." xml:space="preserve"><value>{0} genaktiverede kontoen {1}.</value></data>
+  <data name="{0} restored the signup of {1}." xml:space="preserve"><value>{0} genindsatte tilmeldingen for {1}.</value></data>
+  <data name="{0} resubmitted evidence for “{1}”." xml:space="preserve"><value>{0} indsendte bevis for “{1}” igen.</value></data>
+  <data name="{0} resumed {1}." xml:space="preserve"><value>{0} genoptog {1}.</value></data>
+  <data name="{0} reversed the approval of the evidence for “{1}” by {2}." xml:space="preserve"><value>{0} tilbageførte godkendelsen af beviset for “{1}” fra {2}.</value></data>
+  <data name="{0} shuffled the draft order." xml:space="preserve"><value>{0} blandede draftrækkefølgen.</value></data>
+  <data name="{0} signed out." xml:space="preserve"><value>{0} loggede ud.</value></data>
+  <data name="{0} signed up again." xml:space="preserve"><value>{0} tilmeldte sig igen.</value></data>
+  <data name="{0} started a correction of the published board." xml:space="preserve"><value>{0} startede en rettelse af det offentliggjorte board.</value></data>
+  <data name="{0} started automatically at its scheduled time." xml:space="preserve"><value>{0} startede automatisk på det planlagte tidspunkt.</value></data>
+  <data name="{0} started editing the board." xml:space="preserve"><value>{0} begyndte at redigere boardet.</value></data>
+  <data name="{0} started the draft with {1} participants." xml:space="preserve"><value>{0} startede draften med {1} deltagere.</value></data>
+  <data name="{0} started the draft." xml:space="preserve"><value>{0} startede draften.</value></data>
+  <data name="{0} started {1}." xml:space="preserve"><value>{0} startede {1}.</value></data>
+  <data name="{0} stopped editing the board." xml:space="preserve"><value>{0} stoppede med at redigere boardet.</value></data>
+  <data name="{0} submitted evidence for “{1}”, credited to {2}." xml:space="preserve"><value>{0} indsendte bevis for “{1}”, krediteret {2}.</value></data>
+  <data name="{0} swapped the tiles “{1}” and “{2}”." xml:space="preserve"><value>{0} byttede felterne “{1}” og “{2}”.</value></data>
+  <data name="{0} switched {1} to WOM competition {2}." xml:space="preserve"><value>{0} skiftede {1} til WOM-konkurrencen {2}.</value></data>
+  <data name="{0} switched {1} to another WOM competition." xml:space="preserve"><value>{0} skiftede {1} til en anden WOM-konkurrence.</value></data>
+  <data name="{0} took control of the draft." xml:space="preserve"><value>{0} tog kontrol over draften.</value></data>
+  <data name="{0} took over control of the draft from {1}." xml:space="preserve"><value>{0} overtog kontrollen over draften fra {1}.</value></data>
+  <data name="{0} took over editing the board from {1}." xml:space="preserve"><value>{0} overtog redigeringen af boardet fra {1}.</value></data>
+  <data name="{0} turned off co-captain signups for {1}." xml:space="preserve"><value>{0} slog tilmelding af medkaptajner fra for {1}.</value></data>
+  <data name="{0} turned on co-captain signups for {1}." xml:space="preserve"><value>{0} slog tilmelding af medkaptajner til for {1}.</value></data>
+  <data name="{0} undid pick {1}: {2} is no longer on {3}." xml:space="preserve"><value>{0} fortrød valg {1}: {2} er ikke længere på {3}.</value></data>
+  <data name="{0} unlinked their Discord account." xml:space="preserve"><value>{0} fjernede sin Discord-konto.</value></data>
+  <data name="{0} updated the board “{1}”." xml:space="preserve"><value>{0} opdaterede boardet “{1}”.</value></data>
+  <data name="{0} updated the event {1}." xml:space="preserve"><value>{0} opdaterede eventet {1}.</value></data>
+  <data name="{0} updated the price data of {1}." xml:space="preserve"><value>{0} opdaterede prisdata for {1}.</value></data>
+  <data name="{0} updated the price of {1} from {2} to {3} gp." xml:space="preserve"><value>{0} opdaterede prisen på {1} fra {2} til {3} gp.</value></data>
+  <data name="{0} updated the team {1}." xml:space="preserve"><value>{0} opdaterede holdet {1}.</value></data>
+  <data name="{0} updated the {1} drop from {2}." xml:space="preserve"><value>{0} opdaterede droppet {1} fra {2}.</value></data>
+  <data name="{0} updated {1}." xml:space="preserve"><value>{0} opdaterede {1}.</value></data>
+  <data name="{0} verified {1} against the wiki API." xml:space="preserve"><value>{0} verificerede {1} mod wiki-API'et.</value></data>
+  <data name="{0} was archived from the old finalized state." xml:space="preserve"><value>{0} blev arkiveret fra den gamle færdiggjorte tilstand.</value></data>
+  <data name="{0} was created as the first administrator (development setup)." xml:space="preserve"><value>{0} blev oprettet som første administrator (udviklingsopsætning).</value></data>
+  <data name="{0} was promoted to site owner by operator recovery." xml:space="preserve"><value>{0} blev forfremmet til ejer af siden ved driftsgendannelse.</value></data>
+  <data name="{0} was set up as the site owner by the operator." xml:space="preserve"><value>{0} blev oprettet som ejer af siden af driften.</value></data>
+  <data name="{0} withdrew the board approval." xml:space="preserve"><value>{0} trak godkendelsen af boardet tilbage.</value></data>
+  <data name="{0} withdrew the evidence for “{1}”." xml:space="preserve"><value>{0} trak beviset for “{1}” tilbage.</value></data>
+  <data name="{0} withdrew their signup." xml:space="preserve"><value>{0} trak sin tilmelding tilbage.</value></data>
+  <data name="{0} withdrew {1} from {2} during the event." xml:space="preserve"><value>{0} trak {1} ud af {2} under eventet.</value></data>
+  <data name="{0} withdrew {1}." xml:space="preserve"><value>{0} trak {1} tilbage.</value></data>
+  <data name="Signed out" xml:space="preserve"><value>Logget ud</value></data>
+  <data name="Draft pick" xml:space="preserve"><value>Draftvalg</value></data>
+  <data name="Signups open" xml:space="preserve"><value>Tilmelding åben</value></data>
+  <data name="Live" xml:space="preserve"><value>Live</value></data>
+  <data name="Final review" xml:space="preserve"><value>Endelig gennemgang</value></data>
+  <data name="Finished" xml:space="preserve"><value>Afsluttet</value></data>
+  <data name="Archived" xml:space="preserve"><value>Arkiveret</value></data>
+  <data name="Cancelled" xml:space="preserve"><value>Aflyst</value></data>
+  <data name="Discarded" xml:space="preserve"><value>Kasseret</value></data>
+  <data name="Pending" xml:space="preserve"><value>Afventer</value></data>
+  <data name="Approved" xml:space="preserve"><value>Godkendt</value></data>
+  <data name="Rejected" xml:space="preserve"><value>Afvist</value></data>
+  <data name="Withdrawn" xml:space="preserve"><value>Trukket tilbage</value></data>
+  <data name="Reversed" xml:space="preserve"><value>Tilbageført</value></data>
+  <data name="Confirmed" xml:space="preserve"><value>Bekræftet</value></data>
+  <data name="Waiting list" xml:space="preserve"><value>Venteliste</value></data>
+  <data name="Paid" xml:space="preserve"><value>Betalt</value></data>
+  <data name="Unpaid" xml:space="preserve"><value>Ikke betalt</value></data>
+  <data name="Captain" xml:space="preserve"><value>Kaptajn</value></data>
+  <data name="Co-captain" xml:space="preserve"><value>Medkaptajn</value></data>
+  <data name="User" xml:space="preserve"><value>Bruger</value></data>
+  <data name="Admin" xml:space="preserve"><value>Admin</value></data>
+  <data name="Super Admin" xml:space="preserve"><value>Superadmin</value></data>
+  <data name="Disabled" xml:space="preserve"><value>Deaktiveret</value></data>
+  <data name="Setup" xml:space="preserve"><value>Opsætning</value></data>
+  <data name="In progress" xml:space="preserve"><value>I gang</value></data>
+  <data name="Published" xml:space="preserve"><value>Offentliggjort</value></data>
+  <data name="Private correction" xml:space="preserve"><value>Privat rettelse</value></data>
+  <data name="Queued" xml:space="preserve"><value>I kø</value></data>
+  <data name="Failed" xml:space="preserve"><value>Mislykkedes</value></data>
+  <data name="Succeeded" xml:space="preserve"><value>Lykkedes</value></data>
+  <data name="Not managed" xml:space="preserve"><value>Ikke administreret</value></data>
+  <data name="Internal replacement" xml:space="preserve"><value>Intern erstatning</value></data>
+  <data name="Playing" xml:space="preserve"><value>Spiller</value></data>
+  <data name="Manual" xml:space="preserve"><value>Manuel</value></data>
+  <data name="Admin correction" xml:space="preserve"><value>Admin-rettelse</value></data>
+  <data name="Accounts" xml:space="preserve"><value>Konti</value></data>
+  <data name="Ehb snapshot" xml:space="preserve"><value>EHB</value></data>
+  <data name="Actual ended at" xml:space="preserve"><value>Faktisk sluttet</value></data>
+  <data name="Actual signup closed at" xml:space="preserve"><value>Tilmelding faktisk lukket</value></data>
+  <data name="Actual signup opened at" xml:space="preserve"><value>Tilmelding faktisk åbnet</value></data>
+  <data name="Actual started at" xml:space="preserve"><value>Faktisk startet</value></data>
+  <data name="Answers" xml:space="preserve"><value>Svar</value></data>
+  <data name="Value" xml:space="preserve"><value>Værdi</value></data>
+  <data name="Approved contribution" xml:space="preserve"><value>Godkendt bidrag</value></data>
+  <data name="Candidate" xml:space="preserve"><value>Kandidatpris</value></data>
+  <data name="Captain volunteer" xml:space="preserve"><value>Frivillig kaptajn</value></data>
+  <data name="Catalogue value gp" xml:space="preserve"><value>Katalogværdi (gp)</value></data>
+  <data name="Columns" xml:space="preserve"><value>Kolonner</value></data>
+  <data name="Data updated at" xml:space="preserve"><value>Data opdateret</value></data>
+  <data name="Description" xml:space="preserve"><value>Beskrivelse</value></data>
+  <data name="Discord linked" xml:space="preserve"><value>Discord tilknyttet</value></data>
+  <data name="Display rate" xml:space="preserve"><value>Vist droprate</value></data>
+  <data name="Draft locked" xml:space="preserve"><value>Draft låst</value></data>
+  <data name="Draft position" xml:space="preserve"><value>Draftplacering</value></data>
+  <data name="Locked at" xml:space="preserve"><value>Låst</value></data>
+  <data name="Effective at" xml:space="preserve"><value>Gælder fra</value></data>
+  <data name="Efficient completions per hour" xml:space="preserve"><value>Effektive gennemførelser i timen</value></data>
+  <data name="Ehb" xml:space="preserve"><value>EHB</value></data>
+  <data name="Ehb source" xml:space="preserve"><value>EHB-kilde</value></data>
+  <data name="Eligibility ends at" xml:space="preserve"><value>Berettigelse slutter</value></data>
+  <data name="Event starts at" xml:space="preserve"><value>Event starter</value></data>
+  <data name="Event ends at" xml:space="preserve"><value>Event slutter</value></data>
+  <data name="Signup opens at" xml:space="preserve"><value>Tilmelding åbner</value></data>
+  <data name="Signup closes at" xml:space="preserve"><value>Tilmelding lukker</value></data>
+  <data name="Draft at" xml:space="preserve"><value>Draft-tidspunkt</value></data>
+  <data name="Submission cutoff at" xml:space="preserve"><value>Indsendelsesfrist</value></data>
+  <data name="Scheduled signup opening enabled" xml:space="preserve"><value>Planlagt åbning af tilmelding</value></data>
+  <data name="Expected team size" xml:space="preserve"><value>Forventet holdstørrelse</value></data>
+  <data name="Fit" xml:space="preserve"><value>Placering</value></data>
+  <data name="Height" xml:space="preserve"><value>Højde</value></data>
+  <data name="Rotation" xml:space="preserve"><value>Rotation</value></data>
+  <data name="Scale" xml:space="preserve"><value>Skala</value></data>
+  <data name="Width" xml:space="preserve"><value>Bredde</value></data>
+  <data name="From" xml:space="preserve"><value>Fra</value></data>
+  <data name="Hour" xml:space="preserve"><value>Time</value></data>
+  <data name="Included participants" xml:space="preserve"><value>Medtagne deltagere</value></data>
+  <data name="Label" xml:space="preserve"><value>Etiket</value></data>
+  <data name="Mapping checked at" xml:space="preserve"><value>Kobling tjekket</value></data>
+  <data name="Membership ended at" xml:space="preserve"><value>Medlemskab sluttede</value></data>
+  <data name="Joined at" xml:space="preserve"><value>Tilsluttet</value></data>
+  <data name="Left at" xml:space="preserve"><value>Forladt</value></data>
+  <data name="On published roster" xml:space="preserve"><value>På offentliggjort holdliste</value></data>
+  <data name="Participant cap" xml:space="preserve"><value>Deltagerloft</value></data>
+  <data name="Payment" xml:space="preserve"><value>Betaling</value></data>
+  <data name="Pick" xml:space="preserve"><value>Valg</value></data>
+  <data name="Pick number" xml:space="preserve"><value>Valgnummer</value></data>
+  <data name="Picked at" xml:space="preserve"><value>Valgt</value></data>
+  <data name="Round number" xml:space="preserve"><value>Runde</value></data>
+  <data name="Undone at" xml:space="preserve"><value>Fortrudt</value></data>
+  <data name="Present" xml:space="preserve"><value>Note findes</value></data>
+  <data name="Price source" xml:space="preserve"><value>Priskilde</value></data>
+  <data name="Rejected price gp" xml:space="preserve"><value>Afvist pris (gp)</value></data>
+  <data name="Rejected price observed at" xml:space="preserve"><value>Afvist pris observeret</value></data>
+  <data name="Replacement name" xml:space="preserve"><value>Erstatning</value></data>
+  <data name="Required" xml:space="preserve"><value>Påkrævet</value></data>
+  <data name="Role" xml:space="preserve"><value>Rolle</value></data>
+  <data name="Role or state" xml:space="preserve"><value>Rolle eller status</value></data>
+  <data name="Rows" xml:space="preserve"><value>Rækker</value></data>
+  <data name="Source" xml:space="preserve"><value>Kilde</value></data>
+  <data name="Column index" xml:space="preserve"><value>Kolonne</value></data>
+  <data name="Row index" xml:space="preserve"><value>Række</value></data>
+  <data name="Included in draft" xml:space="preserve"><value>Med i draften</value></data>
+  <data name="Teams" xml:space="preserve"><value>Hold</value></data>
+  <data name="Description snapshot" xml:space="preserve"><value>Beskrivelse</value></data>
+  <data name="Estimated ehb snapshot" xml:space="preserve"><value>Anslået EHB</value></data>
+  <data name="Name snapshot" xml:space="preserve"><value>Navn</value></data>
+  <data name="Template present" xml:space="preserve"><value>Skabelon findes</value></data>
+  <data name="To" xml:space="preserve"><value>Til</value></data>
+  <data name="Username" xml:space="preserve"><value>Brugernavn</value></data>
+  <data name="Vacancy" xml:space="preserve"><value>Ledig plads</value></data>
+  <data name="Waiting" xml:space="preserve"><value>Ventende</value></data>
+  <data name="Help text" xml:space="preserve"><value>Hjælpetekst</value></data>
+  <data name="Type" xml:space="preserve"><value>Type</value></data>
+  <data name="Options" xml:space="preserve"><value>Valgmuligheder</value></data>
+  <data name="Position" xml:space="preserve"><value>Plads</value></data>
+  <data name="Affiliation name" xml:space="preserve"><value>Tilknytning</value></data>
+  <data name="Waiting list enabled" xml:space="preserve"><value>Venteliste slået til</value></data>
+  <data name="Total ehb estimate" xml:space="preserve"><value>Samlet EHB-estimat</value></data>
+  <data name="Notes" xml:space="preserve"><value>Noter</value></data>
+  <data name="Slug" xml:space="preserve"><value>Slug</value></data>
+  <data name="Category" xml:space="preserve"><value>Kategori</value></data>
+  <data name="Team size" xml:space="preserve"><value>Holdstørrelse</value></data>
+  <data name="Image url" xml:space="preserve"><value>Billed-URL</value></data>
+  <data name="External identifier" xml:space="preserve"><value>Eksternt id</value></data>
+  <data name="Data source" xml:space="preserve"><value>Datakilde</value></data>
+  <data name="Numeric probability" xml:space="preserve"><value>Sandsynlighed</value></data>
+  <data name="Rate condition note" xml:space="preserve"><value>Betingelse for droprate</value></data>
+  <data name="Default ehb estimate" xml:space="preserve"><value>Standard-EHB</value></data>
+  <data name="Buy in description" xml:space="preserve"><value>Beskrivelse af indskud</value></data>
+  <data name="Credited character name" xml:space="preserve"><value>Krediteret karakter</value></data>
+  <data name="Claimed weight" xml:space="preserve"><value>Angivet vægt</value></data>
+  <data name="Captain note present" xml:space="preserve"><value>Kaptajnnote findes</value></data>
+  <data name="Current reviewer note present" xml:space="preserve"><value>Reviewernote findes</value></data>
+  <data name="Requires fresh order" xml:space="preserve"><value>Kræver ny rækkefølge</value></data>
+  <data name="First pick recorded at" xml:space="preserve"><value>Første valg registreret</value></data>
+  <data name="Scheduled signup warning codes" xml:space="preserve"><value>Advarsler for planlagt åbning</value></data>
+  <data name="Mapping status" xml:space="preserve"><value>Koblingsstatus</value></data>
+  <data name="Matched api name" xml:space="preserve"><value>API-navn</value></data>
+  <data name="Price observed at" xml:space="preserve"><value>Pris observeret</value></data>
+  <data name="Rolls per completion" xml:space="preserve"><value>Rul pr. gennemførelse</value></data>
+  <data name="Assumed participants" xml:space="preserve"><value>Antaget antal deltagere</value></data>
 </root>
