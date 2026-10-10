@@ -162,6 +162,7 @@ Owns data invariants, calculations, architecture and the authentication/authoriz
 ### Audit
 
 - `AuditEntry`: optional event, actor, action, entity type/id, time, reason, before/after snapshot, safe request context.
+- A `draft.team_removed` entry stores `EndedMembershipCount` and at most 25 `EndedMembershipIds` (plus `EndedMembershipIdsOmitted`), so its size no longer grows with the team; older entries with the full list display the same way. A removed member not on the published roster is labelled by character name.
 - Audit writers stage the entry with the owning mutation or use `WriteAndSaveAsync`; standalone `WriteAsync` rejects a dirty context.
 - The shared `AuditPresenter`/`_AuditEntry` render actions consistently (Audit page, Recent Admin Activity) with localized labels and a readable fallback; raw details appear under Technical details and never include secrets. `UiMessage` severity is explicit; invalid/omitted severity is neutral info.
 

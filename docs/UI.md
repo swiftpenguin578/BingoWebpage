@@ -285,7 +285,7 @@ The app's CSS is the authority for every value: `src/Bingo.Web/wwwroot/css/admin
 - Planning figures: headline total and rows with an optional inline number field, saving spinner and saved tick.
 - Tile editor: objective cards (single-drop chrome, collapsed, locked), drop groups with counts and drop rows (on, locked, missing rate, weight), a "Collect [n] …" count line with one-line summary, an EHB box where a replaced calculated value is struck through with a warning note and link, an artwork picker, automatic values read-only.
 - At 390px the loaded header actions wrap to a second row (+42px), recorded as `headerGrowth: { 390: 42 }` in `scripts/lib/admin-page-conformance-pages.cjs`.
-- Admin Preview (`/Admin/Events/{id}/Preview/{teamSlug?}/{tileId?}`) mirrors the public Board family and has no independent visual approval.
+- The Board Preview modal renders the board like the team board (board only, not interactive; tile look in `src/Bingo.Web/wwwroot/css/admin-board-preview.css`). The legacy `/Admin/Events/{id}/Preview/…` route redirects to Board.
 
 ### Admin Teams / Draft
 
@@ -428,14 +428,15 @@ Every page has an explicit state in this table; a page or state without an appro
 | Admin Teams/Draft | approved | 2026-10-08 |
 | Admin Teams/Draft live-draft scaling and pick highlight | approved in preview | 2026-10-10 |
 | Admin Teams/Draft: finalized-pre-Live participant action and Captain-recovery publication states | awaiting manual acceptance | — |
-| Admin Board (Preview has no approval of its own) | approved | 2026-10-08 |
+| Admin Board | approved | 2026-10-08 |
+| Admin Board Preview (board as players see it, boss artwork, default team-board artwork) | approved | 2026-10-10 |
 | Admin evidence review (queue + Details) | approved | 2026-10-08 |
 | Admin Final review (Finalize) | approved | 2026-10-08 |
 | Admin WOM page | approved | 2026-10-08 |
 | Admin WOM competitions on Overview (creation preview/validation, automatic link, management feedback, errors/recovery, before-Live deletion, event/team name inputs) | awaiting manual review | 2026-09-22 |
 | Admin Catalogue | approved | 2026-10-07 |
 | Admin Accounts | approved | 2026-10-07 |
-| Admin Audit | approved | 2026-10-07 |
+| Admin Audit (readable sentences, Affected account column and drawer row, search while typing, 940 px table) | awaiting the user's visual acceptance | — |
 | Discord Settings/link/login feedback and Admin Last login | manually accepted | 2026-09-14 |
 | Public UI catalogue `/Admin/PublicUi` | historical specimen, direct link only, not an approval target | — |
 | UI reference gallery `/Admin/UiReferences` | retired; redirects to `/Admin` | 2026-10-08 |
