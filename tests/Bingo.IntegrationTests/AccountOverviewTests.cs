@@ -17,17 +17,16 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class AccountOverviewTests : IAsyncLifetime
+public sealed class AccountOverviewTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort().WithDatabase("bingo_account_overview").WithUsername("bingo").WithPassword("bingo_test_password").Build();
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine").WithDatabase("bingo_account_overview").WithUsername("bingo").WithPassword("bingo_test_password"), PostgreSqlTemplate.EnsureCreated);
     private DbContextOptions<ApplicationDbContext> options = null!;
 
     public async Task InitializeAsync()
     {
-        await PostgreSqlReadiness.StartAsync(database);
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
+        await database.StartAsync();
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
-        await db.Database.EnsureCreatedAsync();
         var now = DateTimeOffset.UtcNow;
         var ev = new BingoEvent(Guid.NewGuid(), "Overview event", "overview", "test", "UTC", now, now.AddDays(1), now.AddDays(2), now.AddDays(3), now.AddDays(3).AddMinutes(30), 100, Guid.NewGuid(), now);
         var team = new Team(Guid.NewGuid(), ev.Id, "Overview team", "overview-team", TeamFormationType.Drafted, null, true);

@@ -26,13 +26,13 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLifetime
+public sealed partial class Slice3ScheduledLifecycleIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_slice3_scheduled")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
-        .Build();
+        );
     private readonly DateTimeOffset now = new(2026, 7, 27, 15, 0, 0, TimeSpan.Zero);
     private readonly IConfiguration configuration = new ConfigurationBuilder().AddInMemoryCollection(
         new Dictionary<string, string?>
@@ -44,10 +44,8 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
 
     public async Task InitializeAsync()
     {
-        await PostgreSqlReadiness.StartAsync(database);
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
-        await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
+        await database.StartAsync();
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
@@ -579,7 +577,7 @@ public sealed partial class Slice3ScheduledLifecycleIntegrationTests : IAsyncLif
         }
 
         using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-            builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
+            builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = true });
         var login = await client.GetStringAsync("/Account/Login");
         using var loggedIn = await client.PostAsync("/Account/Login", new FormUrlEncodedContent(new Dictionary<string, string>

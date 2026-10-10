@@ -90,6 +90,7 @@ export function init(region, ui = window.AdminUI) {
     if (blocked()) return;
     L.pending = Object.assign({ kind: o.kind, draft: o.draft }, o.pending || {});
     L.notice = null; L.own = o.kind;
+    L.fresh = null; // the last change's highlight ends when the next command starts; re-rendering would replay it
     o.layer?.setBusy(true);
     render();
     const result = await post(o.handler, o.values, !!o.quick);
@@ -214,9 +215,18 @@ export function init(region, ui = window.AdminUI) {
       parts.push(liveEl);
       place(body, parts);
       pageEl?.classList.toggle('is-live', st === 'running');
+      fitScale();
       head?.classList.toggle('sr', st === 'running');
       side(st === 'running' && !L.loadError);
     });
+  }
+  // The running draft is screen-shared, so it grows with the window (CSS zoom, set on .page.is-live):
+  // 1.0 up to 1280 px wide, linear to 1.5 at 1920 px, and never more than the height allows (720 px tall = 1.0).
+  function fitScale() {
+    if (!pageEl) return;
+    const wide = 1 + 0.5 * (innerWidth - 1280) / 640, tall = innerHeight / 720;
+    const scale = Math.round(Math.min(1.5, Math.max(1, Math.min(wide, tall))) * 1000) / 1000;
+    pageEl.style.setProperty('--draft-scale', String(scale));
   }
   function renderHead(st) {
     const summary = head?.querySelector('.summary');
@@ -441,7 +451,8 @@ export function init(region, ui = window.AdminUI) {
     const duration = tokenMs('--dk-dur-reorder'), stagger = tokenMs('--dk-dur-reorder-stagger');
     const runs = [...r.board.children].map((el, i) => {
       const from = before.get(el.dataset.teamId), to = el.getBoundingClientRect(); if (!from) return null;
-      const dx = from.left - to.left, dy = from.top - to.top; if (!dx && !dy) return null;
+      const zoom = parseFloat(pageEl?.style.getPropertyValue('--draft-scale')) || 1; // the rects are window pixels, the transform is in the page's zoomed pixels
+      const dx = (from.left - to.left) / zoom, dy = (from.top - to.top) / zoom; if (!dx && !dy) return null;
       return el.animate([{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }], { duration, delay: i * stagger, easing: 'cubic-bezier(.2,.7,.2,1)', fill: 'backwards' }).finished.catch(() => {});
     });
     await Promise.all(runs);
@@ -507,7 +518,7 @@ export function init(region, ui = window.AdminUI) {
     void run({ handler: 'Pick', values: { participantId: pid }, kind: 'pick', quick: true, what: t('draft {0}', name), pending: { pid, teamId: turn.teamId, pickNo },
       verify: rb => rb.picks.some(x => x.participantId === pid && x.undoneAt == null),
       okText: t('{0} is on {1}.', name, teamName), notText: t('{0} wasn’t drafted.', name),
-      onOk: () => { L.fresh = pid; L.swap = L.swap === 'a' ? 'b' : 'a'; L.live = t('Pick {0}: {1} to {2}.', num(pickNo), name, teamName); render(); if (inGrid && next) focusSoon('pc-' + next.id, { preventScroll: true }); else if (!inGrid) focusSoon('pool-search'); } });
+      onOk: () => { L.fresh = pid; setTimeout(() => { if (L.fresh === pid) L.fresh = null; }, tokenMs('--dk-dur-flash') + 100); L.swap = L.swap === 'a' ? 'b' : 'a'; L.live = t('Pick {0}: {1} to {2}.', num(pickNo), name, teamName); render(); if (inGrid && next) focusSoon('pc-' + next.id, { preventScroll: true }); else if (!inGrid) focusSoon('pool-search'); } });
   }
   function undo() {
     const last = S.latestPick;
@@ -975,6 +986,7 @@ export function init(region, ui = window.AdminUI) {
   const requested = new URL(location.href).searchParams.get('rosterTeamId');
   if (requested && team(requested.toLowerCase())) requestAnimationFrame(() => focusTeam(requested.toLowerCase()));
   const extensions = [];
+  addEventListener('resize', fitScale, { signal });
   connectHub();
-  release = () => { life.abort(); for (const stop of extensions) stop(); restoreSide(); pageEl?.classList.remove('is-live'); head?.classList.remove('sr'); };
+  release = () => { life.abort(); for (const stop of extensions) stop(); restoreSide(); pageEl?.classList.remove('is-live'); pageEl?.style.removeProperty('--draft-scale'); head?.classList.remove('sr'); };
 }

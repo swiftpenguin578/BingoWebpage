@@ -105,6 +105,12 @@ remain evidence of completed work, not competing defaults.
 
 - Do not revert, overwrite, stage or commit existing work without authorization.
   No destructive cleanup, branch deletion, push, merge or deployment without approval.
+  Exception (user, 9 October 2026): the planner may push the working branch (e.g.
+  `october-live-readiness`) with one draft PR to main for the whole branch to run CI,
+  and names every push in its report. Ticket branches stay local: reviewed tickets
+  are merged locally into the working branch, then their branch and worktree are
+  removed. Pushing to main, merging into main
+  and deploying always need the user's explicit approval.
   For branch cleanup/publication, follow `DELIVERY_PLAN.md` section 4.7.
 - Do not expose secrets or include real participant data in committed artifacts.
 - Do not reset, seed or mutate user-owned databases outside the authorized task.
@@ -183,12 +189,14 @@ remain evidence of completed work, not competing defaults.
   the assignment's scoped checks and reports; affected .NET tests apply when needed,
   and small fixes require a Release build only if C# or Razor changed. The full JS
   runner and Release build are batch gates as stated above, not per-fix gates.
-  Only the planner runs the whole .NET suite once on the final SHA, in the
-  background as soon as the
-  report arrives; that is the batch gate before acceptance (zero failures and zero
-  skipped tests). Failures return as remediation. The implementer does not run the
-  whole suite (08-decisions.md, Q-S1, user decision, 7 October 2026; supersedes the
-  implementer-owned whole-suite gate from B5 review D14 / brief32).
+  The whole suite runs in GitHub CI, started by the planner, sized by risk (user
+  decision, 9 October 2026; replaces Q-S1): small tickets (CSS, layout, text,
+  display) run focused local checks and CI once per batch or before main; medium
+  (calculations, service rules) run CI once when the ticket is done; large
+  (migrations, auth, data storage, concurrency, deploy scripts) run CI per ticket,
+  plus the rehearsal when migrations change. CI must be fully green (zero failures,
+  zero skipped tests) before anything goes to main and before every deploy.
+  Failures return as remediation. Implementers never run the whole suite.
 
 ## Durable evidence and authorized checkpoints
 

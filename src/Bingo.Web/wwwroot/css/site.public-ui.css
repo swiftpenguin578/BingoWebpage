@@ -886,7 +886,11 @@ body.public-event-shell.public-ui-pass1 .public-ui-submission-form--shared { --p
   body.public-event-shell.public-ui-pass1 .public-team-board .public-team-workspace > .public-team-sidebar:not(.tile-context-sidebar) { overflow-y: auto; }
   body.public-event-shell.public-ui-pass1 .public-team-board .public-team-workspace > .tile-context-sidebar { overflow: hidden !important; }
   body.public-event-shell.public-ui-pass1 .public-team-board .public-team-workspace > .public-ui-submission-drawer {
+    grid-column: 2;
+    grid-row: 1 / 3;
     top: var(--public-team-board-row-top, 0px);
+    left: -1.4rem;
+    width: min(34rem, calc(100% + 1.4rem));
     height: var(--public-team-board-row-height, auto);
     max-height: var(--public-team-board-row-height, none);
     overflow-y: auto;
@@ -1889,13 +1893,36 @@ body.public-ui-page-canvas .landing-shell-link { position: relative; display: in
 body.public-ui-page-canvas .landing-shell-links > .landing-shell-link:not(.is-current):is(:hover, :focus-visible) { color: rgba(255, 255, 255, 0.78) !important; text-decoration: none; }
 body.public-ui-page-canvas .landing-shell-links > .landing-shell-link.is-current { color: #fff !important; text-decoration: none; }
 body.public-ui-page-canvas .landing-shell-links > .landing-shell-link.is-current::after { position: absolute; right: 0.1rem; bottom: 0; left: 0.1rem; height: 3px; background: #fff; content: ""; }
-.landing-shell-actions { display: flex; min-width: 0; gap: 1.15rem; align-items: center; margin-left: auto; }
+.landing-shell-actions { display: flex; flex: 0 0 auto; gap: 1.15rem; align-items: center; margin-left: auto; }
 .landing-shell-icon { position: relative; display: grid; width: 2rem; height: 2rem; place-items: center; padding: 0; color: #fff; background: transparent; border: 0; cursor: pointer; list-style: none; }
 .landing-shell-icon svg { display: block; width: 1.65rem; height: 1.65rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
 .landing-shell-notification { position: absolute; top: -0.2rem; right: -0.4rem; display: grid; min-width: 1.1rem; height: 1.1rem; box-sizing: border-box; place-items: center; padding: 0 0.2rem; color: var(--landing-shell-background); background: #fff; border-radius: 50%; font: 600 0.75rem/1 "Barlow Condensed SemiBold", sans-serif; }
 body.public-ui-page-canvas .landing-shell-account { display: inline-flex; min-height: 5rem; gap: 0.9rem; align-items: center; padding: 0 0.1rem; color: #fff; background: transparent; border: 0; cursor: pointer; appearance: none; -webkit-appearance: none; font: 600 1.15rem/1 "Barlow Condensed SemiBold", sans-serif; letter-spacing: 0.03em; list-style: none; }
 .landing-shell-account svg { width: 1rem; height: 1rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
 .landing-shell-sign-in { min-height: 2.5rem; border-bottom: 0; }
+.landing-shell-playing { min-width: 0; font: 600 1.05rem/1.1 "Barlow Condensed SemiBold", sans-serif; letter-spacing: 0.03em; }
+.landing-shell-playing--bar { display: flex; flex: 0 1000 auto; justify-content: flex-end; min-width: 4.5rem; max-width: clamp(8rem, 24vw, 21rem); margin-left: auto; margin-right: clamp(0.5rem, 1vw, 1.5rem); }
+@media (min-width: 761px) { .landing-shell-playing--bar + .landing-shell-actions { margin-left: 0; } }
+.landing-shell-playing--strip { display: none; justify-content: flex-end; padding: 0.3rem 1.5rem 0.45rem; border-top: 1px solid rgba(255, 255, 255, 0.16); }
+@media (max-width: 760px) { .landing-shell-playing--bar { display: none; } .landing-shell-playing--strip { display: flex; } }
+.landing-shell-playing__label, .landing-shell-playing__button { min-width: 0; overflow: hidden; color: #fff; text-overflow: ellipsis; white-space: nowrap; }
+.landing-shell-playing__menu { position: relative; min-width: 0; max-width: 100%; }
+body.public-ui-page-canvas .landing-shell-playing__button { display: inline-flex; max-width: 100%; gap: 0.5rem; align-items: center; padding: 0; background: transparent; border: 0; cursor: pointer; font: inherit; letter-spacing: inherit; }
+.landing-shell-playing__button > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.landing-shell-playing__button svg { flex: 0 0 auto; width: 0.9rem; height: 0.9rem; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2; }
+.landing-shell-playing__panel { position: absolute; z-index: 30; top: calc(100% + 0.35rem); right: 0; display: none; width: min(16rem, calc(100vw - 2rem)); box-sizing: border-box; padding: 0.5rem 0.75rem 0.65rem; color: var(--landing-text-primary); background: var(--landing-canvas); border: 1px solid var(--landing-rule); box-shadow: 0 1rem 2rem rgba(17, 21, 40, 0.2); }
+.landing-shell-playing__menu > .landing-shell-playing__panel:not([hidden]) { display: grid; }
+/* One "Switch account" heading for every public page (event shell and canvas pages alike): same colour, font and underline. */
+html body.public-ui-page-canvas .landing-shell-playing__panel > .public-ui-section-heading { padding: 0.15rem 0.2rem 0.45rem; color: var(--landing-text-primary); font: 800 0.95rem/1.1 "Barlow Condensed ExtraBold", "Arial Narrow", sans-serif; letter-spacing: 0.01em; text-transform: uppercase; border-bottom: 1px solid #D8D5CC; }
+html[data-public-theme="dark"] body.public-ui-page-canvas .landing-shell-playing__panel > .public-ui-section-heading { border-bottom-color: #4B494B; }
+.landing-shell-playing__form { margin: 0; }
+.landing-shell-playing__option { width: 100%; padding: 0.55rem 0.2rem; overflow-wrap: anywhere; color: var(--landing-text-primary); text-align: left; background: transparent; border: 0; border-bottom: 1px solid var(--landing-rule); cursor: pointer; font: 500 0.95rem/1.2 "Geist Public UI", system-ui, sans-serif; letter-spacing: 0; }
+.landing-shell-playing__option:is(:hover, :focus-visible) { background: color-mix(in srgb, var(--landing-content-accent) 7%, var(--landing-canvas)); }
+html[data-public-theme="dark"] body.public-ui-page-canvas :is(.landing-shell-playing__label, .landing-shell-playing__button) { color: #F4EEDF; }
+@media (max-width: 760px) { .landing-shell-playing--strip { padding-inline: 1rem; } }
+/* Between the hamburger breakpoint and wide desktops the bar is tight: shrink link gaps so the playing account keeps room. */
+@media (max-width: 1100px) { .landing-shell-links { gap: 1.25rem; margin-left: 1.25rem; } .landing-shell-primary { gap: 0.75rem; } }
+@media (max-width: 900px) { .landing-shell-links { gap: 1rem; margin-left: 1rem; } body.public-ui-page-canvas .landing-shell-links > .landing-shell-link { letter-spacing: 0.03em; } }
 .landing-shell-menu { display: none; position: relative; }
 .landing-shell-popover { position: relative; display: block; min-width: 0; }
 body.public-ui-page-canvas .landing-shell-popover .public-ui-header-popover__panel { color: var(--landing-text-primary); background: var(--landing-canvas); border-color: var(--landing-rule); border-radius: 0; box-shadow: 0 1rem 2rem rgba(17, 21, 40, 0.2); }
@@ -3575,7 +3602,7 @@ body.public-event-shell.public-ui-pass1 .public-team-back:hover,
 body.public-event-shell.public-ui-pass1 .public-team-back:focus-visible { color: var(--board-ink); background: transparent; border: 0; text-decoration: none; }
 body.public-event-shell.public-ui-pass1 .public-team-back:focus-visible { outline: 2px solid var(--board-blue); outline-offset: 3px; }
 html[data-public-theme="dark"] body.public-event-shell.public-ui-pass1 .public-team-masthead .public-masthead-kicker { color: var(--board-ink); }
-body.public-event-shell.public-ui-pass1 .public-team-workspace { position: relative; display: grid; grid-template-columns: minmax(14rem, 17rem) minmax(0, 40rem); width: min(100%, 58.4rem); margin-inline: 0; gap: 0 1.4rem; }
+body.public-event-shell.public-ui-pass1 .public-team-workspace { --public-team-board-size: max(40rem, calc(100dvh - 3rem)); position: relative; display: grid; grid-template-columns: minmax(14rem, 22rem) minmax(min(37rem, 100%), 1fr); width: 100%; margin-inline: 0; gap: 0 1.4rem; }
 @media (min-width: 901px) {
   body.public-event-shell.public-ui-pass1 .public-team-workspace { grid-template-rows: auto auto; }
   body.public-event-shell.public-ui-pass1 .public-team-board.public-ui-submission-drawer-open .public-team-workspace { overflow-x: clip; }
@@ -3586,90 +3613,73 @@ body.public-event-shell.public-ui-pass1 .public-team-workspace { position: relat
 body.public-event-shell.public-ui-pass1 .public-team-sidebar.public-ui-sectioned-surface { display: flex; height: auto; min-height: 0; flex-direction: column; background: transparent; border: 0; border-right: 1px solid var(--board-rule); }
 body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-sidebar-section { position: relative; display: block; min-width: 0; padding: 0 1.4rem 0.85rem 0; border: 0; }
 body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-sidebar-section::after { position: absolute; right: 1.4rem; bottom: 0; left: 0; height: 2px; background: var(--board-blue); content: ""; }
-body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-account-strip::after { position: absolute; right: 1.4rem; bottom: 0; left: 0; height: 2px; background: var(--board-blue); content: ""; }
 body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-sidebar-section + .team-sidebar-section { padding-top: 0.85rem; }
 body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-sidebar-section:last-child { padding-bottom: 0.85rem; }
-body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-rail-heading { display: inline-block; margin: 0; padding-bottom: 0.3rem; color: var(--board-blue); border-bottom: 3px solid var(--board-blue); font: 600 1.2rem/0.9 "Barlow Condensed Public UI", sans-serif; text-transform: uppercase; }
+body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-rail-heading { display: inline-block; margin: 0; padding-bottom: 0.3rem; color: var(--board-blue); border-bottom: 3px solid var(--board-blue); font: 600 1.44rem/0.9 "Barlow Condensed Public UI", sans-serif; text-transform: uppercase; }
 body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-rail-heading::after { content: none; }
 body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-progress-summary { display: grid; gap: 0; margin: 0.7rem 0 0; padding: 0; }
 body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-progress-row { display: grid; grid-template-columns: minmax(0, 1fr) max-content; gap: 0.55rem; align-items: center; min-width: 0; padding: 0.4rem 0; }
 body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-progress-row + .team-progress-row { border-top: 1px solid var(--board-rule); }
-body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-progress-label { min-width: 0; color: var(--board-ink); font: 600 0.85rem/1 "Barlow Condensed SemiBold", sans-serif; letter-spacing: normal; text-transform: uppercase; }
-body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-progress-value { display: flex; align-self: stretch; align-items: center; justify-content: flex-end; margin: 0; color: var(--board-blue); font: 600 0.85rem/1.25 "Geist Public UI", sans-serif; line-height: 1; text-align: right; transform: translateY(0.08rem); white-space: nowrap; }
+body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-progress-label { min-width: 0; color: var(--board-ink); font: 600 1rem/1 "Barlow Condensed SemiBold", sans-serif; letter-spacing: normal; text-transform: uppercase; }
+body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-progress-value { display: flex; align-self: stretch; align-items: center; justify-content: flex-end; margin: 0; color: var(--board-blue); font: 600 1rem/1.25 "Geist Public UI", sans-serif; line-height: 1; text-align: right; transform: translateY(0.08rem); white-space: nowrap; }
 body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-progress-meter { width: 100%; height: 0.65rem; box-sizing: border-box; margin-top: 0.55rem; border: 1px solid var(--board-blue); border-radius: 0; background: transparent; }
 body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .public-ui-progress-meter > span { background: var(--board-blue); border-radius: 0; }
 body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-progress-actions { display: flex; flex-wrap: wrap; gap: 0.55rem; align-items: center; margin-top: 0.75rem; }
 body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-progress-actions .public-ui-action { width: fit-content; min-height: 2rem; padding-inline: 0; }
 body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-progress-actions .public-ui-action--forward::after { color: var(--board-blue); }
-body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-progress-actions > .team-progress-action { display: inline-flex; min-width: 0; flex: 1 1 calc(50% - 0.275rem); justify-content: center; min-height: 2rem; padding: 0.45rem 0.55rem; border-radius: 0; font: 600 0.86rem/1 "Barlow Condensed SemiBold", "Arial Narrow", sans-serif; letter-spacing: 0.06em; text-transform: uppercase; }
+body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-progress-actions > .team-progress-action { display: inline-flex; min-width: 0; flex: 1 1 calc(50% - 0.275rem); justify-content: center; min-height: 2rem; padding: 0.45rem 0.55rem; border-radius: 0; font: 600 0.95rem/1 "Barlow Condensed SemiBold", "Arial Narrow", sans-serif; letter-spacing: 0.06em; text-transform: uppercase; }
 body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-progress-actions > :is(.team-focus-rail-action, .team-focus-rail-state) { width: 100%; flex: 1 1 100%; }
 body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-progress-action--primary { color: #fff; background: var(--board-coral); border: 1px solid var(--board-coral); }
 body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-progress-action--primary:hover:not(:disabled):not([aria-disabled="true"]) { color: #fff; background: color-mix(in srgb, var(--board-coral) 82%, #000); border-color: color-mix(in srgb, var(--board-coral) 82%, #000); }
 body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-progress-action--secondary { color: var(--board-blue); background: transparent; border: 1px solid var(--board-blue); }
 body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-progress-action--secondary:hover:not(:disabled):not([aria-disabled="true"]) { color: var(--board-canvas); background: var(--board-blue); border-color: var(--board-blue); }
-body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-rail-supporting { margin: 0.45rem 0 0; color: var(--board-muted); font: 400 0.9rem/1.3 "Geist Public UI", sans-serif; }
+body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-rail-supporting { margin: 0.45rem 0 0; color: var(--board-muted); font: 400 1rem/1.3 "Geist Public UI", sans-serif; }
 body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-ehb-section > .team-rail-heading + .team-rail-supporting,
 body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-activity-section > .team-rail-heading + .team-rail-supporting,
-body.public-event-shell.public-ui-pass1 .tile-kc-section > .team-rail-heading + .team-rail-supporting { font-size: 0.78rem; }
+body.public-event-shell.public-ui-pass1 .tile-kc-section > .team-rail-heading + .team-rail-supporting { font-size: 0.91rem; }
 body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-metric-list { display: grid; gap: 0; margin: 0.7rem 0 0; padding: 0; }
 body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-metric-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr); gap: 0.55rem; align-items: baseline; min-width: 0; padding: 0.4rem 0; }
 body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-metric-row + .team-metric-row { border-top: 1px solid var(--board-rule); }
 body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-metric-list:has(+ .team-contributor-block) .team-metric-row:last-child { padding-bottom: 0; }
-body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-metric-row dt { min-width: 0; overflow: hidden; color: var(--board-ink); font: 800 0.9rem/1.05 "Barlow Condensed ExtraBold", "Arial Narrow", sans-serif; letter-spacing: 0.01em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
-body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-metric-value { min-width: 0; overflow-wrap: anywhere; color: var(--board-blue); font: 400 0.78rem/1.35 "Geist Public UI", system-ui, sans-serif; text-align: right; }
+body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-metric-row dt { min-width: 0; overflow: hidden; color: var(--board-ink); font: 800 1.06rem/1.05 "Barlow Condensed ExtraBold", "Arial Narrow", sans-serif; letter-spacing: 0.01em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-metric-value { min-width: 0; overflow-wrap: anywhere; color: var(--board-blue); font: 400 0.91rem/1.35 "Geist Public UI", system-ui, sans-serif; text-align: right; }
 body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-contributor-block { position: relative; margin-top: 0.55rem; padding-top: 0; border: 0; }
 body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-contributor-block::before { position: absolute; top: -0.55rem; right: 0; left: 0; height: 1px; background: var(--board-rule); content: ""; }
 body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-contributor-block > summary { display: flex; width: 100%; box-sizing: border-box; align-items: center; justify-content: space-between; cursor: pointer; list-style: none; }
 body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-contributor-block > summary::-webkit-details-marker { display: none; }
 body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-contributor-block > summary:focus-visible { outline: 2px solid var(--board-blue); outline-offset: 3px; }
-body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-rail-subheading { margin: 0; color: var(--board-blue); font: 800 0.9rem/1.05 "Barlow Condensed ExtraBold", "Arial Narrow", sans-serif; letter-spacing: 0.01em; text-transform: uppercase; }
+body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-rail-subheading { margin: 0; color: var(--board-blue); font: 800 1.06rem/1.05 "Barlow Condensed ExtraBold", "Arial Narrow", sans-serif; letter-spacing: 0.01em; text-transform: uppercase; }
 html[data-public-theme="light"] body.public-event-shell.public-ui-pass1 .public-team-board :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-contributor-block > summary.team-rail-subheading { color: var(--board-ink); }
 body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-contributor-block > summary svg { width: 0.8rem; height: 0.8rem; flex: 0 0 auto; transition: transform 160ms ease; }
 body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-contributor-block[open] > summary svg { transform: rotate(180deg); }
 body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-contributor-list { display: grid; gap: 0; margin: 0.35rem 0 0; padding: 0; list-style: none; }
-body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-contributor-list > li { display: grid; grid-template-columns: 1.45rem minmax(0, 1fr) max-content; gap: 0.4rem; align-items: baseline; min-width: 0; padding: 0.4rem 0; }
+body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-contributor-list > li { display: grid; grid-template-columns: 1.75rem minmax(0, 1fr) max-content; gap: 0.4rem; align-items: baseline; min-width: 0; padding: 0.4rem 0; }
 body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-contributor-list > li + li { border-top: 1px solid var(--board-rule); }
-body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-contributor-rank { color: var(--board-blue); font: 600 0.72rem/1 "Barlow Condensed Public UI", sans-serif; }
-body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-contributor-name { min-width: 0; overflow: hidden; color: var(--board-ink); font: 400 0.68rem/1.15 "Geist Public UI", system-ui, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
-body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-contributor-value { color: var(--board-blue); font: 400 0.68rem/1.15 "Geist Public UI", system-ui, sans-serif; text-align: right; white-space: nowrap; }
-body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-account-strip { position: relative; min-width: 0; margin-bottom: 1rem; padding: 0 1.4rem 0.85rem 0; }
-body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-account-heading { display: grid; min-width: 0; gap: 0.2rem; }
-body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-account-label { color: var(--board-muted); font: 600 0.7rem/1 "Barlow Condensed SemiBold", sans-serif; letter-spacing: 0.08em; text-transform: uppercase; }
-body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-account-name { min-width: 0; overflow: hidden; color: var(--board-ink); font: 800 1rem/1 "Barlow Condensed ExtraBold", sans-serif; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
-body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-account-switch { margin-top: 0.45rem; }
-body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-account-switch > summary { display: flex; width: fit-content; gap: 0.35rem; align-items: center; color: var(--board-blue); cursor: pointer; font: 600 0.76rem/1 "Barlow Condensed SemiBold", sans-serif; letter-spacing: 0.06em; list-style: none; text-transform: uppercase; }
-body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-account-switch > summary::-webkit-details-marker { display: none; }
-body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-account-switch > summary:focus-visible { outline: 2px solid var(--board-blue); outline-offset: 3px; }
-body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-account-switch > summary > span:last-child { transition: transform 160ms ease; }
-body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-account-switch[open] > summary > span:last-child { transform: rotate(90deg); }
-body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-account-switch .participant-account-swap { display: grid; gap: 0.35rem; margin-top: 0.55rem; }
-body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-account-switch .participant-account-swap label { position: relative; display: grid; gap: 0.2rem; min-width: 0; color: var(--board-muted); font: 500 0.72rem/1.1 "Geist Public UI", sans-serif; }
-body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-account-switch .participant-account-swap .public-ui-control-visual--select { min-width: 0; }
-body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-account-switch .participant-account-swap label > .public-ui-select-chevron { position: absolute; right: 0.7rem; bottom: 0.65rem; pointer-events: none; }
-body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-focus-rail-state { color: var(--board-muted); font: 600 0.72rem/1 "Barlow Condensed SemiBold", sans-serif; letter-spacing: 0.06em; text-transform: uppercase; }
+body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-contributor-rank { color: var(--board-blue); font: 600 0.85rem/1 "Barlow Condensed Public UI", sans-serif; }
+body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-contributor-name { min-width: 0; overflow: hidden; color: var(--board-ink); font: 400 0.85rem/1.15 "Geist Public UI", system-ui, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-contributor-value { color: var(--board-blue); font: 400 0.85rem/1.15 "Geist Public UI", system-ui, sans-serif; text-align: right; white-space: nowrap; }
+body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-focus-rail-state { color: var(--board-muted); font: 600 0.85rem/1 "Barlow Condensed SemiBold", sans-serif; letter-spacing: 0.06em; text-transform: uppercase; }
 body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-focus-rail-action { margin-top: 0.1rem; }
 
 html[data-public-theme="dark"] body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-sidebar-section,
-html[data-public-theme="dark"] body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-account-strip { border-color: var(--board-rule); }
 html[data-public-theme="dark"] body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-rail-heading { color: var(--board-ink); border-bottom-color: var(--board-rule); }
 html[data-public-theme="dark"] body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-rail-heading::after { content: none; }
 html[data-public-theme="dark"] body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-rail-heading,
 html[data-public-theme="dark"] body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-rail-subheading,
 html[data-public-theme="dark"] body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-progress-actions .public-ui-action--text,
-html[data-public-theme="dark"] body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-account-name,
 html[data-public-theme="dark"] body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-metric-name,
 html[data-public-theme="dark"] body.public-event-shell.public-ui-pass1 :is(.public-team-sidebar:not(.tile-context-sidebar), .tile-kc-section) .team-contributor-name { color: var(--board-ink); }
 html[data-public-theme="dark"] body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) .team-progress-actions .public-ui-action--forward::after { color: var(--board-ink); }
 
 body.public-event-shell.public-ui-pass1 .public-board-scroll { min-width: 0; padding: 0; overflow-x: auto; }
-body.public-event-shell.public-ui-pass1 .public-full-board { grid-template-columns: repeat(var(--public-board-columns), minmax(0, 1fr)); width: min(100%, 40rem); min-width: 37rem; gap: 0.6rem; }
-body.public-event-shell.public-ui-pass1 .public-team-board-legend { display: flex; width: min(100%, 40rem); box-sizing: border-box; flex-wrap: wrap; gap: 0.45rem 0.9rem; align-items: center; justify-content: flex-end; margin: 0 0 0.55rem auto; padding: 0; color: var(--board-ink); }
+body.public-event-shell.public-ui-pass1 .public-full-board { grid-template-columns: repeat(var(--public-board-columns), minmax(0, 1fr)); width: min(100%, var(--public-team-board-size, 40rem)); min-width: 37rem; margin-inline: 0; gap: 0.6rem; }
+body.public-event-shell.public-ui-pass1 .public-team-board-legend { display: flex; width: min(100%, var(--public-team-board-size, 40rem)); box-sizing: border-box; flex-wrap: wrap; gap: 0.45rem 0.9rem; align-items: center; justify-content: flex-end; margin: 0 auto 0.55rem 0; padding: 0; color: var(--board-ink); }
 body.public-event-shell.public-ui-pass1 .public-team-board-legend .public-board-legend__item { display: inline-flex; gap: 0.3rem; align-items: center; color: var(--board-ink); font: 600 0.62rem/1 "Barlow Condensed SemiBold", sans-serif; text-transform: uppercase; white-space: nowrap; }
 body.public-event-shell.public-ui-pass1 .public-team-board-legend .public-board-legend__swatch { display: inline-block; width: 0.68rem; height: 0.68rem; box-sizing: border-box; flex: 0 0 0.68rem; border: 1px solid var(--board-rule); }
 body.public-event-shell.public-ui-pass1 .public-team-board-legend .public-board-legend__swatch--complete { background: var(--board-blue); border-color: var(--board-blue); }
 body.public-event-shell.public-ui-pass1 .public-team-board-legend .public-board-legend__swatch--progress { background: transparent; border: 1px solid var(--board-rule); border-left: 3px solid var(--board-coral); border-bottom: 3px solid var(--board-coral); }
 body.public-event-shell.public-ui-pass1 .public-team-board-legend .public-board-legend__swatch--remaining { background: transparent; }
-body.public-event-shell.public-ui-pass1 .public-ui-nested-container.public-ui-team-board-tile { aspect-ratio: 1; color: var(--board-ink); background: var(--board-surface); border: 1px solid var(--board-rule); border-radius: 0; box-shadow: none; transform: none; }
+body.public-event-shell.public-ui-pass1 .public-ui-nested-container.public-ui-team-board-tile { aspect-ratio: 1; container-type: inline-size; color: var(--board-ink); background: var(--board-surface); border: 1px solid var(--board-rule); border-radius: 0; box-shadow: none; transform: none; }
 body.public-event-shell.public-ui-pass1 .public-ui-nested-container.public-ui-team-board-tile--in-progress { border: 1px solid var(--board-rule); border-left: 3px solid var(--board-coral); border-bottom: 3px solid var(--board-coral); }
 body.public-event-shell.public-ui-pass1 .public-ui-nested-container.public-ui-team-board-tile--complete { color: var(--board-focus-ring); background: var(--board-blue); border-color: var(--board-blue); }
 body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile:hover { color: var(--board-ink); border-color: var(--board-rule); box-shadow: none; filter: none; transform: none; }
@@ -3681,12 +3691,12 @@ body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile__placeholder 
 body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile__boss-art-grid { display: block; width: 100%; height: 100%; }
 body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile__boss-art-grid img { width: 100%; height: 100%; padding: 0; object-fit: contain; }
 body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile__shade { z-index: 1; display: block; background: none; }
-body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile__number { position: absolute; z-index: 1; top: 0.25rem; right: 0.35rem; color: transparent; -webkit-text-stroke: 1px color-mix(in srgb, var(--board-ink) 22%, transparent); font: 800 clamp(2rem, 4.5vw, 4rem)/0.8 "Barlow Condensed ExtraBold", sans-serif; }
+body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile__number { position: absolute; z-index: 1; top: 0.25rem; right: 0.35rem; color: transparent; -webkit-text-stroke: 1px color-mix(in srgb, var(--board-ink) 22%, transparent); font: 800 clamp(2rem, 53cqw, 5rem)/0.8 "Barlow Condensed ExtraBold", sans-serif; }
 body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile--complete .public-ui-team-board-tile__number { color: color-mix(in srgb, #fff 20%, transparent); -webkit-text-stroke-color: transparent; }
 body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile__copy { z-index: 2; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 0.2rem; padding: 0.55rem 0.55rem 0.5rem; text-align: left; }
 body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile__position { position: absolute; top: 0.45rem; left: 0.5rem; display: block; color: var(--board-ink); font: 400 0.56rem/1 "Geist Public UI", sans-serif; }
-body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile__title { display: -webkit-box; color: var(--board-ink); font: 800 clamp(0.8rem, 1.25vw, 1.25rem)/0.9 "Barlow Condensed ExtraBold", sans-serif; text-shadow: none; text-transform: uppercase; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile__progress-row { position: absolute; right: 43%; bottom: 0.5rem; left: 0.55rem; display: flex; width: auto; justify-content: flex-start; color: var(--board-ink); font-size: 0.58rem; }
+body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile__title { display: -webkit-box; color: var(--board-ink); font: 800 clamp(0.8rem, 16.5cqw, 1.6rem)/0.9 "Barlow Condensed ExtraBold", sans-serif; text-shadow: none; text-transform: uppercase; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile__progress-row { position: absolute; right: 43%; bottom: 0.5rem; left: 0.55rem; display: flex; width: auto; justify-content: flex-start; color: var(--board-ink); font-size: clamp(0.58rem, 7.8cqw, 0.95rem); }
 body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile__progress { display: none; }
 body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile__completion-check { color: currentColor; font-weight: 800; }
 body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile--complete :is(.public-ui-team-board-tile__position, .public-ui-team-board-tile__title, .public-ui-team-board-tile__progress-row) { color: var(--board-focus-ring); }
@@ -3712,14 +3722,20 @@ body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile:is(.public-ui
 body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile--complete::after { content: none; display: none; }
 body.public-event-shell.public-ui-pass1 .public-ui-team-board-tile:focus-visible { outline: 2px solid var(--board-blue) !important; outline-offset: 3px; }
 body.public-event-shell.public-ui-pass1 .public-team-switcher { width: min(100%, 58.4rem); margin-top: 1.4rem; margin-inline: 0; border-top: 1px solid var(--board-blue); }
+/* Side by side (sidebar left of the board): the row spans from the sidebar's left edge to the board's right edge, i.e. sidebar column (max 22rem) + gap + board size. */
+@media (min-width: 901px) {
+  body.public-event-shell.public-ui-pass1 .public-team-switcher { width: min(100%, calc(22rem + 1.4rem + max(40rem, 100dvh - 3rem))); }
+}
 body.public-event-shell.public-ui-pass1 .public-team-switcher a { color: var(--board-blue); background: transparent; border: 0; border-radius: 0; }
 body.public-event-shell.public-ui-pass1 .public-team-switcher strong { color: var(--board-ink); }
 
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar { color: var(--board-ink); background: var(--board-canvas); }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar :is(.public-ui-eligible-drop-table, .public-ui-disclosure) { color: var(--board-ink); background: var(--board-field); }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar .public-ui-supporting-text { color: var(--board-muted); }
-body.public-event-shell.public-ui-pass1 .tile-context-sidebar .public-ui-component-title { font-size: 2.2rem; line-height: 0.86; }
-body.public-event-shell.public-ui-pass1 .tile-context-sidebar .public-ui-section-heading { font-size: 1rem; }
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar .public-ui-component-title { font-size: 2.65rem; line-height: 0.86; }
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar .public-ui-overline { font-size: 0.85rem; }
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar :is(.public-ui-component-header__copy, .tile-context-sidebar__section-header) > .public-ui-supporting-text { font-size: 0.95rem; }
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar .public-ui-section-heading { font-size: 1.2rem; }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar .public-ui-data-value { color: var(--board-blue); font: 800 2.7rem/0.8 "Barlow Condensed ExtraBold", sans-serif; }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar .public-ui-sectioned-surface__section { border-color: var(--board-rule); }
 body.public-event-shell.public-ui-pass1 .public-ui-eligible-drop-table { border-color: var(--board-rule); border-radius: 0; }
@@ -3890,14 +3906,14 @@ body.public-event-shell.public-ui-pass1 .public-ui-submission-drawer .public-ui-
   body.public-event-shell.public-ui-pass1 .mission-grid--constrained-rows .mission-team-card--constrained-boundary:nth-child(2n + 1)::before { left: 0.85rem; }
   body.public-event-shell.public-ui-pass1 .public-team-workspace { grid-template-columns: 1fr; row-gap: 0; }
   body.public-event-shell.public-ui-pass1 .public-team-sidebar.public-ui-sectioned-surface { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-right: 0; border-bottom: 1px solid var(--board-rule); }
-  body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-account-strip { grid-column: 1 / -1; margin-bottom: 1rem; padding-right: 0; border-bottom: 0; }
-  body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-account-strip::after { right: 0; content: ""; }
   body.public-event-shell.public-ui-pass1 .public-team-board .public-team-workspace > .public-team-board-legend { grid-column: 1; grid-row: 2; }
   body.public-event-shell.public-ui-pass1 .public-team-board .public-team-workspace > .public-team-board-legend { padding-top: 1rem; }
   body.public-event-shell.public-ui-pass1 .public-team-board .public-team-workspace > .public-board-scroll { grid-column: 1; grid-row: 3; }
   body.public-event-shell.public-ui-pass1 .public-team-board .public-team-workspace > .public-ui-submission-drawer { left: 0; width: 100%; max-width: 100%; }
-  body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-sidebar-section { padding: 0 0.9rem 0.85rem; border-right: 0; border-bottom: 0; }
-  body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-sidebar-section::after { top: 0; right: 0.9rem; bottom: 0; left: auto; width: 2px; height: auto; }
+  body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-sidebar-section { padding: 0 1.4rem 0.85rem 0.9rem; border-right: 0; border-bottom: 0; }
+  @media (min-width: 721px) { body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-sidebar-section:last-child { padding-right: 0.9rem; } }
+  /* Vertical column divider: centred in the gap between two columns' content, and it stops above the horizontal rule under the sections. */
+  body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-sidebar-section::after { top: 0; right: 0.2rem; bottom: 0.85rem; left: auto; width: 2px; height: auto; }
   body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-sidebar-section + .team-sidebar-section { padding-top: 0; }
   body.public-event-shell.public-ui-pass1 .public-team-sidebar:not(.tile-context-sidebar) > .team-sidebar-section:last-child::after { content: none; }
   body.public-event-shell.public-ui-pass1 .public-ui-recent-drops-layout,
@@ -4014,7 +4030,7 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__actions .public-u
   justify-content: center;
   padding: 0.45rem 0.55rem;
   border-radius: 0;
-  font: 600 0.86rem/1 "Barlow Condensed SemiBold", "Arial Narrow", sans-serif;
+  font: 600 0.95rem/1 "Barlow Condensed SemiBold", "Arial Narrow", sans-serif;
   letter-spacing: 0.06em;
   white-space: nowrap;
   text-transform: uppercase;
@@ -4056,7 +4072,7 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__progress-summary 
 }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__progress-summary .public-ui-data-value {
   color: var(--board-blue) !important;
-  font: 800 clamp(3rem, 4.2vw, 4.6rem)/0.75 "Barlow Condensed ExtraBold", sans-serif !important;
+  font: 800 clamp(3.6rem, 5vw, 5.5rem)/0.75 "Barlow Condensed ExtraBold", sans-serif !important;
 }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__progress-summary .tile-context-sidebar__value--complete {
   color: var(--board-sage) !important;
@@ -4064,7 +4080,7 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__progress-summary 
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__progress-summary .public-ui-data-label {
   margin-bottom: 0;
   color: var(--board-muted);
-  font: 600 clamp(0.9rem, 1.26vw, 1.38rem)/0.75 "Barlow Condensed SemiBold", sans-serif;
+  font: 600 clamp(1.1rem, 1.5vw, 1.65rem)/0.75 "Barlow Condensed SemiBold", sans-serif;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -4090,7 +4106,7 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__breakdown-row {
   padding: 0.55rem 0;
   color: var(--board-ink);
   border-top: 1px solid var(--board-rule);
-  font-size: 0.8rem;
+  font-size: 0.95rem;
   line-height: 1.25;
 }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__breakdown-row:first-child {
@@ -4102,20 +4118,20 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__breakdown-value {
   justify-content: flex-end;
   gap: 0.25rem;
   color: var(--board-coral);
-  font: 700 0.7rem/1 "Barlow Condensed SemiBold", sans-serif;
+  font: 700 0.85rem/1 "Barlow Condensed SemiBold", sans-serif;
   letter-spacing: 0.04em;
   text-align: right;
   text-transform: uppercase;
   white-space: nowrap;
 }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__breakdown-value small { font: inherit; }
-body.public-event-shell.public-ui-pass1 .tile-context-sidebar__breakdown-value .public-ui-state { font-size: 0.8rem; }
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar__breakdown-value .public-ui-state { font-size: 0.95rem; }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__status--complete { color: var(--board-sage); }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__eligible .tile-context-sidebar__section-header {
   gap: 0.5rem;
   margin-bottom: 0.35rem;
 }
-body.public-event-shell.public-ui-pass1 .tile-context-sidebar__eligible .tile-context-sidebar__section-header .public-ui-section-heading { font-size: 0.9rem; }
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar__eligible .tile-context-sidebar__section-header .public-ui-section-heading { font-size: 1.08rem; }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-disclosure {
   margin: 0;
   border: 0;
@@ -4156,7 +4172,7 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-disclosure >
   color: var(--board-ink);
   border: 0;
   cursor: pointer;
-  font: 700 0.85rem/1 "Barlow Condensed SemiBold", sans-serif;
+  font: 700 1.02rem/1 "Barlow Condensed SemiBold", sans-serif;
   list-style: none;
   text-transform: uppercase;
 }
@@ -4166,7 +4182,7 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-meta {
   align-items: center;
   gap: 0.35rem;
   color: var(--board-muted);
-  font: 600 0.65rem/1 "Barlow Condensed SemiBold", sans-serif;
+  font: 600 0.85rem/1 "Barlow Condensed SemiBold", sans-serif;
   white-space: nowrap;
 }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-meta svg {
@@ -4183,13 +4199,13 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-row {
   padding: 0.5rem 0;
   color: var(--board-ink);
   border-top: 1px solid var(--board-rule);
-  font: 400 0.68rem/1.2 "Geist Public UI", system-ui, sans-serif;
+  font: 400 0.85rem/1.2 "Geist Public UI", system-ui, sans-serif;
   line-height: 1.15;
 }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-row:first-child { border-top: 0; }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-row strong { font: inherit; }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-row span,
-body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-row small { color: var(--board-muted); text-align: right; white-space: nowrap; }
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-row small { color: var(--board-muted); font-size: inherit; text-align: right; white-space: nowrap; }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-summary-label--open { display: none; }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-disclosure--overflow[open] .tile-context-sidebar__drop-summary-label--closed { display: none; }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__drop-disclosure--overflow[open] .tile-context-sidebar__drop-summary-label--open { display: inline; }
@@ -4211,10 +4227,10 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence .public-
 }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-row {
   display: grid;
-  grid-template-columns: 3.5rem minmax(0, 1fr);
-  gap: 0.65rem;
+  grid-template-columns: 4rem minmax(0, 1fr);
+  gap: 0.7rem;
   align-items: center;
-  min-height: 4.2rem;
+  min-height: 4.7rem;
   aspect-ratio: auto;
   padding: 0.55rem 0;
   color: var(--board-ink);
@@ -4228,8 +4244,8 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-row:firs
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-row img,
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-mark {
   display: grid;
-  width: 3.5rem;
-  height: 3.5rem;
+  width: 4rem;
+  height: 4rem;
   place-items: center;
   margin: 0;
   object-fit: cover;
@@ -4237,7 +4253,7 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-mark {
   border: 1px solid var(--board-rule);
 }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-row img { border: 0; }
-body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-mark { color: var(--board-sage); font-size: 1.15rem; }
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-mark { color: var(--board-sage); font-size: 1.35rem; }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-copy,
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-row > span:not(.public-ui-state) {
   position: static;
@@ -4250,18 +4266,19 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-row > sp
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-copy strong {
   overflow: hidden;
   color: var(--board-ink);
-  font: 800 0.85rem/1 "Barlow Condensed ExtraBold", sans-serif;
+  font: 800 1.02rem/1 "Barlow Condensed ExtraBold", sans-serif;
   text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
 }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__evidence-copy small {
-  overflow: hidden;
   color: var(--board-muted);
-  font-size: 0.72rem;
+  font-size: 0.88rem;
   line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
 }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__empty {
   display: grid;
@@ -4273,10 +4290,10 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar__empty {
 }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar__empty strong {
   color: var(--board-ink);
-  font: 800 0.9rem/1 "Barlow Condensed ExtraBold", sans-serif;
+  font: 800 1.06rem/1 "Barlow Condensed ExtraBold", sans-serif;
   text-transform: uppercase;
 }
-body.public-event-shell.public-ui-pass1 .tile-context-sidebar__empty-support { font-size: 0.68rem; }
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar__empty-support { font-size: 0.85rem; }
 
 @media (max-width: 1200px) {
   body.public-event-shell.public-ui-pass1 .public-board-masthead__art { display: none; }
@@ -4950,6 +4967,6 @@ body.public-event-shell.public-ui-pass1 .tile-context-sidebar .tile-kc-section .
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar .tile-kc-section .team-contributor-list > li { grid-template-columns: minmax(2.5rem, max-content) minmax(0, 1fr) max-content; }
 body.public-event-shell.public-ui-pass1 .tile-context-sidebar .tile-kc-section .tile-kc-negative { color: var(--board-coral); }
 body.public-event-shell.public-ui-pass1 .tile-kc-section .tile-kc-metric-heading { margin-top: 0.7rem; }
-body.public-event-shell.public-ui-pass1 .tile-kc-section .tile-kc-status { margin: 0 0 0.6rem; font-size: 0.65rem; }
-body.public-event-shell.public-ui-pass1 .tile-kc-section .tile-kc-stale-notice { margin: 0 0 0.4rem; color: var(--board-muted); font: 400 0.65rem/1.3 "Geist Public UI", system-ui, sans-serif; }
-body.public-event-shell.public-ui-pass1 .tile-kc-player-status { grid-column: 1 / -1; color: var(--board-muted); font: 400 0.6rem/1.2 "Geist Public UI", system-ui, sans-serif; }
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar .tile-kc-section .tile-kc-status.team-rail-supporting { margin: 0 0 0.6rem; font-size: 1.1rem; }
+body.public-event-shell.public-ui-pass1 .tile-kc-section .tile-kc-stale-notice { margin: 0 0 0.4rem; color: var(--board-muted); font: 400 0.85rem/1.3 "Geist Public UI", system-ui, sans-serif; }
+body.public-event-shell.public-ui-pass1 .tile-context-sidebar .tile-kc-player-status { grid-column: 1 / -1; color: var(--board-muted); font: 400 0.85rem/1.2 "Geist Public UI", system-ui, sans-serif; }

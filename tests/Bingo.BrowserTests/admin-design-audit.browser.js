@@ -61,7 +61,11 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     await page.locator('#action-filter').click();
     assert.deepEqual(await page.locator('#audit-action-menu .menu-item .grow').allTextContents(), ['All actions', 'Accounts', 'Events', 'Signups', 'Participants', 'Teams', 'Draft', 'Board', 'Evidence', 'Catalogue', 'Specific action…']);
     await page.locator('#audit-action-menu .menu-item', { hasText: 'Events' }).click();
-    await page.waitForFunction(() => new URL(location.href).searchParams.get('action') === 'event.' && document.querySelector('.filter-chip') && !document.querySelector('[data-update-skeleton]'));
+    // The URL is pushed before the read and the Event chip already exists, so wait for the
+    // server render of this filter: clicking earlier can lose the press when the patch
+    // replaces Clear all between mousedown and mouseup.
+    await page.waitForFunction(() => new URL(location.href).searchParams.get('action') === 'event.' && new URL(document.querySelector('[data-audit-directory]').dataset.directoryCanonical, location.href).searchParams.get('action') === 'event.' && !document.querySelector('[data-update-skeleton]'));
+    assert.deepEqual(await page.locator('.filter-chip').allInnerTexts(), ['Event: Hidden final review', 'Action: Events actions']);
     await page.locator('#clear-all').click();
     await page.waitForFunction(() => location.search === '' && !document.querySelector('.filter-chip') && !document.querySelector('[data-update-skeleton]'));
 

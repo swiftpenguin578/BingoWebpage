@@ -192,7 +192,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
             setup.AddRange(admin, spareItem, spare);
             await setup.SaveChangesAsync();
         }
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
         using var adminClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var ownerClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var anonymous = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
@@ -264,7 +264,7 @@ public sealed partial class Slice6CatalogueAdministrationIntegrationTests
         var now = DateTimeOffset.UtcNow;
         var (owner, boss, _, drop) = await PriceFixtureAsync();
         await using (var setup = new ApplicationDbContext(options)) { SetPassword(setup.Accounts.Single(x => x.Id == owner.Id), now); await setup.SaveChangesAsync(); }
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString()));
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder => builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString()));
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         await LoginAsync(client, owner.LoginName);
         static string Canonical(string html) => WebUtility.HtmlDecode(System.Text.RegularExpressions.Regex.Match(html, "data-directory-canonical=\"([^\"]*)\"").Groups[1].Value);

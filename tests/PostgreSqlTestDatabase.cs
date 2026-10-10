@@ -14,16 +14,26 @@ public sealed class PostgreSqlTestFixture : IAsyncLifetime
 {
     private readonly object gate = new();
     private PostgreSqlContainer? container;
+    private Func<DbContextOptions<ApplicationDbContext>, Task>? prepareTemplate;
     private Task? initialization;
 
     // The first test supplies its original builder, preserving all settings.
     public Task InitializeAsync() => Task.CompletedTask;
 
-    public PostgreSqlTestDatabase CreateDatabase(PostgreSqlBuilder builder)
+    // The template is migrated once; each test receives a copy of it.
+    public PostgreSqlTestDatabase CreateDatabase(PostgreSqlBuilder builder) => CreateDatabase(builder, PostgreSqlTemplate.Migrate);
+
+    // A class whose tests previously prepared each fresh database differently
+    // (for example EnsureCreated) prepares the template the same way once.
+    public PostgreSqlTestDatabase CreateDatabase(PostgreSqlBuilder builder, Func<DbContextOptions<ApplicationDbContext>, Task> prepare)
     {
         lock (gate)
         {
             container ??= builder.WithLoopbackPort().Build();
+            if (prepareTemplate is null)
+                prepareTemplate = prepare;
+            else if (!prepareTemplate.Equals(prepare))
+                throw new InvalidOperationException("This fixture's template is prepared once; every test in the class must request the same preparation.");
         }
         return new PostgreSqlTestDatabase(this);
     }
@@ -35,7 +45,7 @@ public sealed class PostgreSqlTestFixture : IAsyncLifetime
         lock (gate)
         {
             database = container ?? throw new InvalidOperationException("The fixture needs a test-owned container builder.");
-            ready = initialization ??= InitializeTemplateAsync(database);
+            ready = initialization ??= InitializeTemplateAsync(database, prepareTemplate ?? PostgreSqlTemplate.Migrate);
         }
         await ready;
 
@@ -53,16 +63,13 @@ public sealed class PostgreSqlTestFixture : IAsyncLifetime
         return connectionString;
     }
 
-    private static async Task InitializeTemplateAsync(PostgreSqlContainer database)
+    private static async Task InitializeTemplateAsync(PostgreSqlContainer database, Func<DbContextOptions<ApplicationDbContext>, Task> prepare)
     {
         await PostgreSqlReadiness.StartAsync(database);
         // No pooled session may keep the template open while it is cloned.
         var settings = new NpgsqlConnectionStringBuilder(database.GetOwnedConnectionString()) { Pooling = false };
         var options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(settings.ConnectionString).Options;
-        await using (var db = new ApplicationDbContext(options))
-        {
-            await db.Database.MigrateAsync();
-        }
+        await prepare(options);
         await using var connection = new NpgsqlConnection(AdminConnectionString(database));
         await connection.OpenAsync();
         await using var command = new NpgsqlCommand($"ALTER DATABASE {Quote(settings.Database!)} WITH ALLOW_CONNECTIONS false", connection);
@@ -95,6 +102,21 @@ public sealed class PostgreSqlTestFixture : IAsyncLifetime
     private static string Quote(string name) => "\"" + name.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
 
     public Task DisposeAsync() => container?.DisposeAsync().AsTask() ?? Task.CompletedTask;
+}
+
+public static class PostgreSqlTemplate
+{
+    public static async Task Migrate(DbContextOptions<ApplicationDbContext> options)
+    {
+        await using var db = new ApplicationDbContext(options);
+        await db.Database.MigrateAsync();
+    }
+
+    public static async Task EnsureCreated(DbContextOptions<ApplicationDbContext> options)
+    {
+        await using var db = new ApplicationDbContext(options);
+        await db.Database.EnsureCreatedAsync();
+    }
 }
 
 public sealed class PostgreSqlTestDatabase : IAsyncDisposable

@@ -30,15 +30,15 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class PublishedContentRetentionIntegrationTests : IAsyncLifetime
+public sealed class PublishedContentRetentionIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
     private const string PreviousMigration = "20260910181345_AddCoCaptainSignupQuestion";
     private const string Password = "C21-C37-controlled-password";
     private const string PrivateReason = "PRIVATE cancellation reason sentinel";
     private static readonly byte[] Png = CreatePng(default);
     private static readonly byte[] ReplacementPng = CreatePng(new Rgba32(255, 0, 0));
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
-        .WithDatabase("bingo_published_content").WithUsername("bingo").WithPassword("bingo_fixture_password").Build();
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
+        .WithDatabase("bingo_published_content").WithUsername("bingo").WithPassword("bingo_fixture_password"));
     private readonly string storageRoot = Path.Combine(Path.GetTempPath(), $"bingo-c21-c37-{Guid.NewGuid():N}");
     private DbContextOptions<ApplicationDbContext> options = null!;
     private WebApplicationFactory<Program> factory = null!;
@@ -49,10 +49,9 @@ public sealed class PublishedContentRetentionIntegrationTests : IAsyncLifetime
 
     public async Task InitializeAsync()
     {
-        await PostgreSqlReadiness.StartAsync(database);
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
+        await database.StartAsync();
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
         await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
         actor = Account.CreateWebsite(Guid.NewGuid(), "published-admin", "PUBLISHED-ADMIN", DateTimeOffset.UtcNow);
         actor.SetGlobalRole(GlobalRole.Admin);
         var participant = Account.CreateWebsite(Guid.NewGuid(), "published-viewer", "PUBLISHED-VIEWER", DateTimeOffset.UtcNow);
@@ -62,7 +61,7 @@ public sealed class PublishedContentRetentionIntegrationTests : IAsyncLifetime
         await db.SaveChangesAsync();
         factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
         {
-            builder.UseSetting("ConnectionStrings:Database", database.GetOwnedConnectionString());
+            builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString());
             builder.UseSetting("EvidenceStorage:LocalPath", storageRoot);
             builder.ConfigureTestServices(services => services.RemoveAll<IHostedService>());
         });

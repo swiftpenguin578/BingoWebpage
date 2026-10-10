@@ -16,19 +16,16 @@ namespace Bingo.Web.Pages.Events;
 
 public sealed class TeamBoardModel(
     IPublicBoardService boards,
-    IParticipantLiveService live,
     ITeamFocusService focus,
     IEventCompetitionActivityProjection? activity = null,
     IEvidenceAuthority? evidenceAuthority = null,
-    TimeProvider? time = null,
-    IStringLocalizer<SharedResource>? text = null) : PageModel
+    TimeProvider? time = null) : PageModel
 {
     public PublicEventBoard Board { get; private set; } = null!;
     public PublicTeamBoard Team { get; private set; } = null!;
     public PublicTeamBoard? Previous { get; private set; }
     public PublicTeamBoard? Next { get; private set; }
     public PublicTileDetails? SelectedTile { get; private set; }
-    public ParticipantLiveContext? ParticipantContext { get; private set; }
     public bool CanOpenSubmissionWorkspace { get; private set; }
     public bool CanOpenCaptainWorkspace { get; private set; }
     public bool CanSubmit { get; private set; }
@@ -37,7 +34,7 @@ public sealed class TeamBoardModel(
     public EventCompetitionActivityProjection Activity { get; private set; } = null!;
     public EventCompetitionTeamActivity? TeamActivity { get; private set; }
 
-    public async Task<IActionResult> OnGetAsync(string slug, string teamSlug, string? tileRoute, Guid? participantId, CancellationToken cancellationToken, bool inspectFocus = false)
+    public async Task<IActionResult> OnGetAsync(string slug, string teamSlug, string? tileRoute, CancellationToken cancellationToken, bool inspectFocus = false)
     {
         if (!TryParseTileRoute(tileRoute, out var tileId)) return NotFound();
         var board = await boards.GetEventBoardAsync(slug, cancellationToken);
@@ -58,7 +55,6 @@ public sealed class TeamBoardModel(
             SelectedTile = await boards.GetTileAsync(slug, teamSlug, selectedTileId, cancellationToken);
             if (SelectedTile is null) return NotFound();
         }
-        if (!await LoadLiveContextAsync(participantId, cancellationToken)) return Forbid();
         if (User.GetAccountId() is { } actorAccountId && evidenceAuthority is not null)
         {
             try
@@ -100,40 +96,6 @@ public sealed class TeamBoardModel(
         return Partial("_TileSidebar", new TileSidebarView(tile, canSubmit, board.EventId, team.TeamId, sequenceNumber));
     }
 
-    public async Task<IActionResult> OnPostSwapAsync(string slug, string teamSlug, CancellationToken cancellationToken)
-    {
-        var accountId = User.GetAccountId();
-        if (accountId is null) return Challenge();
-        var board = await boards.GetEventBoardAsync(slug, cancellationToken);
-        var team = board?.Teams.SingleOrDefault(value => value.TeamSlug == teamSlug);
-        if (board is null || team is null) return NotFound();
-        var result = await live.SwapAsync(new(
-            board.EventId, Input.ParticipantId, Input.ExpectedCurrentCharacterId, Input.NextCharacterId,
-            accountId.Value, User.Identity?.Name ?? "participant"), cancellationToken);
-        TempData["StatusMessage"] = result.Succeeded
-            ? (text?["Playing account changed to {0}, active from {1}.", result.CharacterName!, result.EffectiveAtUtc!.Value.ToString("dd MMM yyyy HH:mm:ss.ffffff 'UTC'", CultureInfo.InvariantCulture)].Value ?? $"Playing account changed to {result.CharacterName}, active from {result.EffectiveAtUtc!.Value:dd MMM yyyy HH:mm:ss.ffffff 'UTC'}.")
-            : (text?[result.Error ?? "The account swap could not be saved."].Value ?? result.Error ?? "The account swap could not be saved.");
-        TempData[Bingo.Web.UI.UiMessage.TypeKey] = (result.Succeeded ? Bingo.Web.UI.UiMessageType.Success : Bingo.Web.UI.UiMessageType.Error).ToString();
-        return RedirectToPage(new { slug, teamSlug, participantId = Input.ParticipantId });
-    }
-
-    [BindProperty]
-    public SwapInput Input { get; set; } = new();
-
-    private async Task<bool> LoadLiveContextAsync(Guid? participantId, CancellationToken cancellationToken)
-    {
-        var accountId = User.GetAccountId();
-        if (accountId is not { } viewerAccountId) return participantId is null;
-        var contexts = await live.GetTeamContextsAsync(Board.EventId, Team.TeamId, viewerAccountId, cancellationToken);
-        if (participantId is { } selected)
-        {
-            ParticipantContext = contexts.SingleOrDefault(context => context.ParticipantId == selected);
-            return ParticipantContext is not null;
-        }
-        ParticipantContext = contexts.Count > 0 ? contexts[0] : null;
-        return true;
-    }
-
     private async Task<bool> CanSubmitAsync(Guid accountId, Guid eventId, Guid teamId, CancellationToken cancellationToken)
     {
         if (evidenceAuthority is null) return false;
@@ -156,12 +118,9 @@ public sealed class TeamBoardModel(
         return true;
     }
 
-    public sealed class SwapInput
-    {
-        public Guid ParticipantId { get; set; }
-        public Guid ExpectedCurrentCharacterId { get; set; }
-        public Guid NextCharacterId { get; set; }
-    }
+    /// <summary>Tile EHB shown as whole "Points": nearest integer (midpoint away from zero), never below 1.</summary>
+    public static int GetTilePoints(decimal estimatedEhb) =>
+        Math.Max(1, (int)Math.Round(estimatedEhb, 0, MidpointRounding.AwayFromZero));
 
     public static TeamFocusPresentation GetFocusPresentation(
         PublicTileProgress tile,

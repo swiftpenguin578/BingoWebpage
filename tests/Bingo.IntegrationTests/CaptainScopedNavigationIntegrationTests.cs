@@ -157,26 +157,37 @@ public sealed partial class CaptainScopedNavigationIntegrationTests(PostgreSqlTe
         using var participantBoard = await participantClient.GetAsync($"/Events/{live.Slug}/Board/{team.Slug}");
         var participantBoardHtml = await participantBoard.Content.ReadAsStringAsync();
         Assert.Equal(HttpStatusCode.OK, participantBoard.StatusCode);
-        Assert.Contains(">submissions<", participantBoardHtml, StringComparison.Ordinal);
+        Assert.Contains(">Submissions<", participantBoardHtml, StringComparison.Ordinal);
         Assert.Contains(">Admin<", participantBoardHtml, StringComparison.Ordinal);
 
         using var captainBoard = await captainClient.GetAsync($"/Events/{live.Slug}/Board/{team.Slug}");
         var captainBoardHtml = await captainBoard.Content.ReadAsStringAsync();
         Assert.Equal(HttpStatusCode.OK, captainBoard.StatusCode);
-        Assert.Contains(">Captain<", captainBoardHtml, StringComparison.Ordinal);
+        Assert.Contains(">Submissions<", captainBoardHtml, StringComparison.Ordinal);
         Assert.Contains(">Admin<", captainBoardHtml, StringComparison.Ordinal);
         Assert.Contains($"href=\"/Submissions?eventId={live.Id}&amp;teamId={team.Id}\"", captainBoardHtml, StringComparison.Ordinal);
+
+        foreach (var danishClient in new[] { participantClient, captainClient })
+        {
+            using var danishRequest = new HttpRequestMessage(HttpMethod.Get, $"/Events/{live.Slug}/Board/{team.Slug}");
+            danishRequest.Headers.Add("Accept-Language", "da");
+            using var danishBoard = await danishClient.SendAsync(danishRequest);
+            var danishHtml = await danishBoard.Content.ReadAsStringAsync();
+            Assert.Equal(HttpStatusCode.OK, danishBoard.StatusCode);
+            Assert.Contains(">Indsendelser<", danishHtml, StringComparison.Ordinal);
+            Assert.DoesNotContain(">Kaptajn<", danishHtml, StringComparison.Ordinal);
+        }
 
         using var coCaptainBoard = await coCaptainClient.GetAsync($"/Events/{live.Slug}/Board/{team.Slug}");
         var coCaptainBoardHtml = await coCaptainBoard.Content.ReadAsStringAsync();
         Assert.Equal(HttpStatusCode.OK, coCaptainBoard.StatusCode);
-        Assert.Contains(">Captain<", coCaptainBoardHtml, StringComparison.Ordinal);
+        Assert.Contains(">Submissions<", coCaptainBoardHtml, StringComparison.Ordinal);
         Assert.Contains(">Admin<", coCaptainBoardHtml, StringComparison.Ordinal);
 
         using var globalBoard = await globalOnlyClient.GetAsync($"/Events/{live.Slug}/Board/{team.Slug}");
         var globalBoardHtml = await globalBoard.Content.ReadAsStringAsync();
         Assert.Equal(HttpStatusCode.OK, globalBoard.StatusCode);
-        Assert.DoesNotContain(">Captain<", globalBoardHtml, StringComparison.Ordinal);
+        Assert.DoesNotContain(">Submissions<", globalBoardHtml, StringComparison.Ordinal);
         Assert.DoesNotContain($"href=\"/Submissions?eventId={live.Id}&amp;teamId={team.Id}\"", globalBoardHtml, StringComparison.Ordinal);
         Assert.Equal(HttpStatusCode.NotFound, (await globalOnlyClient.GetAsync($"/Submissions?eventId={live.Id}&teamId={team.Id}")).StatusCode);
         Assert.Equal(HttpStatusCode.NotFound, (await captainClient.GetAsync($"/Submissions?eventId={live.Id}&teamId={crossTeam.Id}")).StatusCode);
@@ -579,8 +590,7 @@ public sealed partial class CaptainScopedNavigationIntegrationTests(PostgreSqlTe
         using var anonymous = factory.CreateClient();
         var home = await anonymous.GetStringAsync("/");
         Assert.Equal(2, Regex.Count(home, ">Current event</a>"));
-        Assert.DoesNotContain(">Captain</a>", home);
-        Assert.DoesNotContain(">submissions</a>", home);
+        Assert.DoesNotContain(">Submissions</a>", home);
         var selectedLive = new[] { live, ambiguousLiveOne, ambiguousLiveTwo }.OrderBy(x => x.Id).First();
         Assert.Equal(2, Regex.Matches(home, @"<a[^>]*>Current event</a>")
             .Count(match => match.Value.Contains($"/Events/{selectedLive.Slug}/Board")));
@@ -591,7 +601,8 @@ public sealed partial class CaptainScopedNavigationIntegrationTests(PostgreSqlTe
             var html = await LoggedInHtml(account);
             var nav = ContextNavigation(html);
             Assert.Contains($"href=\"{expectedHref}\"", nav);
-            Assert.Contains(account == participant ? ">submissions</a>" : ">Captain</a>", nav);
+            Assert.Contains(">Submissions</a>", nav);
+            Assert.DoesNotContain(">Captain</a>", nav);
             Assert.True(nav.IndexOf(">Teams</a>", StringComparison.Ordinal) < nav.IndexOf(expectedHref, StringComparison.Ordinal));
             Assert.Equal(2, Regex.Count(html, ">Current event</a>"));
             var otherNav = ContextNavigation(await LoggedInHtml(account, awaiting.Slug));
@@ -601,7 +612,8 @@ public sealed partial class CaptainScopedNavigationIntegrationTests(PostgreSqlTe
         {
             var nav = ContextNavigation(await LoggedInHtml(account, awaiting.Slug));
             Assert.Contains($"/Submissions?eventId={awaiting.Id}&amp;teamId={awaitingTeam.Id}", nav);
-            Assert.Contains(account == awaitingParticipant ? ">submissions</a>" : ">Captain</a>", nav);
+            Assert.Contains(">Submissions</a>", nav);
+            Assert.DoesNotContain(">Captain</a>", nav);
         }
         var ambiguousNav = ContextNavigation(await LoggedInHtml(ambiguousParticipant, ambiguousLiveOne.Slug));
         Assert.Contains($"/Submissions?eventId={ambiguousLiveOne.Id}&amp;teamId={ambiguousTeamOne.Id}", ambiguousNav);

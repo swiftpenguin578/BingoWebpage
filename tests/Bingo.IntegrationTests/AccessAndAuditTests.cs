@@ -13,24 +13,22 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed class AccessAndAuditTests : IAsyncLifetime
+public sealed class AccessAndAuditTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer _database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
+    private readonly PostgreSqlTestDatabase _database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("bingo_access_tests")
         .WithUsername("bingo")
         .WithPassword("bingo_test_password")
-        .Build();
+        , PostgreSqlTemplate.EnsureCreated);
 
     private DbContextOptions<ApplicationDbContext> _options = null!;
 
     public async Task InitializeAsync()
     {
-        await PostgreSqlReadiness.StartAsync(_database);
+        await _database.StartAsync();
         _options = new DbContextOptionsBuilder<ApplicationDbContext>()
-            .UseNpgsql(_database.GetOwnedConnectionString())
+            .UseNpgsql(_database.GetConnectionString())
             .Options;
-        await using var dbContext = new ApplicationDbContext(_options);
-        await dbContext.Database.EnsureCreatedAsync();
     }
 
     public async Task DisposeAsync()

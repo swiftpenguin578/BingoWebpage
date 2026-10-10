@@ -36,19 +36,17 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
+public sealed partial class SubmissionWorkflowTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort()
-        .WithDatabase("bingo_submission_tests").WithUsername("bingo").WithPassword("bingo_test_password").Build();
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine")
+        .WithDatabase("bingo_submission_tests").WithUsername("bingo").WithPassword("bingo_test_password"), PostgreSqlTemplate.EnsureCreated);
     private DbContextOptions<ApplicationDbContext> options = null!;
     private readonly DateTimeOffset now = new(2026, 9, 24, 12, 0, 0, TimeSpan.Zero);
 
     public async Task InitializeAsync()
     {
-        await PostgreSqlReadiness.StartAsync(database);
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
-        await using var db = new ApplicationDbContext(options);
-        await db.Database.EnsureCreatedAsync();
+        await database.StartAsync();
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
     }
 
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
@@ -2013,7 +2011,7 @@ public sealed partial class SubmissionWorkflowTests : IAsyncLifetime
         // Identify the actual backends; pg_stat_activity query text can be truncated.
         var waitingPid = ((NpgsqlConnection)waiting.Database.GetDbConnection()).ProcessID;
         var blockingPid = ((NpgsqlConnection)blocking.Database.GetDbConnection()).ProcessID;
-        await using var monitor = new NpgsqlConnection(database.GetOwnedConnectionString());
+        await using var monitor = new NpgsqlConnection(database.GetConnectionString());
         await monitor.OpenAsync(cancellationToken);
         for (var attempt = 0; attempt < 100 && !operation.IsCompleted; attempt++)
         {

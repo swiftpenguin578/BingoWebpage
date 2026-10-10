@@ -9,45 +9,61 @@ permissions: {}
 
 jobs:
   javascript-tests:
-    name: JavaScript and Playwright tests
+    name: JavaScript and Playwright tests (${{ matrix.shard }}/${{ strategy.job-total }})
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # Not a release gate yet (user decision, 8 October 2026): known JS failures are
     # recorded and fixed with the JS job split. Remove continue-on-error then.
     continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        # Duration-balanced by scripts/browser-test-timings.json.
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9]
     permissions:
       contents: read
     env:
       BINGO_ADMIN_STALE_EVIDENCE_DIRECTORY: ${{ github.workspace }}/artifacts/js-fixtures
+      BROWSER_TEST_SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
       PLAYWRIGHT_CHANNEL: chromium
       SIXLABORS_LICENSE_KEY: ${{ secrets.SIXLABORS_LICENSE_KEY }}
     steps:
       - name: Check out repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-      - name: Set up .NET
-        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
-        with:
-          global-json-file: global.json
       - name: Set up Node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
+      - name: Plan this shard
+        id: plan
+        run: node scripts/run-browser-tests.cjs --shard-info "$BROWSER_TEST_SHARD" >> "$GITHUB_OUTPUT"
+      - name: Set up .NET
+        if: steps.plan.outputs.dotnet == 'true'
+        uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4.3.1
+        with:
+          global-json-file: global.json
       - name: Install pinned package manager and dependencies
         run: |
           npm install --global pnpm@11.25.0
           pnpm install --frozen-lockfile
       - name: Install Playwright browsers
-        # One unchanged legacy test explicitly selects Chrome.
-        run: pnpm exec playwright install --with-deps chromium chrome webkit
+        if: steps.plan.outputs.engines != ''
+        # Only this shard's engines. One unchanged legacy test explicitly selects Chrome.
+        env:
+          ENGINES: ${{ steps.plan.outputs.engines }}
+        run: pnpm exec playwright install --with-deps $ENGINES
       - name: Generate controlled account HTML fixtures
+        if: steps.plan.outputs.staleFixtures == 'true'
         run: dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --filter FullyQualifiedName~AccountConfirmationRejectsCompletedInterveningChangesThenAcceptsFreshAction
       - name: Build controlled real-layout fixture
+        if: steps.plan.outputs.dotnet == 'true'
         run: dotnet build tests/AdminDesignParityFixture/AdminDesignParityFixture.csproj --configuration Release
-      - name: Run every JavaScript test
+      - name: Run this shard's JavaScript tests
         continue-on-error: true
         timeout-minutes: 15
         run: pnpm test:js
       - name: Compare rendered reference and real layout in both engines
+        if: steps.plan.outputs.parity == 'true'
         continue-on-error: true
         timeout-minutes: 5
         run: pnpm test:parity
@@ -55,7 +71,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: javascript-results-${{ github.run_id }}
+          name: javascript-results-${{ matrix.shard }}-${{ github.run_id }}
           path: |
             artifacts/js-tests/
             artifacts/admin-parity/
@@ -104,18 +120,6 @@ jobs:
       - name: Build
         run: dotnet build Bingo.slnx --configuration Release --no-restore
 
-      - name: Upload Integration build outputs
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: integration-build-${{ github.run_id }}
-          path: |
-            src/**/bin/Release/**
-            src/**/obj/**
-            tests/**/bin/Release/**
-            tests/**/obj/**
-          if-no-files-found: error
-          retention-days: 1
-
       - name: Prepare browser-test database
         run: dotnet run --project src/Bingo.Web --configuration Release --no-build -- --apply-catalogue-snapshot
 
@@ -154,13 +158,15 @@ jobs:
           retention-days: 14
 
   integration-discovery:
+    # Builds the Integration tests itself, in parallel with other-tests, so the
+    # shards do not wait for formatting and the other test projects.
     name: Discover Integration shards
-    needs: other-tests
-    if: ${{ always() && (needs.other-tests.result == 'success' || needs.other-tests.result == 'failure') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
       contents: read
+    env:
+      SIXLABORS_LICENSE_KEY: ${{ secrets.SIXLABORS_LICENSE_KEY }}
 
     outputs:
       matrix: ${{ steps.partition.outputs.matrix }}
@@ -177,15 +183,25 @@ jobs:
       - name: Restore Integration test project
         run: dotnet restore tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj
 
-      - name: Download Integration build outputs
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - name: Build Integration test project
+        run: dotnet build tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --no-restore
+
+      - name: Upload Integration build outputs
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: integration-build-${{ github.run_id }}
-          path: .
+          path: |
+            src/**/bin/Release/**
+            src/**/obj/**
+            tests/**/bin/Release/**
+            tests/**/obj/**
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Discover and validate Integration partition
         id: partition
-        run: bash .github/scripts/partition-integration-tests.sh tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj Release 10 "$GITHUB_OUTPUT"
+        # Duration-balanced by .github/scripts/integration-test-timings.tsv.
+        run: bash .github/scripts/partition-integration-tests.sh tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj Release 8 "$GITHUB_OUTPUT"
 
   integration:
     name: Integration shard ${{ matrix.shard }}
@@ -240,8 +256,8 @@ jobs:
           EXPECTED_CASES: ${{ matrix.expected }}
         timeout-minutes: 45
         run: |
-          echo "Running $EXPECTED_CASES discovered Integration cases in shard ${{ matrix.shard }}"
-          dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --no-build --filter "$INTEGRATION_FILTER" --results-directory "TestResults/integration-${{ matrix.shard }}" --logger "trx;LogFileName=integration-${{ matrix.shard }}.trx" --collect "XPlat Code Coverage"
+          echo "Running $EXPECTED_CASES discovered Integration cases in shard ${{ matrix.shard }} (~${{ matrix.seconds }}s planned)"
+          dotnet test tests/Bingo.IntegrationTests/Bingo.IntegrationTests.csproj --configuration Release --no-build --filter "$INTEGRATION_FILTER" --results-directory "TestResults/integration-${{ matrix.shard }}" --logger "trx;LogFileName=integration-${{ matrix.shard }}.trx"
 
       - name: Upload Integration shard results
         if: always()

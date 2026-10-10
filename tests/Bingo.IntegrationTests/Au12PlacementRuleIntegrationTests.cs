@@ -1,3 +1,4 @@
+using Bingo.Application.Boards;
 using Bingo.Application.Events;
 using Bingo.Domain.Access;
 using Bingo.Domain.Boards;
@@ -15,17 +16,15 @@ using Testcontainers.PostgreSql;
 
 namespace Bingo.IntegrationTests;
 
-public sealed partial class Au12PlacementRuleIntegrationTests : IAsyncLifetime
+public sealed partial class Au12PlacementRuleIntegrationTests(PostgreSqlTestFixture databaseFixture) : IAsyncLifetime, IClassFixture<PostgreSqlTestFixture>
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 4, 12, 0, 0, TimeSpan.Zero);
-    private readonly PostgreSqlContainer database = new PostgreSqlBuilder("postgres:17-alpine").WithLoopbackPort().Build();
+    private readonly PostgreSqlTestDatabase database = databaseFixture.CreateDatabase(new PostgreSqlBuilder("postgres:17-alpine"));
     private DbContextOptions<ApplicationDbContext> options = null!;
     public async Task InitializeAsync()
     {
-        await PostgreSqlReadiness.StartAsync(database);
-        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetOwnedConnectionString()).Options;
-        await using var db = new ApplicationDbContext(options);
-        await db.Database.MigrateAsync();
+        await database.StartAsync();
+        options = new DbContextOptionsBuilder<ApplicationDbContext>().UseNpgsql(database.GetConnectionString()).Options;
     }
     public Task DisposeAsync() => database.DisposeAsync().AsTask();
     private sealed class Clock : TimeProvider { public override DateTimeOffset GetUtcNow() => Now; }
@@ -67,8 +66,9 @@ public sealed partial class Au12PlacementRuleIntegrationTests : IAsyncLifetime
         var board = await publicBoards.GetEventBoardAsync("au12-event");
         Assert.NotNull(board);
         var ordered = board.Teams.OrderBy(x => x.Rank).ToList();
-        var expected = exactTie || rule == PlacementRule.LegacyScoreTimeThenEhb ? "Team A" : "Team B";
-        Assert.Equal(expected, ordered[0].TeamName);
+        // H2: AU12 ranks by completed-tile EHB, equal here (tile 0 only), so the earlier score time
+        // decides as under the legacy rule; proportional progress on tile 1 no longer places Team B first.
+        Assert.Equal("Team A", ordered[0].TeamName);
         Assert.Equal<int>(exactTie ? [1, 1] : [1, 2], ordered.Select(x => x.Rank));
         Assert.Equal(Now.AddHours(-3).AddTicks(10), board.Teams.Single(x => x.TeamName == "Team A").Progress.CurrentScoreReachedAt);
         var service = new EventFinalizationService(db, publicBoards, new Clock());
@@ -80,7 +80,7 @@ public sealed partial class Au12PlacementRuleIntegrationTests : IAsyncLifetime
         Assert.True(result.Published);
         db.ChangeTracker.Clear();
         var official = await db.OfficialPlacements.OrderBy(x => x.Placement).ThenBy(x => x.TeamName).ToListAsync();
-        Assert.Equal(ordered.Select(x => (x.TeamName, x.Rank, x.Progress.EhbTiebreak, x.Progress.CurrentScoreReachedAt)),
+        Assert.Equal(ordered.Select(x => (x.TeamName, x.Rank, PublicProgressCalculator.PlacementEhb(x.Progress, rule), x.Progress.CurrentScoreReachedAt)),
             official.Select(x => (x.TeamName, x.Placement, x.EhbTiebreak, x.CurrentScoreReachedAt)));
         var snapshot = await db.EventFinalizations.SingleAsync();
         Assert.Contains(rule.ToString(), snapshot.CalculationInputsJson);
@@ -115,7 +115,7 @@ public sealed partial class Au12PlacementRuleIntegrationTests : IAsyncLifetime
         Assert.True((await service.FinalizeAsync(fixture.EventId, new LifecycleActor(fixture.AdminId, "admin"), readiness.EventVersion)).Published);
         db.ChangeTracker.Clear();
         var official = await db.OfficialPlacements.OrderBy(x => x.TeamName).ToListAsync();
-        Assert.Equal(board.Teams.OrderBy(x => x.TeamName).Select(x => (x.TeamName, x.Rank, decimal.Round(x.Progress.EhbTiebreak, 4))),
+        Assert.Equal(board.Teams.OrderBy(x => x.TeamName).Select(x => (x.TeamName, x.Rank, decimal.Round(PublicProgressCalculator.PlacementEhb(x.Progress, rule), 4))),
             official.Select(x => (x.TeamName, x.Placement, x.EhbTiebreak)));
     }
 
@@ -144,7 +144,8 @@ public sealed partial class Au12PlacementRuleIntegrationTests : IAsyncLifetime
         Assert.True((await service.FinalizeAsync(fixture.EventId, new LifecycleActor(fixture.AdminId, "admin"), readiness.EventVersion)).Published);
         db.ChangeTracker.Clear();
         var official = await db.OfficialPlacements.OrderBy(x => x.TeamName).ToListAsync();
-        Assert.All(official, x => Assert.Equal(1.0313m, x.EhbTiebreak));
+        // H2: AU12 stores completed-tile EHB (tile 0 only); the legacy rule keeps the rounded proportional value.
+        Assert.All(official, x => Assert.Equal(rule == PlacementRule.CreditedEhbThenScoreTime ? 1m : 1.0313m, x.EhbTiebreak));
         Assert.Equal(board.Teams.OrderBy(x => x.TeamName).Select(x => (x.TeamId, x.Rank)),
             official.Select(x => (x.TeamId, x.Placement)));
     }
