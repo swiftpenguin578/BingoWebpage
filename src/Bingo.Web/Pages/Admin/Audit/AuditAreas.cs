@@ -40,7 +40,8 @@ public static class AuditAreas
 
     public static readonly IReadOnlyList<AuditArea> All =
     [
-        new("account.", "Accounts", ["account."], [], []),
+        // Brief 147 A7: "logout" has no area prefix and belongs to Accounts.
+        new("account.", "Accounts", ["account."], ["logout"], []),
         // evidence_code.* and historical_import.* are event-level records with no area of their own.
         new("event.", "Events", ["event.", "evidence_code.", "historical_import."], [], SignupEventKeys),
         new("signup.", "Signups", ["signup.", "signup_question.", "signup_cocaptain."], SignupEventKeys, []),

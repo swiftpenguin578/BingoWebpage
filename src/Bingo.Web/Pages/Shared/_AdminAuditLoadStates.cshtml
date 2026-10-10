@@ -1,6 +1,6 @@
 @inject IStringLocalizer<AdminCommunityResource> D
 @{
-    var columns = new[] { ("When", "c-name"), ("Action", ""), ("Event", ""), ("Actor", ""), ("Recorded", "") };
+    var columns = new[] { ("When", "c-name"), ("Action", ""), ("Event", ""), ("Actor", ""), ("Affected account", ""), ("Recorded", "") };
     var offset = Bingo.Web.Pages.Admin.Audit.IndexModel.Offset(DateTimeOffset.UtcNow);
 }
 @* Lane T: Audit page-family load states. The summary is data-independent, so it shows at once. *@
@@ -30,7 +30,7 @@
             {
                 @foreach (var width in new[] { 70, 55, 80, 62, 74, 50, 66, 58 })
                 {
-                    <div class="tr sk-row" role="row" aria-hidden="true"><div class="td c-name"><div class="au-sk-main"><div class="sk au-sk-w70"></div></div><div class="au-sk-sub"><div class="sk au-sk-w40 au-sk-thin"></div></div></div><div class="td"><div class="au-sk-main"><div class="sk" style="width:@(width)%"></div></div><div class="au-sk-sub"><div class="sk au-sk-w46 au-sk-thin"></div></div></div><div class="td"><div class="au-sk-main"><div class="sk au-sk-w60"></div></div></div><div class="td"><div class="au-sk-main"><div class="sk au-sk-w50"></div></div></div><div class="td"><div class="au-sk-main"><div class="sk au-sk-w44 au-sk-pill"></div></div></div></div>
+                    <div class="tr sk-row" role="row" aria-hidden="true"><div class="td c-name"><div class="au-sk-main"><div class="sk au-sk-w70"></div></div><div class="au-sk-sub"><div class="sk au-sk-w40 au-sk-thin"></div></div></div><div class="td"><div class="au-sk-main"><div class="sk" style="width:@(width)%"></div></div><div class="au-sk-sub"><div class="sk au-sk-w46 au-sk-thin"></div></div></div><div class="td"><div class="au-sk-main"><div class="sk au-sk-w60"></div></div></div><div class="td"><div class="au-sk-main"><div class="sk au-sk-w50"></div></div></div><div class="td"><div class="au-sk-main"><div class="sk au-sk-w60"></div></div></div><div class="td"><div class="au-sk-main"><div class="sk au-sk-w44 au-sk-pill"></div></div></div></div>
                 }
             }
         </div></div></div>
