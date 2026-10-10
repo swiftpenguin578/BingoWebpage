@@ -130,6 +130,10 @@
                         }
                     </div>
                     <div class="landing-shell-actions">
+                        @if (playingAccount is not null)
+                        {
+                            <partial name="_PlayingAccount" model="@(new PlayingAccountView(playingAccount, "bar", $"{Context.Request.PathBase}{Context.Request.Path}{Context.Request.QueryString}"))" />
+                        }
                         <div class="landing-shell-menu" data-public-ui-popover>
                             <button type="button" class="landing-shell-icon" aria-label="@T["Open navigation"]" aria-expanded="false" aria-controls="public-ui-header-menu-panel">
                                 <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
@@ -254,36 +258,7 @@
     </nav>
     @if (playingAccount is not null)
     {
-        <div class="landing-shell-playing" data-playing-account>
-            @if (playingAccount.CreditedCharacterName is null)
-            {
-                <span class="landing-shell-playing__label">@T["No active playing account – contact an admin"]</span>
-            }
-            else if (playingAccount.SwitchTargets.Count == 0)
-            {
-                <span class="landing-shell-playing__label">@T["Playing as {0}", playingAccount.CreditedCharacterName]</span>
-            }
-            else
-            {
-                <div class="landing-shell-playing__menu" data-public-ui-popover>
-                    <button type="button" class="landing-shell-playing__button" aria-expanded="false" aria-controls="public-ui-header-playing-panel"><span>@T["Playing as {0}", playingAccount.CreditedCharacterName]</span><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></svg></button>
-                    <div id="public-ui-header-playing-panel" class="landing-shell-playing__panel" data-public-ui-popover-panel hidden>
-                        <strong class="public-ui-header-popover__heading public-ui-section-heading">@T["Switch account"]</strong>
-                        @foreach (var target in playingAccount.SwitchTargets)
-                        {
-                            <form method="post" asp-page="/PlayingAccount" class="landing-shell-playing__form">
-                                <input type="hidden" name="returnUrl" value="@($"{Context.Request.PathBase}{Context.Request.Path}{Context.Request.QueryString}")" />
-                                <input type="hidden" name="EventId" value="@playingAccount.EventId" />
-                                <input type="hidden" name="ParticipantId" value="@playingAccount.ParticipantId" />
-                                <input type="hidden" name="ExpectedCurrentCharacterId" value="@playingAccount.CreditedCharacterId" />
-                                <input type="hidden" name="NextCharacterId" value="@target.CharacterId" />
-                                <button type="submit" class="landing-shell-playing__option">@target.Name</button>
-                            </form>
-                        }
-                    </div>
-                </div>
-            }
-        </div>
+        <partial name="_PlayingAccount" model="@(new PlayingAccountView(playingAccount, "strip", $"{Context.Request.PathBase}{Context.Request.Path}{Context.Request.QueryString}"))" />
     }
     </header>
     @if (hasEventContextNavigation)

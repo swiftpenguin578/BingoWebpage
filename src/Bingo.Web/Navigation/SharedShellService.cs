@@ -448,6 +448,8 @@ public sealed class SharedShellService(ApplicationDbContext db, IStringLocalizer
 }
 
 public sealed record SharedShellData(IReadOnlyList<BreadcrumbItem> Breadcrumbs, NotificationInbox Notifications, AdminEventContext? AdminEvent, IReadOnlyList<AdminEventOption> AdminEvents, CaptainNavigation? CaptainNavigation, SubmissionNavigation? SubmissionNavigation, CurrentEventNavigation? CurrentEvent);
+/// <summary>The header playing-account element and where it is rendered: "bar" in the top header row, "strip" under it when the navigation collapses.</summary>
+public sealed record PlayingAccountView(Bingo.Application.Signups.PlayingAccountHeader Account, string Variant, string ReturnUrl);
 public sealed record CurrentEventNavigation(Guid EventId, string Slug);
 public sealed record CaptainNavigation(Guid EventId, Guid TeamId)
 {
