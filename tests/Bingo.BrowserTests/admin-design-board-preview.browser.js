@@ -147,7 +147,9 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
       await page.screenshot({ path: path.join(shots, `${scenario.rows}x${scenario.cols}-${scenario.mode}-${dark ? 'dark' : 'light'}-${name}.png`) });
       // Narrow window: like the team board, the board keeps its 37rem minimum (tiles stay legible) and the preview body scrolls sideways.
       await page.setViewportSize({ width: 390, height: 800 });
-      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      // Measure once the panel has been laid out for the narrow window (it fits the viewport) and nothing animates.
+      await page.waitForFunction(() => innerWidth === 390 && document.querySelector('.bd-pv').getBoundingClientRect().width <= innerWidth);
+      await layer.evaluate(el => Promise.all(el.getAnimations({ subtree: true }).filter(animation => animation.effect?.getComputedTiming().endTime !== Infinity).map(animation => animation.finished)));
       const narrow = await board.evaluate(el => ({ width: el.getBoundingClientRect().width, tile: el.querySelector('[data-pv-tile]').getBoundingClientRect().width, scrolls: el.parentElement.scrollWidth > el.parentElement.clientWidth, body: el.parentElement.clientWidth, panel: document.querySelector('.bd-pv').getBoundingClientRect().width, vw: innerWidth, rem: parseFloat(getComputedStyle(document.documentElement).fontSize) }));
       assert.ok(narrow.width >= 592 && narrow.scrolls, 'board keeps the team board minimum width and scrolls sideways ' + JSON.stringify(narrow));
       assert.ok(narrow.tile >= (scenario.cols === 3 ? 160 : 95), 'narrow tiles stay as large as on the team board: ' + narrow.tile);

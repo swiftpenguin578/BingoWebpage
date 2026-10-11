@@ -1,18 +1,9 @@
 # Current project status
 
-**Production:** `main` deployed on 10 October 2026 (the October Live release; history rewritten the same day, now `b54c421e`). `docs/UI.md` §11 owns page approval. Next work comes from `BACKLOG.md`; each push to main, merge or deploy needs the user's approval.
+**Production:** `main` `9794b0c1`, deployed on 10 October 2026 (docs restructure, Board preview, boss fade, audit overhaul). `docs/UI.md` §11 owns page approval. Next work comes from `BACKLOG.md`; each push to main, merge or deploy needs the user's approval.
 
-## Working branch `audit-docs-round` (worktree `/Users/christopher/Documents/BingoWebpage-round`)
+## Working branch `ops-round` (worktree `/Users/christopher/Documents/BingoWebpage-ops`)
 
-Pushed; draft PR swiftpenguin578/BingoWebpage#15 to `main`. The user approved merging once CI is fully green; deploy needs a separate OK. All items reviewed and approved by the user:
-
-- **Board preview** (brief 148): preview shows the board as players see it; team-board tiles use the default artwork; one shared boss-art order.
-- **Boss fade + drop banner** (brief 153): multi-boss tiles fade between bosses (6 s, 1.5 s fade); drop banner open 6 s.
-- **Audit overhaul** (briefs 147, 159 and the actor fix): readable entries, one-name Affected account, capped team-removal entries, actor search while typing without a filter chip, 940 px table.
-- **Documentation** (briefs 146, 151): five documents under `docs/`, rewritten `AGENTS.md`/`CLAUDE.md`, README as project introduction, `.gitattributes`; design references, public reference images and the Stats prototype removed. Rule ledger: `artifacts/docs-restructure/rule-ledger.md`.
+Merged locally, not pushed yet: security fixes (briefs 167/170, reviews 168/172: evidence images checked from the header with a capped decode and every unreadable upload refused with a specific English/Danish message; wiki image cache canonicalised, misses fetched only for referenced sources, pending downloads capped with 503; SignalR served locally) and the JS lane (briefs 165/171, review 173: Participants loading toolbar wraps like the loaded one, Evidence codes dialog clean on open, page-conformance split into five entries and timing fixes in overview, board-drawer, board-preview, WOM-connection and draft tests). The JS job stays advisory until the two Draft fixes in `BACKLOG.md` land (`admin-design-draft-running` [webkit] is intermittent); evidence `artifacts/js-gate/`. Next: push `ops-round` with a draft PR to main, full CI, user preview check.
 
 The full JS runner and the whole .NET suite run in GitHub CI when the planner pushes the branch.
-
-## Ticket branch `security-fixes` (worktree `/Users/christopher/Documents/BingoWebpage-sec`)
-
-Local only, not pushed or merged. Briefs 167 (F01, F02, F04; reviewed in 168) and 170 (fix round: Special:Redirect canonicalisation, referenced-only wiki image misses, unreadable evidence refused instead of 500, legacy cache keys re-keyed, 503 endpoint test, ARCHITECTURE.md cache paragraph; item 6: players see the specific evidence refusal in English/Danish, not logged as 4101; item 7: every decoder failure except cancellation is a clean refusal). Focused tests and Release build pass locally; next: independent review of the brief 170 commits, then the planner merges and runs CI (large risk: storage, anonymous endpoint).

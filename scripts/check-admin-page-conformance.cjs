@@ -1,4 +1,5 @@
-// U3 shared page conformance. Register a family once in admin-page-conformance-pages.cjs.
+// U3 shared page conformance. Register a family once in admin-page-conformance-pages.cjs and add it to one
+// tests/Bingo.BrowserTests/admin-design-page-conformance-<n>.browser.js entry.
 // Q-H1/Q-SK2: loading and loaded geometry match, with only summary/card and text-wrap growth.
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {chromium,webkit}=require('playwright');
@@ -7,7 +8,7 @@ const registrations=require('./lib/admin-page-conformance-pages.cjs');
 const {observe,checkFrames,checkLoaded,checkUpdate,checkDanish,checkSources,checkNoSidewaysScroll,checkDocument,checkFast,checkLoadingSummary,checkRegisteredLinks,registeredBlockShifts}=require('./lib/admin-page-conformance-checks.cjs');
 async function until(page,fn){for(let i=0;i<200;i++)if(await page.evaluate(fn))return;throw Error('Microtask checkpoint not reached');}
 (async()=>{
- const name=process.env.PLAYWRIGHT_BROWSER||'chromium',engine=name==='webkit'?webkit:chromium,output=path.join(process.cwd(),'artifacts/page-conformance-'+name);
+ const name=process.env.PLAYWRIGHT_BROWSER||'chromium',engine=name==='webkit'?webkit:chromium,output=path.join(process.cwd(),'artifacts/page-conformance-'+name+(process.env.BINGO_CONFORMANCE_GROUP?'-'+process.env.BINGO_CONFORMANCE_GROUP:''));
  const pages=registrations.filter(p=>!process.env.BINGO_CONFORMANCE_PAGES||process.env.BINGO_CONFORMANCE_PAGES.split(',').includes(p.family));
  assert.ok(pages.length,'at least one registered family selected');
  // A page may need opt-in fixture data (registration.fixtureEnv); each distinct environment
