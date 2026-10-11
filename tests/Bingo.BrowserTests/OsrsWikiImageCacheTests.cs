@@ -283,6 +283,233 @@ public sealed class OsrsWikiImageCacheTests
         }
     }
 
+    // Brief 167 / F02 and brief 170 / M1: fragment, query and encoding variants of one
+    // wiki file share one cache key and one fetch of the canonical file URL, for both
+    // the /images/ and the Special:Redirect forms.
+    [Theory]
+    [InlineData("https://oldschool.runescape.wiki/images/Abyssal_whip.png", new[]
+    {
+        "https://oldschool.runescape.wiki/images/Abyssal_whip.png",
+        "https://oldschool.runescape.wiki/images/Abyssal_whip.png#a",
+        "https://oldschool.runescape.wiki/images/Abyssal_whip.png#b",
+        "https://oldschool.runescape.wiki/images/Abyssal_whip.png?x=1",
+        "https://OLDSCHOOL.runescape.wiki:443/images/%41byssal%5Fwhip.png?x=2#c"
+    })]
+    [InlineData("https://oldschool.runescape.wiki/w/Special:Redirect/file/Caf%C3%A9_whip.png", new[]
+    {
+        "https://oldschool.runescape.wiki/w/Special:Redirect/file/Caf%C3%A9_whip.png",
+        "https://oldschool.runescape.wiki/w/SPECIAL:REDIRECT/FILE/Caf%C3%A9_whip.png",
+        "https://oldschool.runescape.wiki/special:redirect/file/Caf%C3%A9_whip.png#a",
+        "https://oldschool.runescape.wiki/w/Special:Redirect/file/Caf%C3%A9%20whip.png",
+        "https://oldschool.runescape.wiki/w/Special:Redirect/file/caf%C3%A9_whip.png",
+        "https://oldschool.runescape.wiki/w/Special:Redirect/file/Caf%C3%A9___whip.png?x=1",
+        "https://oldschool.runescape.wiki/w/Special:Redirect/file/_Caf%C3%A9%20_%20whip.png_",
+        "https://oldschool.runescape.wiki/w/Special:Redirect/file/Cafe%CC%81_whip.png"
+    })]
+    public async Task FragmentQueryAndEncodingVariantsShareOneCanonicalKeyAndFetch(string canonical, string[] variants)
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"bingo-wiki-images-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var handler = new CountingImageHandler();
+            var cache = CreateCache(root, handler);
+
+            var paths = new List<string>();
+            foreach (var variant in variants) paths.Add((await cache.GetAsync(variant)).Path);
+
+            Assert.Single(paths.Distinct());
+            Assert.Single(Directory.EnumerateFiles(root));
+            Assert.Equal(1, handler.RequestCount);
+            Assert.Equal(canonical, handler.RequestUris.Single().AbsoluteUri);
+            Assert.All(variants, variant => Assert.Equal(canonical, OsrsWikiImageCache.CanonicalSource(variant)));
+            Assert.Single(variants.Select(cache.GetPublicUrl).Distinct());
+            Assert.All(variants, variant => Assert.True(cache.IsCached(variant)));
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    // Existing cache files stay valid: every catalogue Special:Redirect source already
+    // has the canonical spelling, so its key does not change.
+    [Fact]
+    public void EveryCatalogueRedirectSourceCanonicalisesToItself()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "data", "osrs-catalogue.json");
+        using var document = System.Text.Json.JsonDocument.Parse(File.ReadAllText(path));
+        var sources = new List<string>();
+        void Collect(System.Text.Json.JsonElement element)
+        {
+            if (element.ValueKind == System.Text.Json.JsonValueKind.Object)
+            {
+                foreach (var property in element.EnumerateObject())
+                {
+                    if (property.NameEquals("imageUrl") && property.Value.ValueKind == System.Text.Json.JsonValueKind.String) sources.Add(property.Value.GetString()!);
+                    else Collect(property.Value);
+                }
+            }
+            else if (element.ValueKind == System.Text.Json.JsonValueKind.Array)
+            {
+                foreach (var item in element.EnumerateArray()) Collect(item);
+            }
+        }
+        Collect(document.RootElement);
+
+        var redirects = sources.Where(source => source.Contains("/Special:Redirect/file/", StringComparison.Ordinal)).ToList();
+        Assert.Equal(356, redirects.Count);
+        Assert.All(redirects, source =>
+            Assert.Equal(Bingo.Application.Catalogue.OsrsWikiImageUrl.Normalize(source), OsrsWikiImageCache.CanonicalSource(source)));
+    }
+
+    [Theory]
+    [InlineData("https://example.com/images/Abyssal_whip.png")]
+    [InlineData("http://oldschool.runescape.wiki/images/Abyssal_whip.png")]
+    [InlineData("https://oldschool.runescape.wiki:8443/images/Abyssal_whip.png")]
+    [InlineData("https://user@oldschool.runescape.wiki/images/Abyssal_whip.png")]
+    [InlineData("https://oldschool.runescape.wiki.example.com/images/Abyssal_whip.png")]
+    [InlineData("https://oldschool.runescape.wiki/api.php?action=query")]
+    [InlineData("https://oldschool.runescape.wiki/images/../api.php")]
+    [InlineData("https://oldschool.runescape.wiki/images/")]
+    [InlineData("https://oldschool.runescape.wiki/w/Special:Redirect/file/")]
+    [InlineData("https://oldschool.runescape.wiki/w/Special:Redirect/file/__%20_")]
+    [InlineData("https://oldschool.runescape.wiki/w/Special:Redirect/file/Abyssal%2Fwhip.png")]
+    [InlineData("https://oldschool.runescape.wiki/w/Special:Redirect/file/Abyssal%3Fwhip.png")]
+    [InlineData("https://oldschool.runescape.wiki/w/Special:Redirect/file/Abyssal%23whip.png")]
+    [InlineData("https://oldschool.runescape.wiki/w/Special:Redirect/file/Abyssal%0Awhip.png")]
+    public async Task SourcesOutsideTheWikiImagePathsAreRejectedWithoutFetching(string source)
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"bingo-wiki-images-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            var handler = new CountingImageHandler();
+            var cache = CreateCache(root, handler);
+
+            await Assert.ThrowsAsync<InvalidOperationException>(() => cache.GetAsync(source));
+
+            Assert.Equal(0, handler.RequestCount);
+            Assert.False(cache.IsCached(source));
+            Assert.False(cache.GetPublicUrl(source)?.StartsWith(OsrsWikiImageCache.EndpointPath, StringComparison.Ordinal) ?? false);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    // Brief 170 / L1: browsers request the PublicUrl value (the canonical source), so a
+    // file cached under the stored source's older key is found through the stored
+    // spellings and moved to the canonical key without a wiki request.
+    [Fact]
+    public async Task FilesCachedUnderTheOldUncanonicalKeyAreServedOnThePublicUrlAndRekeyed()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"bingo-wiki-images-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            const string stored = "https://oldschool.runescape.wiki/images/Legacy_image.png?7263b";
+            var legacyPath = Path.Combine(root, Key(stored) + ".png");
+            await File.WriteAllBytesAsync(legacyPath, [9, 9]);
+            var handler = new CountingImageHandler();
+            var cache = CreateCache(root, handler);
+            var requested = PublicSource(cache.GetPublicUrl(stored)!);
+            Assert.Equal("https://oldschool.runescape.wiki/images/Legacy_image.png", requested);
+
+            var cached = await cache.GetAsync(requested, (canonical, _) => ValueTask.FromResult<IReadOnlyList<string>?>(canonical == requested ? [stored] : null));
+
+            Assert.Equal(Path.Combine(root, Key(requested) + ".png"), cached.Path);
+            Assert.Equal([9, 9], await File.ReadAllBytesAsync(cached.Path));
+            Assert.False(File.Exists(legacyPath));
+            Assert.True(cache.IsCached(requested));
+            Assert.Equal(cached.Path, (await cache.GetAsync(requested)).Path);
+            Assert.Equal(0, handler.RequestCount);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    // The sync job passes stored sources: IsCached re-keys a legacy file and then
+    // reports the canonical key only.
+    [Fact]
+    public async Task IsCachedForAStoredSourceMovesItsLegacyFileToTheCanonicalKey()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"bingo-wiki-images-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            const string stored = "https://oldschool.runescape.wiki/images/Legacy_sync.png?1a2b";
+            var legacyPath = Path.Combine(root, Key(stored) + ".png");
+            await File.WriteAllBytesAsync(legacyPath, [8, 8]);
+            var handler = new CountingImageHandler();
+            var cache = CreateCache(root, handler);
+
+            Assert.True(cache.IsCached(stored));
+
+            var canonicalPath = Path.Combine(root, Key("https://oldschool.runescape.wiki/images/Legacy_sync.png") + ".png");
+            Assert.True(File.Exists(canonicalPath));
+            Assert.False(File.Exists(legacyPath));
+            Assert.True(cache.IsCached("https://oldschool.runescape.wiki/images/Legacy_sync.png"));
+            Assert.Equal(canonicalPath, (await cache.GetAsync(stored)).Path);
+            Assert.Equal(0, handler.RequestCount);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    private static string Key(string source) =>
+        Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(source)));
+
+    private static string PublicSource(string publicUrl) =>
+        Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(new Uri("https://localhost"), publicUrl).Query)["source"].ToString();
+
+    [Fact]
+    public async Task PendingMissesAreCappedAndOverflowIsRefusedWithoutQueueing()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"bingo-wiki-images-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        try
+        {
+            var clock = new TestClock(new DateTimeOffset(2026, 10, 10, 12, 0, 0, TimeSpan.Zero));
+            const string warmSource = "https://oldschool.runescape.wiki/images/Warm.png";
+            var warm = await CreateCache(root, new CountingImageHandler(), clock).GetAsync(warmSource);
+            var handler = new BlockingImageHandler(started, release);
+            var cache = CreateCache(root, handler, clock);
+
+            var pending = new List<Task<CachedWikiImage>> { cache.GetAsync("https://oldschool.runescape.wiki/images/Queued-0.png") };
+            await started.Task;
+            for (var index = 1; index < OsrsWikiImageCache.MaximumPendingDownloads; index++)
+                pending.Add(cache.GetAsync($"https://oldschool.runescape.wiki/images/Queued-{index}.png"));
+
+            var stopwatch = Stopwatch.StartNew();
+            await Assert.ThrowsAsync<OsrsWikiImageQueueFullException>(() => cache.GetAsync("https://oldschool.runescape.wiki/images/Overflow.png#x"));
+            await Assert.ThrowsAsync<OsrsWikiImageQueueFullException>(() => cache.GetAsync("https://oldschool.runescape.wiki/images/Overflow-2.png"));
+            Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(1));
+
+            // A variant of a queued key joins the existing download; cached images stay available.
+            pending.Add(cache.GetAsync("https://oldschool.runescape.wiki/images/Queued-5.png#again"));
+            Assert.Equal(warm.Path, (await cache.GetAsync(warmSource).WaitAsync(TimeSpan.FromSeconds(1))).Path);
+            Assert.Equal(1, handler.RequestCount);
+            Assert.All(pending, task => Assert.False(task.IsCompleted));
+
+            release.SetResult();
+            var first = await pending[0].WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(File.Exists(first.Path));
+        }
+        finally
+        {
+            release.TrySetResult();
+            Directory.Delete(root, true);
+        }
+    }
+
     private static OsrsWikiImageCache CreateCache(string root, HttpMessageHandler handler, TimeProvider? time = null)
     {
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
@@ -305,6 +532,7 @@ public sealed class OsrsWikiImageCacheTests
     private sealed class CountingImageHandler : HttpMessageHandler
     {
         public int RequestCount { get; private set; }
+        public List<Uri> RequestUris { get; } = [];
         public Version? RequestVersion { get; private set; }
         public HttpVersionPolicy? RequestVersionPolicy { get; private set; }
         public System.Net.HttpStatusCode Status { get; set; } = System.Net.HttpStatusCode.OK;
@@ -313,6 +541,7 @@ public sealed class OsrsWikiImageCacheTests
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             RequestCount++;
+            RequestUris.Add(request.RequestUri!);
             RequestVersion = request.Version;
             RequestVersionPolicy = request.VersionPolicy;
             var response = new HttpResponseMessage(Status)

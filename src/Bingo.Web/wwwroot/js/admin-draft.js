@@ -620,8 +620,8 @@ export function init(region, ui = window.AdminUI) {
     let script = document.querySelector('script[data-signalr]');
     if (!script) {
       script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js';
-      script.crossOrigin = 'anonymous'; script.referrerPolicy = 'no-referrer'; script.dataset.signalr = '';
+      script.src = '/lib/microsoft-signalr/dist/browser/signalr.min.js';
+      script.dataset.signalr = '';
       document.head.append(script);
     }
     script.addEventListener('load', start, { once: true, signal });

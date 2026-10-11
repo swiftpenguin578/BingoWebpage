@@ -46,7 +46,12 @@ public static class SafeUserFailure
         "Choose a tile from the published event board.",
         "Choose a requirement from that tile.",
         "Choose an eligible drop.",
-        "This drop has already reached its approved contribution limit."
+        "This drop has already reached its approved contribution limit.",
+        // Evidence image refusals from EvidenceImageValidator (brief 170, S-3).
+        "Evidence must be a PNG, JPEG, or WebP image.",
+        "The evidence image dimensions are too large.",
+        "Evidence images may not exceed 10 MB.",
+        "Choose an evidence image."
     ];
 
     public static string Message(IStringLocalizer<SharedResource> text, ILogger logger, Exception exception)

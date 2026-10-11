@@ -18,6 +18,11 @@
     <PackageReference Include="SixLabors.ImageSharp" Version="4.1.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Evidence decode-limit tests reach the allocation cap through an internal overload. -->
+    <InternalsVisibleTo Include="Bingo.IntegrationTests" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
