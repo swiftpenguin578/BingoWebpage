@@ -104,6 +104,51 @@ public sealed class EvidenceImageDecodeLimitTests : IAsyncDisposable
         Assert.EndsWith(".jpg", stored.StorageKey, StringComparison.Ordinal);
     }
 
+    // Brief 170 / M2: the per-upload allocation cap is a refusal, not a server error.
+    // ImageSharp reports the cap as InvalidImageContentException wrapping
+    // InvalidMemoryOperationException; a 2000x2000 RGBA decode needs about 16 MB.
+    [Fact]
+    public async Task AllocationCapDuringDecodeIsRejectedAsTooLarge()
+    {
+        await using var input = new MemoryStream();
+        using (var image = new Image<Rgba32>(2000, 2000)) await image.SaveAsPngAsync(input);
+        input.Position = 0;
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => EvidenceImageValidator.ReadAsync(input, 1, CancellationToken.None));
+
+        Assert.Equal("The evidence image dimensions are too large.", failure.Message);
+    }
+
+    [Theory]
+    [InlineData("truncated-png")]
+    [InlineData("corrupt-png")]
+    [InlineData("text")]
+    public async Task UnreadableUploadsAreRejectedAsUnsupportedImages(string kind)
+    {
+        var storage = CreateStorage();
+        await using var input = new MemoryStream(UnreadableUpload(kind));
+
+        var failure = await Assert.ThrowsAsync<InvalidOperationException>(() => storage.StoreAsync(Guid.NewGuid(), Guid.NewGuid(), "proof.png", input));
+
+        Assert.Equal("Evidence must be a PNG, JPEG, or WebP image.", failure.Message);
+        Assert.Empty(Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories));
+    }
+
+    internal static byte[] UnreadableUpload(string kind)
+    {
+        using var output = new MemoryStream();
+        using (var image = new Image<Rgba32>(64, 64, new Rgba32(10, 20, 30))) image.SaveAsPng(output);
+        var png = output.ToArray();
+        return kind switch
+        {
+            // Signature, IHDR and the start of IDAT only.
+            "truncated-png" => png[..(png.Length / 2)],
+            // A valid header whose compressed pixel data is overwritten.
+            "corrupt-png" => [.. png[..41], .. Enumerable.Repeat((byte)0xFF, png.Length - 41)],
+            _ => System.Text.Encoding.UTF8.GetBytes("This is a text file, not a screenshot.")
+        };
+    }
+
     internal static byte[] CraftZeroFilledRgbaPng(int width, int height)
     {
         using var output = new MemoryStream();

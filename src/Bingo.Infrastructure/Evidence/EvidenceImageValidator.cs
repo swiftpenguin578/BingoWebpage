@@ -16,22 +16,29 @@ internal static class EvidenceImageValidator
     // staying far below ImageSharp's 4 GB default.
     internal const int DecodeAllocationLimitMegabytes = 1024;
 
+    private const string UnsupportedImageMessage = "Evidence must be a PNG, JPEG, or WebP image.";
+    private const string DimensionsTooLargeMessage = "The evidence image dimensions are too large.";
+
     private static readonly DecoderOptions DecoderLimits = new() { MaxFrames = 1 };
 
     // A fresh allocator per decode so the accumulative limit applies to one upload
     // and no pooled memory is retained after validation.
-    private static DecoderOptions BoundedDecoderOptions()
+    private static DecoderOptions BoundedDecoderOptions(int allocationLimitMegabytes)
     {
         var configuration = Configuration.Default.Clone();
         configuration.MemoryAllocator = MemoryAllocator.Create(new MemoryAllocatorOptions
         {
-            AccumulativeAllocationLimitMegabytes = DecodeAllocationLimitMegabytes,
+            AccumulativeAllocationLimitMegabytes = allocationLimitMegabytes,
             MaximumPoolSizeMegabytes = 0
         });
         return new DecoderOptions { Configuration = configuration, MaxFrames = 1 };
     }
 
-    internal static async Task<ValidatedEvidence> ReadAsync(Stream content, CancellationToken cancellationToken)
+    internal static Task<ValidatedEvidence> ReadAsync(Stream content, CancellationToken cancellationToken) =>
+        ReadAsync(content, DecodeAllocationLimitMegabytes, cancellationToken);
+
+    // The allocation limit is a parameter only so tests can reach the cap with a small image.
+    internal static async Task<ValidatedEvidence> ReadAsync(Stream content, int decodeAllocationLimitMegabytes, CancellationToken cancellationToken)
     {
         var buffer = new MemoryStream();
         var chunk = new byte[81920];
@@ -57,36 +64,7 @@ internal static class EvidenceImageValidator
 
         try
         {
-            // Validate from the header before any pixel buffer is allocated: a small
-            // compressed file can declare dimensions that need gigabytes to decode.
-            buffer.Position = 0;
-            var format = await Image.DetectFormatAsync(DecoderLimits, buffer, cancellationToken);
-            var extension = format.Name.ToUpperInvariant() switch
-            {
-                "PNG" => ".png",
-                "JPEG" => ".jpg",
-                "WEBP" => ".webp",
-                _ => throw new InvalidOperationException("Evidence must be a PNG, JPEG, or WebP image.")
-            };
-            buffer.Position = 0;
-            var info = await Image.IdentifyAsync(DecoderLimits, buffer, cancellationToken);
-            if ((long)info.Width * info.Height > MaximumPixels) throw new InvalidOperationException("The evidence image dimensions are too large.");
-
-            // The full decode still proves the pixel data is readable, but only the
-            // first frame is decoded and allocations are capped per upload.
-            buffer.Position = 0;
-            int width, height;
-            try
-            {
-                using var image = await Image.LoadAsync(BoundedDecoderOptions(), buffer, cancellationToken);
-                width = image.Width;
-                height = image.Height;
-            }
-            catch (InvalidMemoryOperationException)
-            {
-                throw new InvalidOperationException("The evidence image dimensions are too large.");
-            }
-
+            var (extension, width, height) = await DecodeAsync(buffer, decodeAllocationLimitMegabytes, cancellationToken);
             var mediaType = extension switch { ".png" => "image/png", ".jpg" => "image/jpeg", _ => "image/webp" };
             var checksum = Convert.ToHexString(SHA256.HashData(buffer.ToArray())).ToLowerInvariant();
             buffer.Position = 0;
@@ -96,6 +74,42 @@ internal static class EvidenceImageValidator
         {
             await buffer.DisposeAsync();
             throw;
+        }
+    }
+
+    // Unknown, truncated or corrupt content and the per-upload allocation cap all
+    // become ordinary validation refusals instead of escaping as server errors.
+    // When the cap trips, ImageSharp wraps InvalidMemoryOperationException in
+    // InvalidImageContentException, so the inner exception decides the message.
+    private static async Task<(string Extension, int Width, int Height)> DecodeAsync(MemoryStream buffer, int allocationLimitMegabytes, CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Validate from the header before any pixel buffer is allocated: a small
+            // compressed file can declare dimensions that need gigabytes to decode.
+            buffer.Position = 0;
+            var format = await Image.DetectFormatAsync(DecoderLimits, buffer, cancellationToken);
+            var extension = format.Name.ToUpperInvariant() switch
+            {
+                "PNG" => ".png",
+                "JPEG" => ".jpg",
+                "WEBP" => ".webp",
+                _ => throw new InvalidOperationException(UnsupportedImageMessage)
+            };
+            buffer.Position = 0;
+            var info = await Image.IdentifyAsync(DecoderLimits, buffer, cancellationToken);
+            if ((long)info.Width * info.Height > MaximumPixels) throw new InvalidOperationException(DimensionsTooLargeMessage);
+
+            // The full decode still proves the pixel data is readable, but only the
+            // first frame is decoded and allocations are capped per upload.
+            buffer.Position = 0;
+            using var image = await Image.LoadAsync(BoundedDecoderOptions(allocationLimitMegabytes), buffer, cancellationToken);
+            return (extension, image.Width, image.Height);
+        }
+        catch (Exception exception) when (exception is ImageFormatException or InvalidMemoryOperationException)
+        {
+            var allocationCap = exception is InvalidMemoryOperationException || exception.InnerException is InvalidMemoryOperationException;
+            throw new InvalidOperationException(allocationCap ? DimensionsTooLargeMessage : UnsupportedImageMessage, exception);
         }
     }
 
