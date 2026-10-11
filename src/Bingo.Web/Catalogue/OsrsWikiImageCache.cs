@@ -3,6 +3,7 @@ using System.Net;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using Bingo.Application.Catalogue;
 
 namespace Bingo.Web.Catalogue;
@@ -11,6 +12,7 @@ public sealed partial class OsrsWikiImageCache
 {
     public const string EndpointPath = "/media/osrs-wiki";
     private const string WikiHost = "oldschool.runescape.wiki";
+    private const string RedirectPrefix = "/w/Special:Redirect/file/";
     private const long MaximumBytes = 8 * 1024 * 1024;
     private const int MaximumConcurrentDownloads = 1;
     // Misses waiting for the single paced download slot. At one start per 500 ms
@@ -58,6 +60,10 @@ public sealed partial class OsrsWikiImageCache
     }
 
     public string? GetPublicUrl(string? source) => PublicUrl(source);
+
+    /// <summary>The canonical wiki file URL the cache keys and fetches, or null for sources it does not cache.</summary>
+    public static string? CanonicalSource(string? source) =>
+        TryGetWikiUri(OsrsWikiImageUrl.Normalize(source), out var canonical) ? canonical.AbsoluteUri : null;
 
     public static string? PublicUrl(string? source)
     {
@@ -309,8 +315,9 @@ public sealed partial class OsrsWikiImageCache
         Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(source)));
 
     // Accepts only HTTPS OSRS Wiki image files and returns their canonical form:
-    // lower-case host, default port, no user info, query or fragment, and each
-    // /images/ path segment re-escaped so encoding variants share one cache key.
+    // lower-case host, default port, no user info, query or fragment, each
+    // /images/ path segment re-escaped and Special:Redirect file names normalised
+    // so encoding variants share one cache key.
     private static bool TryGetWikiUri(string? source, out Uri uri)
     {
         uri = null!;
@@ -328,15 +335,53 @@ public sealed partial class OsrsWikiImageCache
             if (segments.Length < 3 || segments[^1].Length == 0) return false;
             path = string.Join('/', segments);
         }
-        else if (parsed.AbsolutePath.StartsWith("/Special:Redirect/file/", StringComparison.OrdinalIgnoreCase) ||
-                 parsed.AbsolutePath.StartsWith("/w/Special:Redirect/file/", StringComparison.OrdinalIgnoreCase))
-            path = parsed.AbsolutePath;
+        else if (TryGetRedirectFileName(parsed.AbsolutePath, out var fileName))
+            path = RedirectPrefix + fileName;
         else
             return false;
 
         uri = new Uri($"https://{WikiHost}{path}", UriKind.Absolute);
         return true;
     }
+
+    // MediaWiki resolves prefix casing, %20 versus _, first-letter case, repeated
+    // underscores and NFC/NFD spellings to one file, so they share one escaped name.
+    // The final escaping matches OsrsWikiImageUrl.Normalize, keeping existing keys.
+    private static bool TryGetRedirectFileName(string absolutePath, out string fileName)
+    {
+        fileName = string.Empty;
+        string remainder;
+        if (absolutePath.StartsWith(RedirectPrefix, StringComparison.OrdinalIgnoreCase))
+            remainder = absolutePath[RedirectPrefix.Length..];
+        else if (absolutePath.StartsWith(RedirectPrefix[2..], StringComparison.OrdinalIgnoreCase))
+            remainder = absolutePath[(RedirectPrefix.Length - 2)..];
+        else
+            return false;
+
+        string name;
+        try
+        {
+            name = Uri.UnescapeDataString(remainder).Normalize(NormalizationForm.FormC);
+        }
+        catch (ArgumentException)
+        {
+            return false;
+        }
+
+        // Control characters (including tab and newline) are rejected before
+        // whitespace runs collapse, so they never alias a real file name.
+        if (name.Any(character => character is '/' or '#' or '?' || char.IsControl(character)))
+            return false;
+        name = WhitespaceRuns().Replace(name.Replace('_', ' '), " ").Trim();
+        if (name.Length == 0) return false;
+
+        name = char.ToUpperInvariant(name[0]) + name[1..];
+        fileName = Uri.EscapeDataString(name.Replace(' ', '_'));
+        return true;
+    }
+
+    [GeneratedRegex(@"\s+")]
+    private static partial Regex WhitespaceRuns();
 
     [LoggerMessage(1, LogLevel.Warning, "Could not cache OSRS Wiki image {Source}")]
     private static partial void LogCacheFailure(ILogger logger, Exception exception, string source);

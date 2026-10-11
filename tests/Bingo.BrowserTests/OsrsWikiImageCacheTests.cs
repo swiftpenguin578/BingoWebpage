@@ -283,10 +283,30 @@ public sealed class OsrsWikiImageCacheTests
         }
     }
 
-    // Brief 167 / F02: fragment, query and encoding variants of one wiki file share one
-    // cache key and one fetch of the bare file URL.
-    [Fact]
-    public async Task FragmentQueryAndEncodingVariantsShareOneCanonicalKeyAndFetch()
+    // Brief 167 / F02 and brief 170 / M1: fragment, query and encoding variants of one
+    // wiki file share one cache key and one fetch of the canonical file URL, for both
+    // the /images/ and the Special:Redirect forms.
+    [Theory]
+    [InlineData("https://oldschool.runescape.wiki/images/Abyssal_whip.png", new[]
+    {
+        "https://oldschool.runescape.wiki/images/Abyssal_whip.png",
+        "https://oldschool.runescape.wiki/images/Abyssal_whip.png#a",
+        "https://oldschool.runescape.wiki/images/Abyssal_whip.png#b",
+        "https://oldschool.runescape.wiki/images/Abyssal_whip.png?x=1",
+        "https://OLDSCHOOL.runescape.wiki:443/images/%41byssal%5Fwhip.png?x=2#c"
+    })]
+    [InlineData("https://oldschool.runescape.wiki/w/Special:Redirect/file/Caf%C3%A9_whip.png", new[]
+    {
+        "https://oldschool.runescape.wiki/w/Special:Redirect/file/Caf%C3%A9_whip.png",
+        "https://oldschool.runescape.wiki/w/SPECIAL:REDIRECT/FILE/Caf%C3%A9_whip.png",
+        "https://oldschool.runescape.wiki/special:redirect/file/Caf%C3%A9_whip.png#a",
+        "https://oldschool.runescape.wiki/w/Special:Redirect/file/Caf%C3%A9%20whip.png",
+        "https://oldschool.runescape.wiki/w/Special:Redirect/file/caf%C3%A9_whip.png",
+        "https://oldschool.runescape.wiki/w/Special:Redirect/file/Caf%C3%A9___whip.png?x=1",
+        "https://oldschool.runescape.wiki/w/Special:Redirect/file/_Caf%C3%A9%20_%20whip.png_",
+        "https://oldschool.runescape.wiki/w/Special:Redirect/file/Cafe%CC%81_whip.png"
+    })]
+    public async Task FragmentQueryAndEncodingVariantsShareOneCanonicalKeyAndFetch(string canonical, string[] variants)
     {
         var root = Path.Combine(Path.GetTempPath(), $"bingo-wiki-images-{Guid.NewGuid():N}");
         Directory.CreateDirectory(root);
@@ -294,14 +314,6 @@ public sealed class OsrsWikiImageCacheTests
         {
             var handler = new CountingImageHandler();
             var cache = CreateCache(root, handler);
-            string[] variants =
-            [
-                "https://oldschool.runescape.wiki/images/Abyssal_whip.png",
-                "https://oldschool.runescape.wiki/images/Abyssal_whip.png#a",
-                "https://oldschool.runescape.wiki/images/Abyssal_whip.png#b",
-                "https://oldschool.runescape.wiki/images/Abyssal_whip.png?x=1",
-                "https://OLDSCHOOL.runescape.wiki:443/images/%41byssal%5Fwhip.png?x=2#c"
-            ];
 
             var paths = new List<string>();
             foreach (var variant in variants) paths.Add((await cache.GetAsync(variant)).Path);
@@ -309,7 +321,8 @@ public sealed class OsrsWikiImageCacheTests
             Assert.Single(paths.Distinct());
             Assert.Single(Directory.EnumerateFiles(root));
             Assert.Equal(1, handler.RequestCount);
-            Assert.Equal("https://oldschool.runescape.wiki/images/Abyssal_whip.png", handler.RequestUris.Single().AbsoluteUri);
+            Assert.Equal(canonical, handler.RequestUris.Single().AbsoluteUri);
+            Assert.All(variants, variant => Assert.Equal(canonical, OsrsWikiImageCache.CanonicalSource(variant)));
             Assert.Single(variants.Select(cache.GetPublicUrl).Distinct());
             Assert.All(variants, variant => Assert.True(cache.IsCached(variant)));
         }
@@ -317,6 +330,37 @@ public sealed class OsrsWikiImageCacheTests
         {
             Directory.Delete(root, true);
         }
+    }
+
+    // Existing cache files stay valid: every catalogue Special:Redirect source already
+    // has the canonical spelling, so its key does not change.
+    [Fact]
+    public void EveryCatalogueRedirectSourceCanonicalisesToItself()
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, "data", "osrs-catalogue.json");
+        using var document = System.Text.Json.JsonDocument.Parse(File.ReadAllText(path));
+        var sources = new List<string>();
+        void Collect(System.Text.Json.JsonElement element)
+        {
+            if (element.ValueKind == System.Text.Json.JsonValueKind.Object)
+            {
+                foreach (var property in element.EnumerateObject())
+                {
+                    if (property.NameEquals("imageUrl") && property.Value.ValueKind == System.Text.Json.JsonValueKind.String) sources.Add(property.Value.GetString()!);
+                    else Collect(property.Value);
+                }
+            }
+            else if (element.ValueKind == System.Text.Json.JsonValueKind.Array)
+            {
+                foreach (var item in element.EnumerateArray()) Collect(item);
+            }
+        }
+        Collect(document.RootElement);
+
+        var redirects = sources.Where(source => source.Contains("/Special:Redirect/file/", StringComparison.Ordinal)).ToList();
+        Assert.Equal(356, redirects.Count);
+        Assert.All(redirects, source =>
+            Assert.Equal(Bingo.Application.Catalogue.OsrsWikiImageUrl.Normalize(source), OsrsWikiImageCache.CanonicalSource(source)));
     }
 
     [Theory]
@@ -328,6 +372,12 @@ public sealed class OsrsWikiImageCacheTests
     [InlineData("https://oldschool.runescape.wiki/api.php?action=query")]
     [InlineData("https://oldschool.runescape.wiki/images/../api.php")]
     [InlineData("https://oldschool.runescape.wiki/images/")]
+    [InlineData("https://oldschool.runescape.wiki/w/Special:Redirect/file/")]
+    [InlineData("https://oldschool.runescape.wiki/w/Special:Redirect/file/__%20_")]
+    [InlineData("https://oldschool.runescape.wiki/w/Special:Redirect/file/Abyssal%2Fwhip.png")]
+    [InlineData("https://oldschool.runescape.wiki/w/Special:Redirect/file/Abyssal%3Fwhip.png")]
+    [InlineData("https://oldschool.runescape.wiki/w/Special:Redirect/file/Abyssal%23whip.png")]
+    [InlineData("https://oldschool.runescape.wiki/w/Special:Redirect/file/Abyssal%0Awhip.png")]
     public async Task SourcesOutsideTheWikiImagePathsAreRejectedWithoutFetching(string source)
     {
         var root = Path.Combine(Path.GetTempPath(), $"bingo-wiki-images-{Guid.NewGuid():N}");
