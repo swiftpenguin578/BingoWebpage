@@ -18,3 +18,9 @@ Tab group width: before 436 vs 400 px (Chromium), 429.78 vs 394.66 px (WebKit); 
 `BINGO_CONFORMANCE_PAGES=participants admin-design-page-conformance`: before, Linux Chromium fails `participants 1280 normal first yBeyondHeader: -46 vs 0`; after, passes on Linux Chromium, Linux WebKit, macOS Chromium, macOS WebKit. `admin-design-participants` passes on macOS Chromium and WebKit.
 
 Limitation: the skeleton reserves one digit per tab. An event whose real counts have more digits has a wider loaded toolbar; within the few pixels that adds, the loaded toolbar can still wrap where the loading one did not.
+
+## J2: Evidence codes dialog is clean when opened
+
+Change: `openCodes` (`admin-overview.js`) takes the unsaved-changes baseline after the first `paint()`, which sets `#codes-enabled` from the saved state; previously it was taken before, with the checkbox still unchecked.
+
+Test (`admin-design-overview`): on enabled codes, opening and closing untouched by Escape and by Close shows no "Discard unsaved changes?"; a typed code then Close shows it. Without the fix the test fails (`untouched codes dialog closed by Escape without a discard prompt`, macOS Chromium). With the fix it passes on macOS Chromium and WebKit.
