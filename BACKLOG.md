@@ -42,6 +42,7 @@ Priority: **High** = needed before DKL BINGO OKTOBER 2026 goes Live (draft in ab
 | Bug | Where | Noticed | Notes |
 | --- | --- | --- | --- |
 | "!" icon off-centre, reads as "l" | Admin Final review and WOM pages | 9 October 2026 (user) | Normal priority. The exclamation-mark icon is not horizontally centred and looks like a lowercase "l". Fix the icon so the mark and dot are centred and read as "!". |
+| Add tile with an unacceptable artwork file shows a server error | Admin Board, Add tile | 11 October 2026 (review 172 L-B) | Normal — after the event. `ReplaceTileImageAsync` (`Board.cshtml.cs` ~345) runs outside the handler's try/catch, so a refused image gives a 500; nothing is stored. Catch the refusal, roll back and show the message the way Edit tile does; one Admin HTTP test. (User, 11 October 2026.) |
 
 ## Test suite review — what to look for
 
