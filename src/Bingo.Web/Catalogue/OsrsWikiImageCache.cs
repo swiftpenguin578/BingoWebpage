@@ -73,7 +73,19 @@ public sealed partial class OsrsWikiImageCache
             : normalized;
     }
 
-    public async Task<CachedWikiImage> GetAsync(string source, CancellationToken cancellationToken = default)
+    public Task<CachedWikiImage> GetAsync(string source, CancellationToken cancellationToken = default) =>
+        GetAsync(source, null, cancellationToken);
+
+    /// <summary>
+    /// Serves a cached file, or downloads a missing one. When <paramref name="findReferences"/>
+    /// is given, a missing file is downloaded only if it returns the stored spellings that
+    /// reference the canonical source; otherwise <see cref="OsrsWikiImageNotReferencedException"/>
+    /// is thrown without any wiki request.
+    /// </summary>
+    public async Task<CachedWikiImage> GetAsync(
+        string source,
+        Func<string, CancellationToken, ValueTask<IReadOnlyList<string>?>>? findReferences,
+        CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var normalized = OsrsWikiImageUrl.Normalize(source);
@@ -88,6 +100,9 @@ public sealed partial class OsrsWikiImageCache
             failures.TryRemove(key, out _);
             return existing;
         }
+
+        if (findReferences is not null && await findReferences(canonical, cancellationToken) is null)
+            throw new OsrsWikiImageNotReferencedException();
 
         if (failures.TryGetValue(key, out var failure) && failure.RetryAt > time.GetUtcNow())
             throw failure.CreateException();
@@ -405,3 +420,6 @@ public sealed record CachedWikiImage(string Path, string MediaType);
 
 /// <summary>The pending-download limit is reached; the caller should answer without queueing.</summary>
 public sealed class OsrsWikiImageQueueFullException() : Exception("Too many OSRS Wiki images are waiting to be cached.");
+
+/// <summary>The source is not referenced by the app's data; nothing is fetched or stored.</summary>
+public sealed class OsrsWikiImageNotReferencedException() : Exception("The OSRS Wiki image is not referenced by this site.");

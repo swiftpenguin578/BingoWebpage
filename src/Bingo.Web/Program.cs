@@ -160,6 +160,7 @@ builder.Services.AddHttpClient("OsrsWikiImages", client =>
     client.DefaultRequestHeaders.UserAgent.ParseAdd("OSRSCommunityBingo/1.0 (catalogue image cache)");
 });
 builder.Services.AddSingleton<OsrsWikiImageCache>();
+builder.Services.AddSingleton<OsrsWikiImageReferences>();
 builder.Services.AddScoped<OsrsWikiCatalogueDryRunService>();
 builder.Services.AddScoped<CatalogueSnapshotService>();
 builder.Services.AddScoped<CataloguePriceSyncService>();
@@ -478,10 +479,7 @@ if (args.Contains("--sync-catalogue-images", StringComparer.Ordinal))
     var imageDb = imageScope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     await imageDb.Database.MigrateAsync();
     var cache = imageScope.ServiceProvider.GetRequiredService<OsrsWikiImageCache>();
-    var sources = (await imageDb.BossActivities.AsNoTracking().Where(value => value.ImageUrl != null).Select(value => value.ImageUrl!).ToListAsync())
-        .Concat(await imageDb.CatalogueItems.AsNoTracking().Where(value => value.ImageUrl != null).Select(value => value.ImageUrl!).ToListAsync())
-        .Concat(await imageDb.TileTemplates.AsNoTracking().Where(value => value.ImageUrl != null).Select(value => value.ImageUrl!).ToListAsync())
-        .Concat(await imageDb.BoardTiles.AsNoTracking().Where(value => value.ImageUrlSnapshot != null).Select(value => value.ImageUrlSnapshot!).ToListAsync())
+    var sources = (await OsrsWikiImageReferences.LoadStoredSourcesAsync(imageDb))
         .Select(OsrsWikiImageUrl.Normalize)
         .Where(value => value is not null)
         .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -664,17 +662,23 @@ app.MapGet("/Events/{slug}/Teams/{teamId:guid}/Image", (string slug, Guid teamId
     images.OpenAsync(slug, teamId, cancellationToken));
 app.MapGet("/Events/{slug}/Board/Tiles/{tileId:guid}/Image", (string slug, Guid tileId, PublicBoardImageService images, CancellationToken cancellationToken) =>
     images.OpenAsync(slug, tileId, cancellationToken));
-app.MapGet(OsrsWikiImageCache.EndpointPath, async (string source, HttpContext context, OsrsWikiImageCache cache, CancellationToken cancellationToken) =>
+app.MapGet(OsrsWikiImageCache.EndpointPath, async (string source, HttpContext context, OsrsWikiImageCache cache, OsrsWikiImageReferences references, CancellationToken cancellationToken) =>
 {
     try
     {
-        var cached = await cache.GetAsync(source, cancellationToken);
+        // Cached files are always served; a miss is fetched only for a source the
+        // site's own catalogue, templates or boards reference.
+        var cached = await cache.GetAsync(source, references.FindAsync, cancellationToken);
         context.Response.Headers.CacheControl = "public,max-age=604800";
         return Results.File(cached.Path, cached.MediaType, enableRangeProcessing: true);
     }
     catch (InvalidOperationException)
     {
         return Results.BadRequest();
+    }
+    catch (OsrsWikiImageNotReferencedException)
+    {
+        return Results.NotFound();
     }
     catch (OsrsWikiImageQueueFullException)
     {
