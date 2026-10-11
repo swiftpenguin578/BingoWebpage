@@ -123,6 +123,9 @@ public sealed class EvidenceImageDecodeLimitTests : IAsyncDisposable
     [InlineData("truncated-png")]
     [InlineData("corrupt-png")]
     [InlineData("text")]
+    [InlineData("lossless-jpeg")]
+    [InlineData("fuzzed-webp-argument")]
+    [InlineData("fuzzed-webp-index")]
     public async Task UnreadableUploadsAreRejectedAsUnsupportedImages(string kind)
     {
         var storage = CreateStorage();
@@ -136,6 +139,8 @@ public sealed class EvidenceImageDecodeLimitTests : IAsyncDisposable
 
     internal static byte[] UnreadableUpload(string kind)
     {
+        if (kind == "lossless-jpeg") return LosslessJpeg();
+        if (kind.StartsWith("fuzzed-webp", StringComparison.Ordinal)) return FuzzedLosslessWebp(kind == "fuzzed-webp-argument" ? 5 : 16);
         using var output = new MemoryStream();
         using (var image = new Image<Rgba32>(64, 64, new Rgba32(10, 20, 30))) image.SaveAsPng(output);
         var png = output.ToArray();
@@ -147,6 +152,36 @@ public sealed class EvidenceImageDecodeLimitTests : IAsyncDisposable
             "corrupt-png" => [.. png[..41], .. Enumerable.Repeat((byte)0xFF, png.Length - 41)],
             _ => System.Text.Encoding.UTF8.GetBytes("This is a text file, not a screenshot.")
         };
+    }
+
+    // Brief 170 item 7 (recheck 172 L-A): a baseline JPEG relabelled as lossless (SOF3).
+    // ImageSharp refuses it with NotSupportedException, not ImageFormatException.
+    private static byte[] LosslessJpeg()
+    {
+        using var output = new MemoryStream();
+        using (var image = new Image<Rgba32>(64, 64, new Rgba32(10, 20, 30))) image.SaveAsJpeg(output);
+        var jpeg = output.ToArray();
+        var marker = Enumerable.Range(2, jpeg.Length - 3).First(index => jpeg[index] == 0xFF && jpeg[index + 1] == 0xC0);
+        jpeg[marker + 1] = 0xC3;
+        return jpeg;
+    }
+
+    // A lossless WebP with eight seeded byte changes after the header. Seed 5 makes the
+    // decoder throw ArgumentException and seed 16 IndexOutOfRangeException (ImageSharp 4.1.2).
+    private static byte[] FuzzedLosslessWebp(int seed)
+    {
+        using var output = new MemoryStream();
+        using (var image = new Image<Rgba32>(64, 64))
+        {
+            for (var y = 0; y < 64; y++)
+                for (var x = 0; x < 64; x++)
+                    image[x, y] = new Rgba32((byte)(x * 4), (byte)(y * 4), (byte)(x ^ y), 255);
+            image.SaveAsWebp(output, new SixLabors.ImageSharp.Formats.Webp.WebpEncoder { FileFormat = SixLabors.ImageSharp.Formats.Webp.WebpFileFormatType.Lossless });
+        }
+        var bytes = output.ToArray();
+        var random = new Random(seed);
+        for (var change = 0; change < 8; change++) bytes[random.Next(30, bytes.Length)] = (byte)random.Next(256);
+        return bytes;
     }
 
     internal static byte[] CraftZeroFilledRgbaPng(int width, int height)

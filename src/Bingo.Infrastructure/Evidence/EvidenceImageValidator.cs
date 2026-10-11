@@ -77,36 +77,43 @@ internal static class EvidenceImageValidator
         }
     }
 
-    // Unknown, truncated or corrupt content and the per-upload allocation cap all
-    // become ordinary validation refusals instead of escaping as server errors.
-    // When the cap trips, ImageSharp wraps InvalidMemoryOperationException in
-    // InvalidImageContentException, so the inner exception decides the message.
+    // Every decoder failure (unknown, truncated, corrupt or unsupported content such
+    // as lossless JPEG, and decoder bugs on fuzzed input) and the per-upload allocation
+    // cap become ordinary validation refusals instead of escaping as server errors.
+    // Only cancellation passes through. When the cap trips, ImageSharp wraps
+    // InvalidMemoryOperationException in InvalidImageContentException, so the inner
+    // exception decides the message.
     private static async Task<(string Extension, int Width, int Height)> DecodeAsync(MemoryStream buffer, int allocationLimitMegabytes, CancellationToken cancellationToken)
+    {
+        // Validate from the header before any pixel buffer is allocated: a small
+        // compressed file can declare dimensions that need gigabytes to decode.
+        buffer.Position = 0;
+        var format = await DecoderStepAsync(() => Image.DetectFormatAsync(DecoderLimits, buffer, cancellationToken));
+        var extension = format.Name.ToUpperInvariant() switch
+        {
+            "PNG" => ".png",
+            "JPEG" => ".jpg",
+            "WEBP" => ".webp",
+            _ => throw new InvalidOperationException(UnsupportedImageMessage)
+        };
+        buffer.Position = 0;
+        var info = await DecoderStepAsync(() => Image.IdentifyAsync(DecoderLimits, buffer, cancellationToken));
+        if ((long)info.Width * info.Height > MaximumPixels) throw new InvalidOperationException(DimensionsTooLargeMessage);
+
+        // The full decode still proves the pixel data is readable, but only the
+        // first frame is decoded and allocations are capped per upload.
+        buffer.Position = 0;
+        using var image = await DecoderStepAsync(() => Image.LoadAsync(BoundedDecoderOptions(allocationLimitMegabytes), buffer, cancellationToken));
+        return (extension, image.Width, image.Height);
+    }
+
+    private static async Task<T> DecoderStepAsync<T>(Func<Task<T>> step)
     {
         try
         {
-            // Validate from the header before any pixel buffer is allocated: a small
-            // compressed file can declare dimensions that need gigabytes to decode.
-            buffer.Position = 0;
-            var format = await Image.DetectFormatAsync(DecoderLimits, buffer, cancellationToken);
-            var extension = format.Name.ToUpperInvariant() switch
-            {
-                "PNG" => ".png",
-                "JPEG" => ".jpg",
-                "WEBP" => ".webp",
-                _ => throw new InvalidOperationException(UnsupportedImageMessage)
-            };
-            buffer.Position = 0;
-            var info = await Image.IdentifyAsync(DecoderLimits, buffer, cancellationToken);
-            if ((long)info.Width * info.Height > MaximumPixels) throw new InvalidOperationException(DimensionsTooLargeMessage);
-
-            // The full decode still proves the pixel data is readable, but only the
-            // first frame is decoded and allocations are capped per upload.
-            buffer.Position = 0;
-            using var image = await Image.LoadAsync(BoundedDecoderOptions(allocationLimitMegabytes), buffer, cancellationToken);
-            return (extension, image.Width, image.Height);
+            return await step();
         }
-        catch (Exception exception) when (exception is ImageFormatException or InvalidMemoryOperationException)
+        catch (Exception exception) when (exception is not OperationCanceledException)
         {
             var allocationCap = exception is InvalidMemoryOperationException || exception.InnerException is InvalidMemoryOperationException;
             throw new InvalidOperationException(allocationCap ? DimensionsTooLargeMessage : UnsupportedImageMessage, exception);

@@ -31,6 +31,9 @@ public sealed partial class C20ObjectiveIdentityIntegrationTests
     [InlineData("corrupt-png", "en", UnsupportedEnglish)]
     [InlineData("text", "en", UnsupportedEnglish)]
     [InlineData("text", "da", UnsupportedDanish)]
+    [InlineData("lossless-jpeg", "en", UnsupportedEnglish)]
+    [InlineData("fuzzed-webp-argument", "en", UnsupportedEnglish)]
+    [InlineData("fuzzed-webp-index", "da", UnsupportedDanish)]
     [InlineData("oversized", "en", "The evidence image dimensions are too large.")]
     [InlineData("oversized", "da", "Billedets dimensioner er for store.")]
     public async Task UnreadableEvidenceIsRefusedOnTheSubmitDrawerWithoutStoring(string kind, string culture, string expected)
