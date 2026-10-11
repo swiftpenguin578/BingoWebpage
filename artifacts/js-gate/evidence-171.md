@@ -1,6 +1,6 @@
 # JS gate evidence (brief 171)
 
-Linux runs use the official `mcr.microsoft.com/playwright:v1.62.1-noble` image as a `run-server`; the test connects with `exposeNetwork: '<loopback>'` so its controlled fixture stays on host loopback (scratch preload shim, no repository change). macOS runs use the local Playwright browsers.
+Linux runs use the official `mcr.microsoft.com/playwright:v1.62.1-noble` image as a `run-server`; the test connects with `exposeNetwork: '<loopback>'` so its controlled fixture stays on host loopback, and its launch options (including `channel: 'chromium'`, as in CI) are forwarded with the `x-playwright-launch-options` header (scratch preload shim, no repository change). Without the channel the server starts the headless shell, whose text metrics differ from CI (the Board header actions then wrap at 494 px, which CI does not show). macOS runs use the local Playwright browsers.
 
 ## J1: Participants loading toolbar wraps like the loaded toolbar
 
@@ -8,12 +8,12 @@ Change: in the loading template only, each tab-count bar is sized by a hidden `0
 
 Toolbar height, loading clone vs loaded, fixture `autumn-bingo-2027` (all counts single-digit), Linux Chromium (classic scrollbar, content = viewport - 331 px):
 
-| Viewport | Before: loading / loaded | After: loading / loaded |
+| Viewport (every 5 px) | Before: loading / loaded | After: loading / loaded |
 |---|---|---|
-| 1260 | 82 / 82 | 82 / 82 |
-| 1265–1300 (every 5 px) | 82 / 36 | 36 / 36 |
+| 1260–1290 | 82 / 36 | 36 / 36 |
+| 1295–1300 | 36 / 36 | 36 / 36 |
 
-Tab group width: before 436 vs 400 px (Chromium), 429.78 vs 394.66 px (WebKit); after equal in both (count box 7.36 px = loaded digit in WebKit). Linux WebKit (overlay scrollbar) 1260–1300: 36 / 36 before and after.
+Tab group width (headless-shell probe): before 436 vs 400 px (Chromium), 429.78 vs 394.66 px (WebKit); after equal in both (count box 7.36 px = loaded digit in WebKit). Linux WebKit (overlay scrollbar) 1260–1300: 36 / 36 before and after.
 
 `BINGO_CONFORMANCE_PAGES=participants admin-design-page-conformance`: before, Linux Chromium fails `participants 1280 normal first yBeyondHeader: -46 vs 0`; after, passes on Linux Chromium, Linux WebKit, macOS Chromium, macOS WebKit. `admin-design-participants` passes on macOS Chromium and WebKit.
 
