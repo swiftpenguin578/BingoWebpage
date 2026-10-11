@@ -12,3 +12,7 @@ Pushed; draft PR swiftpenguin578/BingoWebpage#15 to `main`. The user approved me
 - **Documentation** (briefs 146, 151): five documents under `docs/`, rewritten `AGENTS.md`/`CLAUDE.md`, README as project introduction, `.gitattributes`; design references, public reference images and the Stats prototype removed. Rule ledger: `artifacts/docs-restructure/rule-ledger.md`.
 
 The full JS runner and the whole .NET suite run in GitHub CI when the planner pushes the branch.
+
+## Ticket branch `security-fixes` (worktree `/Users/christopher/Documents/BingoWebpage-sec`)
+
+Local only, not pushed or merged. Briefs 167 (F01, F02, F04; reviewed in 168) and 170 (fix round: Special:Redirect canonicalisation, referenced-only wiki image misses, unreadable evidence refused instead of 500, legacy cache keys re-keyed, 503 endpoint test, ARCHITECTURE.md cache paragraph). Focused tests and Release build pass locally; next: independent review of the brief 170 commits, then the planner merges and runs CI (large risk: storage, anonymous endpoint).
