@@ -19,6 +19,13 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     const context = await browser.newContext({ viewport: { width: 1280, height: 860 }, reducedMotion: 'reduce' });
     const page = await login(context, fixture);
     const errors = []; page.on('pageerror', error => errors.push(error.message));
+    // J3 (test side): leaving the Draft page while its ?handler=State read is in flight makes Linux WebKit report
+    // the cancelled fetch as a page error, so navigate away only when no State read is in flight.
+    const stateReads = new Set(), stateIdle = [];
+    page.on('request', request => { if (new URL(request.url()).searchParams.get('handler') === 'State') stateReads.add(request); });
+    const stateDone = request => { if (stateReads.delete(request) && !stateReads.size) stateIdle.splice(0).forEach(resolve => resolve()); };
+    page.on('requestfinished', stateDone); page.on('requestfailed', stateDone);
+    const leaveTo = async url => { if (stateReads.size) await new Promise(resolve => stateIdle.push(resolve)); await page.goto(url); };
     const draftUrl = slug => fixture.origin + '/Admin/Events/Draft/' + fixture.events[slug];
     const modal = page.locator('.modal').last();
     const toast = text => page.locator('[data-toast-host]', { hasText: text }).waitFor().catch(async error => { throw new Error(error.message + '\nToasts: ' + await page.locator('[data-toast-host]').innerText() + '\nBanner: ' + await banner.innerText().catch(() => '') + '\nModal: ' + await page.locator('.modal').last().innerText().catch(() => '')); });
@@ -189,14 +196,14 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     assert.equal(await card('Bronze Line').locator('.tmem', { hasText: 'Bronze Liner' }).locator('.role-badge [aria-hidden]').innerText(), 'CC');
 
     // ---- Live: roles only; Final review with uploads closed and terminal: read-only (T-24) ----
-    await page.goto(draftUrl('midsummer-skilling-sprint'));
+    await leaveTo(draftUrl('midsummer-skilling-sprint'));
     await banner.filter({ hasText: 'Rosters are locked.' }).waitFor();
     assert.equal(await page.locator('.tcard-foot').count(), 0, 'no membership actions while Live');
     await page.locator('.tmem .icon-btn').first().click();
     assert.deepEqual(await page.locator('#draft-menu .menu-item').allInnerTexts(), ['Make captain', 'Make co-captain']);
     await page.keyboard.press('Escape');
     for (const [slug, text] of [['draft-review', 'Rosters are final.'], ['spring-finalized', 'This event is finished.'], ['spring-cancelled', 'This event is cancelled.'], ['spring-archived', 'This event is archived.']]) {
-      await page.goto(draftUrl(slug));
+      await leaveTo(draftUrl(slug));
       await banner.filter({ hasText: text }).waitFor();
       assert.equal(await page.locator('.tcard .icon-btn, .tcard-foot button, #add-team').count(), 0, slug + ': no edit controls');
     }

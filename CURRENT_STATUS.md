@@ -12,3 +12,7 @@ Pushed; draft PR swiftpenguin578/BingoWebpage#15 to `main`. The user approved me
 - **Documentation** (briefs 146, 151): five documents under `docs/`, rewritten `AGENTS.md`/`CLAUDE.md`, README as project introduction, `.gitattributes`; design references, public reference images and the Stats prototype removed. Rule ledger: `artifacts/docs-restructure/rule-ledger.md`.
 
 The full JS runner and the whole .NET suite run in GitHub CI when the planner pushes the branch.
+
+## JS gate branch `js-gate` (worktree `/Users/christopher/Documents/BingoWebpage-jsgate`, briefs 165/171)
+
+Local commits only. J1 (Participants loading toolbar) and J2 (Evidence codes dialog clean on open) are done. Item 2 (test-side fixes) is committed as a partial checkpoint; work stopped there on a new Draft page product bug (an own **Release control** can show "Your control lapsed."), and `admin-design-draft-running` [WebKit] still fails intermittently. Item 3 (JS job blocks the release) is not committed. Evidence: `artifacts/js-gate/evidence-171.md`. Next: planner decision on the Draft bug and on gating with `draft-running` still flaky.

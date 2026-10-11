@@ -116,6 +116,8 @@ const {startFixture,login}=require('../../scripts/lib/admin-parity-fixture.cjs')
   await page.locator('#codes-enabled').check();await page.waitForFunction(()=>document.querySelector('#code-value')&&!document.querySelector('#code-value').disabled);
   // L3: a saved toggle is not an unsaved change; Escape closes without a discard prompt.
   await page.keyboard.press('Escape');await page.locator('.modal').waitFor({state:'detached'});
+  // The saved toggle refreshes the Overview in place after the close; it has settled when the stage heading has focus.
+  await page.waitForFunction(()=>document.activeElement?.id==='now-title');
   await page.locator('[data-overview-codes]').click();await page.locator('#codes-enabled').waitFor();
   await page.waitForFunction(()=>document.querySelector('#code-value')&&!document.querySelector('#code-value').disabled);
   // J2: opened on enabled codes and closed untouched, the dialog asks nothing (Escape and Close).
@@ -131,8 +133,11 @@ const {startFixture,login}=require('../../scripts/lib/admin-parity-fixture.cjs')
   await page.locator('#codes-save').evaluate(()=>{});await page.locator('.modal .dtp-btn').click();await page.locator('.dtp-pop').waitFor();
   const pickedDay=await page.locator('.dtp-pop .dtp-day:not([aria-disabled="true"])').last().evaluate(button=>{button.click();return button.textContent;});
   await page.waitForFunction(day=>Number.parseInt(document.querySelector('#code-from-date').value,10)===Number(day),pickedDay);
+  // A pick that changes month re-renders the grid; the picker moves focus to the hour column on the next frame.
+  // Escape is a key press inside the open picker, so wait for that focus before pressing it.
+  await page.waitForFunction(()=>!!document.activeElement?.closest('.dtp-pop'));
   await page.keyboard.press('Escape');await page.waitForFunction(()=>!document.querySelector('.dtp-pop'));
-  if(await page.locator('.modal').count()===0)await page.locator('[data-overview-codes]').click();await page.locator('#codes-enabled').waitFor();
+  assert.equal(await page.locator('.modal #codes-enabled').count(),1,'Escape in the picker closes only the picker');
   await page.locator('#codes-save').click();assert.match(await page.locator('#code-err').textContent(),/Enter or generate a code\./);
   // M1: Close with a typed code asks to discard.
   await page.locator('#code-value').fill('ab12cd');await page.locator('#codes-close').click();
