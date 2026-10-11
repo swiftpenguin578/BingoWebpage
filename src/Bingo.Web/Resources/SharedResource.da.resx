@@ -4846,6 +4846,10 @@
   <data name="Manual objectives do not use a drop." xml:space="preserve"><value>Manuelle mål bruger ikke et drop.</value></data>
   <data name="Choose an eligible drop." xml:space="preserve"><value>Vælg et gyldigt drop.</value></data>
   <data name="This drop has already reached its approved contribution limit." xml:space="preserve"><value>Dette drop har allerede nået sin grænse for godkendte bidrag.</value></data>
+  <data name="Evidence must be a PNG, JPEG, or WebP image." xml:space="preserve"><value>Beviset skal være et PNG-, JPEG- eller WebP-billede.</value></data>
+  <data name="The evidence image dimensions are too large." xml:space="preserve"><value>Billedets dimensioner er for store.</value></data>
+  <data name="Evidence images may not exceed 10 MB." xml:space="preserve"><value>Billeder må højst fylde 10 MB.</value></data>
+  <data name="Choose an evidence image." xml:space="preserve"><value>Vælg et billede.</value></data>
   <data name="This objective has already been completed." xml:space="preserve"><value>Målet er allerede fuldført.</value></data>
   <data name="Eligible aliases have inconsistent contribution caps; board approval is required before review can continue." xml:space="preserve"><value>Gyldige aliasser har forskellige bidragsgrænser; pladen skal godkendes, før gennemgangen kan fortsætte.</value></data>
   <data name="Administrator access is required." xml:space="preserve"><value>Administratoradgang er påkrævet.</value></data>
