@@ -94,15 +94,20 @@ public sealed partial class OsrsWikiImageCache
 
         var canonical = sourceUri.AbsoluteUri;
         var key = CacheKey(canonical);
-        var existing = FindExisting(key) ?? FindLegacy(normalized!, canonical);
+        var existing = FindExisting(key) ?? AdoptLegacy(key, canonical, [normalized!]);
+        if (existing is null && findReferences is not null)
+        {
+            // Browsers request the canonical URL, so the stored spellings are what
+            // locate a file cached under an older key.
+            var spellings = await findReferences(canonical, cancellationToken) ?? throw new OsrsWikiImageNotReferencedException();
+            existing = AdoptLegacy(key, canonical, spellings);
+        }
+
         if (existing is not null)
         {
             failures.TryRemove(key, out _);
             return existing;
         }
-
-        if (findReferences is not null && await findReferences(canonical, cancellationToken) is null)
-            throw new OsrsWikiImageNotReferencedException();
 
         if (failures.TryGetValue(key, out var failure) && failure.RetryAt > time.GetUtcNow())
             throw failure.CreateException();
@@ -121,11 +126,14 @@ public sealed partial class OsrsWikiImageCache
         return await download.WaitAsync(cancellationToken);
     }
 
+    /// <summary>True when the canonical key holds the file, after moving a file cached under the source's older key.</summary>
     public bool IsCached(string source)
     {
         var normalized = OsrsWikiImageUrl.Normalize(source);
-        return TryGetWikiUri(normalized, out var canonical)
-            && (FindExisting(CacheKey(canonical.AbsoluteUri)) ?? FindLegacy(normalized!, canonical.AbsoluteUri)) is not null;
+        if (!TryGetWikiUri(normalized, out var canonical)) return false;
+        var key = CacheKey(canonical.AbsoluteUri);
+        if (FindExisting(key) is null) AdoptLegacy(key, canonical.AbsoluteUri, [normalized!]);
+        return FindExisting(key) is not null;
     }
 
     // Joins an in-flight download or queues a new one, refusing new keys once the
@@ -145,10 +153,32 @@ public sealed partial class OsrsWikiImageCache
         }
     }
 
-    // Files cached before canonical keys were keyed by the uncanonicalized source
-    // (for example with a "?123" suffix). Read them; never download under that key.
-    private CachedWikiImage? FindLegacy(string normalized, string canonical) =>
-        string.Equals(normalized, canonical, StringComparison.Ordinal) ? null : FindExisting(CacheKey(normalized));
+    // Files cached before canonical keys were keyed by the uncanonicalised source
+    // (for example with a "?123" suffix). Move such a file to the canonical key so
+    // every later request and sync run finds it there; never download under the old key.
+    private CachedWikiImage? AdoptLegacy(string key, string canonical, IEnumerable<string> spellings)
+    {
+        foreach (var spelling in spellings)
+        {
+            if (string.Equals(spelling, canonical, StringComparison.Ordinal) ||
+                FindExisting(CacheKey(spelling)) is not { } legacy)
+                continue;
+
+            try
+            {
+                File.Move(legacy.Path, Path.Combine(root, key + Path.GetExtension(legacy.Path)), false);
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                // Another request moved it first, or the canonical file appeared meanwhile.
+            }
+
+            if (FindExisting(key) is { } adopted) return adopted;
+            if (File.Exists(legacy.Path)) return legacy;
+        }
+
+        return null;
+    }
 
     private CachedWikiImage? FindExisting(string key)
     {

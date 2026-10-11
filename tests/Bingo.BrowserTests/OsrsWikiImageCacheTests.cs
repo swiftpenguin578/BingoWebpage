@@ -399,24 +399,31 @@ public sealed class OsrsWikiImageCacheTests
         }
     }
 
+    // Brief 170 / L1: browsers request the PublicUrl value (the canonical source), so a
+    // file cached under the stored source's older key is found through the stored
+    // spellings and moved to the canonical key without a wiki request.
     [Fact]
-    public async Task FilesCachedUnderTheOldUncanonicalKeyAreStillServedWithoutFetching()
+    public async Task FilesCachedUnderTheOldUncanonicalKeyAreServedOnThePublicUrlAndRekeyed()
     {
         var root = Path.Combine(Path.GetTempPath(), $"bingo-wiki-images-{Guid.NewGuid():N}");
         Directory.CreateDirectory(root);
         try
         {
-            const string source = "https://oldschool.runescape.wiki/images/Legacy_image.png?7263b";
-            var legacyKey = Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(source)));
-            var legacyPath = Path.Combine(root, legacyKey + ".png");
+            const string stored = "https://oldschool.runescape.wiki/images/Legacy_image.png?7263b";
+            var legacyPath = Path.Combine(root, Key(stored) + ".png");
             await File.WriteAllBytesAsync(legacyPath, [9, 9]);
             var handler = new CountingImageHandler();
             var cache = CreateCache(root, handler);
+            var requested = PublicSource(cache.GetPublicUrl(stored)!);
+            Assert.Equal("https://oldschool.runescape.wiki/images/Legacy_image.png", requested);
 
-            var cached = await cache.GetAsync(source);
+            var cached = await cache.GetAsync(requested, (canonical, _) => ValueTask.FromResult<IReadOnlyList<string>?>(canonical == requested ? [stored] : null));
 
-            Assert.Equal(legacyPath, cached.Path);
-            Assert.True(cache.IsCached(source));
+            Assert.Equal(Path.Combine(root, Key(requested) + ".png"), cached.Path);
+            Assert.Equal([9, 9], await File.ReadAllBytesAsync(cached.Path));
+            Assert.False(File.Exists(legacyPath));
+            Assert.True(cache.IsCached(requested));
+            Assert.Equal(cached.Path, (await cache.GetAsync(requested)).Path);
             Assert.Equal(0, handler.RequestCount);
         }
         finally
@@ -424,6 +431,42 @@ public sealed class OsrsWikiImageCacheTests
             Directory.Delete(root, true);
         }
     }
+
+    // The sync job passes stored sources: IsCached re-keys a legacy file and then
+    // reports the canonical key only.
+    [Fact]
+    public async Task IsCachedForAStoredSourceMovesItsLegacyFileToTheCanonicalKey()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"bingo-wiki-images-{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        try
+        {
+            const string stored = "https://oldschool.runescape.wiki/images/Legacy_sync.png?1a2b";
+            var legacyPath = Path.Combine(root, Key(stored) + ".png");
+            await File.WriteAllBytesAsync(legacyPath, [8, 8]);
+            var handler = new CountingImageHandler();
+            var cache = CreateCache(root, handler);
+
+            Assert.True(cache.IsCached(stored));
+
+            var canonicalPath = Path.Combine(root, Key("https://oldschool.runescape.wiki/images/Legacy_sync.png") + ".png");
+            Assert.True(File.Exists(canonicalPath));
+            Assert.False(File.Exists(legacyPath));
+            Assert.True(cache.IsCached("https://oldschool.runescape.wiki/images/Legacy_sync.png"));
+            Assert.Equal(canonicalPath, (await cache.GetAsync(stored)).Path);
+            Assert.Equal(0, handler.RequestCount);
+        }
+        finally
+        {
+            Directory.Delete(root, true);
+        }
+    }
+
+    private static string Key(string source) =>
+        Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(source)));
+
+    private static string PublicSource(string publicUrl) =>
+        Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(new Uri("https://localhost"), publicUrl).Query)["source"].ToString();
 
     [Fact]
     public async Task PendingMissesAreCappedAndOverflowIsRefusedWithoutQueueing()

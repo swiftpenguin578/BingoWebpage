@@ -119,6 +119,32 @@ public sealed class OsrsWikiImageEndpointTests(PostgreSqlTestFixture databaseFix
         Assert.Empty(wiki.Requests);
     }
 
+    // Brief 170 / L1 with S-1: a file cached under a referenced source's older key is
+    // served on the real PublicUrl request without a wiki fetch, and re-keyed.
+    [Fact]
+    public async Task LegacyCachedFileForAReferencedSourceIsServedWithoutFetching()
+    {
+        const string stored = "https://oldschool.runescape.wiki/images/Endpoint_legacy.png?7263b";
+        await using (var db = Db())
+        {
+            var item = new CatalogueItem(Guid.NewGuid(), "Endpoint legacy", "ENDPOINT LEGACY");
+            item.Update(item.Name, item.NormalizedName, null, null, stored);
+            db.CatalogueItems.Add(item);
+            await db.SaveChangesAsync();
+        }
+        var legacyPath = CachePath(stored);
+        await File.WriteAllBytesAsync(legacyPath, [9, 9]);
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        using var response = await client.GetAsync(OsrsWikiImageCache.PublicUrl(stored));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal([9, 9], await response.Content.ReadAsByteArrayAsync());
+        Assert.Empty(wiki.Requests);
+        Assert.False(File.Exists(legacyPath));
+        Assert.True(File.Exists(CachePath("https://oldschool.runescape.wiki/images/Endpoint_legacy.png")));
+    }
+
     private string CachePath(string canonical, string extension = ".png") =>
         Path.Combine(root, Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(canonical))) + extension);
 
