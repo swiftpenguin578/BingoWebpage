@@ -42,6 +42,10 @@ public sealed class OsrsWikiImageEndpointTests(PostgreSqlTestFixture databaseFix
             .ConfigureServices(services =>
             {
                 services.RemoveAll<IHostedService>();
+                // The cache shares its paced download slot per TimeProvider instance;
+                // an own instance keeps this factory's queue apart from other tests.
+                services.RemoveAll<TimeProvider>();
+                services.AddSingleton<TimeProvider>(new IsolatedClock());
                 services.AddHttpClient("OsrsWikiImages").ConfigurePrimaryHttpMessageHandler(() => new WikiHandler(wiki));
             }));
     }
@@ -145,6 +149,35 @@ public sealed class OsrsWikiImageEndpointTests(PostgreSqlTestFixture databaseFix
         Assert.True(File.Exists(CachePath("https://oldschool.runescape.wiki/images/Endpoint_legacy.png")));
     }
 
+    // Brief 170 / L2: with the pending cap full, a referenced miss is answered at once.
+    [Fact]
+    public async Task FullPendingQueueAnswers503WithRetryAfterAndNoStore()
+    {
+        var cache = factory.Services.GetRequiredService<OsrsWikiImageCache>();
+        wiki.Hold();
+        var pending = Enumerable.Range(0, OsrsWikiImageCache.MaximumPendingDownloads)
+            .Select(index => cache.GetAsync($"https://oldschool.runescape.wiki/images/Endpoint_queued_{index}.png"))
+            .ToList();
+        try
+        {
+            using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+            using var response = await client.GetAsync(OsrsWikiImageCache.PublicUrl(ReferencedSource));
+
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, response.StatusCode);
+            Assert.Equal(TimeSpan.FromSeconds(30), response.Headers.RetryAfter?.Delta);
+            Assert.True(response.Headers.CacheControl?.NoStore);
+            Assert.DoesNotContain(wiki.Requests, uri => uri.Contains("Endpoint_referenced_boss", StringComparison.Ordinal));
+            Assert.All(pending, task => Assert.False(task.IsCompleted));
+        }
+        finally
+        {
+            wiki.Release();
+        }
+
+        Assert.True(File.Exists((await pending[0].WaitAsync(TimeSpan.FromSeconds(10))).Path));
+    }
+
     private string CachePath(string canonical, string extension = ".png") =>
         Path.Combine(root, Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(canonical))) + extension);
 
@@ -158,17 +191,35 @@ public sealed class OsrsWikiImageEndpointTests(PostgreSqlTestFixture databaseFix
 
         public IReadOnlyList<string> Requests { get { lock (requests) return requests.ToArray(); } }
 
+        private TaskCompletionSource released = CompletedGate();
+
+        public Task Released => Volatile.Read(ref released).Task;
+
         public void Add(Uri uri) { lock (requests) requests.Add(uri.AbsoluteUri); }
+
+        public void Hold() => Volatile.Write(ref released, new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously));
+
+        public void Release() => Volatile.Read(ref released).TrySetResult();
+
+        private static TaskCompletionSource CompletedGate()
+        {
+            var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            gate.SetResult();
+            return gate;
+        }
     }
+
+    private sealed class IsolatedClock : TimeProvider;
 
     private sealed class WikiHandler(WikiLog log) : HttpMessageHandler
     {
-        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             log.Add(request.RequestUri!);
+            await log.Released;
             var response = new HttpResponseMessage(HttpStatusCode.OK) { RequestMessage = request, Content = new ByteArrayContent(WikiLog.Body) };
             response.Content.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue("image/png");
-            return Task.FromResult(response);
+            return response;
         }
     }
 }
