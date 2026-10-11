@@ -17,6 +17,13 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     const context = await browser.newContext({ viewport: { width: 1280, height: 860 }, reducedMotion: 'reduce' });
     const page = await login(context, fixture);
     const errors = []; page.on('pageerror', error => errors.push(error.message));
+    // J3 (test side): leaving the Draft page while its ?handler=State read is in flight makes Linux WebKit report
+    // the cancelled fetch as a page error, so navigate away only when no State read is in flight.
+    const stateReads = new Set(), stateIdle = [];
+    page.on('request', request => { if (new URL(request.url()).searchParams.get('handler') === 'State') stateReads.add(request); });
+    const stateDone = request => { if (stateReads.delete(request) && !stateReads.size) stateIdle.splice(0).forEach(resolve => resolve()); };
+    page.on('requestfinished', stateDone); page.on('requestfailed', stateDone);
+    const leaveTo = async url => { if (stateReads.size) await new Promise(resolve => stateIdle.push(resolve)); await page.goto(url); };
     const eventId = fixture.events['autumn-bingo-2027'];
     const base = fixture.origin + '/Admin/Events/Draft/' + eventId;
     const modal = page.locator('.modal').last();
@@ -111,9 +118,9 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
 
     // ---- rosterTeamId (stored notification links) focuses that team; unknown ids are ignored ----
     const saltId = (await card('Salt Mines').getAttribute('id')).slice('card-'.length);
-    await page.goto(base + '?rosterTeamId=' + saltId);
+    await leaveTo(base + '?rosterTeamId=' + saltId);
     await page.waitForFunction(id => document.getElementById('card-' + id)?.contains(document.activeElement), saltId);
-    await page.goto(base + '?rosterTeamId=00000000-0000-0000-0000-000000000001');
+    await leaveTo(base + '?rosterTeamId=00000000-0000-0000-0000-000000000001');
     await card('Salt Mines').waitFor();
 
     assert.deepEqual(errors, [], 'no page errors');

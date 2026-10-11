@@ -274,7 +274,7 @@ export async function init(region, ui = window.AdminUI) {
     let busy = false, changed = false, chosen = null;
     let picker = null;
     const layer = ui.openLayer({ title: t('Evidence codes'), content, pending: () => busy, opener, onClose: async () => { picker?.dispose(); codes = null; if (changed) await refresh(opener?.id || 'now-title'); } });
-    picker = mountDateTime(dtp, fromValue, () => { fromError.hidden = true; }, document.querySelector('[data-date-time-template]')); layer.markClean();
+    picker = mountDateTime(dtp, fromValue, () => { fromError.hidden = true; }, document.querySelector('[data-date-time-template]'));
     const panel = layer.element; panel.classList.add('modal-form'); panel.dataset.pageFamily = 'overview'; panel.removeAttribute('aria-label'); panel.setAttribute('aria-labelledby', 'codes-title'); panel.setAttribute('aria-describedby', 'codes-desc');
     codes = { layer };
     const showError = (node, message) => { node.replaceChildren(icon('error'), document.createTextNode(message || '')); node.hidden = !message; };
@@ -353,6 +353,8 @@ export async function init(region, ui = window.AdminUI) {
     });
     on(close, 'click', () => { if (!busy) void ui.closeLayer(); });
     paint();
+    // The unsaved-changes baseline is the populated form (the toggle shows the saved state only after paint).
+    layer.markClean();
     toggle.focus();
   }
 

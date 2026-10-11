@@ -156,6 +156,8 @@ const { startFixture, login } = require('../../scripts/lib/admin-parity-fixture.
     await page.locator('[data-drawer-host] .scrim').waitFor({ state: 'detached' });
     await page.locator('[id^="bt-"]', { hasText: 'Drop hunt' }).click();
     await page.locator('#ed-save').waitFor();
+    // Hit-test the footer only after the drawer's entrance has finished (its transform moves the buttons).
+    await page.locator('[data-drawer-host]').evaluate(host => Promise.all(host.getAnimations({ subtree: true }).filter(animation => animation.effect?.getComputedTiming().endTime !== Infinity).map(animation => animation.finished)));
     const normal = await footState();
     assert.deepEqual(normal.children, ['ed-remove', 'spacer', 'ed-cancel', 'ed-save'], 'normal footer: Remove, Cancel, Save');
     assert.equal(normal.cancels, 1); assert.equal(normal.cancelDisabled, false); assert.equal(normal.saveBusy, false); assert.equal(normal.spins, 0);

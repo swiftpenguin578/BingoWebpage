@@ -82,6 +82,7 @@ services:
       - "443:443/udp"
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./deploy/maintenance.html:/srv/maintenance/maintenance.html:ro
       - bingo-production-caddy-data:/data
       - bingo-production-caddy-config:/config
     networks:

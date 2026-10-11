@@ -238,6 +238,7 @@ The app's CSS is the authority for every value: `src/Bingo.Web/wwwroot/css/admin
 - Transition block shows a scheduled transition with its manual control, or a none state.
 - Requirement checklist is neutral (requirements for the next transition, not failures) with optional links; items can be wait (a normal timed wait) or blocked (needs action elsewhere, link button); a later-note covers preparation not yet relevant.
 - Issue rows: failure has an icon and danger title, pending an amber dot; one row per actual failure or pending item.
+- Alert marks (the "!" in the blocked check circle and the warning, error and uncertain icons) keep a visible gap between stroke and dot and sit on whole pixels (12px in the 18px check circle), so they read as "!" and not "l"; geometry checks live in `artifacts/icon/`.
 - Action groups list secondary/exceptional actions each with its consequence; recovery uses ordinary buttons, removal outline-danger buttons.
 - Schedule pickers use the shared DST-safe conversion; picker footers stay reachable in short viewports.
 

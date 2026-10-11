@@ -116,24 +116,38 @@ const {startFixture,login}=require('../../scripts/lib/admin-parity-fixture.cjs')
   await page.locator('#codes-enabled').check();await page.waitForFunction(()=>document.querySelector('#code-value')&&!document.querySelector('#code-value').disabled);
   // L3: a saved toggle is not an unsaved change; Escape closes without a discard prompt.
   await page.keyboard.press('Escape');await page.locator('.modal').waitFor({state:'detached'});
+  // The saved toggle refreshes the Overview in place after the close; it has settled when the stage heading has focus.
+  await page.waitForFunction(()=>document.activeElement?.id==='now-title');
   await page.locator('[data-overview-codes]').click();await page.locator('#codes-enabled').waitFor();
   await page.waitForFunction(()=>document.querySelector('#code-value')&&!document.querySelector('#code-value').disabled);
+  // J2: opened on enabled codes and closed untouched, the dialog asks nothing (Escape and Close).
+  const discardShown=()=>[...document.querySelectorAll('.modal [data-confirm-title]')].some(e=>e.textContent==='Discard unsaved changes?');
+  for(const closeBy of['Escape','Close']){
+   if(closeBy==='Escape')await page.keyboard.press('Escape');else await page.locator('#codes-close').click();
+   await page.waitForFunction(()=>!document.querySelector('.modal')||[...document.querySelectorAll('.modal [data-confirm-title]')].some(e=>e.textContent==='Discard unsaved changes?'));
+   assert.equal(await page.evaluate(discardShown),false,'untouched codes dialog closed by '+closeBy+' without a discard prompt');
+   await page.locator('[data-overview-codes]').click();await page.locator('#codes-enabled').waitFor();
+   await page.waitForFunction(()=>document.querySelector('#code-value')&&!document.querySelector('#code-value').disabled);
+  }
   // Root-cause guard: the calendar in the Evidence codes dialog opens and a picked day lands in the date field.
   await page.locator('#codes-save').evaluate(()=>{});await page.locator('.modal .dtp-btn').click();await page.locator('.dtp-pop').waitFor();
   const pickedDay=await page.locator('.dtp-pop .dtp-day:not([aria-disabled="true"])').last().evaluate(button=>{button.click();return button.textContent;});
   await page.waitForFunction(day=>Number.parseInt(document.querySelector('#code-from-date').value,10)===Number(day),pickedDay);
+  // A pick that changes month re-renders the grid; the picker moves focus to the hour column on the next frame.
+  // Escape is a key press inside the open picker, so wait for that focus before pressing it.
+  await page.waitForFunction(()=>!!document.activeElement?.closest('.dtp-pop'));
   await page.keyboard.press('Escape');await page.waitForFunction(()=>!document.querySelector('.dtp-pop'));
-  if(await page.locator('.modal').count()===0)await page.locator('[data-overview-codes]').click();await page.locator('#codes-enabled').waitFor();
+  assert.equal(await page.locator('.modal #codes-enabled').count(),1,'Escape in the picker closes only the picker');
   await page.locator('#codes-save').click();assert.match(await page.locator('#code-err').textContent(),/Enter or generate a code\./);
   // M1: Close with a typed code asks to discard.
   await page.locator('#code-value').fill('ab12cd');await page.locator('#codes-close').click();
-  await page.getByRole('button',{name:'Keep editing',exact:true}).waitFor();await page.getByRole('button',{name:'Keep editing',exact:true}).click();
+  await page.getByRole('button',{name:'Keep editing',exact:true}).waitFor();assert.equal(await page.evaluate(discardShown),true,'J2: a changed codes dialog asks to discard');await page.getByRole('button',{name:'Keep editing',exact:true}).click();
   assert.equal(await page.locator('#code-value').inputValue(),'ab12cd');
   await page.locator('#codes-save').click();
   await page.waitForFunction(()=>document.querySelector('.modal .ro-list')?.textContent.includes('AB12CD'));
   await page.locator('#codes-close').click();await page.locator('.modal').waitFor({state:'detached'});
   await page.waitForFunction(()=>document.querySelector('.ov-aside')?.textContent.includes('Evidence codes'));
-  results.push('evidence codes: enable, validate, add, list refreshes');
+  results.push('evidence codes: enable, untouched close asks nothing, changed close asks to discard, validate, add, list refreshes');
 
   // Copy shows a toast either way (clipboard may be unavailable headless).
   await page.goto(fixture.origin+open);await ready(page);
