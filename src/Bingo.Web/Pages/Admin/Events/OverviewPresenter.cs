@@ -95,9 +95,13 @@ public sealed class OverviewPresenter(OverviewInput input, Func<string, object[]
     private bool UploadsOpen => e.AcceptsNewSubmissions(now);
     private bool CodesAvailable => IsPre || e.State == EventState.Live || e.State == EventState.AwaitingFinalReview && UploadsOpen;
     private bool WomLinked => input.Wom?.Configured == true;
-    // A-Overview-7 (brief 85 default): the old Admin home rule (Pages/Admin/Index.cshtml:228).
-    private bool WomFailed => e.State == EventState.Live && input.Wom is { Configured: true } wom
-        && (!string.IsNullOrWhiteSpace(wom.LastError) || wom.MissingAccounts.Count > 0 || wom.Complete == false);
+    // A-Overview-7, revised by brief 175 (H2/H3): the state holds only the latest attempt's outcome.
+    // A successful fetch that missed accounts stores LastErrorKind "Incomplete"; any other kind
+    // (a provider failure or a replacement generation) is a failed sync.
+    private EventCompetitionView? LiveWom => e.State == EventState.Live && input.Wom is { Configured: true } wom ? wom : null;
+    private bool WomPartial => LiveWom is { } wom && wom.LastErrorKind == "Incomplete" && wom.MissingAccounts.Count > 0;
+    private bool WomFailed => LiveWom is { } wom && !WomPartial
+        && (!string.IsNullOrWhiteSpace(wom.LastErrorKind) || !string.IsNullOrWhiteSpace(wom.LastError) || wom.MissingAccounts.Count > 0 || wom.Complete == false);
 
     public string PhaseLabel => e.State switch
     {
@@ -268,6 +272,8 @@ public sealed class OverviewPresenter(OverviewInput input, Func<string, object[]
         }
         if (WomFailed)
             list.Add(new("failure", T("Wise Old Man sync failed"), T("Last attempt {0}. Lifecycle actions aren’t affected.", Fmt(input.Wom!.LastAttemptAt)), T("Open WOM"), Url("/Admin/Events/WiseOldMan"), null));
+        else if (WomPartial)
+            list.Add(new("pending", T("Wise Old Man sync incomplete"), Plural(input.Wom!.MissingAccounts.Count, "{0} account couldn’t be fetched.", "{0} accounts couldn’t be fetched."), T("Open WOM"), Url("/Admin/Events/WiseOldMan"), null));
         if (e.State == EventState.Live && input.Pending > 0)
             list.Add(new("pending", Plural(input.Pending, "{0} submission to review", "{0} submissions to review"), T("Teams are waiting for decisions on their evidence."), T("Review submissions"), Url("/Admin/Review/Index"), null));
         // A15: Final review while the WOM end update is Pending or Rejected, linking WOM.
