@@ -344,6 +344,47 @@ public sealed class EventCreationUiTests
         Assert.False(view.Dialogs["open"].Ready);
     }
 
+    // Brief 175 (H2/H3): a successful sync that missed accounts is a warning-level "incomplete"
+    // item with only the count; a failed latest attempt stays the red failure; a clean sync shows nothing.
+    [Theory]
+    [InlineData("en")]
+    [InlineData("da")]
+    public void OverviewSeparatesFailedFromIncompleteWiseOldManSync(string language)
+    {
+        var now = new DateTimeOffset(2030, 1, 10, 12, 0, 0, TimeSpan.Zero);
+        var item = new BingoEvent(Guid.Parse("22222222-2222-2222-2222-222222222222"), "Live sync", "live-sync", "", "UTC",
+            now.AddDays(-3), now.AddDays(-2), now.AddDays(-1), now.AddDays(6), now.AddDays(6), 10, Guid.NewGuid(), now.AddDays(-4));
+        item.OpenSignups(now.AddDays(-3)); item.CloseSignups(now.AddDays(-2)); item.SetDraftRosterPublication(true); item.StartEvent(now.AddDays(-1));
+        Assert.Equal(EventState.Live, item.State);
+        var culture = System.Globalization.CultureInfo.GetCultureInfo(language == "da" ? "da-DK" : "en-GB");
+        var danish = System.Xml.Linq.XDocument.Load(Path.Combine(FindRepositoryRoot(), "src", "Bingo.Web", "Resources", "SharedResource.da.resx"))
+            .Descendants("data").ToDictionary(x => x.Attribute("name")!.Value, x => x.Element("value")!.Value);
+        string Text(string key, object[] args) => string.Format(culture, language == "da" ? danish[key] : key, args);
+        EventCompetitionView Wom(bool? complete, string[] missing, string? kind, string? error) => new(1, 42, "Competition", item.EventStartsAt, item.EventEndsAt,
+            now.AddMinutes(-2), kind is null or "Incomplete" ? now.AddMinutes(-2) : now.AddHours(-1), now.AddMinutes(-3), complete, missing, kind, error, null, null, 0, new Bingo.Application.Integrations.WiseOldMan.WiseOldManRequestStatus(null, null, null, null, null, null, null, null));
+        List<OverviewIssue> Issues(EventCompetitionView wom) => new OverviewPresenter(
+            new OverviewInput(item, now, false, 3, 0, 1, 3, 1, 1, true, true, 0, 0, [], null, null, null, null, false, null, null, wom, [], null, false, null, null, [], "https://bingo.example"),
+            Text, culture).Build().Issues.Where(x => x.ActionHref == $"/Admin/Events/WiseOldMan/{item.Id}").ToList();
+        var (incompleteTitle, failedTitle, one, many) = language == "da"
+            ? ("Wise Old Man-synkronisering ufuldstændig", "Wise Old Man-synkronisering mislykkedes", "1 konto kunne ikke hentes.", "3 konti kunne ikke hentes.")
+            : ("Wise Old Man sync incomplete", "Wise Old Man sync failed", "1 account couldn’t be fetched.", "3 accounts couldn’t be fetched.");
+
+        var single = Assert.Single(Issues(Wom(false, ["Mikkel-it"], "Incomplete", "The competition response is missing one or more current Playing accounts.")));
+        Assert.Equal(("pending", incompleteTitle, one), (single.Kind, single.Title, single.Text));
+        Assert.DoesNotContain("Mikkel", single.Text, StringComparison.Ordinal);
+        var several = Assert.Single(Issues(Wom(false, ["Alpha", "Beta", "Gamma"], "Incomplete", "missing")));
+        Assert.Equal(("pending", incompleteTitle, many), (several.Kind, several.Title, several.Text));
+        Assert.DoesNotContain("Alpha", several.Text, StringComparison.Ordinal);
+
+        // The latest attempt failed after an earlier partial success: only the failure shows.
+        var failed = Assert.Single(Issues(Wom(false, ["Alpha"], "Unavailable", "Wise Old Man isn’t responding.")));
+        Assert.Equal(("failure", failedTitle), (failed.Kind, failed.Title));
+        var neverFetched = Assert.Single(Issues(Wom(false, [], "RateLimited", "limited")));
+        Assert.Equal("failure", neverFetched.Kind);
+
+        Assert.Empty(Issues(Wom(true, [], null, null)));
+    }
+
     private static int Count(string value, string search)
         => value.Split(search, StringSplitOptions.None).Length - 1;
 

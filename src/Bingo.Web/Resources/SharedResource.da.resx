@@ -3558,6 +3558,9 @@
   <data name="Wise Old Man sync failed" xml:space="preserve"><value>Wise Old Man-synkronisering mislykkedes</value></data>
   <data name="Last attempt {0}. Lifecycle actions aren’t affected." xml:space="preserve"><value>Seneste forsøg {0}. Livscyklushandlinger påvirkes ikke.</value></data>
   <data name="Open WOM" xml:space="preserve"><value>Åbn WOM</value></data>
+  <data name="Wise Old Man sync incomplete" xml:space="preserve"><value>Wise Old Man-synkronisering ufuldstændig</value></data>
+  <data name="{0} account couldn’t be fetched." xml:space="preserve"><value>{0} konto kunne ikke hentes.</value></data>
+  <data name="{0} accounts couldn’t be fetched." xml:space="preserve"><value>{0} konti kunne ikke hentes.</value></data>
   <data name="Teams are waiting for decisions on their evidence." xml:space="preserve"><value>Holdene venter på afgørelser om deres beviser.</value></data>
   <data name="Wise Old Man end not updated yet" xml:space="preserve"><value>Wise Old Man-slut er ikke opdateret endnu</value></data>
   <data name="The competition should end {0}. Until it does, no more updates are fetched." xml:space="preserve"><value>Konkurrencen skal slutte {0}. Indtil da hentes der ikke flere opdateringer.</value></data>

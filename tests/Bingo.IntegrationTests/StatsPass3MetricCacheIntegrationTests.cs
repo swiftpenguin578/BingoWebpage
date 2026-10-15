@@ -623,6 +623,61 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         });
     }
 
+    [Fact]
+    public async Task ReadBackMatchesProviderNamesWithTheSharedWiseOldManNameRule()
+    {
+        // WOM stores "Mikkel-it" as "mikkel it": "-", "_" and whitespace runs are one separator.
+        var f = await MetricFixtureAsync();
+        var now = f.Clock.GetUtcNow();
+        var extraNames = new[] { "Mikkel-it", "Some_Name", "A B", "Dup Name" };
+        await using (var setup = new ApplicationDbContext(options))
+        {
+            foreach (var (name, index) in extraNames.Select((name, index) => (name, index)))
+            {
+                var character = new OsrsCharacter(Guid.NewGuid(), name, name.ToUpperInvariant(), now);
+                var participant = new EventParticipant(Guid.NewGuid(), f.Event.Id, SignupStatus.Confirmed, index + 2, now.AddHours(-3), SignupSource.Website);
+                setup.AddRange(character, participant, new EventParticipantCharacter(Guid.NewGuid(), f.Event.Id, participant.Id, character.Id, 0, now, null, null,
+                    EventCharacterRole.Playing, 0, EhbSource.Manual, null));
+                f.AdditionalCharacters.Add(character);
+            }
+            await setup.SaveChangesAsync();
+        }
+        WiseOldManCompetitionParticipant Provider(string username, decimal ehb) => new(username, "regular", ehb, 10, 10 + ehb,
+            new Dictionary<string, WiseOldManMetricDelta> { [f.Bosses[0].ExternalIdentifier!] = new(10, 25, 15), [f.Bosses[1].ExternalIdentifier!] = new(10, 25, 15) },
+            now.AddMinutes(-5));
+        var client = new MetricClient(f)
+        {
+            Override = new(WiseOldManCompetitionStatus.Success, new(42, "Synthetic competition", f.Event.EventStartsAt!.Value, f.Event.EventEndsAt!.Value, now,
+            [
+                Provider("Fixture One", 1), Provider("Fixture Two", 2), Provider("mikkel it", 3), Provider("some name", 4), Provider("a  b", 5),
+                Provider("dup name", 6), Provider("dup-name", 7),
+            ])),
+        };
+        await using var db = new ApplicationDbContext(options); var service = MetricService(db, client, f);
+        await ConfigureMetricAsync(service, f);
+        Assert.True((await service.RefreshAsync(f.Event.Id, f.Actor)).Succeeded);
+
+        var matched = new Dictionary<string, decimal> { ["Fixture One"] = 1, ["Fixture Two"] = 2, ["Mikkel-it"] = 3, ["Some_Name"] = 4, ["A B"] = 5 };
+        var characters = f.Characters.Concat(f.AdditionalCharacters).ToDictionary(x => x.DisplayName, x => x.Id);
+        var ehb = await db.EventCompetitionCharacterActivities.Where(x => x.EventId == f.Event.Id).ToDictionaryAsync(x => x.OsrsCharacterId, x => x.GainedEhb);
+        foreach (var (name, gained) in matched) Assert.Equal(gained, ehb[characters[name]]);
+        var state = await db.EventCompetitionSynchronizations.SingleAsync(x => x.EventId == f.Event.Id);
+        foreach (var name in matched.Keys) Assert.DoesNotContain(name, state.MissingAccountsJson ?? string.Empty, StringComparison.Ordinal);
+
+        var cache = (await service.ReadMetricCacheAsync(f.Event.Id))!;
+        foreach (var name in matched.Keys)
+        {
+            var rows = cache.Rows.Where(x => x.OsrsCharacterId == characters[name]).ToArray();
+            Assert.Equal(2, rows.Length);
+            Assert.All(rows, x => { Assert.Null(x.LastIssue); Assert.Equal(15m, x.RecordedActivity()); });
+        }
+        // Two provider rows that normalize to the same name stay ambiguous for metric activity.
+        var duplicate = cache.Rows.Where(x => x.OsrsCharacterId == characters["Dup Name"]).ToArray();
+        Assert.Equal(2, duplicate.Length);
+        Assert.All(duplicate, x => { Assert.Null(x.RecordedActivity()); Assert.NotNull(x.LastIssue); });
+        Assert.False(cache.Complete);
+    }
+
     private async Task<MetricFixture> MetricFixtureAsync(bool mapped = true, string firstMetric = "vorkath", string secondMetric = "zulrah")
     {
         var clock = new TestClock(new DateTimeOffset(2026, 9, 15, 12, 0, 0, TimeSpan.Zero)); var now = clock.GetUtcNow();

@@ -377,7 +377,7 @@ public sealed partial class EventCompetitionSynchronizationService(
         if (accepted)
         {
             var byName = returnedCompetition!.Participants
-                .GroupBy(x => Normalize(x.Username), StringComparer.Ordinal)
+                .GroupBy(x => WiseOldManCompetitionRules.NormalizePlayerName(x.Username), StringComparer.Ordinal)
                 .ToDictionary(x => x.Key, x => x.Last(), StringComparer.Ordinal);
             var missing = lease.Expected.Where(expected => !byName.TryGetValue(expected.NormalizedName, out var participant) || participant.EhbDelta is null)
                 .Select(expected => expected.DisplayName).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList();
@@ -394,7 +394,7 @@ public sealed partial class EventCompetitionSynchronizationService(
                 foreach (var expected in lease.Expected)
                 {
                     // Duplicate normalized provider names are ambiguous for boss activity.
-                    var matches = returnedCompetition!.Participants.Where(x => Normalize(x.Username) == expected.NormalizedName).ToArray();
+                    var matches = returnedCompetition!.Participants.Where(x => WiseOldManCompetitionRules.NormalizePlayerName(x.Username) == expected.NormalizedName).ToArray();
                     var participant = matches.Length == 1 ? matches[0] : null;
                     foreach (var metric in sources.Metrics)
                     {
@@ -458,7 +458,7 @@ public sealed partial class EventCompetitionSynchronizationService(
             .Join(db.OsrsCharacters.AsNoTracking(), x => x.OsrsCharacterId, x => x.Id,
                 (assignment, character) => new { assignment.OsrsCharacterId, character.DisplayName, character.NormalizedName })
             .OrderBy(x => x.NormalizedName).ToListAsync(cancellationToken);
-        return rows.Select(x => new ExpectedAssignment(x.OsrsCharacterId, x.DisplayName, Normalize(x.NormalizedName))).ToList();
+        return rows.Select(x => new ExpectedAssignment(x.OsrsCharacterId, x.DisplayName, WiseOldManCompetitionRules.NormalizePlayerName(x.NormalizedName))).ToList();
     }
 
     private Task<string> AssignmentFingerprintAsync(Guid eventId, CancellationToken cancellationToken)
@@ -504,8 +504,6 @@ public sealed partial class EventCompetitionSynchronizationService(
         if (string.IsNullOrWhiteSpace(json)) return [];
         try { return JsonSerializer.Deserialize<List<string>>(json) ?? []; } catch (JsonException) { return []; }
     }
-
-    private static string Normalize(string value) => value.Trim().Replace('_', ' ').ToUpperInvariant();
 
     private static bool ContainsCompetitionConcurrencyFailure(Exception exception)
     {
