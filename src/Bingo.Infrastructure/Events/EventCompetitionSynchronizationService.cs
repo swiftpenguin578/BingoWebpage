@@ -14,6 +14,7 @@ using Bingo.Domain.Teams;
 using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Npgsql;
 
 namespace Bingo.Infrastructure.Events;
@@ -22,8 +23,14 @@ public sealed partial class EventCompetitionSynchronizationService(
     ApplicationDbContext db,
     IWiseOldManCompetitionClient competitionClient,
     IWiseOldManStatus womStatus,
-    TimeProvider time) : IEventCompetitionSynchronizationService
+    TimeProvider time,
+    ILogger<EventCompetitionSynchronizationService>? logger = null) : IEventCompetitionSynchronizationService
 {
+    private static readonly Action<ILogger, Guid, string, Exception?> LogCheckpointNotPublished =
+        LoggerMessage.Define<Guid, string>(LogLevel.Warning, new EventId(10202),
+            "Accepted Wise Old Man fetch for event {EventId} did not publish a Luck checkpoint: {CheckpointDiagnostic}");
+    // Test seam for the discard path; it can only lower the domain bound.
+    internal int? CheckpointPayloadByteLimit { get; init; }
     private const string DevelopmentTest15Slug = "test-15-dkl-live";
     private static readonly TimeSpan NormalInterval = TimeSpan.FromHours(1);
     private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(2);
@@ -437,9 +444,13 @@ public sealed partial class EventCompetitionSynchronizationService(
         state.ReleaseLease(lease.Owner);
         await db.SaveChangesAsync(cancellationToken);
         var checkpointDiagnostic = accepted
-            ? await Bingo.Infrastructure.Stats.PublicStatsService.PublishCheckpointAfterAcceptedFetchAsync(db, time, lease.EventId, cancellationToken)
+            ? await Bingo.Infrastructure.Stats.PublicStatsService.PublishCheckpointAfterAcceptedFetchAsync(db, time, lease.EventId,
+                logger, CheckpointPayloadByteLimit, cancellationToken)
             : null;
         await transaction.CommitAsync(cancellationToken);
+        // Scheduled and admin-triggered fetches both finalize here. The diagnostic carries no player names.
+        if (checkpointDiagnostic is not null && logger is not null)
+            LogCheckpointNotPublished(logger, lease.EventId, checkpointDiagnostic, null);
         if (accepted) return new(true, null, checkpointDiagnostic);
         return new(false, result.Succeeded ? "ScheduleMismatch" : result.Status.ToString(), rejectionMessage ?? result.Message);
     }

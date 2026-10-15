@@ -174,7 +174,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         AssertLkp1RetainedCheckpoint(original, await ReadLkp1CheckpointAsync());
         // Current approved evidence changes, so any read-time rescore would change the numerator.
         await ApproveStatsAsync(f, await PendingStatsAsync(f, 0, 0, 20, itemIndex: 1));
-        var savedLuck = JsonSerializer.Deserialize<StatsLuck>(original.Payload)!;
+        var savedLuck = PublicStatsService.DeserializeCheckpointPayload(original.Payload, includeTiles: true)!;
         for (var read = 0; read < 2; read++)
         {
             var view = await ReadStatsAsync(f);
