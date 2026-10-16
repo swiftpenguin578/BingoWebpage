@@ -8,13 +8,18 @@ using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Events;
 using Bingo.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Bingo.Infrastructure.Stats;
 
 public sealed partial class PublicStatsService
 {
-    // Indented JSON bounds the compacted PostgreSQL jsonb representation too.
-    private static readonly JsonSerializerOptions CheckpointJsonOptions = new() { WriteIndented = true };
+    // Compact JSON; the bound is checked on the jsonb text form (see CheckpointPayloadBytes).
+    private static readonly JsonSerializerOptions CheckpointJsonOptions = new() { WriteIndented = false };
+    private const string TileObservationsProperty = "TileObservations";
+    private static readonly Action<ILogger, Guid, int, int, Exception?> LogCheckpointNearLimit =
+        LoggerMessage.Define<Guid, int, int>(LogLevel.Warning, new EventId(10201),
+            "Luck checkpoint for event {EventId} is {PayloadBytes} bytes, above 75% of the {LimitBytes} byte bound");
 
     private async Task<StatsLuck> ReadLuckAsync(StatsData data, CancellationToken ct, bool retainTileActivity = false)
     {
@@ -23,7 +28,7 @@ public sealed partial class PublicStatsService
         if (checkpoint is not null && checkpoint.SchemaVersion == EventStatsLuckCheckpoint.CurrentSchemaVersion &&
             (cache is null || Compatible(checkpoint, data, cache)))
         {
-            var saved = JsonSerializer.Deserialize<StatsLuck>(checkpoint.Payload);
+            var saved = DeserializeCheckpointPayload(checkpoint.Payload, retainTileActivity);
             if (saved is not null)
                 return saved with
                 {
@@ -359,7 +364,9 @@ public sealed partial class PublicStatsService
     }
 
     /// <summary>The accepted competition synchronization transaction invokes this after a successful provider response is accepted, before committing its event transaction.</summary>
-    public static async Task<string?> PublishCheckpointAfterAcceptedFetchAsync(ApplicationDbContext context, TimeProvider clock, Guid eventId, CancellationToken ct = default)
+    /// <param name="payloadByteLimit">Test seam; it can only lower <see cref="EventStatsLuckCheckpoint.MaximumPayloadBytes"/>.</param>
+    public static async Task<string?> PublishCheckpointAfterAcceptedFetchAsync(ApplicationDbContext context, TimeProvider clock, Guid eventId,
+        ILogger? logger = null, int? payloadByteLimit = null, CancellationToken ct = default)
     {
         if (context.Database.CurrentTransaction is null) throw new InvalidOperationException("Checkpoint capture requires the event write transaction.");
         RequireConsistentTransaction(context);
@@ -374,15 +381,146 @@ public sealed partial class PublicStatsService
         if (existing is not null && Compatible(existing, data, cache) && !cache!.Complete && existing.ActivityBatchId != cache.ActivityBatchId && IsCompleteSnapshot(existing.Payload))
             return "partial-batch-write-fenced";
         var calculated = CalculateLuck(data, cache, cache!.Sources, clock.GetUtcNow());
-        var payload = JsonSerializer.Serialize(calculated, CheckpointJsonOptions);
+        var payload = SerializeCheckpointPayload(calculated);
         // Accepted fetch results are serialized as a whole; reject oversized payloads without truncating players or sources.
-        var payloadBytes = Encoding.UTF8.GetByteCount(payload);
-        if (payloadBytes > EventStatsLuckCheckpoint.MaximumPayloadBytes)
-            return $"checkpoint-discarded: payload {payloadBytes} bytes exceeds {EventStatsLuckCheckpoint.MaximumPayloadBytes} byte bound";
+        var payloadBytes = CheckpointPayloadBytes(payload);
+        var limit = Math.Min(payloadByteLimit ?? EventStatsLuckCheckpoint.MaximumPayloadBytes, EventStatsLuckCheckpoint.MaximumPayloadBytes);
+        if (payloadBytes > limit)
+            return $"checkpoint-discarded: payload {payloadBytes} bytes exceeds {limit} byte bound";
+        if (logger is not null && payloadBytes > limit * 0.75)
+            LogCheckpointNearLimit(logger, eventId, payloadBytes, limit, null);
         var checkpoint = new EventStatsLuckCheckpoint(eventId, ev.StatsEvidenceRevision, cache.CompetitionId, cache.Generation,
             cache.ActivityBatchId!.Value, AssignmentFingerprint(data, cache), cache.Sources.Fingerprint, LifecycleFingerprint(ev),
             calculated.CalculatedAt!.Value, calculated.FetchedAt, calculated.UpstreamUpdatedAt, payload);
         return await TryWriteCheckpointAsync(context, clock, checkpoint, ct) ? null : "checkpoint-write-fenced";
+    }
+
+    // Test seam: the full in-memory calculation an accepted fetch publishes, before serialization.
+    internal static async Task<StatsLuck?> CalculateAcceptedFetchLuckAsync(ApplicationDbContext context, TimeProvider clock, Guid eventId, CancellationToken ct = default)
+    {
+        var ev = await context.Events.AsNoTracking().SingleOrDefaultAsync(x => x.Id == eventId, ct);
+        var data = ev is null ? null : await new PublicStatsService(context, clock).ReadDataAsync(ev.Slug, ct);
+        var cache = await EventCompetitionSynchronizationService.ReadMetricCacheAsync(context, clock, eventId, ct);
+        return data is null || !CanCalculate(cache) ? null : CalculateLuck(data, cache, cache!.Sources, clock.GetUtcNow());
+    }
+
+    // The database bound measures octet_length(payload::text). PostgreSQL renders jsonb with a space
+    // after every ':' and ',' and never escapes more than System.Text.Json, so counting one extra byte
+    // for each of those characters (inside strings too) over-approximates it: an accepted payload fits.
+    internal static int CheckpointPayloadBytes(string payload)
+    {
+        var separators = 0;
+        foreach (var character in payload)
+            if (character is ':' or ',') separators++;
+        return Encoding.UTF8.GetByteCount(payload) + separators;
+    }
+
+    // Tile observation rows are the player's event rows for the tile's outcomes with the tile's own
+    // numerator. They are stored once: each tile keeps the indices of its outcomes in Sources and the
+    // non-zero tile numerators, and a read rebuilds the rows from the retained player rows only.
+    // Anything that would not rebuild exactly is stored in full instead.
+    private sealed record CheckpointTileObservations(Guid TileId, IReadOnlyList<int> Sources, IReadOnlyList<CheckpointTileReceived> Received);
+    private sealed record CheckpointTileReceived(Guid TeamId, Guid PlayerId, Guid CharacterId, int Source, int Received);
+
+    internal static string SerializeCheckpointPayload(StatsLuck luck)
+    {
+        var observations = CompactTileObservations(luck);
+        if (observations is null) return JsonSerializer.Serialize(luck, CheckpointJsonOptions);
+        var stripped = luck with
+        {
+            Tiles = luck.Tiles!.Select(tile => tile with
+            {
+                Teams = tile.Teams.Select(team => team with
+                {
+                    Players = team.Players.Select(player => player with { Sources = null }).ToArray()
+                }).ToArray()
+            }).ToArray()
+        };
+        var root = JsonSerializer.SerializeToNode(stripped, CheckpointJsonOptions)!.AsObject();
+        root.Add(TileObservationsProperty, JsonSerializer.SerializeToNode(observations, CheckpointJsonOptions));
+        return root.ToJsonString(CheckpointJsonOptions);
+    }
+
+    // Reads both the compact form and full (including indented) payloads written before it.
+    internal static StatsLuck? DeserializeCheckpointPayload(string payload, bool includeTiles)
+    {
+        if (!includeTiles) return JsonSerializer.Deserialize<StatsLuck>(payload);
+        using var document = JsonDocument.Parse(payload);
+        var saved = document.RootElement.Deserialize<StatsLuck>();
+        if (saved?.Tiles is null || !document.RootElement.TryGetProperty(TileObservationsProperty, out var element)) return saved;
+        var observations = element.Deserialize<CheckpointTileObservations[]>();
+        // An inconsistent tile map fails closed to the unavailable tile view, as a missing one does.
+        return saved with { Tiles = observations is null ? null : RebuildTileObservations(saved, observations) };
+    }
+
+    private static CheckpointTileObservations[]? CompactTileObservations(StatsLuck luck)
+    {
+        if (luck.Tiles is null) return null;
+        var sourceIndex = new Dictionary<(Guid, Guid), int>();
+        for (var i = 0; i < luck.Sources.Count; i++) sourceIndex.TryAdd((luck.Sources[i].SourceDropId, luck.Sources[i].ItemId), i);
+        var result = new List<CheckpointTileObservations>(luck.Tiles.Count);
+        foreach (var tile in luck.Tiles)
+        {
+            var rows = tile.Teams.SelectMany(team => team.Players.SelectMany(player => player.Sources ?? [])).ToArray();
+            if (tile.Teams.Any(team => team.Players.Any(player => player.Sources is null)) ||
+                rows.Any(row => !sourceIndex.ContainsKey((row.SourceDropId, row.ItemId))))
+                return null;
+            var sources = rows.Select(row => sourceIndex[(row.SourceDropId, row.ItemId)]).Distinct().Order().ToArray();
+            var received = tile.Teams.SelectMany(team => team.Players.SelectMany(player => player.Sources!
+                .Where(row => row.Received != 0)
+                .Select(row => new CheckpointTileReceived(team.TeamId, player.PlayerId, row.CharacterId, sourceIndex[(row.SourceDropId, row.ItemId)], row.Received))))
+                .ToArray();
+            result.Add(new(tile.TileId, sources, received));
+        }
+        var compact = result.ToArray();
+        var rebuilt = RebuildTileObservations(luck, compact);
+        // Store once only when the rebuild reproduces every stored row exactly.
+        return rebuilt is not null && luck.Tiles.Zip(rebuilt).All(pair => pair.First.Teams.Zip(pair.Second.Teams).All(teams =>
+            teams.First.Players.Zip(teams.Second.Players).All(players => players.First.Sources!.SequenceEqual(players.Second.Sources!))))
+            ? compact : null;
+    }
+
+    private static StatsTileLuck[]? RebuildTileObservations(StatsLuck saved, IReadOnlyList<CheckpointTileObservations> observations)
+    {
+        var byTile = new Dictionary<Guid, CheckpointTileObservations>();
+        foreach (var observation in observations)
+            if (observation?.Sources is null || observation.Received is null || !byTile.TryAdd(observation.TileId, observation)) return null;
+        var eventPlayers = new Dictionary<(Guid, Guid), StatsLuckPlayer>();
+        foreach (var team in saved.Teams)
+            foreach (var player in team.Players)
+                if (player.Sources is null || !eventPlayers.TryAdd((team.TeamId, player.PlayerId), player)) return null;
+        var tiles = new List<StatsTileLuck>(saved.Tiles!.Count);
+        foreach (var tile in saved.Tiles!)
+        {
+            if (!byTile.TryGetValue(tile.TileId, out var observation) ||
+                observation.Sources.Any(index => index < 0 || index >= saved.Sources.Count) ||
+                observation.Received.Any(row => row is null || row.Source < 0 || row.Source >= saved.Sources.Count))
+                return null;
+            var outcomes = observation.Sources.Select(index => (saved.Sources[index].SourceDropId, saved.Sources[index].ItemId)).ToHashSet();
+            var received = new Dictionary<(Guid, Guid, Guid, Guid, Guid), int>();
+            foreach (var row in observation.Received)
+                if (!received.TryAdd((row.TeamId, row.PlayerId, row.CharacterId, saved.Sources[row.Source].SourceDropId, saved.Sources[row.Source].ItemId), row.Received)) return null;
+            var teams = new List<StatsTileLuckTeam>(tile.Teams.Count);
+            foreach (var team in tile.Teams)
+            {
+                var players = new List<StatsTileLuckPlayer>(team.Players.Count);
+                foreach (var player in team.Players)
+                {
+                    if (!eventPlayers.TryGetValue((team.TeamId, player.PlayerId), out var eventPlayer)) return null;
+                    players.Add(player with
+                    {
+                        Sources = eventPlayer.Sources.Where(row => outcomes.Contains((row.SourceDropId, row.ItemId)))
+                            .Select(row => row with
+                            {
+                                Received = received.GetValueOrDefault((team.TeamId, player.PlayerId, row.CharacterId, row.SourceDropId, row.ItemId))
+                            }).ToArray()
+                    });
+                }
+                teams.Add(team with { Players = players.ToArray() });
+            }
+            tiles.Add(tile with { Teams = teams.ToArray() });
+        }
+        return tiles.ToArray();
     }
 
     // Convert one retained v1 snapshot in place. This operation never reads the metric cache or
@@ -419,8 +557,8 @@ public sealed partial class PublicStatsService
             {
                 Tiles = ClearLegacyTileScores(saved.Tiles)
             };
-            var payload = JsonSerializer.Serialize(converted, CheckpointJsonOptions);
-            if (Encoding.UTF8.GetByteCount(payload) > EventStatsLuckCheckpoint.MaximumPayloadBytes)
+            var payload = SerializeCheckpointPayload(converted);
+            if (CheckpointPayloadBytes(payload) > EventStatsLuckCheckpoint.MaximumPayloadBytes)
                 return new(false, "converted-payload-too-large");
             var convertedAt = clock.GetUtcNow();
             var changed = await context.Database.ExecuteSqlInterpolatedAsync($"""
