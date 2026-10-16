@@ -220,7 +220,8 @@ public sealed partial class PublicStatsService
         };
     }
 
-    private static StatsLuckResult Score(StatsLuckResult result, IEnumerable<StatsLuckCharacterSource> observations,
+    // Internal for tests: the derived Luck values for a set of retained observation rows.
+    internal static StatsLuckResult Score(StatsLuckResult result, IEnumerable<StatsLuckCharacterSource> observations,
         IReadOnlyList<StatsLuckSource> sources)
     {
         // Rebuild only derived values from the retained observation rows. The rows
@@ -242,16 +243,18 @@ public sealed partial class PublicStatsService
                     x.Source.BossId is not null && x.Source.Metric is not null && x.Source.RollGroup is not null && x.Source.Rolls is > 0 &&
                     x.Source.Probability is > 0 and <= 1 && x.Source.ParentProbability is null or (> 0 and <= 1) &&
                     x.Row.Expected is not null && x.Row.Activity is not null && x.Row.Activity >= 0 && decimal.Truncate(x.Row.Activity.Value) == x.Row.Activity);
-                var coherentMechanics = valid && activity is not null && activityRows.GroupBy(x => x.Source!.RollGroup).All(group =>
+                // A roll group whose drops have different roll counts is split by roll count; each
+                // sub-group is its own mutually exclusive roll (user decision, 16 October 2026).
+                var coherentMechanics = valid && activity is not null && activityRows.GroupBy(x => (x.Source!.RollGroup, x.Source.Rolls)).All(group =>
                 {
                     var sample = group.First();
-                    return group.All(x => x.Source!.Rolls == sample.Source!.Rolls && x.Row.Activity == sample.Row.Activity);
+                    return group.All(x => x.Row.Activity == sample.Row.Activity);
                 });
                 var complete = coherentMechanics;
                 var received = activityRows.Sum(x => x.Row.Received);
                 decimal? expected = complete ? activityRows.Sum(x => x.Row.Expected!.Value) : null;
                 decimal? lambda = complete ? activityRows.Sum(x => x.Source!.Probability!.Value * (x.Source.ParentProbability ?? 1m) * x.Source.Rolls!.Value) : null;
-                var componentGroups = complete ? activityRows.GroupBy(x => x.Source!.RollGroup).ToArray() : [];
+                var componentGroups = complete ? activityRows.GroupBy(x => (x.Source!.RollGroup, x.Source.Rolls)).ToArray() : [];
                 var coherentComponents = complete && componentGroups.All(group =>
                 {
                     var sample = group.First();
@@ -324,12 +327,14 @@ public sealed partial class PublicStatsService
             x.Source.Probability is > 0 and <= 1 && x.Source.ParentProbability is null or (> 0 and <= 1) &&
             x.Row.Expected is not null && x.Row.Activity is not null && x.Row.Activity >= 0 && decimal.Truncate(x.Row.Activity.Value) == x.Row.Activity).ToArray();
         var components = new List<LuckBinomialComponent>();
-        foreach (var group in validMechanics.GroupBy(x => (x.Row.CharacterId, x.Source!.BossId, x.Source.Metric, x.Source.RollGroup)))
+        // Drops of one roll group with different roll counts form one sub-group per roll count;
+        // a group with a single roll count is exactly one component, as before.
+        foreach (var group in validMechanics.GroupBy(x => (x.Row.CharacterId, x.Source!.BossId, x.Source.Metric, x.Source.RollGroup, x.Source.Rolls)))
         {
             var first = group.First();
-            // One mutually exclusive roll has one count. Contradictory frozen mechanics cannot
+            // One mutually exclusive roll has one KC. Contradictory frozen mechanics cannot
             // be repaired by treating its outcomes as independent opportunities.
-            if (group.Any(x => x.Source!.Rolls != first.Source!.Rolls || x.Row.Activity != first.Row.Activity))
+            if (group.Any(x => x.Row.Activity != first.Row.Activity))
                 return result with { Status = StatsLuckStatus.Incomplete, Activities = activities };
             var probability = group.Sum(x => x.Source!.Probability!.Value * (x.Source.ParentProbability ?? 1m));
             if (!TryCreateComponent(first.Row.Activity!.Value, first.Source!.Rolls!.Value, probability, out var component))
