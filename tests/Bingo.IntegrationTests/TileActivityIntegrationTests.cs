@@ -151,17 +151,22 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
     }
 
     [Fact]
-    public async Task TileActivityIncompleteTeamDoesNotPresentPartialKcAsTheTeamTotal()
+    public async Task TileActivityTeamWithAMissingPlayerIsCalculatedFromTheMembersWithKc()
     {
+        // Brief 180 item 2 (user decision, 16 October 2026): the team total pools the members with KC.
         var f = await FullStatsFixtureAsync(players: 2);
         var response = StatsResponse(f, new(0, 100, 100));
         response = response with { Competition = response.Competition! with { Participants = response.Competition.Participants.Where(x => x.Username != f.Characters[1].Id.ToString()).ToArray() } };
         await SyncStatsAsync(f, response);
         var tile = await ReadTileActivityAsync(f);
-        Assert.Equal(StatsLuckStatus.Incomplete, tile.Team.Result.Status);
-        Assert.Null(Assert.Single(tile.Team.Metrics).Count);
-        Assert.Equal(StatsLuckStatus.Incomplete, Assert.Single(tile.Team.Metrics).Status);
+        Assert.Equal(StatsLuckStatus.Calculated, tile.Team.Result.Status);
+        Assert.NotNull(tile.Team.Result.Percentage);
+        Assert.Equal(100m, Assert.Single(tile.Team.Metrics).Count);
+        Assert.Equal(StatsLuckStatus.Calculated, Assert.Single(tile.Team.Metrics).Status);
         Assert.Equal(2, tile.Team.Players.Count);
+        var missing = tile.Team.Players.Single(x => x.PlayerId == f.Players[1].Id);
+        Assert.Equal(StatsLuckStatus.WaitingForActivityData, missing.Result.Status);
+        Assert.Null(Assert.Single(missing.Metrics).Count);
     }
 
     [Fact]
@@ -352,15 +357,17 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         Assert.Equal(4, activity.Team.Players.Count);
         Assert.All(activity.Team.Players.Single(p => p.PlayerId == f.Players[2].Id).Metrics, metric => Assert.Equal(0m, metric.Count));
         Assert.All(activity.Team.Players.Single(p => p.PlayerId == f.Players[3].Id).Metrics, metric => Assert.Null(metric.Count));
-        Assert.All(activity.Team.Metrics, metric => Assert.Null(metric.Count));
-        Assert.Equal(StatsLuckStatus.Incomplete, activity.Team.Result.Status);
+        // Brief 180 item 2: team KC and Luck pool the members with KC; player 3 has none and is left out.
+        Assert.Equal(phase < 2 ? 13m : 0m, activity.Team.Metrics.Single(x => x.Metric == "chambers_of_xeric").Count);
+        Assert.Equal(phase == 0 ? 7m : 0m, activity.Team.Metrics.Single(x => x.Metric == "chambers_of_xeric_challenge_mode").Count);
+        Assert.Equal(phase < 2 ? StatsLuckStatus.Calculated : StatsLuckStatus.NoEligibleActivity, activity.Team.Result.Status);
         foreach (var path in new[] { route, route + "?handler=Sidebar" })
         {
             var html = await client.GetStringAsync(path);
             var start = html.IndexOf("data-tile-activity", StringComparison.Ordinal);
             Assert.True(start >= 0);
             var section = WebUtility.HtmlDecode(html[start..html.IndexOf("</section>", start, StringComparison.Ordinal)]);
-            Assert.Contains("Incomplete activity data", section, StringComparison.Ordinal);
+            Assert.DoesNotContain("Incomplete activity data", section, StringComparison.Ordinal);
             Assert.Contains(f.Boss.Name, section, StringComparison.Ordinal);
             Assert.Contains(mode.Name, section, StringComparison.Ordinal);
             if (phase == 2)

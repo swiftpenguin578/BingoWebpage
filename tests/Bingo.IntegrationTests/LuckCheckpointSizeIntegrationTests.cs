@@ -174,12 +174,13 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
             await ApproveStatsAsync(f.Stats, await PendingStatsAsync(f.Stats, i % f.Stats.Tiles.Length, (i * 5) % f.Stats.Players.Length, 10 + i, itemIndex: i % 2));
     }
 
-    private async Task SyncLuckSizeAsync(LuckSizeFixture f, ILogger<EventCompetitionSynchronizationService>? logger = null, int? payloadByteLimit = null)
+    private async Task SyncLuckSizeAsync(LuckSizeFixture f, ILogger<EventCompetitionSynchronizationService>? logger = null, int? payloadByteLimit = null,
+        Func<int, int, int>? kills = null)
     {
         await using var db = new ApplicationDbContext(options);
         var participants = f.Stats.Assignments.Where(a => a.EventRole == EventCharacterRole.Playing).Select((a, index) =>
             new WiseOldManCompetitionParticipant(f.Stats.Characters.Single(c => c.Id == a.OsrsCharacterId).DisplayName, "regular", 1, 0, 1,
-                f.Bosses.Select((boss, b) => (boss.ExternalIdentifier!, Kills: 20 + (index * 37 + b * 11) % 400))
+                f.Bosses.Select((boss, b) => (boss.ExternalIdentifier!, Kills: kills?.Invoke(index, b) ?? 20 + (index * 37 + b * 11) % 400))
                     .ToDictionary(x => x.Item1, x => new WiseOldManMetricDelta(0, x.Kills, x.Kills)),
                 f.Clock.GetUtcNow().AddMinutes(-5))).ToArray();
         var result = new WiseOldManCompetitionResult(WiseOldManCompetitionStatus.Success, new(42, "Controlled Stats competition",

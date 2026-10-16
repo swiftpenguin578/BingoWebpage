@@ -201,10 +201,12 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         var partial = StatsResponse(f, new(0, 100, 100));
         partial = partial with { Competition = partial.Competition! with { Participants = partial.Competition.Participants.Select((x, i) => i == 1 ? x with { Metrics = new Dictionary<string, Bingo.Application.Integrations.WiseOldMan.WiseOldManMetricDelta>() } : x).ToArray() } };
         await SyncStatsAsync(f, partial);
-        var incomplete = await ReadStatsAsync(f); Assert.Equal(StatsLuckStatus.Incomplete, incomplete.Luck.Result.Status); Assert.Null(incomplete.Luck.Result.Percentage);
+        // Brief 180 item 2: the result is calculated from the player with KC; the other player keeps waiting.
+        var incomplete = await ReadStatsAsync(f); Assert.Equal(StatsLuckStatus.Calculated, incomplete.Luck.Result.Status); Assert.Equal(55.0897160098096m, incomplete.Luck.Result.Percentage);
         Assert.Equal(2, incomplete.Luck.Teams[0].Players.Count);
         Assert.Equal(55.0897160098096m, incomplete.Luck.Teams[0].Players.Single(x => x.PlayerId == f.Players[0].Id).Result.Percentage);
         Assert.Null(incomplete.Luck.Teams[0].Players.Single(x => x.PlayerId == f.Players[1].Id).Result.Expected);
+        Assert.Equal(StatsLuckStatus.WaitingForActivityData, incomplete.Luck.Teams[0].Players.Single(x => x.PlayerId == f.Players[1].Id).Result.Status);
         f.Clock.Advance(TimeSpan.FromHours(3)); await SyncStatsAsync(f, 100);
         var good = await ReadStatsAsync(f); Assert.Equal(54.0662189603843m, good.Luck.Result.Percentage);
         f.Clock.Advance(TimeSpan.FromHours(3)); await SyncStatsAsync(f, new Bingo.Application.Integrations.WiseOldMan.WiseOldManMetricDelta(10, -1, 0));
