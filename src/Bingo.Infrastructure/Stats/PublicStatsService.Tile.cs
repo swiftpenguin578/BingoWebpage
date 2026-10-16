@@ -94,7 +94,8 @@ public sealed partial class PublicStatsService
                             // Freshness controls Luck, not whether compatible known KC still exists.
                             var activity = scoredResult.Activities?.SingleOrDefault(x => x.BossId == metric.Key.BossId && x.Metric == metric.Key.Metric);
                             var complete = (usableBatch || retainKnownActivity) && characters.Length > 0 && characters.All(x => x.All(row => row.Activity is not null));
-                            decimal? count = complete ? activity is null ? characters.Sum(x => x.First().Activity!.Value) : activity.Kc : null;
+                            // Without KC for every character, the count is the KC of the characters with data.
+                            decimal? count = complete ? activity is null ? characters.Sum(x => x.First().Activity!.Value) : activity.Kc : activity?.Kc;
                             var status = activity is not null ? activity.Status : complete ? count > 0 ? StatsLuckStatus.Calculated : StatsLuckStatus.NoEligibleActivity
                                 : characters.Any(x => x.Any(row => row.Activity is not null)) ? StatsLuckStatus.Incomplete : StatsLuckStatus.WaitingForActivityData;
                             return new StatsTileKc(metric.First().Metric, metric.First().BossName, count, status,
@@ -111,7 +112,7 @@ public sealed partial class PublicStatsService
                     var rows = players.Select(x => x.Metrics[index]).ToArray();
                     var activity = teamResult.Activities?.SingleOrDefault(x => x.BossId == metric.Key.BossId && x.Metric == metric.Key.Metric);
                     var complete = rows.All(x => x.Count is not null);
-                    decimal? count = complete ? activity is null ? rows.Sum(x => x.Count!.Value) : activity.Kc : null;
+                    decimal? count = complete ? activity is null ? rows.Sum(x => x.Count!.Value) : activity.Kc : activity?.Kc;
                     return new StatsTileKc(metric.First().Metric, metric.First().BossName, count,
                         activity?.Status ?? (complete ? count > 0 ? StatsLuckStatus.Calculated : StatsLuckStatus.NoEligibleActivity
                             : rows.All(x => x.Status == StatsLuckStatus.WaitingForActivityData) ? StatsLuckStatus.WaitingForActivityData : StatsLuckStatus.Incomplete),

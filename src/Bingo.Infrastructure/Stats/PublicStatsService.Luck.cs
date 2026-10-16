@@ -164,15 +164,22 @@ public sealed partial class PublicStatsService
 
     private static StatsLuckResult Result(int received, decimal? expected, StatsLuckStatus status, bool estimated = false, bool zeroRecorded = false) =>
         new(received, expected, null, status, estimated, zeroRecorded);
+    // Calculated from the data we have (user decision, 16 October 2026): results without an expectation
+    // (waiting for KC, or not calculable) are left out of the pool instead of blocking it. Only when
+    // nothing is calculable does the pooled result keep the waiting or incomplete status.
     private static StatsLuckResult Pool(StatsLuckResult[] results)
     {
-        var received = results.Sum(x => x.Received); var complete = results.All(x => x.Expected is not null);
-        decimal? expected = complete ? results.Sum(x => x.Expected!.Value) : null;
-        var status = !complete
-            ? results.Length > 0 && results.All(x => x.Status == StatsLuckStatus.WaitingForActivityUpdate) ? StatsLuckStatus.WaitingForActivityUpdate
-                : results.Length > 0 && results.All(x => x.Status == StatsLuckStatus.WaitingForActivityData) ? StatsLuckStatus.WaitingForActivityData : StatsLuckStatus.Incomplete
-            : expected > 0 ? StatsLuckStatus.Calculated : received > 0 ? StatsLuckStatus.WaitingForActivityUpdate : StatsLuckStatus.NoEligibleActivity;
-        return Result(received, expected, status, results.Any(x => x.Estimated), results.Any(x => x.ZeroRecordedApproximation));
+        var calculable = results.Where(x => x.Expected is not null).ToArray();
+        if (calculable.Length == 0 && results.Length > 0)
+        {
+            var waiting = results.All(x => x.Status == StatsLuckStatus.WaitingForActivityUpdate) ? StatsLuckStatus.WaitingForActivityUpdate
+                : results.All(x => x.Status == StatsLuckStatus.WaitingForActivityData) ? StatsLuckStatus.WaitingForActivityData : StatsLuckStatus.Incomplete;
+            return Result(results.Sum(x => x.Received), null, waiting, results.Any(x => x.Estimated), results.Any(x => x.ZeroRecordedApproximation));
+        }
+        var received = calculable.Sum(x => x.Received);
+        var expected = calculable.Sum(x => x.Expected!.Value);
+        var status = expected > 0 ? StatsLuckStatus.Calculated : received > 0 ? StatsLuckStatus.WaitingForActivityUpdate : StatsLuckStatus.NoEligibleActivity;
+        return Result(received, expected, status, calculable.Any(x => x.Estimated), calculable.Any(x => x.ZeroRecordedApproximation));
     }
 
     // Retained checkpoints are authoritative until an accepted fetch replaces them.
@@ -283,6 +290,7 @@ public sealed partial class PublicStatsService
                     ? received / lambda.Value - activity.Value : null;
                 return new
                 {
+                    activityGroup.Key.CharacterId,
                     BossId = first?.BossId,
                     Metric = first?.Metric,
                     Name = first?.BossName ?? activityGroup.Key.Metric ?? "Activity",
@@ -303,11 +311,15 @@ public sealed partial class PublicStatsService
             .Select(activityGroup =>
             {
                 var members = activityGroup.ToArray();
-                var received = members.Sum(x => x.Received);
-                var complete = members.All(x => x.Complete);
-                decimal? expected = complete ? members.Sum(x => x.Expected!.Value) : null;
-                decimal? kc = complete && members.All(x => x.Kc is not null) ? members.Sum(x => x.Kc!.Value) : null;
-                var components = complete ? members.SelectMany(x => x.Components).ToArray() : Array.Empty<LuckBinomialComponent>();
+                // A boss line pools the characters with data for that boss; the others are left out.
+                // With no calculable character the line keeps its waiting or incomplete status.
+                var calculable = members.Where(x => x.Complete).ToArray();
+                var complete = calculable.Length > 0;
+                var pooled = complete ? calculable : members;
+                var received = pooled.Sum(x => x.Received);
+                decimal? expected = complete ? pooled.Sum(x => x.Expected!.Value) : null;
+                decimal? kc = complete && pooled.All(x => x.Kc is not null) ? pooled.Sum(x => x.Kc!.Value) : null;
+                var components = complete ? pooled.SelectMany(x => x.Components).ToArray() : Array.Empty<LuckBinomialComponent>();
                 var status = !complete
                     ? members.All(x => x.Status == StatsLuckStatus.WaitingForActivityUpdate) ? StatsLuckStatus.WaitingForActivityUpdate
                         : members.All(x => x.Status == StatsLuckStatus.WaitingForActivityData) ? StatsLuckStatus.WaitingForActivityData
@@ -315,25 +327,49 @@ public sealed partial class PublicStatsService
                     : expected > 0 ? StatsLuckStatus.Calculated : StatsLuckStatus.NoEligibleActivity;
                 var percentage = status == StatsLuckStatus.Calculated && expected is > 0 && components.Length > 0
                     ? LuckScoreCalculator.Calculate(components, received) : null;
-                decimal? kcDifference = complete && members.All(x => x.KcDifference is not null)
-                    ? members.Sum(x => x.KcDifference!.Value) : null;
+                decimal? kcDifference = complete && pooled.All(x => x.KcDifference is not null)
+                    ? pooled.Sum(x => x.KcDifference!.Value) : null;
                 var first = members[0];
                 return new StatsLuckActivityResult(first.BossId, first.Metric, first.Name, received, expected, kc,
-                    percentage, kcDifference, status, members.Any(x => x.Estimated), members.Any(x => x.ZeroRecordedApproximation));
+                    percentage, kcDifference, status, pooled.Any(x => x.Estimated), pooled.Any(x => x.ZeroRecordedApproximation));
             }).OrderBy(x => x.Name, StringComparer.Ordinal).ThenBy(x => x.Metric, StringComparer.Ordinal).ToArray();
 
+        // The result is calculated from the bosses each character has data for. A waiting or contradictory
+        // boss (combined chance > 1, KC mismatch) keeps its own line and is left out of the pool.
+        var allCalculable = characterActivities.All(x => x.Complete);
+        if (!allCalculable)
+        {
+            var calculable = characterActivities.Where(x => x.Complete).ToArray();
+            if (calculable.Length > 0)
+            {
+                var pooledReceived = calculable.Sum(x => x.Received);
+                var pooledExpected = calculable.Sum(x => x.Expected!.Value);
+                result = result with
+                {
+                    Received = pooledReceived,
+                    Expected = pooledExpected,
+                    Status = pooledExpected > 0 ? StatsLuckStatus.Calculated : pooledReceived > 0 ? StatsLuckStatus.WaitingForActivityUpdate : StatsLuckStatus.NoEligibleActivity,
+                    Estimated = calculable.Any(x => x.Estimated),
+                    ZeroRecordedApproximation = calculable.Any(x => x.ZeroRecordedApproximation)
+                };
+            }
+            else if (result.Expected is not null)
+                result = result with { Status = StatsLuckStatus.Incomplete };
+        }
+        var calculableKeys = characterActivities.Where(x => x.Complete).Select(x => (x.CharacterId, x.BossId, x.Metric)).ToHashSet();
         var validMechanics = mechanics.Where(x => x.Source is not null && x.Source.UnavailableReason is null &&
             x.Source.BossId is not null && x.Source.Metric is not null && x.Source.RollGroup is not null && x.Source.Rolls is > 0 &&
             x.Source.Probability is > 0 and <= 1 && x.Source.ParentProbability is null or (> 0 and <= 1) &&
-            x.Row.Expected is not null && x.Row.Activity is not null && x.Row.Activity >= 0 && decimal.Truncate(x.Row.Activity.Value) == x.Row.Activity).ToArray();
+            x.Row.Expected is not null && x.Row.Activity is not null && x.Row.Activity >= 0 && decimal.Truncate(x.Row.Activity.Value) == x.Row.Activity &&
+            calculableKeys.Contains((x.Row.CharacterId, x.Source.BossId, x.Source.Metric))).ToArray();
         var components = new List<LuckBinomialComponent>();
         // Drops of one roll group with different roll counts form one sub-group per roll count;
         // a group with a single roll count is exactly one component, as before.
         foreach (var group in validMechanics.GroupBy(x => (x.Row.CharacterId, x.Source!.BossId, x.Source.Metric, x.Source.RollGroup, x.Source.Rolls)))
         {
             var first = group.First();
-            // One mutually exclusive roll has one KC. Contradictory frozen mechanics cannot
-            // be repaired by treating its outcomes as independent opportunities.
+            // One sub-group (roll group and roll count) has one KC; a mismatch is refused.
+            // Calculable bosses already passed this check, so it only guards the invariant.
             if (group.Any(x => x.Row.Activity != first.Row.Activity))
                 return result with { Status = StatsLuckStatus.Incomplete, Activities = activities };
             var probability = group.Sum(x => x.Source!.Probability!.Value * (x.Source.ParentProbability ?? 1m));
@@ -345,8 +381,9 @@ public sealed partial class PublicStatsService
             components.Sum(x => x.Trials * x.Probability) == result.Expected
             ? LuckScoreCalculator.Calculate(components, result.Received) : null;
         var status = result.Status;
-        decimal? kcDifference = activities.Length > 0 && activities.All(x => x.KcDifference is not null)
-            ? activities.Sum(x => x.KcDifference!.Value) : null;
+        var knownKcDifferences = allCalculable ? activities : activities.Where(x => x.KcDifference is not null).ToArray();
+        decimal? kcDifference = knownKcDifferences.Length > 0 && knownKcDifferences.All(x => x.KcDifference is not null)
+            ? knownKcDifferences.Sum(x => x.KcDifference!.Value) : null;
         return result with { Percentage = percentage, Status = status, KcDifference = kcDifference, Activities = activities };
     }
 
@@ -595,7 +632,13 @@ public sealed partial class PublicStatsService
         try
         {
             var saved = JsonSerializer.Deserialize<StatsLuck>(payload);
-            return saved?.Result.Status is StatsLuckStatus.Calculated or StatsLuckStatus.NoEligibleActivity;
+            // Complete means every observation was calculable. A result calculated from the available
+            // data (a waiting or impossible boss left out) must not fence later partial batches.
+            return saved?.Result.Status is StatsLuckStatus.Calculated or StatsLuckStatus.NoEligibleActivity &&
+                (saved.Teams ?? []).All(team => (team.Players ?? []).All(player =>
+                    player.Result?.Status is StatsLuckStatus.Calculated or StatsLuckStatus.NoEligibleActivity &&
+                    (player.Sources ?? []).All(row => row.Expected is not null) &&
+                    (player.Result.Activities ?? []).All(line => line.Status is StatsLuckStatus.Calculated or StatsLuckStatus.NoEligibleActivity)));
         }
         catch (JsonException)
         {

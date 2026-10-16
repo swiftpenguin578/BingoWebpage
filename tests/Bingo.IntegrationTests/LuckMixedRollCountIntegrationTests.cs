@@ -151,14 +151,19 @@ public sealed class LuckMixedRollCountScoreTests
     }
 
     [Fact]
-    public void ASubGroupWhoseCombinedChanceExceedsOneIsStillIncomplete()
+    public void ASubGroupWhoseCombinedChanceExceedsOneLeavesOnlyThatBossIncomplete()
     {
         Drop[] impossible = [D(Zulrah, "zulrah", .6m, 2, 0, 100), D(Zulrah, "zulrah", .6m, 2, 0, 100), D(Zulrah, "zulrah", .1m, 1, 0, 100)];
-        var scored = Score(impossible.Concat(ProductionShape.Where(x => x.Boss == Normal)), _ => "default");
+        var normal = ProductionShape.Where(x => x.Boss == Normal).ToArray();
+        var scored = Score(impossible.Concat(normal), _ => "default");
 
-        Assert.Equal(StatsLuckStatus.Incomplete, scored.Status);
-        Assert.Null(scored.Percentage);
-        Assert.Equal(StatsLuckStatus.Incomplete, scored.Activities!.Single(x => x.Metric == "zulrah").Status);
-        Assert.Null(scored.Activities!.Single(x => x.Metric == "zulrah").Percentage);
+        // The impossible boss keeps its own Incomplete line and is left out; the player is scored from the rest.
+        var zulrah = scored.Activities!.Single(x => x.Metric == "zulrah");
+        Assert.Equal(StatsLuckStatus.Incomplete, zulrah.Status);
+        Assert.Null(zulrah.Percentage);
+        Assert.Equal(StatsLuckStatus.Calculated, scored.Status);
+        Assert.Equal(Score(normal, _ => "default").Percentage, scored.Percentage);
+        Assert.Equal(normal.Sum(x => x.Kc * x.Probability * x.Rolls), scored.Expected);
+        Assert.Equal(Reference(normal), scored.Percentage);
     }
 }
