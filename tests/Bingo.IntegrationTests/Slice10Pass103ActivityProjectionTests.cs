@@ -502,6 +502,46 @@ public sealed class Slice10Pass103ActivityProjectionTests(PostgreSqlTestFixture 
         Assert.Equal(1, fake.Calls);
     }
 
+    [Fact]
+    public async Task ProjectionShowsThePrimaryAccountFirstWhenItHasAHigherRegistrationOrder()
+    {
+        var clock = new TestClock(DateTimeOffset.UtcNow);
+        var now = clock.GetUtcNow();
+        var setup = await SeedAsync(now);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            var form = new SignupForm(Guid.NewGuid(), setup.Event.Id, now);
+            var question = new SignupQuestion(Guid.NewGuid(), form.Id, setup.Event.Id, "primary_regular_account", "Account", SignupQuestionType.Account, true, 0, null,
+                SignupSystemField.PrimaryRegularAccount, EventCharacterRole.Playing);
+            db.AddRange(form, question);
+            var secondAssignment = await db.EventParticipantCharacters.SingleAsync(value => value.OsrsCharacterId == setup.SecondCharacter.Id);
+            db.Entry(secondAssignment).Property(value => value.SignupQuestionId).CurrentValue = question.Id;
+            await db.SaveChangesAsync();
+        }
+        var fingerprint = await FingerprintAsync(setup.Event.Id);
+        var state = new EventCompetitionSynchronization(
+            Guid.NewGuid(), setup.Event.Id, 1, 55, "Projection competition",
+            setup.Event.EventStartsAt, setup.Event.EventEndsAt, fingerprint, now);
+        state.MarkSuccess(now, now, true, "[]", null);
+        await using (var db = new ApplicationDbContext(options))
+        {
+            db.EventCompetitionSynchronizations.Add(state);
+            db.EventCompetitionCharacterActivities.AddRange(
+                Activity(setup.Event.Id, 1, 55, setup.FirstCharacter.Id, 5m, fingerprint, now),
+                Activity(setup.Event.Id, 1, 55, setup.SecondCharacter.Id, 7m, fingerprint, now),
+                Activity(setup.Event.Id, 1, 55, setup.OtherCharacter.Id, 12m, fingerprint, now));
+            await db.SaveChangesAsync();
+
+            var result = await new CachedEventCompetitionActivityProjection(db, clock).GetAsync(setup.Event.Id);
+
+            var person = Assert.Single(Assert.Single(result.Teams).Participants, value => value.PlayingAccountNames!.Contains("Alice"));
+            Assert.Equal("Alice second", person.ParticipantName);
+            Assert.Equal(["Alice second", "Alice"], person.PlayingAccountNames);
+            Assert.Equal(["Alice second", "Alice"], person.Accounts.Select(value => value.CharacterName).ToArray());
+            Assert.Equal(12m, person.TotalGainedEhb);
+        }
+    }
+
     private async Task<Seed> SeedAsync(DateTimeOffset now)
     {
         var admin = Account.CreateWebsite(Guid.NewGuid(), "projection-admin", "PROJECTION-ADMIN", now);

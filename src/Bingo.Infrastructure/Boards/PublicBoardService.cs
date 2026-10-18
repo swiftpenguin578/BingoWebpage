@@ -118,11 +118,19 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
                                               assignment.EventRole == EventCharacterRole.Playing &&
                                               db.EventParticipants.Any(participant => participant.Id == assignment.EventParticipantId && participant.SignupStatus == SignupStatus.Confirmed)
                                         orderby entry.TeamId, assignment.EventParticipantId, assignment.RegistrationOrder, assignment.Id
-                                        select new { entry.TeamId, assignment.EventParticipantId, character.DisplayName })
+                                        select new { entry.TeamId, assignment.EventParticipantId, AssignmentId = assignment.Id, character.DisplayName })
             .ToListAsync(cancellationToken);
+        // Display order only: the participant's primary account first, then registration order.
+        var primaryAssignmentIds = (await db.PrimaryCharacters().AsNoTracking()
+                .Where(value => value.EventId == bingoEvent.Id && rosterParticipantIds.Contains(value.ParticipantId))
+                .Select(value => value.AssignmentId)
+                .ToListAsync(cancellationToken)).ToHashSet();
         var playingAccountNamesByParticipant = playingAccountRows
             .GroupBy(value => value.EventParticipantId)
-            .ToDictionary(group => group.Key, group => (IReadOnlyList<string>)group.Select(value => value.DisplayName).ToList());
+            .ToDictionary(group => group.Key, group => (IReadOnlyList<string>)group
+                .Select((value, index) => new { value.DisplayName, value.AssignmentId, index })
+                .OrderByDescending(value => primaryAssignmentIds.Contains(value.AssignmentId)).ThenBy(value => value.index)
+                .Select(value => value.DisplayName).ToList());
         var contributionRows = (await (from contribution in db.SubmissionContributions.AsNoTracking()
                                        join submission in db.Submissions.AsNoTracking() on contribution.SubmissionId equals submission.Id
                                        where teamIds.Contains(contribution.TeamId) && requirementIds.Contains(contribution.RequirementId) &&

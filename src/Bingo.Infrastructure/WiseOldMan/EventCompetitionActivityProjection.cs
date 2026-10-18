@@ -10,6 +10,7 @@ using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Events;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Infrastructure.Signups;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bingo.Infrastructure.WiseOldMan;
@@ -298,11 +299,17 @@ public sealed class CachedEventCompetitionActivityProjection(
                                  orderby assignment.EventParticipantId, assignment.RegistrationOrder, assignment.Id
                                  select new
                                  {
+                                     assignment.Id,
                                      assignment.EventParticipantId,
                                      assignment.OsrsCharacterId,
                                      assignment.RegistrationOrder,
                                      CharacterName = character.DisplayName
                                  }).ToListAsync(cancellationToken);
+        // Display order only: the participant's primary account first, then registration order.
+        var primaryAssignmentIds = (await db.PrimaryCharacters().AsNoTracking()
+                .Where(value => value.EventId == eventId && participantIds.Contains(value.ParticipantId))
+                .Select(value => value.AssignmentId)
+                .ToListAsync(cancellationToken)).ToHashSet();
         var activities = new List<EventCompetitionTeamActivity>(teams.Count);
 
         foreach (var team in teams)
@@ -313,10 +320,10 @@ public sealed class CachedEventCompetitionActivityProjection(
             var teamParticipants = teamParticipantIds
                 .Select(participantId =>
                 {
-                    var expectedAssignments = assignments.Where(value => value.EventParticipantId == participantId).ToList();
+                    var expectedAssignments = assignments.Where(value => value.EventParticipantId == participantId)
+                        .OrderByDescending(value => primaryAssignmentIds.Contains(value.Id)).ThenBy(value => value.RegistrationOrder).ThenBy(value => value.Id).ToList();
                     var participantAssignments = expectedAssignments
                         .Where(value => cachedByCharacter.ContainsKey(value.OsrsCharacterId))
-                        .OrderBy(value => value.RegistrationOrder).ThenBy(value => value.OsrsCharacterId)
                         .Select(value => new EventCompetitionAccountActivity(
                             value.OsrsCharacterId,
                             value.CharacterName,
