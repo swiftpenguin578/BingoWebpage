@@ -148,6 +148,28 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         Assert.Equal(scenario == "estimated", tile.Team.Result.Estimated);
         Assert.Equal(scenario == "unranked", tile.Team.Result.ZeroRecordedApproximation);
         if (status != StatsLuckStatus.Calculated) Assert.Null(tile.Team.Result.Percentage);
+        if (scenario is "estimated" or "unranked") await AssertNoEstimateLabelsHttpAsync(f);
+    }
+
+    // Hotfix 182 (user decision, 18 October 2026): estimate / zero-recorded labels are not shown; the data flags stay.
+    private async Task AssertNoEstimateLabelsHttpAsync(FullStatsFixture f)
+    {
+        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+        {
+            builder.UseSetting("ConnectionStrings:Database", database.GetConnectionString());
+            builder.ConfigureServices(services => { services.RemoveAll<IHostedService>(); services.RemoveAll<TimeProvider>(); services.AddSingleton<TimeProvider>(f.Clock); });
+        });
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+        var route = $"/Events/{f.Event.Slug}/Board/{f.Team.Slug}/Tiles/{f.Tiles[0].Id}";
+        foreach (var path in new[] { route, route + "?handler=Sidebar" })
+        {
+            var html = await client.GetStringAsync(path);
+            var start = html.IndexOf("data-tile-activity", StringComparison.Ordinal);
+            Assert.True(start >= 0);
+            var section = WebUtility.HtmlDecode(html[start..html.IndexOf("</section>", start, StringComparison.Ordinal)]);
+            foreach (var removed in new[] { "Estimated", "estimate", "approximation", "unranked", "Zero recorded" })
+                Assert.DoesNotContain(removed, section, StringComparison.OrdinalIgnoreCase);
+        }
     }
 
     [Fact]

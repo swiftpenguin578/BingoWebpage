@@ -551,16 +551,11 @@
   function luckLabel(entry) {
     return luckValueMode==='kc'?(entry.kcLabel||entry.label):entry.label;
   }
-  function luckAnnotation(entry) {
-    if(!entry?.result)return '';
-    return entry.result.zeroRecordedApproximation?' '+String.fromCharCode(183)+' '+luckText('luckZeroRecorded','zero-recorded estimate'):
-      entry.result.estimated?' '+String.fromCharCode(183)+' '+luckText('luckEstimated','estimated'):'';
-  }
   function luckFormat(value,entry) {
     if(value==null)return 'Unavailable';
     const rounded=roundLuck(value);
     const base=luckValueMode==='kc'?(rounded>0?'+':'')+rounded+' KC':rounded+'%';
-    return base+luckAnnotation(entry);
+    return base;
   }
   function luckPlayers() {
     return [...luck.players].sort((a,b)=>{
