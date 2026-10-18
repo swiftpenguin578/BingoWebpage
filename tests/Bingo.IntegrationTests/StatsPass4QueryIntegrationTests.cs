@@ -509,44 +509,36 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
     }
 
     [Fact]
-    public async Task BoundedLuckContradictoryRollMechanicsLeaveBossAndTileValuesUnavailable()
+    public async Task BoundedLuckMixedRollCountsInOneRollGroupAreScoredAsSeparateRollGroups()
     {
+        // Brief 180 (user decision, 16 October 2026): different roll counts in one roll group are not a
+        // contradiction. The 1-roll and 2-roll drops are each their own roll group.
         var f = await FullStatsFixtureAsync(secondOutcome: true);
-        var firstSource = f.Drops[0].SourceDropId;
         var secondSource = f.Drops[1].SourceDropId;
         await using (var setup = new ApplicationDbContext(options))
             await setup.Database.ExecuteSqlInterpolatedAsync($"UPDATE board_approval_requirement_drop_snapshots SET rolls_per_completion = 2 WHERE source_drop_id = {secondSource}");
         await ApproveStatsAsync(f, await PendingStatsAsync(f, 0, 0, 10, itemIndex: 0));
         await ApproveStatsAsync(f, await PendingStatsAsync(f, 0, 0, 11, itemIndex: 1));
         await SyncStatsAsync(f, 10);
+        // 10 KC x 1 roll at 1/100 and 10 KC x 2 rolls at 1/200, two drops received.
+        var expectedScore = LuckScoreCalculator.Calculate([new LuckBinomialComponent(10, .01m), new LuckBinomialComponent(20, .005m)], 2)!.Value;
 
         var stats = await ReadStatsAsync(f);
         var activity = Assert.Single(stats.Luck.Result.Activities!);
-        Assert.Equal(StatsLuckStatus.Incomplete, activity.Status);
-        Assert.Null(activity.Expected);
-        Assert.Null(activity.Kc);
-        Assert.Null(activity.Percentage);
-        Assert.Null(activity.KcDifference);
+        Assert.Equal(StatsLuckStatus.Calculated, activity.Status);
+        Assert.Equal(.2m, activity.Expected);
+        Assert.Equal(10m, activity.Kc);
+        Assert.InRange(activity.Percentage!.Value, expectedScore - .00000001m, expectedScore + .00000001m);
+        Assert.NotNull(activity.KcDifference);
+        Assert.Equal(.2m, stats.Luck.Result.Expected);
+        AssertLuckScore(expectedScore, stats.Luck.Result);
 
         var tile = await ReadTileActivityAsync(f, 0);
-        Assert.Equal(StatsLuckStatus.Incomplete, tile.Team.Result.Status);
-        Assert.Null(tile.Team.Result.Percentage);
-        Assert.Null(tile.Team.Result.KcDifference);
-        var tileActivity = Assert.Single(tile.Team.Result.Activities!);
-        Assert.Equal(StatsLuckStatus.Incomplete, tileActivity.Status);
-        Assert.Null(tileActivity.Expected);
-        Assert.Null(tileActivity.Kc);
-        Assert.Null(tileActivity.Percentage);
-        Assert.Null(tileActivity.KcDifference);
-        var metric = Assert.Single(tile.Team.Metrics);
-        Assert.Equal(StatsLuckStatus.Incomplete, metric.Status);
-        Assert.Null(metric.Count);
-        Assert.Null(metric.Percentage);
-        Assert.Null(metric.KcDifference);
-        var player = Assert.Single(tile.Team.Players);
-        Assert.Equal(StatsLuckStatus.Incomplete, player.Result.Status);
-        Assert.Null(player.Result.Percentage);
-        Assert.Null(player.Result.KcDifference);
+        Assert.Equal(.2m, tile.Team.Result.Expected);
+        AssertLuckScore(expectedScore, tile.Team.Result);
+        Assert.Equal(StatsLuckStatus.Calculated, Assert.Single(tile.Team.Result.Activities!).Status);
+        Assert.Equal(10m, Assert.Single(tile.Team.Metrics).Count);
+        AssertLuckScore(expectedScore, Assert.Single(tile.Team.Players).Result);
     }
 
     [Theory]

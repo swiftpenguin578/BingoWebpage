@@ -19,7 +19,7 @@ namespace Bingo.IntegrationTests;
 public sealed partial class Slice10Pass102CompetitionSynchronizationTests
 {
     [Fact]
-    public async Task StatsPass4Lkp1MixedUnsupportedOutcomeIsIncompleteAndReplaceableUntilComplete()
+    public async Task StatsPass4Lkp1MixedUnsupportedOutcomeIsCalculatedFromAvailableDataAndReplaceableUntilComplete()
     {
         var f = await FullStatsFixtureAsync(secondOutcome: true, secondMetric: "unsupported_fixture", players: 2,
             clockNow: new DateTimeOffset(2026, 10, 7, 12, 0, 0, TimeSpan.Zero).AddTicks(123450));
@@ -29,13 +29,15 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         await SyncStatsAsync(f, 100);
         var first = await ReadLkp1CheckpointAsync();
         var mixed = await ReadStatsAsync(f);
-        AssertLkp1Incomplete(mixed.Luck.Result);
+        // Brief 180 item 2: calculated from the supported boss; the unsupported boss keeps its waiting line.
+        AssertLkp1Available(mixed.Luck.Result, 2m);
         var team = Assert.Single(mixed.Luck.Teams);
-        AssertLkp1Incomplete(team.Result);
+        AssertLkp1Available(team.Result, 2m);
         Assert.Equal(2, team.Players.Count);
         Assert.All(team.Players, player =>
         {
-            AssertLkp1Incomplete(player.Result);
+            AssertLkp1Available(player.Result, 1m);
+            Assert.Equal(StatsLuckStatus.WaitingForActivityData, player.Result.Activities!.Single(x => x.BossId == f.SecondBoss!.Id).Status);
             var supported = Assert.Single(player.Sources, source => source.ItemId == f.Items[0].Id);
             Assert.Equal(StatsLuckStatus.Calculated, supported.Status);
             Assert.Equal(100m, supported.Activity); Assert.Equal(1m, supported.Expected);
@@ -56,7 +58,7 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         Assert.NotEqual(first.Payload, second.Payload);
         Assert.Equal(f.Clock.GetUtcNow(), second.CalculatedAt);
         var replaced = await ReadStatsAsync(f);
-        AssertLkp1Incomplete(replaced.Luck.Result);
+        AssertLkp1Available(replaced.Luck.Result, 4m);
         Assert.Equal(second.ActivityBatchId, replaced.Luck.ActivityBatchId);
         Assert.All(replaced.Luck.Teams.SelectMany(t => t.Players), player =>
             Assert.Equal(200m, player.Sources.Single(source => source.ItemId == f.Items[0].Id).Activity));
@@ -93,9 +95,12 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         await SyncStatsAsync(f, Lkp1Response(f, new(0, 100, 100), null));
         var incomplete = await ReadLkp1CheckpointAsync();
         var mixed = await ReadStatsAsync(f);
-        AssertLkp1Incomplete(mixed.Luck.Result);
-        AssertLkp1Incomplete(Assert.Single(mixed.Luck.Teams).Result);
-        AssertLkp1Incomplete(Assert.Single(Assert.Single(mixed.Luck.Teams).Players).Result);
+        // Brief 180 item 2: calculated from the boss with KC; the missing boss keeps its waiting line.
+        AssertLkp1Available(mixed.Luck.Result, 1m);
+        AssertLkp1Available(Assert.Single(mixed.Luck.Teams).Result, 1m);
+        var player = Assert.Single(Assert.Single(mixed.Luck.Teams).Players);
+        AssertLkp1Available(player.Result, 1m);
+        Assert.Equal(StatsLuckStatus.WaitingForActivityData, player.Result.Activities!.Single(x => x.BossId == f.SecondBoss!.Id).Status);
         Assert.All(mixed.Luck.Sources, source => Assert.Null(source.UnavailableReason));
         f.Clock.Advance(TimeSpan.FromHours(2));
         await SyncStatsAsync(f, Lkp1Response(f, new(0, 200, 200), new(0, 100, 100)));
@@ -226,10 +231,10 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
         return await db.EventStatsLuckCheckpoints.AsNoTracking().SingleAsync();
     }
 
-    private static void AssertLkp1Incomplete(StatsLuckResult result)
+    private static void AssertLkp1Available(StatsLuckResult result, decimal expected)
     {
-        Assert.Equal(StatsLuckStatus.Incomplete, result.Status);
-        Assert.Null(result.Expected); Assert.Null(result.Percentage); Assert.Null(result.KcDifference);
+        Assert.Equal(StatsLuckStatus.Calculated, result.Status);
+        Assert.Equal(expected, result.Expected); Assert.NotNull(result.Percentage); Assert.NotNull(result.KcDifference);
     }
 
     private static void AssertLkp1RetainedCheckpoint(EventStatsLuckCheckpoint original, EventStatsLuckCheckpoint retained)
