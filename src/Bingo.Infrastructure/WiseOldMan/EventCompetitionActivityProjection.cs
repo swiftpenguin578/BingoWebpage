@@ -10,6 +10,7 @@ using Bingo.Domain.Signups;
 using Bingo.Infrastructure.Boards;
 using Bingo.Infrastructure.Events;
 using Bingo.Infrastructure.Persistence;
+using Bingo.Infrastructure.Signups;
 using Microsoft.EntityFrameworkCore;
 
 namespace Bingo.Infrastructure.WiseOldMan;
@@ -115,10 +116,11 @@ public sealed class CachedEventCompetitionActivityProjection(
                                      assignment.Id,
                                      CharacterName = character.DisplayName
                                  }).ToListAsync(cancellationToken);
+        var primaryAssignmentIds = await db.PrimaryAssignmentIdsAsync(eventId, participantIds, cancellationToken);
         var assignmentsByParticipant = assignments
             .GroupBy(value => value.EventParticipantId)
             .ToDictionary(value => value.Key, value => value
-                .OrderBy(item => item.RegistrationOrder).ThenBy(item => item.Id)
+                .OrderByDescending(item => primaryAssignmentIds.Contains(item.Id)).ThenBy(item => item.RegistrationOrder).ThenBy(item => item.Id)
                 .GroupBy(item => item.OsrsCharacterId)
                 .Select(item => item.First())
                 .ToList());
@@ -298,11 +300,14 @@ public sealed class CachedEventCompetitionActivityProjection(
                                  orderby assignment.EventParticipantId, assignment.RegistrationOrder, assignment.Id
                                  select new
                                  {
+                                     assignment.Id,
                                      assignment.EventParticipantId,
                                      assignment.OsrsCharacterId,
                                      assignment.RegistrationOrder,
                                      CharacterName = character.DisplayName
                                  }).ToListAsync(cancellationToken);
+        // Display order only: the participant's primary account first, then registration order.
+        var primaryAssignmentIds = await db.PrimaryAssignmentIdsAsync(eventId, participantIds, cancellationToken);
         var activities = new List<EventCompetitionTeamActivity>(teams.Count);
 
         foreach (var team in teams)
@@ -313,10 +318,10 @@ public sealed class CachedEventCompetitionActivityProjection(
             var teamParticipants = teamParticipantIds
                 .Select(participantId =>
                 {
-                    var expectedAssignments = assignments.Where(value => value.EventParticipantId == participantId).ToList();
+                    var expectedAssignments = assignments.Where(value => value.EventParticipantId == participantId)
+                        .OrderByDescending(value => primaryAssignmentIds.Contains(value.Id)).ThenBy(value => value.RegistrationOrder).ThenBy(value => value.Id).ToList();
                     var participantAssignments = expectedAssignments
                         .Where(value => cachedByCharacter.ContainsKey(value.OsrsCharacterId))
-                        .OrderBy(value => value.RegistrationOrder).ThenBy(value => value.OsrsCharacterId)
                         .Select(value => new EventCompetitionAccountActivity(
                             value.OsrsCharacterId,
                             value.CharacterName,
