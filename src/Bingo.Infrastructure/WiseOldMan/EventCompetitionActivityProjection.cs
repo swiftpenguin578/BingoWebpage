@@ -116,10 +116,11 @@ public sealed class CachedEventCompetitionActivityProjection(
                                      assignment.Id,
                                      CharacterName = character.DisplayName
                                  }).ToListAsync(cancellationToken);
+        var primaryAssignmentIds = await db.PrimaryAssignmentIdsAsync(eventId, participantIds, cancellationToken);
         var assignmentsByParticipant = assignments
             .GroupBy(value => value.EventParticipantId)
             .ToDictionary(value => value.Key, value => value
-                .OrderBy(item => item.RegistrationOrder).ThenBy(item => item.Id)
+                .OrderByDescending(item => primaryAssignmentIds.Contains(item.Id)).ThenBy(item => item.RegistrationOrder).ThenBy(item => item.Id)
                 .GroupBy(item => item.OsrsCharacterId)
                 .Select(item => item.First())
                 .ToList());
@@ -306,10 +307,7 @@ public sealed class CachedEventCompetitionActivityProjection(
                                      CharacterName = character.DisplayName
                                  }).ToListAsync(cancellationToken);
         // Display order only: the participant's primary account first, then registration order.
-        var primaryAssignmentIds = (await db.PrimaryCharacters().AsNoTracking()
-                .Where(value => value.EventId == eventId && participantIds.Contains(value.ParticipantId))
-                .Select(value => value.AssignmentId)
-                .ToListAsync(cancellationToken)).ToHashSet();
+        var primaryAssignmentIds = await db.PrimaryAssignmentIdsAsync(eventId, participantIds, cancellationToken);
         var activities = new List<EventCompetitionTeamActivity>(teams.Count);
 
         foreach (var team in teams)

@@ -231,6 +231,33 @@ public sealed partial class Slice10Pass102CompetitionSynchronizationTests
             Assert.Equal([15m, 15m], projectedParticipant.Accounts.Select(value => value.RecordedActivity).ToArray());
             Assert.Equal([10m, 10m], projectedParticipant.Accounts.Select(value => value.Start).ToArray());
             Assert.Equal([25m, 25m], projectedParticipant.Accounts.Select(value => value.End).ToArray());
+            // Primary already first (registration order 0): unchanged order and name.
+            var unchanged = Assert.Single(projectedTeam.Participants, value => value.ParticipantName == "Fixture Three");
+            Assert.Equal("Fixture Three", unchanged.ParticipantName);
+            Assert.Equal(["Fixture Three", "Fixture Four"], unchanged.Accounts.Select(value => value.CharacterName).ToArray());
+            // Primary registered later: move the primary-question link to the second account, then restore it.
+            async Task MovePrimaryLinkAsync(Guid fromCharacterId, Guid toCharacterId)
+            {
+                await using var move = new ApplicationDbContext(options);
+                var questionId = await move.EventParticipantCharacters.Where(value => value.OsrsCharacterId == fromCharacterId).Select(value => value.SignupQuestionId).SingleAsync();
+                var from = await move.EventParticipantCharacters.SingleAsync(value => value.OsrsCharacterId == fromCharacterId);
+                var to = await move.EventParticipantCharacters.SingleAsync(value => value.OsrsCharacterId == toCharacterId);
+                move.Entry(from).Property(value => value.SignupQuestionId).CurrentValue = null;
+                await move.SaveChangesAsync();
+                move.Entry(to).Property(value => value.SignupQuestionId).CurrentValue = questionId;
+                await move.SaveChangesAsync();
+            }
+            await MovePrimaryLinkAsync(secondCharacters[0].Id, secondCharacters[1].Id);
+            await using (var flippedDb = new ApplicationDbContext(options))
+            {
+                var flipped = await new CachedEventCompetitionActivityProjection(flippedDb, f.Clock).GetMetricLeaderboardAsync(f.Event.Id, "vorkath");
+                var flippedTeam = Assert.Single(flipped.Teams, value => value.TeamId == team.Id);
+                var flippedParticipant = Assert.Single(flippedTeam.Participants, value => value.ParticipantId == unchanged.ParticipantId);
+                Assert.Equal("Fixture Four", flippedParticipant.ParticipantName);
+                Assert.Equal(["Fixture Four", "Fixture Three"], flippedParticipant.Accounts.Select(value => value.CharacterName).ToArray());
+                Assert.Equal(unchanged.TotalGained, flippedParticipant.TotalGained);
+            }
+            await MovePrimaryLinkAsync(secondCharacters[1].Id, secondCharacters[0].Id);
             var sourceRequest = await projectionDb.LuckSourceRequestAsync(f.Event.Id);
             Assert.True(sourceRequest.SourcesAvailable);
             Assert.Equal("vorkath", sourceRequest.Outcomes.Single(value => value.SourceDropId == f.Drops[0].Id).Basis!.Metric);

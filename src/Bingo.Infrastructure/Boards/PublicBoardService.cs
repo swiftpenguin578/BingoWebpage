@@ -121,10 +121,7 @@ public sealed class PublicBoardService(ApplicationDbContext db, TimeProvider tim
                                         select new { entry.TeamId, assignment.EventParticipantId, AssignmentId = assignment.Id, character.DisplayName })
             .ToListAsync(cancellationToken);
         // Display order only: the participant's primary account first, then registration order.
-        var primaryAssignmentIds = (await db.PrimaryCharacters().AsNoTracking()
-                .Where(value => value.EventId == bingoEvent.Id && rosterParticipantIds.Contains(value.ParticipantId))
-                .Select(value => value.AssignmentId)
-                .ToListAsync(cancellationToken)).ToHashSet();
+        var primaryAssignmentIds = await db.PrimaryAssignmentIdsAsync(bingoEvent.Id, rosterParticipantIds, cancellationToken);
         var playingAccountNamesByParticipant = playingAccountRows
             .GroupBy(value => value.EventParticipantId)
             .ToDictionary(group => group.Key, group => (IReadOnlyList<string>)group

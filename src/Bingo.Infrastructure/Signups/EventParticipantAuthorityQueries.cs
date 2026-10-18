@@ -105,6 +105,14 @@ public static class EventParticipantAuthorityQueries
             .Concat(compatibilityUnlinkedPrimary);
     }
 
+    // Display order only: callers sort a participant's Playing assignments primary-first, then registration order.
+    public static async Task<HashSet<Guid>> PrimaryAssignmentIdsAsync(
+        this ApplicationDbContext db, Guid eventId, IReadOnlyCollection<Guid> participantIds, CancellationToken cancellationToken) =>
+        (await db.PrimaryCharacters().AsNoTracking()
+            .Where(value => value.EventId == eventId && participantIds.Contains(value.ParticipantId))
+            .Select(value => value.AssignmentId)
+            .ToListAsync(cancellationToken)).ToHashSet();
+
     public static IQueryable<EventParticipantAuthority> AdminPrimaryCharacters(this ApplicationDbContext db)
     {
         // Any participant with a current PrimaryRegularAccount linkage has an
