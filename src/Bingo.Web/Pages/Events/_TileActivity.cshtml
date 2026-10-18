@@ -10,10 +10,10 @@
     };
     string Luck(StatsLuckResult result) => result.Percentage is { } percent ? percent.ToString("0.#") + "%" : "—";
     string LuckDescription(StatsLuckResult result) => result.Percentage is null ? Status(result.Status)
-        : result.Estimated ? T["Estimated Luck"] : T["Luck"];
+        : T["Luck"];
     string MetricLuck(StatsTileKc? metric) => metric?.Percentage is { } percent ? percent.ToString("0.#") + "%" : "—";
     string MetricLuckDescription(StatsTileKc? metric) => metric?.Percentage is null ? Status(metric?.Status ?? StatsLuckStatus.WaitingForActivityData)
-        : metric.Estimated ? T["Estimated Luck"] : T["Luck"];
+        : T["Luck"];
     string LuckClass(StatsLuckResult result) => result.Percentage is not { } percent ? ""
         : decimal.Round(percent, 1, MidpointRounding.AwayFromZero) < 50 ? "tile-kc-negative" : "public-ui-positive-delta--success";
     string MetricLuckClass(StatsTileKc? metric) => metric?.Percentage is not { } percent ? ""
@@ -21,7 +21,7 @@
     string Count(StatsTileKc? metric) => metric?.Count is { } value ? value.ToString("+#,##0;-#,##0;0") : "—";
     string CountDescription(StatsTileKc? metric) => metric is null ? Status(StatsLuckStatus.WaitingForActivityData)
         : metric.Count is null ? Status(metric.Status)
-        : metric.Estimated ? T["Estimated KC"] : metric.ZeroRecordedApproximation ? T["Zero recorded activity is an approximation"] : T["KC"];
+        : T["KC"];
 }
 <section class="tile-context-sidebar__section tile-kc-section" data-tile-activity>
     <h2 class="team-rail-heading">@T["KC & Luck"]</h2>
@@ -86,14 +86,6 @@
         @if (activity.Team.Result.Percentage is null)
         {
             <p class="team-rail-supporting tile-kc-status">@Status(activity.Team.Result.Status)</p>
-        }
-        @if (activity.Team.Result.Estimated)
-        {
-            <p class="team-rail-supporting tile-kc-status">@T["Estimated: unranked starting KC is treated as zero."]</p>
-        }
-        @if (activity.Team.Result.ZeroRecordedApproximation)
-        {
-            <p class="team-rail-supporting tile-kc-status">@T["Zero recorded activity is an approximation."]</p>
         }
         @if (activity.Team.Players.Any(player => player.Metrics.Any(metric => metric.Count is > 0)))
         {

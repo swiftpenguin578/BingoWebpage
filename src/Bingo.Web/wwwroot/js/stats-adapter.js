@@ -8,8 +8,8 @@
   const safeImage=value=>typeof value==='string'&&(/^(https?:\/\/)/i.test(value)||/^\/(?!\/)/.test(value))?value:null;
   const statusText=result=>({NoEligibleActivity:'No eligible activity',WaitingForActivityData:'Waiting for activity',WaitingForActivityUpdate:'Waiting for activity update',Incomplete:'Incomplete data'}[result.status]||'Unavailable');
   const rounded=value=>{const number=Number(value.toFixed(1));return Object.is(number,-0)?0:number};
-  const luckText=result=>result.percentage!=null?`${rounded(result.percentage)}%${result.zeroRecordedApproximation?' · zero-recorded estimate':result.estimated?' · estimated':''}`:statusText(result);
-  const kcText=result=>result.kcDifference!=null?`${rounded(result.kcDifference)>0?'+':''}${rounded(result.kcDifference)} KC${result.zeroRecordedApproximation?' · zero-recorded estimate':result.estimated?' · estimated':''}`:statusText(result);
+  const luckText=result=>result.percentage!=null?`${rounded(result.percentage)}%`:statusText(result);
+  const kcText=result=>result.kcDifference!=null?`${rounded(result.kcDifference)>0?'+':''}${rounded(result.kcDifference)} KC`:statusText(result);
   const playerKey=(teamId,playerId)=>`${teamId}/${playerId}`;
   function adapt(payload) {
     const stats=payload.stats,artwork=new Map(payload.artwork.map(item=>[item.itemId,item]));
